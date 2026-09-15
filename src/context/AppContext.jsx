@@ -769,6 +769,37 @@ export const AppProvider = ({ children }) => {
   );
 
   /**
+   * Guarda la nota que el cliente escribe en UN ejercicio de UNA sesión.
+   *
+   * Vive aquí, al lado de `persistSet`, por el mismo motivo que ella: es de las
+   * pocas escrituras que hay que poder REENVIAR al arrancar, y quien reenvía es
+   * el efecto de más abajo, que no alcanza a las funciones de `useWorkout`.
+   *
+   * Y hay que poder reenviarla porque lo que se perdería es texto que alguien
+   * escribió —«bajé el peso: el hombro iba justo»— y ninguna pantalla lo vuelve
+   * a pedir. La clave es por ejercicio: dos notas de la misma sesión son dos
+   * cosas distintas y no pueden sustituirse en la cola.
+   */
+  const persistExerciseNote = useCallback(
+    (key, clientId, args) => {
+      queue.enqueue(
+        key,
+        args,
+        (data) =>
+          supabase.rpc('log_exercise_note', {
+            p_client: clientId,
+            p_week: data.weekNumber,
+            p_session_id: data.sessionId,
+            p_exercise_id: data.exerciseId,
+            p_note: String(data.note ?? ''),
+          }),
+        { immediate: false }
+      );
+    },
+    [queue]
+  );
+
+  /**
    * Pide al servidor la semana siguiente, y se queda con LA SUYA.
    *
    * ── Por qué no basta con encolar la llamada ────────────────────────────────
@@ -861,13 +892,15 @@ export const AppProvider = ({ children }) => {
       const partes = key.split(':');
       if (partes[0] === 'set' && partes[1]) {
         persistSet(key, partes[1], payload);
+      } else if (partes[0] === 'notaej' && partes[1]) {
+        persistExerciseNote(key, partes[1], payload);
       } else if (partes[0] === 'continue' && partes[1]) {
         persistContinue(key, partes[1], payload);
       } else if (DOMINIOS.includes(partes[0]) && partes[1]) {
         persist(partes[0], partes[1], payload, { immediate: true });
       }
     }
-  }, [session, persist, persistSet, persistContinue]);
+  }, [session, persist, persistSet, persistExerciseNote, persistContinue]);
 
   // ── Carga inicial ────────────────────────────────────────────────────────
 
@@ -1724,7 +1757,7 @@ export const AppProvider = ({ children }) => {
     hayTabla: hayCajon,
     guardarEnCajon,
     renombrarEnCajon,
-    tirarDelCajon,
+    borrarDelCajon,
     cabeEnCajon,
   } = useCajon({ session, team, coachPrefs, isCoach: profileRole === 'coach' });
 
@@ -2169,6 +2202,9 @@ export const AppProvider = ({ children }) => {
     logSessionSet,
     updateSession,
     updateSessionMeta,
+    closeSession,
+    discardSession,
+    logExerciseNote,
     updateMobilityDrills,
     removeSession,
     addExercise,
@@ -2243,6 +2279,7 @@ export const AppProvider = ({ children }) => {
     setNutrition,
     persist,
     persistSet,
+    persistExerciseNote,
     persistContinue,
     queue,
     ensureProgram,
@@ -2279,6 +2316,7 @@ export const AppProvider = ({ children }) => {
     updateMealName,
     updateMealNote,
     updateMealTarget,
+    toggleMealFijo,
     addMealOption,
     setMealOptions,
     renameMealOption,
@@ -2296,13 +2334,19 @@ export const AppProvider = ({ children }) => {
     swapFood,
     setFoodEquivalences,
     setFoodDisplay,
+    setFoodFixed,
   } = useNutrition({ nutritionRef, setNutrition, persist });
 
   // ── Antropometría ────────────────────────────────────────────────────────
 
   /* En su gancho (`useAnthropometry.js`), con la frontera de `useClients.js`:
      recibe `persist` y el estado espejado, que sigue siendo del proveedor. */
-  const { addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog } = useAnthropometry({
+  const {
+    addAnthropometryLog,
+    removeAnthropometryLog,
+    updateAnthropometryLog,
+    apuntarMedida,
+  } = useAnthropometry({
     anthroRef,
     setAnthropometry,
     persist,
@@ -2696,6 +2740,9 @@ export const AppProvider = ({ children }) => {
     logSessionSet,
     updateSession,
     updateSessionMeta,
+    closeSession,
+    discardSession,
+    logExerciseNote,
     updateMobilityDrills,
     removeSession,
     startProgram,
@@ -2765,6 +2812,7 @@ export const AppProvider = ({ children }) => {
     updateMealName,
     updateMealNote,
     updateMealTarget,
+    toggleMealFijo,
     applyRescaledMeals,
     copyVariantMeals,
     copyMealToVariant,
@@ -2785,12 +2833,14 @@ export const AppProvider = ({ children }) => {
     swapFood,
     setFoodEquivalences,
     setFoodDisplay,
+    setFoodFixed,
     editFood,
 
     // Antropometría
     addAnthropometryLog,
     removeAnthropometryLog,
     updateAnthropometryLog,
+    apuntarMedida,
 
     // Bibliotecas
     upsertLibraryExercise,
@@ -2834,7 +2884,7 @@ export const AppProvider = ({ children }) => {
     // El cajón: guardar con nombre, renombrar y tirar (0112, `domain/cajon`)
     guardarEnCajon,
     renombrarEnCajon,
-    tirarDelCajon,
+    borrarDelCajon,
     cabeEnCajon,
 
     // Lo mandado: acciones sueltas sobre personas concretas (0105)

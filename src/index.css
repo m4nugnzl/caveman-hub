@@ -55,4 +55,18 @@
    su traje —`.q-card`, `.selector`, `.ajustes-pregunta`— y delante de
    `piezas.css`, que sigue siendo el último. */
 @import './styles/formularios.css';
+/*
+  ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
+
+  Dos hojas y no una porque son dos diseños distintos y así lo pidió el dueño:
+  el monitor va por CAJAS con canto sobre lienzo frío (`docs/estudio-cajas.html`)
+  y el teléfono es la app de registro sobre papel cálido con la tarjeta sin
+  canto (`docs/estudio-la-app-del-cliente.html`).
+
+  Van al final y con todo prefijado —`pc-` y `tel-`— para que ni uno ni otro
+  pisen el traje del panel del entrenador: los dos redefinen su paleta DENTRO
+  de su raíz (`.pc-portal`, `.tel-portal`) en vez de tocar `tokens.css`.
+*/
+@import './styles/portal-pc.css';
+@import './styles/portal-telefono.css';
 @import './styles/piezas.css';

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { TIPO } from '@/lib/portapapeles';
+
+import { dayKcals } from './nutrition';
 import {
   areaDe,
   consecuenciaDe,
@@ -29,6 +31,20 @@ const comida = (nombre, foods = [{ name: 'Avena', grams: 80 }]) => ({
 });
 
 const dieta = (dias) => ({ days: dias });
+
+/*
+  UN MENÚ QUE SE PUEDE MEDIR: arroz y aceite con macros de verdad, 357 kcal por
+  cada 100 g de arroz. Con 500 g suma unas 1.965 kcal, que es lo que tiene
+  pautado quien lo manda — y esa es la condición de toda esta parte: el ajuste
+  del reparto mide lo que SUMA el menú, así que un menú de juguete de 320 kcal
+  con un objetivo de 2.000 no prueba nada. Ver `aLoPautado`.
+*/
+const menu = (arroz = 500) => [
+  comida('Desayuno', [
+    { name: 'Arroz', grams: arroz, proteinPer100: 7, carbsPer100: 80, fatsPer100: 1 },
+    { name: 'Aceite', grams: 20, proteinPer100: 0, carbsPer100: 0, fatsPer100: 100 },
+  ]),
+];
 
 describe('la tabla: qué necesita cada pieza', () => {
   it('las seis piezas se reparten; el plato todavía no', () => {
@@ -241,7 +257,7 @@ describe('la dieta: añade, y reescala al objetivo de cada uno', () => {
     tipo: TIPO.DIA_DIETA,
     titulo: 'Menú de lunes',
     origen: { objetivoKcals: 2000 },
-    carga: { meals: [comida('Desayuno', [{ name: 'Arroz', grams: 100, carbsPer100: 80 }])] },
+    carga: { meals: menu() },
   };
 
   it('un día no toca ninguno de los que hay: los suma', () => {
@@ -257,15 +273,45 @@ describe('la dieta: añade, y reescala al objetivo de cada uno', () => {
   it('el menú entra ajustado al objetivo del destinatario', () => {
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
     const { plan, filas } = consecuenciaDe({ pieza: unDia, datos });
-    expect(filas.at(-1).texto).toBe('Reescalado de 2000 a 3000 kcal');
-    expect(plan.meals[0].options[0].foods[0].grams).toBeGreaterThan(100);
+    expect(filas.at(-1).texto).toBe('Ajustado a sus 3000 kcal');
+    expect(plan.meals[0].options[0].foods[0].grams).toBeGreaterThan(500);
+  });
+
+  /*
+    ══ Y NO HEREDA EL DESCUADRE DEL QUE LA MANDA ═══════════════════════════════
+    Escalando por el SALTO entre los dos objetivos, la distancia que el menú de
+    origen tuviera con el suyo viajaba intacta: un menú de 2.450 sobre 2.000
+    pautados llegaba a alguien de 2.000 sumando otra vez 2.450, y a alguien de
+    3.000 sumando 3.675. Apuntando a lo pautado, llega en lo pautado. Es la
+    misma ley que `rescaleMeals` aplica en la ventana del objetivo.
+  */
+  it('no hereda la distancia que el menú tuviera con su propio objetivo', () => {
+    /* 636 g de arroz: unas 2.450 kcal con 2.000 pautadas en origen. */
+    const sobrado = { ...unDia, carga: { meals: menu(636) } };
+    expect(Math.round(dayKcals(sobrado.carga.meals))).toBeGreaterThan(2400);
+
+    const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 2000 }, meals: [] }]);
+    const { plan, filas } = consecuenciaDe({ pieza: sobrado, datos });
+
+    expect(filas.at(-1).texto).toBe('Ajustado a sus 2000 kcal');
+    /* Dentro del escalón de cocina, que es el error que tiene que quedar. */
+    expect(Math.abs(dayKcals(plan.meals) - 2000)).toBeLessThan(80);
+  });
+
+  /* Y un menú que ya está en lo suyo no se toca ni se comenta: en reposo no hay
+     nada que decir. Ver la ley del reposo. */
+  it('un menú que ya cuadra no se mueve y no ocupa fila', () => {
+    const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 1965 }, meals: [] }]);
+    const { plan, filas } = consecuenciaDe({ pieza: unDia, datos });
+    expect(plan.meals[0].options[0].foods[0].grams).toBe(500);
+    expect(filas.some((f) => f.texto.includes('kcal'))).toBe(false);
   });
 
   it('a quien no tiene objetivo le entra tal cual, y se dice', () => {
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: {}, meals: [] }]);
     const { plan, filas } = consecuenciaDe({ pieza: unDia, datos });
     expect(filas.at(-1).texto).toContain('No tiene objetivo puesto');
-    expect(plan.meals[0].options[0].foods[0].grams).toBe(100);
+    expect(plan.meals[0].options[0].foods[0].grams).toBe(500);
   });
 
   const unaComida = {
@@ -331,7 +377,7 @@ describe('la dieta entera: la única que borra', () => {
   });
 
   const dias = [
-    { name: 'Alto', proporcion: 1, meals: [comida('Desayuno', [{ name: 'Arroz', grams: 100, carbsPer100: 80 }])] },
+    { name: 'Alto', proporcion: 1, meals: menu() },
     { name: 'Bajo', proporcion: 0.8, meals: [comida('Cena')] },
   ];
 
@@ -367,12 +413,31 @@ describe('la dieta entera: la única que borra', () => {
 
   /* La firma: lo que viaja entre los días es la PROPORCIÓN, no las cifras. Un
      ciclado del 20 % puesto en alguien de 3.000 sigue siendo del 20 %. */
-  it('cada día se reescala a su parte del objetivo del destinatario', () => {
+  it('cada día se ajusta a su parte del objetivo del destinatario', () => {
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
     const { plan } = consecuenciaDe({ pieza: laDieta(dias), datos });
-    /* El primero va de 2000 a 3000: el arroz sube. */
-    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBeGreaterThan(100);
+    /* El primero va a sus 3000: el arroz sube. */
+    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBeGreaterThan(500);
+    expect(Math.abs(dayKcals(plan.days[0].meals) - 3000)).toBeLessThan(100);
     expect(plan.days[1].proporcion).toBe(0.8);
+  });
+
+  /*
+    LA PROPORCIÓN, MEDIDA: un ciclado del 20 % puesto en alguien de 3.000 tiene
+    que seguir siendo del 20 %, y el día bajo tiene que caer en SUS 2.400 — no
+    en el 80 % de lo que sumara el menú del que la manda.
+  */
+  it('el día bajo cae en su parte, no en la del que la manda', () => {
+    const ciclado = [
+      { name: 'Alto', proporcion: 1, meals: menu() },
+      { name: 'Bajo', proporcion: 0.8, meals: menu(400) },
+    ];
+    const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
+    const { plan, filas } = consecuenciaDe({ pieza: laDieta(ciclado), datos });
+
+    expect(Math.abs(dayKcals(plan.days[0].meals) - 3000)).toBeLessThan(100);
+    expect(Math.abs(dayKcals(plan.days[1].meals) - 2400)).toBeLessThan(100);
+    expect(filas.some((f) => f.texto.includes('guardan la proporción'))).toBe(true);
   });
 
   /*
@@ -395,13 +460,13 @@ describe('la dieta entera: la única que borra', () => {
     const { filas } = consecuenciaDe({ pieza: laDieta(dias), datos });
     /* El primero lleva arroz con macros y se mueve; el segundo, avena sin
        macros, no tiene kcal que repartir. */
-    expect(filas.some((f) => f.texto === 'Reescalados 1 de 2 días a sus 3000 kcal; el resto entra tal cual')).toBe(true);
+    expect(filas.some((f) => f.texto === 'Ajustados 1 de 2 días a sus 3000 kcal; el resto entra tal cual')).toBe(true);
   });
 
   it('con todos los días movidos lo dice entero', () => {
     const conMacros = [
-      { name: 'Alto', proporcion: 1, meals: [comida('A', [{ name: 'Arroz', grams: 100, carbsPer100: 80 }])] },
-      { name: 'Bajo', proporcion: 0.8, meals: [comida('B', [{ name: 'Pasta', grams: 100, carbsPer100: 75 }])] },
+      { name: 'Alto', proporcion: 1, meals: menu() },
+      { name: 'Bajo', proporcion: 0.8, meals: menu(400) },
     ];
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
     const { filas } = consecuenciaDe({ pieza: laDieta(conMacros), datos });
@@ -412,7 +477,7 @@ describe('la dieta entera: la única que borra', () => {
      ha pasado: «1 de 2» por un día en blanco es un aviso falso. */
   it('los días sin menú no cuentan para el reparto', () => {
     const conVacio = [
-      { name: 'Alto', proporcion: 1, meals: [comida('A', [{ name: 'Arroz', grams: 100, carbsPer100: 80 }])] },
+      { name: 'Alto', proporcion: 1, meals: menu() },
       { name: 'Bajo', proporcion: 0.8, meals: [] },
     ];
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
@@ -425,7 +490,21 @@ describe('la dieta entera: la única que borra', () => {
     const datos = dieta([{ id: 'd1', name: 'Uno', targets: {}, meals: [] }]);
     const { plan, filas } = consecuenciaDe({ pieza: laDieta(dias), datos });
     expect(filas.some((f) => f.texto.includes('No tiene objetivo puesto'))).toBe(true);
-    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBe(100);
+    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBe(500);
+  });
+
+  /*
+    ── Y SIN OBJETIVO DE ORIGEN TAMPOCO SE TOCA, que es la única fila donde el
+    objetivo del que manda sigue haciendo falta ────────────────────────────────
+    El ajuste ya no lo usa para escalar, pero sin él la PROPORCIÓN de cada día
+    viene marcada con un 1 y no hay forma de distinguir un plan plano de un
+    ciclado. Llevarlos a todos a la misma cifra aplanaría el segundo.
+  */
+  it('sin objetivo de origen no se toca ningún día, y se dice', () => {
+    const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [] }]);
+    const { plan, filas } = consecuenciaDe({ pieza: laDieta(dias, 0), datos });
+    expect(filas.some((f) => f.texto === 'Sin objetivo de origen: entra sin reescalar')).toBe(true);
+    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBe(500);
   });
 
   /* La única consecuencia que no se ve mirando el menú: `week` apunta a ids de

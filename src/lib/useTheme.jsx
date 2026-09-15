@@ -29,18 +29,32 @@ const stored = () => {
  * tema oscuro viven en una sola regla en vez de duplicarse dentro de un
  * `@media (prefers-color-scheme)`.
  *
- * Orden de decisión: lo que el usuario eligió → NOCHE.
+ * Orden de decisión: lo que el usuario eligió → PAPEL.
  *
- * ── Por qué la noche es el defecto y el sistema ya no decide ────────────────
- * La noche es la identidad del producto —es lo que enseña la portada y de donde
- * sale su atmósfera— y «papel» es una elección de quien prefiere trabajar en
- * claro, disponible en Ajustes → Apariencia. Seguir la preferencia del sistema
- * hacía que la primera impresión dependiera de un ajuste del sistema operativo
- * que la mayoría no ha tocado: quien llegaba desde una portada de noche podía
- * aterrizar en una aplicación blanca, que se lee como cambiar de producto.
+ * ── Por qué el papel es el defecto, y por qué el sistema sigue sin decidir ──
+ * Esto dijo lo contrario hasta el 11 sep 2026: «la noche es la identidad del
+ * producto». El argumento no era malo; la consecuencia sí. Todo el trabajo de
+ * acabado —el papel templado, las sombras teñidas con la tinta del papel, el
+ * secundario subido a 7,8:1— se hizo en el tema claro, o sea en el que casi
+ * nadie veía, mientras el hierro se quedaba en un negro azulado con acento
+ * cobalto: el default estético que `CLAUDE.md` §25.2 manda evitar.
+ *
+ * Y hay un argumento de uso por encima del de identidad: esto es una
+ * herramienta de jornada completa. El entrenador la tiene abierta a media
+ * mañana con luz de ventana, programando bloques y leyendo cifras pequeñas.
+ * Linear, Stripe y Notion arrancan en claro por lo mismo, y ninguno pierde el
+ * carácter por ello: el carácter lo lleva la estructura y la letra.
+ *
+ * La noche no se retira, cambia de sitio: pasa a ser una preferencia bien
+ * hecha en Ajustes → Apariencia, que se recuerda. Lo que se acaba es que el
+ * producto fuera dos productos distintos según la hora.
+ *
+ * El sistema sigue sin decidir, y por la razón de siempre: haría que la
+ * primera impresión dependiera de un ajuste del sistema operativo que la
+ * mayoría no ha tocado.
  */
 export const ThemeProvider = ({ children }) => {
-  const [theme, setThemeState] = useState(() => stored() || 'dark');
+  const [theme, setThemeState] = useState(() => stored() || 'light');
 
   useEffect(() => {
     const root = document.documentElement;

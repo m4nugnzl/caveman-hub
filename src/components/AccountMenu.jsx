@@ -111,7 +111,7 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
             <>
               {/*
                 ── El Taller, solo donde no hay barra ────────────────────────
-                Las cuatro puertas del material (`COACH_TALLER`) viven en la
+                Las tres puertas del material (`COACH_TALLER`) viven en la
                 barra lateral, que no existe por debajo de 1024 px. Sin esto,
                 en una tableta o un teléfono no habría forma de llegar al
                 protocolo ni a las bibliotecas más que escribiendo la URL.

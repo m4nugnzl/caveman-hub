@@ -29,6 +29,7 @@ import {
 import { DEFAULT_ASKED } from './intakeForm';
 import { CHECKIN_QUESTIONS, SESSION_QUESTIONS, checkinQuestions, clientProtocol } from './protocol';
 import { sanitizeElementos } from './formulario';
+import { MEDIDAS_DE_FABRICA } from './medidas';
 
 describe('formularios · la mudanza silenciosa', () => {
   it('sin lista guardada, los tres cuestionarios de siempre SON la lista', () => {
@@ -286,10 +287,19 @@ describe('formularios · la estantería', () => {
   });
 
   it('las de texto libre entran como párrafo y sin rango', () => {
-    const texto = CHECKIN_QUESTIONS.find((q) => q.kind !== 'scale');
+    const texto = CHECKIN_QUESTIONS.find((q) => q.kind === 'text');
     const elem = estanteria('semana').find((e) => e.origen === texto.id);
     expect(elem.tipo).toBe('parrafo');
     expect(elem.min).toBeUndefined();
+  });
+
+  /* Y cada tipo sale con SU control, no todo lo que no es escala como párrafo:
+     una pregunta de zonas puesta en el lienzo como texto libre le llegaría al
+     cliente con una raya en blanco. */
+  it('las de zonas entran como zona', () => {
+    const zona = CHECKIN_QUESTIONS.find((q) => q.kind === 'zone');
+    const elem = estanteria('semana').find((e) => e.origen === zona.id);
+    expect(elem.tipo).toBe('zona');
   });
 
   it('un formulario del modelo viejo se lee como elementos', () => {
@@ -332,12 +342,59 @@ describe('formularios · la estantería', () => {
     expect(comoProtocoloDesdeElementos(sinFotos, 'semana').askPhotos).toBe(false);
   });
 
+  /* ══ UNA MEDIDA VIAJA POR EL LIENZO COMO LAS DEMÁS PIEZAS ═══════════════
+     Entra desde el catálogo del entrenador, sale como un estado del check-in y
+     vuelve a entrar igual. Es el viaje que hace que encender una glucosa llegue
+     de verdad al cliente — el mismo que fallaba con los bloques y con el
+     cuestionario cuando la lista de `checkin` era fija. */
+  it('una medida entra en el lienzo y vuelve como estado del check-in', () => {
+    const glucosa = MEDIDAS_DE_FABRICA.find((m) => m.id === 'glucose');
+    const semana = sanitizeFormulario({
+      id: 'f1',
+      momento: 'semana',
+      questions: [],
+      weighIns: 1,
+      checkin: { perimeters: 'off', folds: 'off', glucose: 'required' },
+    });
+
+    const elementos = elementosDe(semana, [glucosa]);
+    const enLienzo = elementos.find((e) => e.tipo === 'medida');
+    expect(enLienzo.origen).toBe('glucose');
+    expect(enLienzo.enun).toBe('Glucosa en ayunas');
+    expect(enLienzo.unidad).toBe('mg/dL');
+    expect(enLienzo.oblig).toBe(true);
+
+    expect(comoProtocoloDesdeElementos(elementos, 'semana').checkin.glucose).toBe('required');
+
+    /* Y quitarla del lienzo la apaga: sin estado guardado, `checkinMode` cae en
+       «apagada», que es el respaldo de todo lo que no son los dos de siempre. */
+    const sinGlucosa = elementos.filter((e) => e.tipo !== 'medida');
+    expect(comoProtocoloDesdeElementos(sinGlucosa, 'semana').checkin.glucose).toBeUndefined();
+  });
+
+  it('sin catálogo delante, una medida guardada no se pinta', () => {
+    const semana = sanitizeFormulario({
+      id: 'f1',
+      momento: 'semana',
+      questions: [],
+      weighIns: 1,
+      checkin: { perimeters: 'off', folds: 'off', glucose: 'required' },
+    });
+    /* No se puede pintar una casilla de la que no se sabe ni la unidad, y un
+       hueco sin nombre en el check-in de alguien es peor que la medida que
+       falta. Lo guardado no se pierde: sigue en `checkin`. */
+    expect(elementosDe(semana).some((e) => e.tipo === 'medida')).toBe(false);
+  });
+
   it('cada momento solo ofrece lo que sabe guardar', () => {
-    /* El parte y el check-in guardan escala o texto, y nada más: ofrecer ahí
-       «Elegir una» sería perder las opciones en silencio al guardar. */
-    expect(tiposDeMomento('sesion')).toEqual(['escala', 'parrafo']);
+    /* El parte y el check-in guardan lo que declara `QUESTION_KINDS`, ni un
+       tipo más: ofrecer ahí una fecha sería perderla en silencio al guardar. */
+    expect(tiposDeMomento('sesion')).toContain('una');
+    expect(tiposDeMomento('sesion')).not.toContain('fecha');
+    expect(tiposDeMomento('sesion')).not.toContain('peso');
     expect(tiposDeMomento('semana')).toContain('pliegues');
-    expect(tiposDeMomento('semana')).not.toContain('una');
+    expect(tiposDeMomento('semana')).toContain('zona');
+    expect(tiposDeMomento('semana')).not.toContain('archivo');
     /* Las fotos necesitan el asistente de la revisión, que un suelto no tiene. */
     expect(tiposDeMomento('libre')).not.toContain('fotos');
     expect(tiposDeMomento('libre')).toContain('una');
@@ -501,5 +558,61 @@ describe('formulariosMandables', () => {
     /* Los tres de siempre —el alta, el parte y el check-in— salen del protocolo
        y se le piden por su premisa, no como acción suelta. */
     expect(formulariosMandables({})).toEqual([]);
+  });
+});
+
+/* ══ EL VIAJE DE IDA Y VUELTA DE UNA PREGUNTA DE ELEGIR ════════════════════
+   Es el sitio exacto donde se perderían las opciones: el lienzo las guarda en
+   `ops` y el protocolo tiene su propio formato. Con una sola de las dos mitades
+   escritas, el entrenador escribe tres respuestas, guarda, vuelve a abrir y se
+   encuentra un campo de texto. */
+describe('formularios · las preguntas que no son escala ni texto', () => {
+  it('un check-in con una de elegir va y vuelve con sus opciones', () => {
+    const elementos = [
+      {
+        id: 'e1',
+        tipo: 'una',
+        enun: '¿Has podido entrenar los días que tocaban?',
+        ayuda: '',
+        oblig: false,
+        ops: ['Todos', 'Casi todos', 'Ninguno'],
+      },
+    ];
+
+    const p = comoProtocoloDesdeElementos(elementos, 'semana');
+    expect(p.custom[0].kind).toBe('choice');
+    expect(p.custom[0].ops).toEqual(['Todos', 'Casi todos', 'Ninguno']);
+
+    /* Y de vuelta al lienzo con el mismo tipo y las mismas opciones: si el tipo
+       se perdiera, al reabrir el constructor la pregunta sería un párrafo. */
+    const vuelta = elementosDe({
+      momento: 'semana',
+      questions: ['e1'],
+      custom: p.custom,
+      checkin: { perimeters: 'off', folds: 'off' },
+      weighIns: 0,
+      askPhotos: false,
+    });
+    expect(vuelta[0].tipo).toBe('una');
+    expect(vuelta[0].ops).toEqual(['Todos', 'Casi todos', 'Ninguno']);
+  });
+
+  /* Cambiarle el tipo a una del catálogo ES cambiarla: si se diera por igual,
+     no se escribiría en `custom` y al cliente le llegaría el control de serie. */
+  it('cambiarle el tipo a una del catálogo la escribe como propia', () => {
+    const base = CHECKIN_QUESTIONS.find((q) => q.kind === 'scale');
+    const elem = {
+      id: 'x1',
+      origen: base.id,
+      tipo: 'sino',
+      enun: base.label,
+      ayuda: base.hint || '',
+      oblig: false,
+    };
+
+    const p = comoProtocoloDesdeElementos([elem], 'semana');
+    expect(p.custom).toHaveLength(1);
+    expect(p.custom[0].id).toBe(base.id);
+    expect(p.custom[0].kind).toBe('bool');
   });
 });

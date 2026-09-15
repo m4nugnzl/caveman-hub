@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  ArrowRightLeft,
   ClipboardCheck,
   Copy,
   FolderOpen,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
+import { IconoEquivalencia } from '@/components/ui/IconoEquivalencia';
 import {
   CAJONES,
   FORMAS,
@@ -57,7 +57,7 @@ import { Cinta } from '@/components/ui/Cinta';
  *   · La barra del Taller mantiene sus **cinco puertas**, que es la cuenta con
  *     la que se diseñó.
  *   · Es honesto: si «plantilla» significa criterio guardado, un plato lo es.
- *   · Y esta pantalla ya **exhibe y no compone** —renombra, tira y deja leer lo
+ *   · Y esta pantalla ya **exhibe y no compone** —renombra, borra y deja leer lo
  *     que lleva dentro—, que es exactamente la regla que un plato necesita.
  *
  * ══ Y los BLOQUES, que eran el hueco ═══════════════════════════════════════
@@ -73,7 +73,7 @@ import { Cinta } from '@/components/ui/Cinta';
  * «Mi proteína magra» son estos cinco alimentos y no los treinta del catálogo.
  * Es la misma clase de cosa por cuarta vez —criterio tuyo, con nombre, para
  * reutilizarlo—, así que entra por la misma puerta y con la misma regla: aquí
- * se mira, se renombra y se tira; se monta desde la ventana de equivalencias de
+ * se mira, se renombra y se borra; se monta desde la ventana de equivalencias de
  * un alimento, que es donde se está viendo la lista que sobra.
  *
  * ── Aquí se MIRA; se pone donde se monta ──────────────────────────────────
@@ -98,7 +98,7 @@ import { Cinta } from '@/components/ui/Cinta';
  * ══ De dónde lee: el CAJÓN, no las preferencias ════════════════════════════
  *
  * Esta pantalla bifurcaba once veces por `enDias` —cabecera, columnas, vacío,
- * resumen, lo que se ve al abrir, el rótulo de renombrar, el aviso de tirar— y
+ * resumen, lo que se ve al abrir, el rótulo de renombrar, el aviso de borrar— y
  * con el tercer tramo cada uno de esos ternarios habría pasado a tener tres
  * ramas. Ahora lo que cambia de una forma a otra lo dice `CAJONES`
  * (`domain/cajon`) y lo guardado vive en la tabla `coach_templates` del equipo
@@ -130,7 +130,7 @@ const DIBUJO = {
  *
  * Sirve solo para el PUENTE de `useCajon`: si la tabla no contesta —falta la
  * migración, o hay un fallo de red— el cajón se lee de las preferencias y sus
- * filas llegan marcadas con `deLasPreferencias`. Renombrar o tirar una de ésas
+ * filas llegan marcadas con `deLasPreferencias`. Renombrar o borrar una de ésas
  * contra la tabla no fallaría: no encontraría fila, y la pantalla diría que se
  * hizo algo que no se hizo. Ver el 403 invisible de `politicas-rls-sin-grant`.
  */
@@ -141,7 +141,7 @@ const SECCION_VIEJA = {
 
 export const PlantillasPanel = () => {
   const { coachPrefs, cajon } = useApp();
-  const { updateCoachPreferences, renombrarEnCajon, tirarDelCajon } = useActions();
+  const { updateCoachPreferences, renombrarEnCajon, borrarDelCajon } = useActions();
   const confirm = useConfirm();
   const [tramo, setTramo] = useState(TIPO.BLOQUE);
   const [abierta, setAbierta] = useState(null);
@@ -211,10 +211,10 @@ export const PlantillasPanel = () => {
       dentro: (item) => <GrupoDentro grupo={item} />,
       /* Qué pasa a partir de ahora, no qué desaparece: la lista no se pierde,
          se vuelve a la calculada. */
-      alTirar:
+      alBorrar:
         'Esos alimentos vuelven a ofrecer las equivalencias que calcula el catálogo. Ninguna dieta cambia.',
       pie: 'Se montan desde la ventana de equivalencias de un alimento, en cualquier dieta.',
-      icono: ArrowRightLeft,
+      icono: IconoEquivalencia,
       vacio: {
         titulo: 'Todavía no has guardado ningún grupo',
         mensaje:
@@ -248,11 +248,15 @@ export const PlantillasPanel = () => {
     });
   };
 
-  const tirar = async (item) => {
+  /* «Borrar» y no «tirar»: lo que sale del cajón no vuelve, y ésa es la prueba
+     de la regla (`docs/producto.md` §5.7). «Tirar» era un tercer verbo para el
+     mismo gesto, vivo solo en esta pantalla. El género lo pone la forma —«la
+     plantilla», «el plato»—, que ya lo dice `CAJONES`. */
+  const borrar = async (item) => {
     const ok = await confirm({
-      title: `¿Tirar «${item.name}»?`,
-      message: t.alTirar,
-      confirmLabel: 'Tirarlo',
+      title: `¿Borrar «${item.name}»?`,
+      message: t.alBorrar,
+      confirmLabel: t.queEs.startsWith('la ') ? 'Borrarla' : 'Borrarlo',
       tone: 'danger',
     });
     if (!ok) return;
@@ -260,7 +264,7 @@ export const PlantillasPanel = () => {
     if (viejo) {
       updateCoachPreferences(viejo.seccion, { items: viejo.lista.filter((x) => x.id !== item.id) });
     } else {
-      await tirarDelCajon(item.id);
+      await borrarDelCajon(item.id);
     }
     if (abierta === item.id) setAbierta(null);
   };
@@ -433,8 +437,8 @@ export const PlantillasPanel = () => {
                           <button
                             type="button"
                             className="btn btn-icon btn-icon-danger"
-                            aria-label={`Tirar ${item.name}`}
-                            onClick={() => tirar(item)}
+                            aria-label={`Borrar ${item.name}`}
+                            onClick={() => borrar(item)}
                           >
                             <Trash2 size={15} />
                           </button>

@@ -521,7 +521,7 @@ export const BarBandChart = ({
  * Sparkline para los widgets. Aquí SÍ se estira a propósito: no hay texto que
  * pueda deformarse, y así llena el ancho de la tarjeta sea cual sea.
  */
-export const Sparkline = ({ points, color = 'var(--data-blue)', height = 28, bars = false }) => {
+export const Sparkline = ({ points, color = 'var(--data-blue)', height = 28, bars = false, area = false }) => {
   const values = (points || []).map((p) => toNum(p?.value ?? p)).filter((v) => v !== null);
   if (values.length < 2) return null;
 
@@ -576,9 +576,24 @@ export const Sparkline = ({ points, color = 'var(--data-blue)', height = 28, bar
     );
   }
 
+  /*
+    ── `area`: la misma curva, con el hueco de debajo teñido ─────────────────
+    No es adorno y no cambia el dato: a 34 px de alto una línea de 1,8 px sobre
+    papel se lee como un garabato, y en una tarjeta de costado el ojo pasa de
+    largo. Con el área debajo la pieza se lee como lo que es —una gráfica— desde
+    el rabillo del ojo, que es como se mira un costado. Es la forma del
+    prototipo (`docs/portal-dos-aparatos.html`, «qué ha hecho tu peso»).
+
+    El punto del extremo NO se dibuja: este lienzo va `preserveAspectRatio:
+    none`, así que un círculo sale estirado en óvalo al ancho que sea. Lo que
+    marca el último valor es la cifra que la tarjeta pone al lado.
+  */
+  const curva = smoothPath(values.map((v, i) => ({ x: x(i), y: y(v) })));
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ height, width: '100%' }} preserveAspectRatio="none" aria-hidden="true">
-      <path d={smoothPath(values.map((v, i) => ({ x: x(i), y: y(v) })))} fill="none" stroke={color} strokeWidth="1.8" />
+      {area && <path d={`${curva} L ${W} ${H} L 0 ${H} Z`} fill={color} opacity="0.1" />}
+      <path d={curva} fill="none" stroke={color} strokeWidth="1.8" />
     </svg>
   );
 };

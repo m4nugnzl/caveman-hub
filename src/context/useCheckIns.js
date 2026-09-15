@@ -88,22 +88,40 @@ export const useCheckIns = ({ stampNow }) => {
         const anterior = prev[clientId];
         if (anterior && anterior.weekStart > week) return prev;
 
+        /*
+          ══ REENTREGAR NO BORRA NADA, Y AQUÍ TAMPOCO ═══════════════════════
+
+          La fila que se está reflejando, si esta entrega cae sobre una que ya
+          existía. Todo lo que sigue copia campo por campo lo que hace el UPDATE
+          de `submit_check_in` (migración 0060), porque lo que se pinta tiene que
+          ser lo que quedó guardado y no una versión optimista más simple.
+
+          Escribía `submittedAt: now`, `reviewedAt: null` y `coachNotes: ''` a
+          pelo. En la base nada de eso pasa —`submitted_at` es COALESCE y
+          `reviewed_at` no se toca—, así que rehacer una entrega ya contestada
+          hacía desaparecer de la pantalla la respuesta del entrenador hasta la
+          siguiente recarga. Mientras rehacerla era imposible eso no se veía; con
+          «Volver a entregar» puesto, se vería el primer día.
+        */
+        const mismo = anterior?.weekStart === week ? anterior : null;
+
         return {
           ...prev,
           [clientId]: {
-            ...(anterior?.weekStart === week ? anterior : {}),
+            ...(mismo || {}),
             id: data,
             clientId,
             weekStart: week,
-            weight,
-            notes: notes || '',
-            /* `?? anterior?.answers` y no `answers` a secas: reentregar sin
-               cuestionario no puede borrar de la pantalla lo que ya se contestó,
-               porque en la base tampoco se borra (el UPDATE usa COALESCE). */
-            answers: answers ?? (anterior?.weekStart === week ? anterior.answers : null) ?? null,
-            submittedAt: new Date().toISOString(),
-            reviewedAt: null,
-            coachNotes: '',
+            /* COALESCE: reentregar sin peso —o sin notas, o sin cuestionario— no
+               borra lo que ya se había mandado. */
+            weight: weight ?? mismo?.weight ?? null,
+            notes: notes ?? mismo?.notes ?? '',
+            answers: answers ?? mismo?.answers ?? null,
+            /* Manda la PRIMERA entrega: es la fecha con la que su entrenador
+               calcula si llegó a tiempo, y corregir una foto no la reescribe. */
+            submittedAt: mismo?.submittedAt || new Date().toISOString(),
+            reviewedAt: mismo?.reviewedAt ?? null,
+            coachNotes: mismo?.coachNotes ?? '',
           },
         };
       });

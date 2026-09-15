@@ -54,6 +54,53 @@ export const useAnthropometry = ({ anthroRef, setAnthropometry, persist }) => {
     [applyAnthro]
   );
 
+  /**
+   * APUNTAR UNA MEDIDA DE UN DÍA, sin tocar nada más de ese día.
+   *
+   * ══ Por qué no sirve `addAnthropometryLog` ═════════════════════════════════
+   *
+   * Porque ése SUSTITUYE el registro de la misma fecha, y es lo correcto para lo
+   * que hace —una revisión reentregada es una revisión, no dos—. Aquí lo que se
+   * escribe es una casilla de la rejilla de la semana: anotar la temperatura del
+   * martes no puede llevarse por delante el peso que se anotó esa mañana.
+   *
+   * Así que se funde con lo que haya de ese día, o se crea el registro si no
+   * había ninguno. `null` BORRA la medida en vez de guardar un cero: vaciar la
+   * casilla de una glucosa significa «no la tomé», y un cero ahí es una
+   * hipoglucemia inventada. Ver `domain/medidas.js`.
+   */
+  const apuntarMedida = useCallback(
+    (clientId, date, id, valor) =>
+      applyAnthro(clientId, (a) => {
+        const history = a.history || [];
+        const previo = history.find((h) => h.date === date) || null;
+        const medidas = { ...(previo?.medidas || {}) };
+        if (valor === null || valor === undefined) delete medidas[id];
+        else medidas[id] = valor;
+
+        const siguiente = { ...(previo || { id: newId('log'), date, weight: null }) };
+        if (Object.keys(medidas).length > 0) siguiente.medidas = medidas;
+        else delete siguiente.medidas;
+
+        /* Un registro que se queda sin peso y sin nada medido no es un registro:
+           es un punto muerto en cada serie y una fila vacía en el historial. */
+        const vacio =
+          siguiente.weight === null &&
+          !siguiente.skinFolds &&
+          !siguiente.perimeters &&
+          !siguiente.medidas;
+
+        const resto = history.filter((h) => h.date !== date);
+        return {
+          ...a,
+          history: (vacio ? resto : [siguiente, ...resto]).sort((x, y) =>
+            String(y.date).localeCompare(String(x.date))
+          ),
+        };
+      }),
+    [applyAnthro]
+  );
+
   /** Edita un registro ya guardado (corregir un peso mal teclado). */
   const updateAnthropometryLog = useCallback(
     (clientId, logId, fields) =>
@@ -64,5 +111,5 @@ export const useAnthropometry = ({ anthroRef, setAnthropometry, persist }) => {
     [applyAnthro]
   );
 
-  return { addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog };
+  return { addAnthropometryLog, removeAnthropometryLog, updateAnthropometryLog, apuntarMedida };
 };

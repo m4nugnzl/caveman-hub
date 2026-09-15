@@ -1,8 +1,12 @@
+import { useState } from 'react';
+
 import { estadoDeDiff, mealKcalRange, mealTarget, optionMacros } from '@/domain/nutrition';
 import { Modal } from '@/components/ui/Modal';
+import { SegmentedControl } from '@/components/ui/primitives';
 import { MacroDonut } from '@/components/ui/charts';
 import { MACRO_META, macroBreakdown, opcionElegida } from './macros';
 import { PlanDia } from './PlanDia';
+import { RepartoComparado } from './RepartoComparado';
 
 /**
  * LA VENTANA DEL DÍA: una pantalla, y de una pieza — sin deslizar.
@@ -44,7 +48,16 @@ export const DiaPopup = ({
   onIrA,
   onClose,
   juzga = true,
+  /* Todos los días del plan (`planDays`) y cómo escribir en cualquiera. Con
+     más de uno, la ventana ofrece «Todos los días»: el reparto de cada comida
+     en todos a la vez, para comparar entreno con descanso sin cerrar esta
+     ventana y abrir la del otro. Ver `RepartoComparado`. */
+  dias = [],
+  onTargetDia = null,
 }) => {
+  const [todos, setTodos] = useState(false);
+  const comparable = dias.length > 1 && Boolean(onTargetDia);
+  const comparando = todos && comparable;
   const filas = meals.map((meal, i) => {
     const pautado = mealTarget(meal);
     const real = optionMacros(opcionElegida(meal, elegidas));
@@ -76,8 +89,26 @@ export const DiaPopup = ({
   };
 
   return (
-    <Modal open={open} size="lg" title={`El día · ${label}`} onClose={onClose}>
+    <Modal open={open} size="lg" title={comparando ? 'El reparto · todos los días' : `El día · ${label}`} onClose={onClose}>
       <div className="col gap-4 dia-ventana">
+        {comparable && (
+          <SegmentedControl
+            label="Qué días se ven"
+            value={comparando ? 'todos' : 'uno'}
+            onChange={(v) => setTodos(v === 'todos')}
+            options={[
+              { id: 'uno', label: 'Este día' },
+              { id: 'todos', label: 'Todos los días', hint: 'El reparto de cada comida en todos los días a la vez' },
+            ]}
+          />
+        )}
+
+        {comparando ? (
+          <section className="bloque-seccion">
+            <RepartoComparado dias={dias} elegidas={elegidas} onTarget={onTargetDia} />
+          </section>
+        ) : (
+        <>
         <div className="bloque-cifras">
           <div className="bloque-cifra">
             <span className="v">{desvioMedio === null ? '—' : `±${desvioMedio}`}</span>
@@ -171,6 +202,8 @@ export const DiaPopup = ({
             ventana quepa de una pieza, sin deslizar.
           */}
         </section>
+        </>
+        )}
       </div>
     </Modal>
   );

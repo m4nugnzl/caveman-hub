@@ -1,12 +1,30 @@
 <!DOCTYPE html>
 <!--
-  `data-theme="dark"` escrito aquí, antes de que arranque nada: la NOCHE es el
-  tema por defecto del producto y este atributo es lo que evita el destello
-  claro del primer pintado. `ThemeProvider` lo reescribe en cuanto monta —y lo
-  cambia a claro si el usuario lo eligió— pero entre el HTML y ese momento la
-  página ya se pinta del tema correcto.
+  `data-theme="light"` escrito aquí, antes de que arranque nada: el PAPEL es el
+  tema por defecto del producto y este atributo es lo que evita el destello del
+  primer pintado. `ThemeProvider` lo reescribe en cuanto monta —y lo cambia a
+  noche si el usuario la eligió— pero entre el HTML y ese momento la página ya
+  se pinta del tema correcto.
+
+  ══ Por qué el papel y no la noche (11 sep 2026) ═══════════════════════════
+  Durante meses arrancaba en noche «porque la noche es la identidad». La
+  consecuencia medida: todo el trabajo de acabado se hizo en el tema que casi
+  nadie veía. El papel templado, las sombras teñidas con la tinta del papel, el
+  secundario a 7,8:1 — todo eso vive en claro. El hierro se quedó en un negro
+  azulado con acento cobalto, que es literalmente el default estético que
+  `CLAUDE.md` §25.2 manda evitar.
+
+  Y el argumento de fondo: esto es una herramienta de trabajo de jornada
+  completa. El entrenador la tiene abierta a las once de la mañana con luz de
+  ventana, programando bloques y leyendo cifras. Linear, Stripe y Notion
+  arrancan en claro por lo mismo y ninguno pierde por ello su carácter: el
+  carácter lo lleva la estructura y la letra, no la falta de luz.
+
+  La noche no se retira — pasa a ser lo que debía haber sido siempre: una
+  preferencia bien hecha en Ajustes → Apariencia, que se recuerda. Lo que se
+  acaba es que el producto fuera dos productos distintos según la hora.
 -->
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -17,7 +35,17 @@
       el tema claro veía una franja negra sobre una app blanca — y además
       discrepaba del `theme_color` del manifest.
     -->
-    <meta name="theme-color" content="#eceef1" media="(prefers-color-scheme: light)" />
+    <!--
+      La PRIMERA va sin `media` y lleva el papel: es la que gana mientras
+      `ThemeProvider` no ha montado, y el tema por defecto es el claro. Sin
+      ella, quien tuviera el sistema en oscuro veía una franja negra sobre una
+      aplicación de papel durante el primer pintado. La segunda sigue ahí para
+      quien tiene el sistema en oscuro Y no ha elegido todavía: no cambia el
+      tema de la página —eso lo decide el atributo de arriba— pero evita el
+      salto de color de la barra en ese caso. El valor real lo reescribe
+      `ThemeProvider` leyendo `--canvas` en cuanto sabe qué tema toca.
+    -->
+    <meta name="theme-color" content="#f7f6f2" />
     <meta name="theme-color" content="#0d1014" media="(prefers-color-scheme: dark)" />
     <!--
       Las dos: `mobile-web-app-capable` es la estándar y la que piden ahora los

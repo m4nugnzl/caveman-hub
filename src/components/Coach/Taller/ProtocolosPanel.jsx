@@ -3,14 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowLeftRight,
+  ArrowRight,
   Bell,
-  CalendarClock,
   Camera,
   CheckSquare,
+  ChevronRight,
   Copy,
-  Eye,
   FileText,
   Lock,
+  Sparkles,
   Plus,
   Ruler,
   Scale,
@@ -19,6 +20,7 @@ import {
   Trash2,
   Users,
   Video,
+  X,
 } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
@@ -34,12 +36,15 @@ import {
 } from '@/domain/acciones';
 import {
   DIAS,
-  EVERY_MAX,
   MAX_PROTOCOLOS,
+  MAX_PROTOCOLO_NAME,
   REMIND_MAX,
   buildProtocolo,
+  cadaCuanto,
   coachProtocolos,
   cuentaClientes,
+  diaDe,
+  guiaResuelta,
   protocolosToPreferences,
   sanitizeSchedule,
 } from '@/domain/protocolos';
@@ -49,24 +54,33 @@ import {
   formulariosMandables,
   formulariosToPreferences,
 } from '@/domain/formularios';
-import { agrupar, vigente } from '@/domain/envios';
-import { cuentaPasos, deProtocolo, nombreDe } from '@/domain/automatizaciones';
+import { agrupar, cuantasPorSalir } from '@/domain/envios';
+import { deProtocolo, nombreDe } from '@/domain/automatizaciones';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { CarrilAutomatizaciones } from './CarrilAutomatizaciones';
+import { AQuienSeLoPones, QueLleva } from './AltaDeProtocolo';
+import { AltaGuiada } from './AltaGuiada';
+import { EditorDeFormulario } from './EditorDeFormulario';
 import { LoQueSale } from './LoQueSale';
 import { MandarAlgo } from '@/components/Coach/MandarAlgo';
 import { EnvioAbierto, EnviosSeccion } from './Envios';
 import { GuiaDeMedidas } from './GuiaDeMedidas';
 import { ALERT_DAYS, ALERT_DAYS_MAX, activeServices } from '@/domain/protocol';
+import { CHECKIN_CADENCES } from '@/domain/calendar';
 import { setStepOwner, stepById } from '@/domain/intake';
-import { necesitaSuPlan, parchePara, protegidoDeSuPlan } from '@/lib/protocolTemplate';
+import {
+  citasDelProtocolo,
+  necesitaSuPlan,
+  parchePara,
+  protegidoDeSuPlan,
+} from '@/lib/protocolTemplate';
 import { clampInt } from '@/lib/num';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { EmptyState, Field, Notice, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { Cinta } from '@/components/ui/Cinta';
-import { ServicesSection } from '@/components/Coach/Settings/Protocol/ServicesSection';
-import { ModulesSection } from '@/components/Coach/Settings/Protocol/ModulesSection';
+import { useMarcaDeslizante } from '@/components/ui/carril';
 
 /**
  * PROTOCOLOS: tus formas de trabajar, leídas como lo que son.
@@ -134,14 +148,22 @@ const Disco = ({ familia, tipo }) => {
   );
 };
 
+/**
+ * El camino de un protocolo, en orden. El porqué de que sean tres tramos de una
+ * misma pantalla —y no una ventana, una pantalla y otra ventana— está en
+ * `AltaDeProtocolo`.
+ */
+const PASOS = [
+  { id: 'lleva', label: 'Qué lleva' },
+  { id: 'acciones', label: 'Las acciones' },
+  { id: 'quien', label: 'Quién lo lleva' },
+];
+
 export const ProtocolosPanel = () => {
   const {
     coachPrefs,
     clients,
-    activeClient,
-    openClientView,
     applyProtocolToClient,
-    setSelectedClientId,
     envioRows,
     automatizaciones,
   } = useApp();
@@ -163,18 +185,55 @@ export const ProtocolosPanel = () => {
     vez buscando de dónde habías salido.
   */
   const [abierto, setAbierto] = useState(() => location.state?.abrir || null);
+  /* Qué formulario se está escribiendo SIN salir del protocolo. Ver `irAEditar`. */
+  const [editando, setEditando] = useState(null);
+  /*
+    Por qué paso del camino va: ① qué lleva · ② las acciones · ③ quién lo
+    lleva. Los tres son tramos de la MISMA pantalla —el porqué, en
+    `AltaDeProtocolo`—, así que esto es lo que se dibuja debajo del raíl. Abrir
+    un protocolo ya montado cae en ②, que es el trabajo.
+  */
+  const [paso, setPaso] = useState('acciones');
+  /* Si están abiertas las tres preguntas del primer día. Ver `AltaGuiada`. */
+  const [guiando, setGuiando] = useState(false);
   const [tocada, setTocada] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
+  /*
+    El protocolo que se está montando y todavía no existe. Vive aquí, en
+    memoria, y se escribe de una vez al pulsar «Seguir» en el paso ①: cerrar sin
+    terminar no deja un protocolo huérfano en la lista. Ver `nuevo` y `seguir`.
+  */
+  const [borrador, setBorrador] = useState(null);
+  /*
+    Si se está MONTANDO uno, o sea recorriendo el camino de punta a punta.
+
+    No basta con `borrador`: el borrador muere en el paso ①, que es donde el
+    protocolo empieza a existir, y con él moría el verbo. Del ② al ③ no había
+    forma de seguir —solo pulsar el tramo— cuando del ① al ② sí la hay (dueño,
+    14 sep). Un camino que te suelta a mitad es peor que no numerar los pasos.
+
+    Se enciende al pulsar «Protocolo nuevo» y se apaga al salir o al abrir otro:
+    retocar uno ya montado no es recorrer nada, y ahí el raíl es solo navegación
+    —el azul de esa pantalla es el de «ponérselo a alguien»—.
+  */
+  const [montando, setMontando] = useState(false);
   const [anadiendo, setAnadiendo] = useState(null);
   const [aplicando, setAplicando] = useState(false);
   const [aviso, setAviso] = useState(null);
   /* Lo de «una vez»: el envío abierto y el diálogo de mandar. */
   const [envioAbierto, setEnvioAbierto] = useState(null);
   const [mandando, setMandando] = useState(false);
-  /* Qué mitad de la puerta se mira: los protocolos, o lo que sale de ellos. */
-  const [tramo, setTramo] = useState('protocolos');
+  /*
+    Qué tramo de la puerta se mira. El tercero —los formularios— es una RUTA y
+    no un estado, así que puede llegar puesto al volver de ella: sin esto, salir
+    de Formularios te devolvía a los protocolos y el raíl daba un salto.
+  */
+  const [tramo, setTramo] = useState(() => location.state?.tramo || 'protocolos');
   /* El reloj del repaso. Ver `guardarAuto`. */
   const relojRepaso = useRef(null);
+  /* La marca que viaja por el raíl del camino. Arriba con los demás ganchos: la
+     lista de protocolos sale por un `return` antes de llegar a la cabecera. */
+  const carrilPasos = useMarcaDeslizante();
 
   const protocolos = coachProtocolos(coachPrefs);
   const formularios = coachFormularios(coachPrefs);
@@ -186,7 +245,9 @@ export const ProtocolosPanel = () => {
     dominio.
   */
   const mandables = formulariosMandables(coachPrefs);
-  const protocolo = protocolos.find((p) => p.id === abierto) || null;
+  /* El borrador manda mientras exista: es un protocolo de verdad para todo lo
+     que la pantalla dibuja, solo que todavía no está en la lista. */
+  const protocolo = borrador || protocolos.find((p) => p.id === abierto) || null;
 
   /* Los envíos salen de agrupar las filas: un envío no es una fila de la base,
      es lo que se mandó de una vez (ver `domain/envios.js`). */
@@ -204,10 +265,7 @@ export const ProtocolosPanel = () => {
     acabarían discrepando, y el día que discrepen esta cifra diría que quedan
     cuatro cosas por salir cuando el cliente ya las tiene delante.
   */
-  const porSalir = useMemo(
-    () => (envioRows || []).filter((f) => f.due && !vigente(f) && !f.submitted_at).length,
-    [envioRows]
-  );
+  const porSalir = useMemo(() => cuantasPorSalir(envioRows || []), [envioRows]);
 
   /* Quién se ha quedado atrás y quién está protegido, POR PROTOCOLO. Cada
      cliente se compara contra el suyo — el porqué, en `planDeCliente`. */
@@ -241,29 +299,158 @@ export const ProtocolosPanel = () => {
     guardarProtocolos(protocolos.map((p) => (p.id === siguiente.id ? siguiente : p)));
 
   /*
-    Editar el formulario de una acción SIN perder de vista de dónde vienes.
+    ══ LAS TRES PREGUNTAS DEL PRIMER DÍA ═════════════════════════════════════
 
-    Antes esto era `navigate('/formularios')` a secas: te dejaba en la lista, con
-    el formulario que ibas a editar por buscar, y al volver, en la lista de
-    protocolos. Las dos mitades del Taller son la misma cosa —el protocolo dice
-    cuándo, el formulario dice qué— y moverse entre ellas no puede costar cuatro
-    clics y un esfuerzo de memoria.
+    Se ofrecen a quien todavía tiene UN protocolo y no las ha resuelto. Quien ya
+    tiene tres montados no está en su primer día y no se le pregunta nada.
+
+    Y las dos salidas —montarlo o apartarlo— escriben en la MISMA llamada que el
+    protocolo, no en dos: `updateCoachPreferences` fusiona por sección y dos
+    llamadas seguidas se pisan, así que la marca vive dentro de `protocolos`.
+    Ver `guiaResuelta`.
   */
-  const irAEditar = (form) =>
-    navigate('/formularios', {
-      state: { abrir: form.id, volver: { to: '/protocolos', abrir: abierto } },
-    });
+  const ofreceGuia = !guiaResuelta(coachPrefs) && protocolos.length === 1;
 
+  const apartarGuia = () => updateCoachPreferences('protocolos', { guiada: true });
+
+  const montarGuia = (siguiente) => {
+    updateCoachPreferences('protocolos', {
+      ...protocolosToPreferences(protocolos.map((p) => (p.id === siguiente.id ? siguiente : p))),
+      guiada: true,
+    });
+    setGuiando(false);
+    toast({ text: 'Montado. Lo que acabas de contestar ya está en tu protocolo.' });
+  };
+
+  /*
+    ══ LA CITA: quién tiene otro día ══════════════════════════════════════════
+
+    El horario de este rótulo ya no es una segunda verdad sobre la revisión: es
+    **el valor por defecto**, y siembra al cliente que todavía no tiene día. Lo
+    que no hace —ni puede hacer callando— es moverle la cita a quien ya eligió la
+    suya: el día de la revisión es la mañana en la que esa persona se pesa en
+    ayunas y se hace las fotos, y puede haberla elegido ella.
+
+    Así que se cuenta y se ofrece, con la misma gramática de consecuencias que el
+    reparto de la dieta: se dice cuántos son, se pueden leer sus nombres antes de
+    aceptar, y nadie se entera después. Ver `citasDelProtocolo`.
+  */
+  const citas = useMemo(
+    () => (protocolo ? citasDelProtocolo(coachPrefs, protocolo, clients) : { sembrar: [], distintos: [] }),
+    [coachPrefs, protocolo, clients]
+  );
+
+  const cambiarLasCitas = async () => {
+    const gente = citas.distintos;
+    if (gente.length === 0) return;
+    const nombres = gente.map((c) => c.name).join(', ');
+    const ok = await confirm({
+      title: `¿Ponerles a todos el ${diaDe(protocolo.schedule)}?`,
+      message: `${gente.length === 1 ? 'Cambia la cita de' : `Cambia la cita de los ${gente.length}:`} ${nombres}. A partir de ahora se les reclamará la revisión ese día${cadaCuanto(protocolo.schedule) ? `, ${cadaCuanto(protocolo.schedule)}` : ''}. Las fechas que hayas movido suelta a suelta se respetan.`,
+      confirmLabel: 'Cambiárselo',
+    });
+    if (!ok) return;
+
+    const { weekday, everyWeeks } = sanitizeSchedule(protocolo.schedule);
+    setAplicando(true);
+    let fallos = 0;
+    /* En tandas de tres, como «poner al día»: con una cartera grande, cincuenta
+       RPCs a la vez son cincuenta conexiones peleándose. */
+    for (let i = 0; i < gente.length; i += 3) {
+      const res = await Promise.allSettled(
+        gente.slice(i, i + 3).map((c) =>
+          /* Sin soltar la marca de excepción: aquí no se está igualando a nadie
+             con la plantilla, se está moviendo UNA cosa. */
+          applyProtocolToClient(c.id, { checkin: { weekday, everyWeeks } }, { clearException: false })
+        )
+      );
+      fallos += res.filter((r) => r.status !== 'fulfilled' || !r.value?.ok).length;
+    }
+    setAplicando(false);
+
+    const hechos = gente.length - fallos;
+    setAviso(
+      fallos === 0
+        ? { tone: 'success', text: `Cambiada la cita de ${hechos} ${hechos === 1 ? 'cliente' : 'clientes'}.` }
+        : { tone: 'error', text: `Cambiada en ${hechos}; ha fallado en ${fallos}. Vuelve a intentarlo.` }
+    );
+  };
+
+  /*
+    ══ UNA SOLA PUERTA: el formulario se escribe DENTRO del protocolo ════════
+
+    Esto era `navigate('/formularios')` con un `state.volver` puesto a mano para
+    que la flecha de atrás devolviera al protocolo abierto. Ese `volver` era la
+    confesión: cuando hay que programar el camino de vuelta, el viaje sobraba.
+
+    Y el viaje sobraba porque las dos mitades no son dos cosas. El protocolo dice
+    CUÁNDO se le pide algo y el formulario dice QUÉ se le pregunta; separarlas en
+    dos puertas obligaba a cada una a explicar por escrito qué mitad del trabajo
+    le tocaba —el pie de Formularios lo decía con todas las letras— y a enlazarse
+    la una a la otra en los dos sentidos.
+
+    Es el mismo movimiento que juntó Ejercicios y Alimentos en la Librería: una
+    puerta con el trabajo dentro, en vez de dos que se llaman entre sí. Lo que
+    costaba montarlo no era el constructor, era lo que hay que saber para editar
+    uno; eso vive ahora en `EditorDeFormulario` y se monta en una línea.
+  */
+  const irAEditar = (form) => setEditando(form.id);
+
+  /*
+    ══ EL ALTA ES UN CAMINO, y se recorre SIN CAMBIAR DE MUEBLE ══════════════
+
+    Esto creaba el protocolo en el acto —copiando el primero— y te soltaba dentro
+    con el nombre en modo edición. Se corrigió con una ventana delante, y la
+    ventana arregló el orden pero no el recorrido: pulsabas «Seguir», el diálogo
+    desaparecía y aparecía una pantalla entera sin parecido con lo que acababas
+    de dejar. El paso ya dado reaparecía además como botón arriba a la derecha,
+    o sea en el sitio de lo que viene después.
+
+    Ahora los tres pasos son TRAMOS de esta misma pantalla —① qué lleva, ② las
+    acciones, ③ quién lo lleva—, con su número en el raíl de la cinta. Lo único
+    que cambia al avanzar es lo que hay debajo del raíl.
+
+    Y nada se escribe hasta «Seguir»: el nuevo vive en `borrador` y cerrar sin
+    terminar no deja nada en la lista.
+  */
   const nuevo = () => {
     if (protocolos.length >= MAX_PROTOCOLOS) {
       toast({ text: `Ya tienes ${MAX_PROTOCOLOS} protocolos, que es el tope.` });
       return;
     }
-    const creado = buildProtocolo({ name: `Protocolo ${protocolos.length + 1}`, desde: protocolos[0] });
-    guardarProtocolos([...protocolos, creado]);
-    setAbierto(creado.id);
-    setRenombrando(creado.id);
+    /* Sin nombre a propósito: `buildProtocolo` pone «Protocolo nuevo» y eso, en
+       un campo, es texto que hay que borrar antes de escribir el tuyo. Vacío, el
+       marcador de posición hace su trabajo y el nombre se pone al guardar. */
+    setBorrador({ ...buildProtocolo({ name: '', desde: protocolos[0] || null }), name: '' });
+    setMontando(true);
+    setPaso('lleva');
+    setTocada(null);
+    setAviso(null);
   };
+
+  /* El final del paso ①: aquí es donde el protocolo empieza a existir. */
+  const seguir = () => {
+    const creado = { ...borrador, name: borrador.name.trim().slice(0, MAX_PROTOCOLO_NAME) || 'Protocolo nuevo' };
+    guardarProtocolos([...protocolos, creado]);
+    setBorrador(null);
+    setAbierto(creado.id);
+    setPaso('acciones');
+  };
+
+  /* Salir del protocolo: el borrador se va con él, que es lo que hace que
+     arrepentirse a mitad del paso ① no deje nada escrito. */
+  const volver = () => {
+    setBorrador(null);
+    setMontando(false);
+    setAbierto(null);
+    setPaso('acciones');
+  };
+
+  /* Lo que edita el paso ①. Un borrador se guarda en memoria; uno de verdad, en
+     la cuenta. Es la única diferencia entre montar uno nuevo y retocar uno que
+     ya llevas puesto, y por eso el paso se dibuja igual en los dos casos. */
+  const cambiarLleva = (siguiente) =>
+    borrador ? setBorrador(siguiente) : guardarUno(siguiente);
 
   const duplicar = (p) => {
     if (protocolos.length >= MAX_PROTOCOLOS) {
@@ -402,18 +589,36 @@ export const ProtocolosPanel = () => {
     });
   };
 
-  const verComoCliente = (p) => {
-    const suyos = clients.filter((c) => (c.preferences?.protocolId || protocolos[0]?.id) === p.id);
-    if (suyos.length === 0) {
-      toast({ text: 'Todavía no lo lleva nadie: dáselo a alguien y podrás verlo desde su portal.' });
-      return;
-    }
-    if (!suyos.some((c) => c.id === activeClient?.id)) setSelectedClientId(suyos[0].id);
-    openClientView('/mi/inicio');
-  };
+  /*
+    ══ Aquí hubo un «Ver como cliente» y se retiró ═══════════════════════════
+
+    Cogía al PRIMER cliente que llevara este protocolo, te cambiaba el cliente
+    activo por debajo y te soltaba en `/mi/inicio`. O sea que enseñaba el portal
+    de alguien, no el protocolo: un protocolo no es una persona y no tiene
+    portal, así que el botón no podía cumplir lo que prometía.
+
+    Lo que sí se quería ver desde aquí —cómo le llega un formulario— se ve donde
+    se monta, contestándolo: ver `VistaPreviaFormulario`.
+  */
 
   // ══ UN ENVÍO ABIERTO ═════════════════════════════════════════════════════
   if (envio) return <EnvioAbierto envio={envio} onVolver={() => setEnvioAbierto(null)} />;
+
+  /*
+    ══ UN FORMULARIO ABIERTO ════════════════════════════════════════════════
+
+    Se monta en lugar del banco y no en una ventana: el constructor es una
+    pantalla entera —su estantería, su lienzo y su ensayo— y meterla en un modal
+    sería enseñarla por una rendija. Al volver, `abierto` y `tocada` siguen
+    donde estaban, así que se vuelve a la acción de la que se salió.
+
+    La comprobación de que todavía existe no es defensiva de más: se puede haber
+    quitado desde la lista del tramo de al lado, y un id muerto dejaría la
+    pantalla en blanco sin decir por qué.
+  */
+  if (editando && formularios.some((f) => f.id === editando)) {
+    return <EditorDeFormulario formId={editando} onVolver={() => setEditando(null)} />;
+  }
 
   // ══ LA LISTA ═════════════════════════════════════════════════════════════
   if (!protocolo) {
@@ -435,20 +640,50 @@ export const ProtocolosPanel = () => {
             tramos={[
               { id: 'protocolos', label: 'Protocolos' },
               { id: 'sale', label: 'Lo que sale', n: porSalir },
+              /*
+                ── Y LOS FORMULARIOS SON EL TERCER TRAMO, no una puerta ─────
+
+                Eran una fila propia en la barra del Taller, y las dos se pasaban
+                el trabajo la una a la otra: el protocolo enlazaba a Formularios
+                para escribir uno y Formularios enlazaba de vuelta para saber
+                quién lo pide. Una pantalla que necesita una nota al pie para
+                explicar qué mitad del trabajo le toca está partida por donde no
+                debía.
+
+                El tramo ES la ruta, como en la Librería: `/formularios` sigue
+                existiendo, se puede enlazar y el botón de atrás hace lo que
+                tiene que hacer. Lo que cambia es que en la barra ocupan una fila
+                y no dos.
+              */
+              { id: 'formularios', label: 'Formularios', n: formularios.length },
             ]}
             tramo={tramo}
-            onTramo={setTramo}
+            onTramo={(id) => (id === 'formularios' ? navigate('/formularios') : setTramo(id))}
             accion={
               <span className="row gap-2">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={nuevo}>
-                  <Plus size={15} /> Nuevo protocolo
-                </button>
-                {/* El verbo de la pantalla. Va en azul porque es lo que invita
-                    (ver la ley del color) y porque es lo que se viene a hacer:
-                    definir un protocolo se hace una vez, mandar algo se hace
-                    todas las semanas. */}
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => setMandando(true)}>
+                {/*
+                  ── ÉSTE EN SECUNDARIO, Y PRIMERO: en una cinta hay UN azul ──
+
+                  Estuvo en primario con el argumento de que mandar algo se hace
+                  todas las semanas y definir un protocolo se hace una vez. El
+                  argumento es cierto y aun así sobraba el color: con los dos en
+                  azul la cabecera no dice cuál es la acción de esta pantalla,
+                  dice que hay dos igual de importantes, y entonces el acento
+                  deja de señalar nada. La ley del color pide que invite; con
+                  dos invitaciones seguidas no invita ninguna.
+
+                  Y va a la IZQUIERDA del azul, que es el orden de cualquier
+                  cabecera: lo secundario se atraviesa, el verbo de la pantalla
+                  remata la línea.
+                */}
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMandando(true)}>
                   <Send size={15} /> Mandar algo
+                </button>
+                {/* Primario, como el alta de las otras tres puertas del Taller
+                    (alimento, ejercicio, formulario): dar de alta una pieza es
+                    la acción de la colección, y en la cinta solo hay una. */}
+                <button type="button" className="btn btn-primary btn-sm" onClick={nuevo}>
+                  <Plus size={15} /> Nuevo protocolo
                 </button>
               </span>
             }
@@ -459,6 +694,64 @@ export const ProtocolosPanel = () => {
               <LoQueSale />
             ) : (
               <>
+            {/*
+              ── LA INVITACIÓN DEL PRIMER DÍA ───────────────────────────────
+
+              Un protocolo bien montado es lo que hace que la aplicación haga
+              algo sola, y para montarlo hay que entender seis palabras nuevas
+              —protocolo, acción, premisa, formulario, plantilla, enchufe— antes
+              de tocar nada. Quien viene de una hoja de cálculo no tiene dónde
+              agarrarse.
+
+              Aquí no se le explica el vocabulario: se le ofrecen tres preguntas
+              que ya sabe contestar, y después la pantalla de siempre. Y se
+              ofrece UNA vez: cerrarla la apaga para siempre, porque un
+              asistente que reaparece es un paso muerto que hay que esquivar.
+
+              ── Y NO ES UN AVISO, que es lo que estaba mal ──────────────────
+
+              Era un `Notice` de tono informativo: una losa azul a todo el ancho
+              de la hoja, con tres frases dentro y dos botones —uno azul y otro
+              gris— metidos en el renglón. Tres cosas que no eran:
+
+              · Un aviso teñido dice «hay algo que saber». Esto no informa de
+                nada: es una PUERTA, y una puerta se abre. El color del aviso se
+                gastaba en algo que no había pasado.
+              · «Empezar» y «Ya lo monto yo» son dos verbos enfrentados para lo
+                que en realidad es entrar o quitarlo de en medio. El segundo
+                además obligaba a leerse para entender que era el «no».
+              · Y tres frases para una oferta de un clic.
+
+              Ahora es una sola línea que se pulsa entera —la fila ES el botón,
+              con su punta a la derecha— y una equis para apartarla. Es lo que
+              hace cualquier aplicación moderna con una sugerencia: entrar o
+              cerrarla, sin un párrafo en medio.
+            */}
+            {ofreceGuia && (
+              <div className="invita">
+                <button
+                  type="button"
+                  className="invita-entrar"
+                  onClick={() => setGuiando(true)}
+                >
+                  <Sparkles size={15} className="invita-glifo" aria-hidden="true" />
+                  <span className="invita-dice">
+                    <b>Móntalo en tres preguntas.</b> Qué le das, qué le pides y de qué quieres que
+                    te avise.
+                  </span>
+                  <ChevronRight size={15} className="invita-punta" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-icon invita-cerrar"
+                  onClick={apartarGuia}
+                  aria-label="Quitar la invitación: lo montas tú"
+                >
+                  <X size={13} />
+                </button>
+              </div>
+            )}
+
             {/* Dos rótulos y no dos pestañas: lo que pasa SIEMPRE y lo que pasó
                 UNA VEZ son la misma clase de cosa —una acción con su gente y su
                 momento— y se leen del tirón. */}
@@ -504,7 +797,9 @@ export const ProtocolosPanel = () => {
                                   className="p-abrir"
                                   onClick={() => {
                                     setAbierto(p.id);
+                                    setMontando(false);
                                     setTocada(null);
+                                    setPaso('acciones');
                                   }}
                                 >
                                   {p.name}
@@ -567,6 +862,15 @@ export const ProtocolosPanel = () => {
         </div>
 
         {mandando && <MandarAlgo onCerrar={() => setMandando(false)} />}
+
+        {guiando && (
+          <AltaGuiada
+            protocolo={protocolos[0]}
+            formularios={formularios}
+            onMontar={montarGuia}
+            onCerrar={() => setGuiando(false)}
+          />
+        )}
       </div>
     );
   }
@@ -588,204 +892,267 @@ export const ProtocolosPanel = () => {
             <button
               type="button"
               className="cab-volver"
-              onClick={() => setAbierto(null)}
+              onClick={volver}
               aria-label="Volver a los protocolos"
             >
               <ArrowLeft size={20} />
             </button>
-            <h1 className="cartera-cab-titulo">{protocolo.name}</h1>
-            <span className="t-xs t-tertiary">
-              {porCliente[protocolo.id] || 0} clientes
-              {desvio.atrasados.length > 0 && ` · ${desvio.atrasados.length} atrasados`}
-              {desvio.excepciones.length > 0 && ` · ${desvio.excepciones.length} excepciones`}
-            </span>
+            <h1 className="cartera-cab-titulo">
+              {borrador ? borrador.name.trim() || 'Protocolo nuevo' : protocolo.name}
+            </h1>
+            {/* De un borrador no hay nada que contar: no lo lleva nadie todavía
+                y decir «0 clientes» al lado del nombre que estás escribiendo es
+                un cero donde no ha pasado nada. */}
+            {!borrador && (
+              <span className="t-xs t-tertiary">
+                {porCliente[protocolo.id] || 0} clientes
+                {desvio.atrasados.length > 0 && ` · ${desvio.atrasados.length} atrasados`}
+                {desvio.excepciones.length > 0 && ` · ${desvio.excepciones.length} excepciones`}
+              </span>
+            )}
+
+            {/*
+              ══ EL CAMINO, EN EL RAÍL DE LA CINTA ═══════════════════════════
+
+              Aquí había dos verbos: «Qué lleva» en secundario y «A quién se lo
+              pones» en azul. Los dos eran pasos del mismo camino —el primero y
+              el último— puestos en el sitio de lo que viene DESPUÉS, así que
+              volver atrás parecía avanzar y el recorrido no se veía por ningún
+              lado: eran tres muebles distintos (ventana, pantalla, ventana) que
+              se tapaban unos a otros.
+
+              Son tres tramos de esta misma pantalla, con su número, en la misma
+              anatomía de raíl que la cartera y el resto del Taller. La marca
+              viaja entre ellos, así que se ve por dónde vas y de dónde vienes.
+
+              Y la numeración se la gana: esto SÍ es una secuencia —no se elige
+              qué preguntar al terminar de entrenar si no le llevas el
+              entrenamiento, y no se le pone a nadie lo que no está montado—.
+              Montado ya, los tres se pueden pulsar en cualquier orden: el
+              número dice por dónde se empieza, no por dónde se puede pasar.
+            */}
+            <nav
+              ref={carrilPasos}
+              className="tabs tramos cartera-cab-tabs camino"
+              role="tablist"
+              aria-label="Los pasos del protocolo"
+            >
+              {PASOS.map((p, i) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  role="tab"
+                  className="tab"
+                  aria-selected={paso === p.id}
+                  /* Mientras es un borrador, los dos de después están apagados y
+                     a la vista: se ve lo que queda por delante sin poder saltar a
+                     una pantalla que habla de un protocolo que aún no existe. */
+                  disabled={Boolean(borrador) && p.id !== 'lleva'}
+                  onClick={() => setPaso(p.id)}
+                >
+                  <span className="camino-n" aria-hidden="true">
+                    {i + 1}
+                  </span>
+                  {p.label}
+                </button>
+              ))}
+              <span className="tabs-marca" aria-hidden="true" />
+            </nav>
+
             <div className="cartera-cab-acciones">
-              {desvio.atrasados.length > 0 && (
+              {/*
+                ── EL VERBO DEL CAMINO, EN LOS DOS TRAMOS QUE TIENEN SIGUIENTE ──
+
+                Montándolo, esta cinta lleva azul: lo que se viene a hacer es
+                terminar el paso y pasar al de al lado. Estaba solo en el ①
+                porque colgaba del borrador, y el borrador muere justo al
+                terminarlo: llegabas al ② y el camino te soltaba sin decir cómo
+                seguir. Ahora el verbo acompaña hasta el ③, que es la última
+                parada y ya tiene el suyo —«ponérselo a alguien»—, así que ahí
+                se apaga y no hay dos azules en pantalla.
+
+                Con el protocolo ya montado no hay verbo de paso: el raíl es
+                navegación y el acento vive donde ocurre la acción.
+              */}
+              {borrador ? (
+                <button type="button" className="btn btn-primary btn-sm" onClick={seguir}>
+                  Seguir <ArrowRight size={15} />
+                </button>
+              ) : montando && paso === 'acciones' ? (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
-                  disabled={aplicando}
-                  onClick={() => ponerAlDia(protocolo)}
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setPaso('quien')}
                 >
-                  <Users size={15} /> {aplicando ? 'Poniendo al día…' : 'Poner al día'}
+                  Seguir <ArrowRight size={15} />
                 </button>
+              ) : (
+                desvio.atrasados.length > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={aplicando}
+                    onClick={() => ponerAlDia(protocolo)}
+                  >
+                    <Users size={15} /> {aplicando ? 'Poniendo al día…' : 'Poner al día'}
+                  </button>
+                )
               )}
-              <button type="button" className="cab-accion" onClick={() => verComoCliente(protocolo)}>
-                <Eye size={15} aria-hidden="true" />
-                <span>Ver como cliente</span>
-              </button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="cartera-cuerpo stack proto-banco">
-        <div className="proto-cab stack-sm">
-          {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
-          {desvio.excepciones.length > 0 && (
-            <p className="t-xs t-tertiary">
-              {desvio.excepciones.map((c) => c.name).slice(0, 4).join(', ')}
-              {desvio.excepciones.length > 4 && ` y ${desvio.excepciones.length - 4} más`}{' '}
-              {desvio.excepciones.length === 1 ? 'tiene una excepción' : 'tienen excepciones'} y
-              «Poner al día» no {desvio.excepciones.length === 1 ? 'le' : 'les'} toca nada.
-            </p>
+      {/*
+        ══ LOS PASOS ① Y ③ ═══════════════════════════════════════════════════
+
+        Una columna y nada más: ni los dos planos del banco ni el carril de la
+        acción. Lo que cambia al moverse por el raíl es esto, y solo esto — la
+        cinta, el nombre y el sitio de la página se quedan donde estaban, que es
+        lo que hace que avanzar no se sienta como cambiar de pantalla.
+      */}
+      {paso !== 'acciones' && (
+        <div className="cartera-cuerpo stack">
+          {aviso && (
+            <div className="proto-paso">
+              <Notice tone={aviso.tone}>{aviso.text}</Notice>
+            </div>
+          )}
+
+          {paso === 'lleva' ? (
+            <QueLleva
+              protocolo={protocolo}
+              borrador={Boolean(borrador)}
+              onCambiar={cambiarLleva}
+            />
+          ) : (
+            <AQuienSeLoPones
+              protocolo={protocolo}
+              clients={clients}
+              coachPrefs={coachPrefs}
+              aplicarACliente={applyProtocolToClient}
+              onHecho={({ hechos }) =>
+                setAviso({
+                  tone: 'success',
+                  text: `Se lo has puesto a ${hechos} ${hechos === 1 ? 'cliente' : 'clientes'}.`,
+                })
+              }
+            />
           )}
         </div>
+      )}
 
+      {paso === 'acciones' && (
+      <div className="cartera-cuerpo stack proto-banco">
         {/*
-          El carril del banco, con dos cosas y en este orden: QUÉ LLEVA este
-          protocolo —el alcance, que no es una acción porque no pasa en ningún
-          momento— y debajo la acción tocada.
+          ── Y AQUÍ NO VA NADA MÁS QUE EL ACUSE ─────────────────────────────
 
-          Estaban a la izquierda, encabezando el trabajo, y con todo encendido
-          eran ocho rectángulos de acento a lo ancho de la hoja: la pantalla
-          abría sin enseñar ni una sola acción, que es lo que la pantalla ES. Un
-          ajuste que se toca al montar el protocolo y no se vuelve a mirar no
-          puede ocupar la primera pantalla del sitio donde se trabaja todas las
-          semanas.
+          Había, antes de la primera acción, la lista de quién tiene excepción
+          rematada con «y "Poner al día" no les toca nada». Tres cosas mal en un
+          renglón: iba PRIMERA —antes que el trabajo, que son las acciones—,
+          estaba escrita en negativo, y cuando todos son la excepción la
+          excepción no informa de nada.
+
+          Ahora se cuenta donde se cuenta la gente, que es «Quién lo lleva», y
+          se dice por lo que hace y no por lo que no hace. Aquí queda el acuse
+          de lo que acabas de lanzar, que sí es de este momento.
         */}
-        {/*
-          ══ Y ES UN PANEL DE TRES TRAMOS, no tres títulos seguidos ══════════
-
-          Los tres rótulos eran `<h2>` del mismo cuerpo y peso que el título de
-          una página, apilados con un hueco de 12 px y sin nada que los separe:
-          se leían como tres cosas distintas puestas en la misma columna por
-          casualidad, y competían con el nombre del protocolo que hay arriba.
-
-          Aquí son RÓTULOS DE TRAMO —el mismo `.rotulo-tramo` que encabeza «Al
-          entrar» o «Qué le pasa solo» en la columna de al lado— con su filete
-          entre medias. El panel pasa a leerse como lo que es: un mueble con
-          tres cajones, y lo que se mira dentro de cada uno es el dato, no su
-          encabezado.
-        */}
-        <aside className="plano-ficha proto-plano" aria-label="Este protocolo">
-          <section className="col gap-3 proto-lleva">
-            <h2 className="plano-ficha-tit">Qué lleva</h2>
-            <ServicesSection
-              protocol={protocolo}
-              onSave={(next) => guardarUno({ ...protocolo, ...next })}
-              desnudo
-            />
-            <ModulesSection
-              protocol={protocolo}
-              onSave={(next) => guardarUno({ ...protocolo, ...next })}
-              plegable
-            />
-          </section>
-
-          <section className="col gap-3" aria-labelledby="proto-accion">
-            <h2 className="plano-ficha-tit" id="proto-accion">
-              La acción
-            </h2>
-            {/* Nunca vacío — sin elección manda la primera, como en Ejercicios. */}
-            {activa ? (
-              <CarrilAccion
-                accion={activa}
-                plan={plan}
-                onPlan={guardarPlan}
-                onEditarFormulario={(form) => irAEditar(form)}
-              />
-            ) : (
-              <p className="ajustes-nada">
-                Este protocolo no hace nada todavía. Añade la primera acción y aparecerá aquí.
-              </p>
-            )}
-          </section>
-
-          {/*
-            ══ Y el panel CUENTA, no receta ══════════════════════════════════
-
-            Cuánta gente lo lleva, cuánta se ha quedado atrás y cuántas cosas le
-            pasan solas. Ni una frase que proponga cambiar nada: el criterio es
-            del entrenador y esta columna es información. Lo que sí hace es
-            llevar a donde se arregla — la cifra de la cola es un enlace, porque
-            «4 cosas van a salir» sin poder ver cuáles es una cifra que inquieta
-            y no informa.
-          */}
-          <section className="col gap-3" aria-labelledby="proto-quien">
-            <h2 className="plano-ficha-tit" id="proto-quien">
-              Quién lo lleva
-            </h2>
-            <p className="t-sm">
-              {porCliente[protocolo.id] || 0}{' '}
-              {(porCliente[protocolo.id] || 0) === 1 ? 'cliente' : 'clientes'}
-              {desvio.atrasados.length > 0 && ` · ${desvio.atrasados.length} atrasados`}
-              {desvio.excepciones.length > 0 &&
-                ` · ${desvio.excepciones.length} ${desvio.excepciones.length === 1 ? 'excepción' : 'excepciones'}`}
-            </p>
-            <p className="t-xs t-tertiary">
-              {cuentaPasos(susAutomatizaciones) === 0
-                ? 'No le pasa nada solo.'
-                : `${cuentaPasos(susAutomatizaciones)} ${
-                    cuentaPasos(susAutomatizaciones) === 1 ? 'cosa le pasa sola' : 'cosas le pasan solas'
-                  }.`}
-            </p>
-            {/* Un enlace y no un botón a todo lo ancho. Esto no es el verbo de
-                la pantalla —la pantalla se usa para montar el protocolo, no
-                para mirar la cola—: es la puerta a donde se ve lo que la cifra
-                de arriba está contando, y una puerta se lee, no se pulsa por
-                accidente. La ley de los gestos: el verbo va en azul. */}
-            <button
-              type="button"
-              className="link proto-plano-link"
-              onClick={() => {
-                setAbierto(null);
-                setTramo('sale');
-              }}
-            >
-              <CalendarClock size={13} aria-hidden="true" />
-              {porSalir === 0 ? 'Ver lo que sale' : `Ver lo que sale · ${porSalir}`}
-            </button>
-          </section>
-        </aside>
+        {aviso && (
+          <div className="proto-cab stack-sm">
+            <Notice tone={aviso.tone}>{aviso.text}</Notice>
+          </div>
+        )}
 
         <div className="plano-lista stack">
           {grupos.map((g) => (
             <section className="page-section" key={g.id}>
               <div className="premisa">
                 <span className="premisa-rot">{g.rot}</span>
-                {/* El cuándo del check-in, donde se lee: en el rótulo de su
-                    premisa. Es el «schedule» que no existía. */}
-                {g.id === 'semana' && (
-                  <>
-                    <select
-                      className="input input-sm premisa-dia"
-                      value={horario.day}
-                      aria-label="Qué día se le pide el check-in"
-                      onChange={(e) =>
-                        guardarUno({
-                          ...protocolo,
-                          schedule: { ...horario, day: Number(e.target.value) },
-                        })
-                      }
-                    >
-                      {DIAS.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.corto}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="input input-sm premisa-dia"
-                      value={horario.every}
-                      aria-label="Cada cuántas semanas se le pide"
-                      onChange={(e) =>
-                        guardarUno({
-                          ...protocolo,
-                          schedule: { ...horario, every: Number(e.target.value) },
-                        })
-                      }
-                    >
-                      {Array.from({ length: EVERY_MAX }, (_, i) => i + 1).map((n) => (
-                        <option key={n} value={n}>
-                          {n === 1 ? 'todas las semanas' : `cada ${n} semanas`}
-                        </option>
-                      ))}
-                    </select>
-                  </>
-                )}
                 <span className="premisa-regla" aria-hidden="true" />
               </div>
+
+              {/*
+                ── EL CUÁNDO ES UNA FRASE, no dos cajas junto al rótulo ──────
+
+                Los dos desplegables vivían DENTRO del rótulo, a tres píxeles de
+                él, y con cadencia de dos la línea leía «CADA SEMANA · lunes ·
+                cada 2 semanas»: una contradicción literal entre el nombre del
+                tramo —que es la premisa, el momento de la vida del cliente— y
+                el horario, que es otra cosa.
+
+                Y los dos iban desnudos. El lector de pantalla sí sabía cuál era
+                cuál (`aria-label`), pero quien MIRA tenía que deducir qué
+                gobernaba «lunes» por lo que había dentro de la caja.
+
+                Ahora es la frase que se diría en voz alta, con las dos palabras
+                editables en su sitio —se escribe donde se lee, que es la
+                gramática de la casa—. El rótulo vuelve a ser solo el momento.
+              */}
+              {g.id === 'semana' && (
+                <p className="premisa-frase">
+                  Le pides el check-in los{' '}
+                  <select
+                    className="input input-sm premisa-dia"
+                    value={horario.weekday}
+                    aria-label="Qué día se le pide el check-in"
+                    onChange={(e) =>
+                      guardarUno({
+                        ...protocolo,
+                        schedule: { ...horario, weekday: Number(e.target.value) },
+                      })
+                    }
+                  >
+                    {DIAS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.plural}
+                      </option>
+                    ))}
+                  </select>
+                  ,{' '}
+                  <select
+                    className="input input-sm premisa-dia"
+                    value={horario.everyWeeks}
+                    aria-label="Cada cuántas semanas se le pide"
+                    onChange={(e) =>
+                      guardarUno({
+                        ...protocolo,
+                        schedule: { ...horario, everyWeeks: Number(e.target.value) },
+                      })
+                    }
+                  >
+                    {CHECKIN_CADENCES.map((c) => (
+                      <option key={c.weeks} value={c.weeks}>
+                        {c.weeks === 1 ? 'todas las semanas' : `cada ${c.weeks} semanas`}
+                      </option>
+                    ))}
+                  </select>
+                  .
+                </p>
+              )}
+
+              {/*
+                Quién no lleva esta cita, dicho donde se decide. No es un aviso
+                de error: es la consecuencia del mando que hay tres píxeles más
+                arriba, y sin ella el entrenador cambia el día creyendo que
+                cambia el de todos —que es exactamente lo que esta pantalla
+                prometía y no cumplía—.
+              */}
+              {g.id === 'semana' && citas.distintos.length > 0 && (
+                <p className="t-xs t-tertiary premisa-cita">
+                  {citas.distintos.length === 1
+                    ? `${citas.distintos[0].name} tiene otro día`
+                    : `${citas.distintos.length} de tus ${porCliente[protocolo.id] || citas.distintos.length} clientes tienen otro día`}
+                  : se lo quedan.{' '}
+                  <button
+                    type="button"
+                    className="link"
+                    disabled={aplicando}
+                    onClick={cambiarLasCitas}
+                  >
+                    Ponerles el {diaDe(protocolo.schedule)}
+                  </button>
+                </p>
+              )}
 
               {g.acciones.map((a) => (
                 <FilaAccion
@@ -802,9 +1169,9 @@ export const ProtocolosPanel = () => {
             </section>
           ))}
 
-          <button type="button" className="btn anadir-pregunta" onClick={() => setAnadiendo({ paso: 'que' })}>
-            <Plus size={15} /> Añadir acción
-          </button>
+          {/* El verbo de la casa, como en el constructor de formularios y en la
+              hoja de Entreno. Ver `docs/producto.md` §5.8. */}
+          <BotonMas palabra="acción" onClick={() => setAnadiendo({ paso: 'que' })} />
 
           {/*
             ══ Y debajo, lo que le pasa SOLO ══════════════════════════════════
@@ -838,7 +1205,60 @@ export const ProtocolosPanel = () => {
             pones al día, y a quien tenga una excepción no lo toca ni entonces.
           </p>
         </div>
+
+        {/*
+          ══ EL CARRIL SE QUEDA CON UNA COSA: LA ACCIÓN TOCADA ══════════════
+
+          Tenía tres tramos —qué lleva, la acción, quién lo lleva— y solo el de
+          en medio es el protocolo. Los otros dos eran las otras tres cosas que
+          esta pantalla hacía a la vez: el alcance y las piezas (lo que se
+          incluye), y la administración (cuánta gente, cuánta atrasada).
+
+          · **Qué lleva** es ahora el paso ① del raíl: no ocurre en ningún
+            momento, así que no cabe en una línea de tiempo, pero tampoco es una
+            capa que se abre encima — es la primera parada del camino.
+          · **Quién lo lleva** se fue de aquí, y no porque estorbara: porque lo
+            REPETÍA. «6 clientes · 6 excepciones» es exactamente lo que dice la
+            cabecera tres centímetros más arriba, y «1 cosa le pasa sola» es lo
+            que cuenta el carril de automatizaciones que hay debajo, con sus
+            pasos delante. La misma falta que tenía el detalle de la acción.
+            Los nombres de quien tiene excepción los dice el acuse de «Poner al
+            día» —«Las 6 excepciones se quedan como estaban»—, que es cuando
+            importan, y la ficha de cada uno lo dice de esa persona. Repartirlo
+            es otra cosa, y ésa es el paso ③.
+
+          Lo que queda es lo que la pantalla ES: una lista de acciones con su
+          premisa, y a su lado el detalle de la que estás tocando.
+
+          ── Y va DESPUÉS de la lista en el marcado ───────────────────────────
+          Iba antes, y a ≥1440 daba igual porque la rejilla coloca los dos
+          planos a mano. Pero por debajo de ese ancho la rejilla no existe y
+          manda el orden de las fuentes: la pantalla abría con el detalle de una
+          acción que todavía no habías visto — se lee al revés.
+        */}
+        <aside className="plano-ficha proto-plano" aria-label="La acción">
+          <section className="col gap-3" aria-labelledby="proto-accion">
+            <h2 className="plano-ficha-tit" id="proto-accion">
+              La acción
+            </h2>
+            {/* Nunca vacío — sin elección manda la primera, como en Ejercicios. */}
+            {activa ? (
+              <CarrilAccion
+                accion={activa}
+                plan={plan}
+                onPlan={guardarPlan}
+                onEditarFormulario={(form) => irAEditar(form)}
+              />
+            ) : (
+              <p className="ajustes-nada">
+                Este protocolo no hace nada todavía. Añade la primera acción y aparecerá aquí.
+              </p>
+            )}
+          </section>
+
+        </aside>
       </div>
+      )}
 
       {anadiendo && (
         <SelectorAccion
@@ -892,11 +1312,23 @@ const CarrilAccion = ({ accion, plan, onPlan, onEditarFormulario }) => {
 
   return (
     <div className="col gap-3">
+      {/*
+        ── EL PANEL NO REPITE LA TARJETA ───────────────────────────────────
+
+        Aquí debajo del nombre iba «{verbo} · {dice}», que es LITERALMENTE lo
+        que ya dice la fila de la izquierda: con «Alta» tocada, la tarjeta leía
+        «PÍDELE · Alta · El cuestionario que contesta en su portal» y el panel
+        volvía a leer lo mismo. De todo el panel, lo único que la tarjeta no
+        decía era con qué formulario se cumple la acción.
+
+        Un panel que repite se lee dos veces buscando la diferencia. Se queda el
+        NOMBRE, que es lo que ancla —dice de cuál de las filas estás viendo el
+        detalle— y se va el eco. Y en el caso del check-in el eco era doble:
+        `dice` es la enumeración de lo que se mide («su peso, sus perímetros y
+        sus pliegues») y justo debajo está la lista entera, pieza a pieza.
+      */}
       <div className="ajustes-cual">
         <b>{accion.suj}</b>
-        <span>
-          {accion.verbo} · {accion.dice}
-        </span>
       </div>
 
       {/* ── Un formulario: cuál, y la puerta para editarlo ───────────────

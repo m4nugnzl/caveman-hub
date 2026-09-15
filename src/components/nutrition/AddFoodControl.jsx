@@ -285,6 +285,7 @@ export const AddFoodControl = ({ foodLibrary, onAdd, platos = [], onAddPlato = n
           setQuery('');
         }}
         onCreate={startCreating}
+        queEs="alimento"
         placeholder={onAddPlato ? 'Buscar alimento o plato…' : 'Buscar o añadir alimento…'}
         /* Quien abre el buscador desde el verbo de la comida quiere teclear ya,
            y quien se va sin escribir nada lo cierra al salir. Ver `.comida-alta`

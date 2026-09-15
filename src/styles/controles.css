@@ -55,16 +55,33 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    Botones
    ========================================================================== */
 
-/* ── La píldora ─────────────────────────────────────────────────────────────
-   El botón es la única pieza tocable que seguía en radio de tarjeta. Las
-   pestañas van en carril de píldoras, los chips son píldoras, la semana en
-   curso es una píldora: lo que se pulsa, en esta casa, es redondo — y las
-   maquetas aprobadas del rediseño lo fijan así. El radio pleno además separa
-   de un vistazo el control de la superficie: una tarjeta nunca es píldora. */
+/* ── La pieza ───────────────────────────────────────────────────────────────
+   ══ AQUÍ VIVÍA LA PÍLDORA ══════════════════════════════════════════════════
+   El botón estuvo en radio pleno con un argumento que parecía sólido: «lo que
+   se pulsa, en esta casa, es redondo», y con él las pestañas, los chips y la
+   semana en curso. El defecto no se veía mirando el botón sino la PANTALLA:
+   con el campo a 14 px de radio y el chip a 9, eran tres redondeces para tres
+   objetos que se tocan igual (hallazgo #1 del estudio de los mandos).
+
+   Y la píldora estaba diciendo algo que no era verdad. Lo que la forma plena
+   dice bien es «esto es una ETIQUETA» —un estado, un disco, una semana—: una
+   cosa que se lee. Un botón no se lee, se ejecuta.
+
+   El radio sale ahora de `--r-control`, que es el mismo del campo y el del
+   chip. Lo que separa el control de la superficie ya no es la forma sino el
+   TAMAÑO del radio: 8 px contra los 20 de una tarjeta.
+
+   ── Y EL CUERPO, que es lo que de verdad cambia (familia «B») ──────────────
+   El peso baja de 600 a 500 y el tamaño de 16 a 14: un botón no es un titular,
+   y a 16 px en negrita cada verbo de una cabecera pesaba como el nombre de la
+   pantalla. La altura la pone la rejilla (`--h-control`) en vez de salir de un
+   relleno vertical, que es lo que la dejaba en 39 px mientras el campo medía 41
+   y el `btn-sm` 32. Ver `--h-control-lg` en tokens. */
 .btn {
-  font-family: inherit; font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.01em;
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 500; letter-spacing: -0.01em;
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
-  padding: 9px 16px; border-radius: var(--r-pill); border: 0;
+  height: var(--h-control); padding: 0 var(--s3);
+  border-radius: var(--r-control); border: 0;
   background: var(--fill); color: var(--text); cursor: pointer;
   transition: background-color var(--fast), transform var(--fast), opacity var(--fast), box-shadow var(--fast);
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
@@ -128,30 +145,56 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    recuadro de puntos de «arrastra una foto aquí»—: eso lo dice ahora
    `.soltar` (ver «Traer un fichero»), que es el sitio donde de verdad significa
    algo.  */
-.btn-primary { background: var(--accent); color: var(--accent-on); box-shadow: var(--shadow-xs); }
+.btn-primary { background: var(--accent); color: var(--accent-on); box-shadow: var(--shadow-control); }
 .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-/* ── NORMAL: canto fino, sin relleno ────────────────────────────────────────
+/* ── NORMAL: ahora es una pieza, no un contorno ─────────────────────────────
    Se rellenaba con `--fill`, y eso solo funcionaba dentro de una tarjeta. Sobre
-   el lienzo —donde viven `.mando` y `.hoja-barra`, que no tienen fondo propio—
-   el relleno queda a 1,07:1 del fondo: un botón que no se ve. De ahí salió
-   `btn-quiet`, un segundo tratamiento para este mismo peso, y con él la
-   incoherencia de que la acción normal se viera distinta según la pantalla.
+   el lienzo —donde vive `.mando`, que no tiene fondo propio— el relleno quedaba
+   a 1,07:1 del fondo: un botón que no se ve. De ahí salió `btn-quiet`, un
+   segundo tratamiento para este mismo peso, y con él la incoherencia de que la
+   acción normal se viera distinta según la pantalla. El canto sobrevivía a los
+   dos fondos, y así se quedó: `background: transparent` con un contorno.
 
-   El canto es el tratamiento que sobrevive a los dos fondos. La deuda que
-   este comentario confesaba —1,33:1 sobre lienzo cuando WCAG pide 3:1 para el
-   borde de un control— quedó saldada con `--edge-control`: un token SOLO para
-   lo que se pulsa o se escribe, para no engordar los filetes de separar. */
-.btn-secondary { background: transparent; box-shadow: inset 0 0 0 1px var(--edge-control); }
+   ══ Y ESE ERA EL HALLAZGO #2 ═══════════════════════════════════════════════
+   Un botón transparente al lado de uno de relleno macizo no se lee como «la
+   otra acción»: se lee como la acción APAGADA. Es el estado deshabilitado
+   dibujado por descuido, y estaba en los dos botones de cada pie de ventana de
+   la aplicación.
+
+   Se arregla dándole el relleno de la HOJA, no el del lienzo: blanco sobre
+   papel templado es un contraste pequeño pero es contraste, y encima sigue
+   funcionando dentro de una tarjeta blanca porque debajo lleva el canto y la
+   sombra de contacto. Relleno + canto + sombra es la anatomía de la familia
+   elegida, y es la misma que el campo (ver `--shadow-control` en tokens).
+
+   Y el hover ya no puede ser `--fill-subtle`, que es casi el mismo blanco:
+   ahora el reposo es claro, así que al pasar por encima se OSCURECE un punto.
+   Es la vuelta exacta del gesto de antes. */
+.btn-secondary {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--edge-control), var(--shadow-xs);
+}
 .btn-secondary:hover:not(:disabled) { background: var(--fill-subtle); }
-.btn-plain { background: transparent; color: var(--accent); padding: 7px 9px; }
+.btn-plain { background: transparent; color: var(--accent); padding: 0 9px; box-shadow: none; }
 .btn-plain:hover:not(:disabled) { background: var(--fill-subtle); }
 .btn-danger { background: var(--negative-soft); color: var(--negative); }
 
-.btn-sm { padding: 5px 12px; font-size: var(--fs-sm); }
-.btn-lg { padding: 12px 22px; font-size: var(--fs-md); }
+/* Las tres tallas, cada una en su escalón de `--h-control-*`. Lo que cambia
+   entre ellas es la CAJA, no la voz: el relleno lateral acompaña a la altura y
+   el verbo se queda en 14 px salvo en la grande, que va sola en su renglón y
+   cierra una decisión, así que puede permitirse el cuerpo del texto.
+
+   La pequeña no baja de tipo a propósito. Un verbo de 12 px dentro de una fila
+   —«Ver», «Quitar», «Pegar»— se lee como un pie de tabla y hay que buscarlo;
+   lo que la hace pequeña es que ocupa menos renglón, no que hable más bajo. */
+.btn-sm { height: var(--h-control-sm); padding: 0 var(--s2); font-size: var(--fs-sm); }
+.btn-lg { height: var(--h-control-lg); padding: 0 var(--s4); font-size: var(--fs-base); }
 .btn-block { width: 100%; }
 
-/* El de icono hereda la píldora y, cuadrado como es, sale círculo. */
+/* El de icono hereda el radio del control y, cuadrado como es, sale un
+   rectángulo de esquina blanda. Era un círculo mientras el botón fue píldora;
+   lo que lo ataba al resto no era la forma sino ser el MISMO objeto, y eso
+   sigue igual — coge `--h-control` como todo lo demás. */
 .btn-icon {
   width: var(--h-control); height: var(--h-control);
   padding: 0; background: transparent; color: var(--text-tertiary);
@@ -217,31 +260,68 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    Formularios
    ========================================================================== */
 
-.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
 .field-label { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
 .field-hint { font-size: var(--fs-xs); color: var(--text-tertiary); }
-.field-error { font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+.field-error { font-size: var(--fs-xs); color: var(--negative); font-weight: 500; }
 
+/* ══ EL CAMPO, RECONSTRUIDO (14 sep 2026, familia «B») ═══════════════════════
+   Llevaba 1,5 px de `--edge-control` en su versión oscura —#8a8378, un gris
+   caliente casi tinta— y era, medido, lo que más envejecía la pantalla: una
+   hoja con catorce campos eran catorce rectángulos pasados a rotulador. El
+   porqué de aclararlo y lo que cuesta están escritos en el token.
+
+   Lo que sostiene ahora al campo son tres cosas a la vez, ninguna a gritos:
+   el RELLENO de la hoja, 1 px de canto claro y un hundido de un punto. Es la
+   misma anatomía del botón normal, del derecho: aquel está posado y este
+   está hundido, y con eso se distinguen sin que ninguno de los dos grite.
+
+   El radio y la altura salen de la rejilla: un campo y un botón uno al lado del
+   otro medían 41 y 39 con radios de 14 y 999. Ahora los dos miden 32 con radio
+   de 8, que es la única manera de que una fila de formulario se lea como una
+   fila y no como dos piezas de kits distintos.
+
+   EL TIPO BAJA A 14 Y EL DEDO LO DEVUELVE A 16. Por debajo de 16 px, Safari de
+   iOS hace zoom al enfocar un campo y la pantalla se va de sitio bajo el dedo.
+   La casa ya tenía resuelto eso, y con el criterio bueno: `@media (hover: none)`
+   al final de `piezas.css`, porque el zoom es cosa del DEDO y no del ancho de la
+   ventana —así un portátil estrecho conserva su tipografía—. O sea que aquí se
+   escribe la medida de la familia y aquel bloque la levanta donde hace falta.
+   La pareja no es opcional: hay un guardián en `verify-styles` que la exige. */
+/* `min-height` y no `height`, al revés que el botón, y la diferencia dice algo:
+   el contenido de un botón es siempre un renglón, y el de un campo no. La cifra
+   de la báscula va en 30 px (`input-hero`), la serie apuntada en el teléfono en
+   22, y una celda de la tabla de series se estira a 42 porque el dedo tiene que
+   acertarle. Con `height` fijo, todos esos se recortaban. Con el mínimo, la
+   rejilla manda en los novecientos campos normales y los cuatro que tienen algo
+   que decir la suben — que es lo que ya hacían, con la misma propiedad. */
 .input, .select, .textarea {
-  font-family: inherit; font-size: var(--fs-base); font-weight: 500;
-  width: 100%; min-width: 0;
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 500;
+  min-height: var(--h-control); width: 100%; min-width: 0;
   background: var(--surface);
-  /* El canto de control (ver `--edge-control` en tokens): un campo con el
-     borde de un filete no se distingue de una celda de solo lectura. */
-  border: 1.5px solid var(--edge-control);
-  border-radius: var(--r-md); color: var(--text);
-  padding: 9px 12px;
+  border: 1px solid var(--edge-control);
+  border-radius: var(--r-control); color: var(--text);
+  padding: 0 var(--s3);
+  box-shadow: var(--shadow-field);
   transition: border-color var(--fast), box-shadow var(--fast);
 }
+/* Al pasar por encima el canto se acerca al del filete fuerte: con el reposo
+   tan claro, un hover que no cambie nada deja el campo mudo. */
 .input:hover, .select:hover, .textarea:hover { border-color: var(--hairline-strong); }
 .input:focus, .select:focus, .textarea:focus {
   border-color: var(--accent);
+  /* El halo SUSTITUYE al hundido en vez de sumarse: dos sombras discutiendo en
+     el mismo canto ensucian el foco, que es el estado que más se mira. */
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .input::placeholder, .textarea::placeholder { color: var(--text-tertiary); }
 .input-center { text-align: center; font-weight: 600; }
-.input-sm { padding: 5px 9px; font-size: var(--fs-sm); border-radius: var(--r-sm); }
-.textarea { resize: vertical; min-height: 86px; }
+.input-sm { min-height: var(--h-control-sm); padding: 0 9px; font-size: var(--fs-sm); }
+/* El área de texto es el único campo que NO cae en la rejilla, y no puede: su
+   alto es el de lo escrito. Su mínimo pisa al de la rejilla, y el relleno
+   vuelve a tener arriba y abajo — en un campo de un renglón lo centra el
+   navegador, y en uno de seis hay que ponerlo. */
+.textarea { resize: vertical; min-height: 86px; padding: var(--s2) var(--s3); }
 
 /* ── ESCRIBIR DONDE SE LEE ─────────────────────────────────────────────────
    Un texto que además se escribe. En reposo es TEXTO: sin canto, sin fondo y
@@ -273,7 +353,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .texto-en-sitio::placeholder { color: var(--text-tertiary); font-weight: 400; }
 
 .select {
-  appearance: none; padding-right: 32px; cursor: pointer;
+  appearance: none; padding-right: var(--s6); cursor: pointer;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 16px) center, calc(100% - 11px) center;
@@ -288,7 +368,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .input-suffix { position: relative; display: flex; align-items: center; min-width: 0; }
 .input-suffix > .input { padding-right: 34px; }
 .input-suffix > span {
-  position: absolute; right: 12px;
+  position: absolute; right: var(--s3);
   font-size: var(--fs-sm); color: var(--text-tertiary); pointer-events: none;
 }
 
@@ -296,7 +376,8 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    el nombre que tiene al lado. */
 .select-sm {
   width: auto; flex-shrink: 0;
-  padding: 5px 28px 5px 9px; font-size: var(--fs-sm); border-radius: var(--r-sm);
+  min-height: var(--h-control-sm);
+  padding: 0 28px 0 9px; font-size: var(--fs-sm);
   background-position: calc(100% - 13px) center, calc(100% - 9px) center;
 }
 
@@ -407,10 +488,28 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .opt-card.is-inline { width: auto; padding: var(--s2) var(--s3); align-items: center; }
 .opt-card.is-inline > .mark { width: 17px; height: 17px; margin-top: 0; }
 
-/* ── 2. Encender una opción: el interruptor ─────────────────────────────── */
+/* ── 2. Encender una opción: el interruptor ───────────────────────────────
+   ══ EL MANDO VA AL FINAL DEL RENGLÓN (14 sep 2026) ═════════════════════════
+   Estuvo delante del texto, como una casilla. Y no es una casilla: una casilla
+   se marca mientras se lee la lista —el ojo baja por la columna de cuadraditos
+   y va eligiendo—, y un interruptor se acciona DESPUÉS de leer qué hace. Con el
+   mando delante hay que leer hacia atrás: primero el aparato, luego para qué
+   sirve.
+
+   Al final del renglón el orden es el del idioma —«Nutrición … puesta»— y, de
+   paso, todos los mandos de una lista caen en la misma vertical por la derecha
+   aunque los nombres midan lo que midan. Con el mando delante eso ya pasaba;
+   lo que no pasaba era que el TEXTO empezase alineado, y el texto es lo que se
+   lee.
+
+   El orden se cambia en el JSX (`Switch`, en `primitives`) y no con `order`:
+   el orden de lectura de un lector de pantalla lo marca el DOM, y con `order`
+   se oiría «puesto, Nutrición» — que es justo el defecto que se está
+   arreglando, solo que en voz. */
 
 .switch-row {
-  display: flex; align-items: flex-start; gap: var(--s3);
+  display: flex; align-items: flex-start; gap: var(--s4);
+  justify-content: space-between;
   position: relative;
   cursor: pointer; user-select: none;
 }
@@ -437,8 +536,10 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .switch-row.is-on > .track::before { transform: translateX(16px); }
 .switch-row:focus-within > .track { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.switch-row > .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.switch-row > .body > .nm { font-size: var(--fs-sm); font-weight: 550; color: var(--text); }
+/* El texto se queda con todo el ancho que sobra: es lo que empuja al mando
+   contra el canto derecho sin tener que ponerle un margen automático. */
+.switch-row > .body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.switch-row > .body > .nm { font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
 .switch-row > .body > .hint { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.35; }
 
 /* ── 3. Marcar una tarea: la casilla, dibujada por nosotros ─────────────── */
@@ -562,50 +663,16 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .chore.is-done > .chore-mark { background: var(--positive-soft); color: var(--positive); }
 .chore.is-done > .chore-say > .chore-title { color: var(--text-tertiary); font-weight: 500; }
 
-/* ══ ELEGIR QUÉ SE LE PREGUNTA (Ajustes → Protocolo → El alta) ═══════════════
-   Diecinueve casillas repartidas en dos columnas, cada una con una pista de
-   distinto largo y un botón «Obligatoria» a su derecha. Sin caja, cada fila
-   medía lo que midiera su texto: los botones caían a nueve alturas distintas y
-   la lista se leía como una pared de piezas sueltas.
-
-   La caja iguala la altura y ancla el botón, que es lo único que hacía falta:
-   con las filas a la misma altura, dos columnas vuelven a leerse como una tabla
-   y no como un montón. */
-.ask-row {
-  display: flex; align-items: center; gap: var(--s3);
-  min-height: 54px;
-  padding: var(--s2) var(--s3);
-  border: 1px solid var(--edge); border-radius: var(--r-md);
-  background: var(--surface-sunken);
-  transition: border-color var(--fast);
-}
-.ask-row:hover { border-color: var(--hairline-strong); }
-/* Encendida, el canto lo dice: es lo que distingue de un vistazo lo que se
-   pregunta de lo que no, sin tener que mirar dentro de cada casilla. */
-.ask-row.is-on { border-color: var(--hairline-strong); background: var(--surface); }
-
-.ask-row > .checkbox-row { flex: 1; min-width: 0; }
-/* La pista, a UNA línea. Es un recordatorio, no una explicación: dejándola
-   crecer, la fila que la tiene mide el doble que la de al lado y vuelve el
-   desorden que esta caja arregla. */
+/* La pista de una pregunta, a UNA línea. Es un recordatorio —«formulario · 3
+   sept · pendiente»—, no una explicación: dejándola crecer, la fila que la
+   tiene mide el doble que la de al lado y la lista se lee como un montón.
+   Vive en `.proto-q` (ClientSettings → Protocolo). */
 .ask-hint {
   display: block; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.ask-req { flex-shrink: 0; }
 
-/* ══ LA TARJETA DE ARRANQUE DEL CLIENTE ══════════════════════════════════════
-   La única del portal que se abre con algo sin hacer que bloquea lo demás: sin
-   sus respuestas no hay rutina, y sin rutina el resto son pantallas vacías. Con
-   el aspecto de un aviso cualquiera se leía como opcional — y quedaba debajo del
-   recordatorio de pesajes, que es lo que pasó de verdad.
 
-   El canto de brasa es la misma tinta que marca el día de hoy y la sección
-   activa. Aquí dice lo mismo: es donde estás. */
-.intake-start { border-color: var(--accent); box-shadow: inset 3px 0 0 0 var(--accent); }
-.intake-start-title {
-  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.015em;
-}
 
 /* ══ EL CUESTIONARIO DE ALTA ══════════════════════════════════════════════════
    Es el formulario más largo que ve un cliente —hasta diecinueve campos— y el
@@ -628,45 +695,21 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   transition: width var(--slow);
 }
 
-/* ── Cada tanda, en su propia caja ──────────────────────────────────────────
-   Un filete no bastaba. Catorce campos con sus etiquetas, sus pistas y sus
-   rótulos, todos sobre la misma superficie, se leen como una tirada: la vista no
-   encuentra dónde empieza una pregunta y acaba otra, y el conjunto parece
-   desordenado aunque cada pieza esté en su sitio.
+/* ── EL ALTA ES UN CAPÍTULO POR HOJA, Y AQUÍ NO QUEDA NADA SUYO ─────────────
+   Aquí vivieron dos generaciones del cuestionario de alta y las dos se han ido:
+   `.form-block` (cada tanda en su caja hundida, con su rejilla de dos columnas)
+   y `.alta-escena` + `.alta-nav` (una pregunta por pantalla, con Atrás y
+   Siguiente). La primera era un muro de campos descuadrados; la segunda cobraba
+   trece toques por contestar trece preguntas.
 
-   Con la caja, cada tanda es un objeto: dos o tres objetos se recorren, catorce
-   campos no. Es la misma jerarquía que usa la ficha del entrenador —bloque,
-   rótulo troquelado, contenido— así que además el cliente ve su formulario
-   ordenado igual que su entrenador ve la ficha que sale de él. */
-.form-block {
-  padding: var(--s4);
-  border: 1px solid var(--edge); border-radius: var(--r-md);
-  background: var(--surface-sunken);
-}
-/* Una tanda con TODO contestado deja de pedir la vista: mismo hundido, canto
-   apagado. No se colapsa ni se esconde —se vuelve a ella a corregir— pero en una
-   pantalla de cuatro tandas hay que poder ver de un vistazo cuál queda. */
-.form-block.is-full { border-color: transparent; }
+   El alta se pinta ahora con `.campo-q`, en `formularios.css` —la misma hoja
+   numerada que el cliente ya contesta en su check-in y en cualquier formulario
+   suelto— repartida en una hoja por tanda, con el carril del asistente (`.wiz`,
+   en `revision.css`) y el pie de `.alta-pie`. El porqué está en
+   `Client/IntakeQuestions.jsx`, con las cuatro versiones que hubo antes.
 
-/* El número de la tanda: dice cuántas quedan sin tener que contarlas.
-   El selector es descendiente y no hijo directo porque el rótulo comparte fila
-   con la cuenta de la tanda («3/5»), así que va dentro de un `.row between`. */
-.form-block .section-label > .n {
-  display: inline-grid; place-items: center;
-  width: 18px; height: 18px; margin-right: 6px; border-radius: 50%;
-  background: var(--fill); color: var(--text-tertiary);
-  font-size: var(--fs-2xs); font-weight: 700;
-}
-
-/* Cuántas de esta tanda están contestadas. En monoespaciada por lo mismo que el
-   contador del índice: son cifras que se comparan entre tandas, y a esa
-   comparación le estorba que el «1» mida menos que el «4». */
-.tanda-n {
-  display: flex; align-items: center; gap: 3px; flex-shrink: 0;
-  font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
-  color: var(--text-tertiary);
-}
-.form-block.is-full .tanda-n { color: var(--positive); }
+   No se escribe aquí ninguna regla nueva a propósito: lo que hace que los tres
+   formularios del cliente no vuelvan a divergir es que los pinte el mismo CSS. */
 
 /* ── La barra de guardar del cuestionario ───────────────────────────────────
    Pegada al pie de la ventana mientras se rellena. El motivo está en
@@ -732,14 +775,14 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 }
 .gym-eje {
   display: flex; align-items: center; gap: var(--s2);
-  padding: 5px 8px; border: 0; border-radius: var(--r-sm);
+  padding: var(--s1) var(--s2); border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--text-secondary);
   font: inherit; font-size: var(--fs-sm); font-weight: 500;
   text-align: left; cursor: pointer;
   transition: background-color var(--fast), color var(--fast);
 }
 .gym-eje:hover { background: var(--fill-subtle); color: var(--text); }
-.gym-eje[aria-current='true'] { background: var(--fill); color: var(--text); font-weight: 650; }
+.gym-eje[aria-current='true'] { background: var(--fill); color: var(--text); font-weight: 600; }
 .gym-eje:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* El color del músculo, en un disco. Es el MISMO dato que el volumen semanal y
    la analítica —sale de `muscleColor`—, pero dicho sin gritar: cinco titulares
@@ -766,9 +809,9 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    trabajo. Es la misma lista puesta como cabe: chapas, con la gramática de
    `.chip` —de la que sale el acento de lo marcado— para que no haya dos clases
    de filtro en la casa. */
-.gym-indice.es-carril { flex-direction: row; flex-wrap: wrap; gap: 4px; margin-left: 0; }
+.gym-indice.es-carril { flex-direction: row; flex-wrap: wrap; gap: var(--s1); margin-left: 0; }
 .gym-indice.es-carril .gym-eje {
-  border-radius: var(--r-pill); padding: 5px 11px; background: var(--fill-subtle);
+  border-radius: var(--r-pill); padding: var(--s1) 11px; background: var(--fill-subtle);
 }
 .gym-indice.es-carril .gym-eje:hover { background: var(--fill); }
 .gym-indice.es-carril .gym-eje[aria-current='true'] { background: var(--accent); color: var(--accent-on); }
@@ -823,8 +866,8 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    `.photo-thumb-tag`, que resuelve este caso desde el estudio de fotos. */
 .gym-tag {
   position: absolute; top: 6px; left: 6px; pointer-events: none;
-  padding: 3px 8px; border-radius: var(--r-pill);
-  font-size: var(--fs-2xs); font-weight: 650; letter-spacing: -0.01em;
+  padding: 3px var(--s2); border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: -0.01em;
   background: var(--scrim); color: #fff;
   backdrop-filter: blur(7px) saturate(1.4); -webkit-backdrop-filter: blur(7px) saturate(1.4);
 }
@@ -833,7 +876,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    dice qué máquina es, y el rótulo solo hace falta cuando se está mirando esa. */
 .gym-nombre {
   position: absolute; inset: auto 0 0 0;
-  padding: 22px var(--s2) 7px;
+  padding: var(--s5) var(--s2) var(--s2);
   font-size: var(--fs-2xs); font-weight: 600; color: #fff;
   background: linear-gradient(to top, rgba(10, 12, 15, 0.78), rgba(10, 12, 15, 0));
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -870,12 +913,12 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    datos debajo— y el rótulo pasa a ser una fila. El índice no cabe ahí dentro
    sin estrangular al título, así que se queda con su renglón entero y se lee
    como el carril que ya es a esa anchura. */
-@media (max-width: 1180px) {
+@media (max-width: 1199.98px) {
   .ficha-cuerpo .bloque-gym .panel-head { flex-wrap: wrap; }
   .bloque-gym .gym-cabeza { flex-basis: 100%; order: 3; }
-  .ficha-cuerpo .gym-indice { flex-direction: row; flex-wrap: wrap; gap: 4px; margin-left: 0; }
+  .ficha-cuerpo .gym-indice { flex-direction: row; flex-wrap: wrap; gap: var(--s1); margin-left: 0; }
   .ficha-cuerpo .gym-indice .gym-eje {
-    border-radius: var(--r-pill); padding: 5px 11px; background: var(--fill-subtle);
+    border-radius: var(--r-pill); padding: var(--s1) 11px; background: var(--fill-subtle);
   }
   .ficha-cuerpo .gym-indice .gym-eje[aria-current='true'] { background: var(--accent); color: var(--accent-on); }
   .ficha-cuerpo .gym-indice .gym-eje[aria-current='true'] > .gym-eje-n { color: inherit; opacity: 0.72; }
@@ -946,72 +989,19 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 }
 .segmented-item:hover { color: var(--text); }
 .segmented-item[aria-pressed='true'] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-xs); }
-.segmented-item[aria-pressed='true'].tone-accent { background: var(--accent); color: var(--accent-on); }
 
 .chip {
   font-family: inherit; font-size: var(--fs-sm); font-weight: 600;
-  padding: 5px 12px; border-radius: var(--r-pill);
+  padding: var(--s1) var(--s3); border-radius: var(--r-pill);
   background: var(--fill-subtle); border: 0; color: var(--text-secondary);
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: var(--s1);
   transition: background-color var(--fast), color var(--fast);
 }
 .chip:hover { background: var(--fill); color: var(--text); }
 .chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-on); }
 .chip-dashed { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); background: transparent; }
 .chip-dashed:hover { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent); }
-
-/* ── El carril de días, que se arrastra ──────────────────────────────────────
-   El orden de estos chips es el orden de la semana del cliente, así que se
-   cambia aquí, donde se ve.
-
-   ══ El asa no es la zona de agarre, es el cartel ═══════════════════════════
-   Se arrastra la pastilla ENTERA — un asa que hubiera que acertar dentro de 28
-   px de alto sería más difícil de dar que la pastilla—. El asa está porque el
-   cursor de agarre no lo descubre nadie: hay que pasar por encima para verlo, y
-   en un teléfono no hay «por encima». Un gesto que no se sospecha no existe.
-
-   ══ Lo que se ve al arrastrar ══════════════════════════════════════════════
-   El que viaja se LEVANTA (sombra y por encima del resto) en vez de atenuarse:
-   sigue al puntero, así que es la pieza que se está mirando. Los de en medio se
-   apartan dejando el hueco — y esa es la explicación del gesto: al ver el sitio
-   abrirse ya sabes qué pasa al soltar. La transición es de ellos; el que viaja
-   no la lleva, porque tiene que ir pegado al dedo.
-
-   El chip de «+ Día» no arrastra: no es un día, es un botón. */
-.day-rail .chip:not(.chip-dashed) {
-  cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
-  transition: background-color var(--fast), color var(--fast), transform var(--normal);
-}
-.day-rail .chip:not(.chip-dashed):active { cursor: grabbing; }
-.day-rail .chip.is-dragging {
-  position: relative; z-index: 2;
-  cursor: grabbing; box-shadow: var(--shadow-md);
-  transition: none;
-}
-.day-rail .chip.is-drop-target { box-shadow: inset 0 0 0 2px var(--accent); }
-
-/* El asa: presente siempre —es lo que anuncia el gesto— pero en voz baja, para
-   que el nombre del día siga siendo lo que se lee. */
-.chip-grip { opacity: 0.4; transition: opacity var(--fast); }
-.chip:hover > .chip-grip { opacity: 0.75; }
-
-/* En el teléfono, los días se quedan PEGADOS arriba al bajar por el que está
-   abierto: cambiar de Empuje a Pierna no debería exigir volver a subir cuatro
-   pantallas. Sangra hasta los cantos (el negativo deshace el padding del
-   layout) y lleva el cristal de las barras para que el contenido se lea
-   pasando por debajo. Solo en el teléfono: en escritorio la página es corta
-   y una fila pegajosa sería una barra más. */
-@media (max-width: 640px) {
-  .day-rail {
-    position: sticky; top: 0; z-index: 40;
-    margin: 0 calc(-1 * var(--s3));
-    padding: var(--s2) var(--s3);
-    background: var(--surface-glass);
-    backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    border-bottom: 1px solid var(--hairline);
-  }
-}
 
 /* Cuántos clientes hay detrás de un filtro. Va dentro del chip, subordinado a
    su etiqueta: es un apoyo para elegir, no un dato que se lea por sí solo.
@@ -1028,7 +1018,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .chip-note { font-size: var(--fs-xs); font-weight: 500; opacity: 0.6; }
 
 .badge {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--s1);
   padding: 3px 9px; border-radius: var(--r-pill);
   font-size: var(--fs-xs); font-weight: 600; white-space: nowrap;
   background: var(--fill); color: var(--text-secondary);
@@ -1147,11 +1137,11 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   .soltar.is-encima .soltar-icono { transform: translateY(-2px) scale(1.06); }
 }
 
-.soltar-titulo { font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.01em; }
+.soltar-titulo { font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em; }
 .soltar-sub { font-size: var(--fs-sm); color: var(--text-secondary); }
 .soltar-formatos {
   display: inline-flex; flex-wrap: wrap; justify-content: center;
-  gap: 5px; margin-top: 6px;
+  gap: var(--s1); margin-top: 6px;
 }
 
 /* Aquí vivió `.traer-costura`, la línea con «o pégalo como texto» en medio que
@@ -1161,7 +1151,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.5;
 }
 
-@media (max-width: 599.98px) {
+@media (max-width: 639.98px) {
   .soltar { padding: var(--s5) var(--s3); }
   .soltar-icono { width: 40px; height: 40px; }
   .soltar-titulo { font-size: var(--fs-base); }
@@ -1189,36 +1179,59 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .notice-info { background: var(--info-soft); color: var(--info); }
 .notice-warn { background: var(--warning-soft); color: var(--warning); }
 
+/* ══ EL VACÍO ES UNA BANDA, Y ES LA MISMA EN TODAS PARTES ═══════════════════
+   Esto era una columna centrada: azulejo de 58 px, título, frase y botón, todo
+   al medio, con 44 px de aire por lado. Sobre una tarjeta de 1.200 px eso es
+   una losa de 290 px con cuatro líneas flotando en el centro — la pantalla más
+   vacía del producto y de las primeras que ve quien acaba de entrar. El taller
+   ya lo había resuelto para su lado con una banda (`.taller .card:has(>
+   .empty)`), y esa corrección no era del taller: era del vacío. Así que la
+   banda sube aquí y aquel bloque desaparece.
+
+   La gramática, que es la misma que la de una fila del producto:
+
+       [ ▤ ]  Todavía no has guardado ningún bloque          [ + Guardar uno ]
+              Cuando un bloque te funcione, guárdalo desde su fila.
+
+   Se lee de izquierda a derecha como todo lo demás, mide lo que mide su texto
+   y el verbo cae donde caen los verbos: al final de la fila. El azulejo y el
+   verbo abarcan las dos filas; el título y el párrafo caen en la columna del
+   medio por colocación automática, así que un vacío sin párrafo o sin acción
+   cuadra sin una regla más.
+
+   Y sin relleno propio: la tarjeta ya tiene el suyo. Los dos juntos eran 44 px
+   por lado para 67 px de contenido. */
 .empty {
-  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
-  text-align: center; padding: var(--s7) var(--s5); color: var(--text-secondary);
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center; text-align: left;
+  gap: var(--s1) var(--s4); color: var(--text-secondary);
 }
-/* ── Y su tarjeta TAMBIÉN lleva medida ─────────────────────────────────────
-   El párrafo ya la tenía (`max-width: 44ch`, abajo) y la tarjeta no, así que en
-   `/plantillas` el vacío era una losa de 1218 × 290 px con cuatro líneas
-   centradas en el medio: la pantalla más vacía del producto, y de las primeras
-   que ve alguien que acaba de entrar. Medir solo el texto no arregla nada
-   cuando lo que se ve es la caja.
-
-   `:has(> .empty)` y no `:has(.empty)`: con el descendiente suelto, una tarjeta
-   grande que llevara un vacío dentro de un rincón se encogería entera.
-
-   Alineada a la izquierda, no centrada: un vacío suele tener hermanos encima o
-   debajo, y centrarlo lo saca de la columna en la que está todo lo demás. Lo
-   que va centrado es el texto DENTRO de la caja, que ya lo estaba. */
-.card:has(> .empty) { max-width: 660px; }
-/* El azulejo del icono va en brasa —el mismo tratamiento que las fichas de «lo
-   que además trae» de la portada—. Un vacío es una invitación a actuar, y es el
-   único sitio del producto donde la calidez no le quita protagonismo a ningún
-   dato: no hay datos todavía. */
+/* El margen de serie del `<h3>` no se ve en una columna —ahí lo tapa el `gap`—
+   pero en la rejilla se suma al hueco de la fila y abre 22 px entre el título y
+   su frase, que es lo que hace que una banda de dos renglones mida como una
+   caja de cuatro. */
+.empty > h3 { margin: 0; font-size: var(--fs-md); color: var(--text); }
+.empty > p { grid-column: 2; font-size: var(--fs-sm); max-width: 68ch; }
+.empty > .empty-icon { grid-row: 1 / -1; }
+.empty > .btn { grid-column: 3; grid-row: 1 / -1; justify-self: end; }
+/* El azulejo: quieto y pequeño. Estuvo en 58 px con un glifo de 26 dentro, que
+   es tamaño de ilustración, y un vacío no ilustra nada — dice qué va a aparecer
+   ahí. 40 px con un glifo de 20 es el mismo escalón que un avatar de fila, que
+   es exactamente el rango al que pertenece. */
 .empty-icon {
-  width: 58px; height: 58px; border-radius: var(--r-lg);
+  width: 40px; height: 40px; border-radius: var(--r-md);
   display: grid; place-items: center; background: var(--fill); color: var(--text-secondary);
 }
-.empty h3 { font-size: var(--fs-md); color: var(--text); }
-.empty p { font-size: var(--fs-sm); max-width: 44ch; }
+@media (max-width: 639.98px) {
+  /* En un teléfono la banda vuelve a ser una columna: tres cosas en fila dejan
+     la frase en dos palabras por renglón. */
+  .empty { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: var(--s3); }
+  .empty > p { grid-column: 1; }
+  .empty > .empty-icon,
+  .empty > .btn { grid-column: 1; grid-row: auto; justify-self: start; }
+}
 
-.save-indicator { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); font-weight: 600; }
+.save-indicator { display: inline-flex; align-items: center; gap: var(--s1); font-size: var(--fs-xs); font-weight: 600; }
 .save-indicator.is-saving { color: var(--warning); }
 .save-indicator.is-saved { color: var(--text-tertiary); }
 .save-indicator.is-error { color: var(--negative); }
@@ -1309,7 +1322,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   /* El canto obligatorio de toda superficie (tokens.css): en hierro la sombra
      sobre grafito es invisible y sin borde el modal flotaba sin contorno. */
   border: 1px solid var(--edge);
-  width: 100%; max-width: 440px; max-height: min(86vh, 880px);
+  width: 100%; max-width: 440px; max-height: min(86vh, 880px); max-height: min(86svh, 880px);
   display: flex; flex-direction: column; overflow: hidden;
   /* `--spring` porque una ventana ATERRIZA (tokens.css: solo lo que llega;
      las salidas siguen en `--ease`, lo que se va no rebota). Un pelo más de
@@ -1324,7 +1337,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 /* La capa del puesto: una pantalla entera (Cobros, Agenda) que viene a ti en
    vez de llevarte. Más ancha y más alta que el grande porque dentro va una
    página con sus paneles, no un formulario. */
-.modal-capa { max-width: 1160px; max-height: min(92vh, 1040px); }
+.modal-capa { max-width: 1160px; max-height: min(92vh, 1040px); max-height: min(92svh, 1040px); }
 
 /* ── EL PANEL LATERAL ──────────────────────────────────────────────────────
    El detalle que se consulta SIN salir de lo que se estaba mirando: entra por
@@ -1354,16 +1367,50 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 
 /* En el móvil no hay «al lado»: la pantalla entera es el detalle, así que la
    hoja ocupa el ancho y sube desde abajo, que es el gesto de siempre. */
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .modal-side {
-    max-width: 100%; height: auto; max-height: 88vh;
+    max-width: 100%; height: auto; max-height: 88vh; max-height: 88svh;
     border-radius: var(--r-xl) var(--r-xl) 0 0; border: 1px solid var(--edge);
     animation: modal-sube var(--normal) var(--ease) both;
   }
   .modal-backdrop.is-side { place-items: end stretch; }
+  /* Y se va por donde vino. Salía con `panel-sale` —un deslizamiento hacia la
+     DERECHA, que es la salida del panel de escritorio— porque esa regla se
+     declaró fuera de cualquier ancho: el panel entraba desde abajo como hoja y
+     se marchaba de lado como cajón. */
+  .modal-backdrop.is-side[data-state='closing'] > .modal-side {
+    animation: hoja-baja var(--fast) var(--ease) both;
+  }
+  .modal-side > .modal-grip { display: block; }
 }
+
+/* ── LA AGARRADERA ─────────────────────────────────────────────────────────
+   La barrita de arriba de una hoja. No es decoración: es el ASA, el elemento
+   que recibe el arrastre para cerrar (`lib/useArrastrarParaCerrar`), y por eso
+   solo existe donde la ventana ES una hoja — anclada a un borde y con el asa
+   al alcance del pulgar. En una ventana centrada de escritorio no hay nada que
+   arrastrar y una barrita gris ahí sería un mando que no hace nada.
+
+   `touch-action: none` no es un detalle: sin él el navegador se queda el gesto
+   vertical para desplazar la página y los `pointermove` no llegan nunca. El
+   arrastre no falla — simplemente no existe, que es la peor forma de fallar. */
+.modal-grip, .sheet-grip {
+  width: 34px; height: 4px; border-radius: var(--r-pill);
+  background: var(--hairline-strong);
+  flex-shrink: 0;
+  touch-action: none;
+  /* Un asa de cuatro píxeles es imposible de coger: el objetivo táctil se
+     estira con relleno transparente, que no ocupa sitio en la caja. */
+  padding: 10px var(--s4); background-clip: content-box; box-sizing: content-box;
+  cursor: grab;
+}
+/* Los dos márgenes son negativos por el mismo motivo: el relleno del asa es
+   diana, no aire, así que se mete dentro del que ya tenía la caja en vez de
+   sumarse a él. Si no, la hoja empieza con veinticuatro píxeles de nada. */
+.modal-grip { display: none; margin: 2px auto -14px; }
+.sheet-grip { align-self: center; margin: -4px auto -2px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) var(--s5); }
-.modal-title { font-size: var(--fs-md); font-weight: 650; }
+.modal-title { font-size: var(--fs-md); font-weight: 600; }
 /* `overscroll-behavior`: al llegar al final del cuerpo, el gesto de scroll no
    se encadena al fondo bloqueado — sin él, iOS «rebota» la página de detrás y
    al cerrar aparece desplazada. */
@@ -1372,6 +1419,30 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   display: flex; justify-content: flex-end; gap: var(--s2);
   padding: var(--s4) var(--s5); border-top: 1px solid var(--hairline); flex-wrap: wrap;
 }
+
+/* ── LA PAREJA DEL PIE ──────────────────────────────────────────────────────
+   Los dos botones de un diálogo son UNA pieza: se miran juntos, se pulsa uno u
+   otro y no compiten con nada más en la pantalla. Del alto se encarga la
+   rejilla —el pie es donde el botón va solo en su renglón y cierra la decisión,
+   así que le toca el escalón grande; antes eran 38 px escritos a mano, que no
+   era ningún escalón de nada.
+
+   ══ Y AQUÍ VIVÍA UNA EXCEPCIÓN, RETIRADA EL 14 SEP 2026 ════════════════════
+   Esta pareja tenía su propio `btn-secondary`: relleno gris macizo y sin canto.
+   El argumento era bueno y está escrito en su sitio (ver `.btn-secondary` en
+   «Botones»): un contorno transparente al lado de una cápsula maciza no se lee
+   como la otra acción, se lee como la acción apagada — «dos botones de familias
+   distintas contestando la misma pregunta».
+
+   Eso era verdad cuando el normal era un aro. Con la familia elegida ya no lo
+   es: el normal tiene relleno, canto y sombra de contacto, o sea la misma
+   anatomía que el de acción, y la pareja se lee pareja en todas partes. El
+   parche pasó de arreglar el defecto a ser el defecto: el pie de una ventana
+   era, desde hoy, el único sitio donde el botón normal se veía distinto.
+
+   Lo que la excepción defendía —que los dos midan igual y respiren igual— lo
+   hace ahora la rejilla, sin decir nada del relleno. */
+.modal-footer .btn { min-height: var(--h-control-lg); padding-inline: var(--s4); }
 
 /* ── Bienvenida ────────────────────────────────────────────────────────────
    El cuerpo de cada paso reutiliza `.empty` —icono en círculo, título y párrafo
@@ -1401,7 +1472,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
      dejaría de heredar el de la casa. Es también lo correcto aquí abajo. */
   color: var(--text);
   border: 1px solid var(--edge);
-  border-radius: var(--r-md); padding: 5px; min-width: 208px;
+  border-radius: var(--r-md); padding: var(--s1); min-width: 208px;
   /* El mínimo de 208 px cuelga a veces de un campo estrecho (el autocompletar
      del alta de ejercicio): sin tope, en 390 px se salía de la pantalla. */
   max-width: calc(100vw - 2 * var(--s4));
@@ -1411,7 +1482,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .popover-right { right: 0; }
 /* Hacia arriba, para los menús que viven al pie: sin `top` el popover cae justo
    debajo de su botón, y a 22 px del borde inferior ahí no hay sitio. */
-.popover-arriba { bottom: 100%; margin-bottom: 4px; }
+.popover-arriba { bottom: 100%; margin-bottom: var(--s1); }
 
 /* ── Y ARRIBA DEL TODO, DONDE NINGÚN `overflow` LA ALCANZA ─────────────────
    Con top layer (`useCapaFlotante`) la capa se pinta fuera del documento y sus
@@ -1437,6 +1508,16 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 @keyframes fade-sale { to { opacity: 0; } }
 @keyframes modal-sale { to { opacity: 0; transform: translateY(12px) scale(0.98); } }
 @keyframes modal-baja { to { opacity: 0; transform: translateY(24px); } }
+/* La salida de una HOJA, que es otra cosa que la de una ventana: se va por el
+   borde de abajo, entera. `modal-baja` decía hacer esto —«la hoja anclada se va
+   por abajo, no encogiendo»— y lo que hacía era bajar veinticuatro píxeles
+   mientras se desvanecía, que es un fundido con un empujón.
+   Se ve la diferencia sobre todo desde que la hoja se puede arrastrar: soltarla
+   a noventa píxeles y que la salida arranque desde los veinticuatro es un salto
+   HACIA ARRIBA justo antes de irse. Sin opacidad a propósito: lo que se va por
+   el borde no necesita además desaparecer, y si se desvanece a mitad de camino
+   parece que se ha roto en vez de guardarse. */
+@keyframes hoja-baja { to { transform: translateY(100%); } }
 @keyframes pop-sale { to { opacity: 0; transform: scale(0.97); } }
 
 .modal-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
@@ -1446,7 +1527,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .menu-item {
   font-family: inherit; width: 100%;
   display: flex; align-items: center; gap: var(--s2);
-  padding: 8px 10px; border: 0; border-radius: var(--r-sm);
+  padding: var(--s2) 10px; border: 0; border-radius: var(--r-sm);
   background: transparent; color: var(--text);
   font-size: var(--fs-base); font-weight: 500; text-align: left; cursor: pointer;
   transition: background-color var(--fast);
@@ -1519,3 +1600,385 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .btn[data-estado='hecho']:disabled { opacity: 1; cursor: default; }
 .btn[data-estado='hecho'] > .btn-glifo { color: var(--positive); }
 .btn-primary[data-estado='hecho'] > .btn-glifo { color: inherit; }
+
+/* ── EL VERBO DE LA DECISIÓN, y el callado de al lado ──────────────────────
+   `docs/replanteamiento-movil-el-aparato.md` §4.1. El bloque del verbo en la
+   tarjeta que decide la pantalla: un botón lleno y, debajo, o lo que cuesta, o
+   la acción callada.
+
+   ── Por qué «Descartarla» dejó de ser un botón ───────────────────────────
+   Medido en el prototipo: como botón secundario sumaba 52 px y empujaba la
+   última fila de la portada por debajo de la barra del pulgar. Pero el motivo
+   no es el espacio, es que eran DOS verbos del mismo peso delante de alguien
+   que va a hacer una cosa — y la que va a hacer es seguir.
+
+   Va como palabra subrayada y no como botón fantasma: un fantasma sigue siendo
+   un control del mismo rango, con su caja y su altura. Esto es texto que se
+   pulsa, que es exactamente lo que es. El subrayado se lo gana porque aquí sí
+   se comporta como un enlace —una acción que se sale de lo que estás
+   haciendo—, al revés que los verbos de panel de `la ley de los gestos`.
+
+   En tinta terciaria y no en rojo: no es peligro, es la otra opción. El precio
+   lo dice su propio texto. */
+.decide-verbo { width: 100%; }
+/* ── Y en el escritorio, el verbo deja de ser una viga ─────────────────────
+   `width: 100%` es correcto en el teléfono —el pulgar no tiene que apuntar—
+   y a 1440 px producía un botón primario de **1.400 px de ancho** con la
+   palabra centrada en medio de la nada: el ancho de un control dice cuánto
+   pesa, y ahí decía que esta decisión pesa más que la pantalla.
+
+   El tope es el de un botón que se lee de un vistazo, y se ancla a la
+   izquierda para que empiece donde empieza todo lo demás de la tarjeta. El
+   callado de debajo se centra respecto al verbo, no respecto a la tarjeta, que
+   es lo que lo mantiene atado a él.
+
+   El corte es el del teléfono, no el del chasis: en una tableta con la barra
+   del pulgar el botón ancho sigue siendo lo correcto. */
+@media (min-width: 640px) {
+  .decide-verbo { width: auto; max-width: 340px; align-self: start; }
+}
+
+/* ══ LA ESCALA: una rampa, y no diez botones iguales ═════════════════════════
+
+   La contestan el check-in, el parte de una sesión y cualquier formulario suelto
+   —o sea, todo lo que el cliente puntúa del 1 al 10—, así que su sitio es la
+   familia de mandos. Hasta ahora eran DOS copias con dos hojas de CSS (una en
+   `ajustes.css` y otra en `formularios.css`) que ya se habían tenido que igualar
+   a mano; ver `ui/Escala.jsx` para el porqué del dibujo.
+
+   El dibujo, en corto: cada paso es un disco liso, los discos crecen hacia la
+   derecha y contestar tiñe TODOS hasta el elegido. La cantidad se ve sin leer
+   una sola cifra: para eso crecen.
+
+   Y es UNO de los cuatro instrumentos, no el único: las preguntas que no son una
+   cantidad se contestan con estrellas, con caras o con un depósito, que están
+   justo encima. Lo que hace que nueve preguntas seguidas no sean el mismo
+   control nueve veces es eso, y no un icono distinto dentro del mismo disco.
+
+   `1fr` por paso: la escala puede ser de 1 a 5 o de 0 a 10 —lo decide el
+   entrenador— y en los dos casos ocupa su ancho sin sobrar ni desbordar. El tope
+   de 30 rem es medida de control: estirada a la columna de lectura de 880 px,
+   una escala de diez son diez losas.
+
+   `--rampa-tinta` la pone la pregunta desde el JSX (el color de su serie); sin
+   ella manda el acento, que es lo que invita. */
+/* ══ LOS OTROS TRES INSTRUMENTOS ═══════════════════════════════════════════
+   Ver `ui/Escala.jsx` para el porqué. En corto: la rampa con un icono distinto
+   dentro seguía siendo la misma rampa, y varios de aquellos iconos no querían
+   decir nada (unos cubiertos no son la adherencia, son la comida). Lo que
+   distingue de verdad a una pregunta de la siguiente es CÓMO SE CONTESTA.
+
+   Los tres comparten la raíz (`.rampa-marco`), la tinta (`--rampa-tinta`, el
+   color de la serie de esa pregunta) y la mecánica del paso; lo único que cambia
+   es la forma. El ancho lo pone su contenido, no la columna: cinco estrellas
+   miden lo que miden cinco estrellas. */
+.instrumento { display: flex; align-items: center; width: max-content; max-width: 100%; }
+.instrumento > * {
+  border: 0; background: transparent; color: inherit; font: inherit;
+  padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: color var(--fast), background-color var(--fast), border-color var(--fast), transform var(--fast);
+}
+.instrumento > :disabled, span.instrumento > * { cursor: default; }
+.instrumento > :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── ESTRELLAS: lo que se valora ───────────────────────────────────────────
+   La caja que se pulsa mide 34 y la estrella 28: por debajo de 30 px el objetivo
+   táctil se queda corto, y una estrella de 34 al lado de un enunciado de 15 px
+   es un titular. El hueco de 2 px entre cajas se lee como fila, no como cinco
+   botones sueltos. */
+.is-estrellas { gap: 2px; }
+.estrella { width: 34px; height: 34px; display: grid; place-items: center; color: var(--hairline-strong); }
+.estrella > svg { width: 28px; height: 28px; fill: none; stroke: currentColor; }
+/* Teñida y RELLENA hasta la elegida. Una estrella a medio encender (solo el
+   trazo en color) no se distingue de una apagada a un metro de la pantalla, que
+   es exactamente la distancia a la que se contesta un formulario en el móvil. */
+.estrella[data-lleno] { color: var(--rampa-tinta); }
+.estrella[data-lleno] > svg { fill: var(--rampa-tinta); }
+button.estrella:hover:not(:disabled) { color: var(--rampa-tinta); }
+button.estrella:hover:not(:disabled):not([data-lleno]) > svg {
+  fill: color-mix(in srgb, var(--rampa-tinta) 18%, transparent);
+}
+
+/* ── CARAS: lo que se siente ───────────────────────────────────────────────
+   El único instrumento que NO acumula: las caras no se suman, se elige una. Por
+   eso aquí no hay `[data-lleno]` que valga y solo se enciende `[data-puesto]`.
+   Y por eso la elegida CRECE además de teñirse: sin el tamaño, una cara maciza
+   en medio de cuatro huecas se lee como «hasta aquí» igual que la rampa. */
+.is-caras { gap: var(--s2); }
+.cara-paso {
+  width: 42px; height: 42px; display: grid; place-items: center;
+  border: 1px solid var(--edge-control); border-radius: 50%;
+  background: var(--surface-sunken); color: var(--text-tertiary);
+}
+.cara-paso > svg { width: 25px; height: 25px; fill: none; stroke: currentColor; }
+.cara-paso[data-puesto] {
+  background: var(--rampa-tinta); border-color: var(--rampa-tinta); color: var(--surface);
+  transform: scale(1.12);
+}
+button.cara-paso:hover:not(:disabled):not([data-puesto]) {
+  border-color: var(--hairline-strong); color: var(--text-secondary); background: var(--fill-subtle);
+}
+
+/* ── DEPÓSITO: lo que se gasta ─────────────────────────────────────────────
+   Una batería, con su canto alrededor y su borne a la derecha. El borne es lo
+   que la convierte en batería y no en cinco cajas: es un pseudoelemento porque
+   no se pulsa. El canto envuelve a los tramos —el depósito es UNA cosa con cinco
+   tramos dentro, no cinco controles en fila—, así que el foco va dentro. */
+.is-deposito {
+  gap: 2px; padding: 3px; position: relative;
+  border: 1px solid var(--edge-control); border-radius: var(--r-sm);
+  /* La CARCASA va en la superficie y los tramos apagados en el hundido —al revés
+     de como se escribió primero—. Con el hundido fuera y `--fill-subtle` dentro,
+     los cinco tramos vacíos se leían con la misma tinta que su caja: un depósito
+     sin contestar salía como una bandeja gris, que no dice «pulsa» ni dice
+     «cinco». Es la misma relación que el disco de la rampa con su papel, y por
+     eso ésa sí se ve sin mirarla. */
+  background: var(--surface);
+  margin-right: 5px;
+}
+.is-deposito::after {
+  content: ''; position: absolute; right: -5px; top: 50%; transform: translateY(-50%);
+  width: 4px; height: 13px; border-radius: 0 2px 2px 0; background: var(--edge-control);
+}
+.tramo { width: 26px; height: 30px; border-radius: 2px; background: var(--surface-sunken); }
+.tramo[data-lleno] { background: var(--rampa-tinta); }
+button.tramo:hover:not(:disabled):not([data-lleno]) {
+  background: color-mix(in srgb, var(--rampa-tinta) 22%, transparent);
+}
+
+/* En el teléfono, los tres encogen a lo que cabe en 340 px sin dejar de ser
+   pulsables: 34 px de objetivo táctil es el suelo, y estas tres filas tienen
+   cinco pasos y no once, así que caben holgadas. Solo el depósito aprieta. */
+@media (max-width: 639.98px) {
+  .tramo { width: 22px; }
+}
+
+/* El marco: la rampa y, debajo, lo que significan sus dos puntas. Va SIEMPRE,
+   con puntas o sin ellas —una pieza tiene una sola raíz, ver `ui/Escala`—, y
+   lleva el mismo tope de ancho que la rampa para que «Nada» caiga bajo el primer
+   paso y «Clavada» bajo el último; si midiera la columna entera, el extremo
+   derecho se iría a cuarenta centímetros de su disco. */
+.rampa-marco {
+  display: flex; flex-direction: column; gap: var(--s1);
+  max-width: min(30rem, calc(var(--rampa-pasos, 10) * 3.2rem));
+}
+/* Los otros tres no miden por pasos sino por su contenido —cinco estrellas miden
+   lo que miden cinco estrellas—, así que el marco se ciñe a ellos. Sin esto las
+   puntas se repartirían a lo ancho de un marco de 16 rem con un control de 11
+   dentro, y «A tope» caería a dos centímetros del último tramo. */
+.rampa-marco[data-instrumento] { width: max-content; max-width: 100%; }
+.rampa-puntas {
+  display: flex; justify-content: space-between; gap: var(--s3);
+  margin: 0;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+}
+/* La de la derecha, alineada por su canto: lo que tiene que cuadrar es el final
+   de la palabra con el final de la rampa. */
+.rampa-puntas > span:last-child { text-align: right; }
+
+.rampa {
+  --rampa-tinta: var(--accent);
+  /* Lo que mide el disco del primer paso y el del último. Ver `.rampa-disco`. */
+  --disco-min: 24px;
+  --disco-max: 36px;
+  /* Cuántos pasos tiene ESTA: lo pone el JSX y solo sirve para el ancho. Sin
+     esto, una escala de 1 a 5 estiraba sus cinco pasos a los mismos 30 rem y
+     salían cinco losas del doble de ancho que las de la pregunta de al lado —el
+     mismo control con dos tamaños según lo que se pregunte—. */
+  --rampa-pasos: 10;
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  gap: 2px; align-items: end;
+  max-width: min(30rem, calc(var(--rampa-pasos) * 3.2rem));
+}
+.rampa-paso {
+  display: grid; gap: var(--s1);
+  align-items: end; justify-items: center;
+  min-width: 0; padding: 0;
+  border: 0; background: transparent; color: inherit; font: inherit;
+  border-radius: var(--r-xs);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+span.rampa-paso, .rampa-paso:disabled { cursor: default; }
+/*
+   EL PASO ES UN DISCO QUE CRECE — y LISO, desde que el glifo murió.
+
+   Eran barras: la rampa arreglaba la cantidad —diez losas iguales no dicen que
+   el 9 es más que el 2— y dejaba viva la otra avería, que solo se ve mirando el
+   cuestionario entero: nueve rampas idénticas seguidas. Se probó con el icono de
+   cada pregunta dentro del disco (`glifo`) y no era la cura: el mismo dibujo
+   repetido once veces en fila es textura, y varios no significaban lo que decían
+   significar. La cura fue cambiar de INSTRUMENTO donde la pregunta lo pedía
+   —estrellas, caras, depósito, aquí arriba—, y dejar la rampa para lo que de
+   verdad es una cantidad de 0 a 10. Ver `ui/Escala.jsx`.
+
+   ── Y SIGUE CRECIENDO ────────────────────────────────────────────────────
+   El disco va del primero al último de `--disco-min` a `--disco-max`, así que
+   la fila en blanco se lee de poco a mucho antes de tocarla. `--nivel` (de 0 a
+   1) lo pone el JSX; los TAMAÑOS los pone esta hoja y no el atributo `style`,
+   porque en un teléfono los mismos once pasos entran en 340 px y un píxel
+   escrito en el marcado le gana a cualquier media query. */
+.rampa-disco {
+  --disco: calc(var(--disco-min) + (var(--disco-max) - var(--disco-min)) * var(--nivel, 1));
+  width: var(--disco); height: var(--disco);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge-control);
+  color: var(--text-tertiary);
+  transition: background-color var(--fast), border-color var(--fast), color var(--fast);
+}
+/* Lo andado: teñido, no macizo. Es contexto de la respuesta —cuánto mide—, y
+   con el mismo peso que el valor dado competiría con él. */
+.rampa-paso[data-lleno] > .rampa-disco {
+  background: color-mix(in srgb, var(--rampa-tinta) 14%, transparent);
+  border-color: color-mix(in srgb, var(--rampa-tinta) 40%, transparent);
+  color: var(--rampa-tinta);
+}
+/* Y el valor dado, macizo. Es el único sitio de la hoja donde la tinta de la
+   serie se pinta entera, y el dibujo se recorta en blanco sobre ella. */
+.rampa-paso[data-puesto] > .rampa-disco {
+  background: var(--rampa-tinta); border-color: var(--rampa-tinta);
+  color: var(--surface);
+}
+.rampa-cifra {
+  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--text-tertiary);
+  transition: color var(--fast), font-weight var(--fast);
+}
+.rampa-paso[data-puesto] > .rampa-cifra { color: var(--text); font-weight: 700; }
+button.rampa-paso:hover:not(:disabled) > .rampa-cifra { color: var(--text); }
+button.rampa-paso:hover:not(:disabled):not([data-lleno]) > .rampa-disco {
+  background: var(--fill-subtle); border-color: var(--hairline-strong);
+  color: var(--text-secondary);
+}
+.rampa-paso:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 639.98px) {
+  /* Once pasos en 340 px salen a 29, así que el disco grande no puede medir 36.
+     Lo que se pulsa sigue siendo la celda entera y no el disco. */
+  .rampa { gap: 1px; --disco-min: 19px; --disco-max: 27px; }
+}
+
+/* ══ EL CUERPO, PARA DECIR DÓNDE DUELE ═════════════════════════════════════
+   Ver `ui/ZonaDelCuerpo`. Va aquí, al lado de la rampa y de los chips, porque es
+   lo mismo que ellos: un control con el que el cliente contesta una pregunta, y
+   la pregunta la sirve el mismo componente.
+
+   La figura es la de la guía de medición (`.guia-cuerpo`, en `taller.css`): el
+   mismo cuerpo dibujado una sola vez. Lo que se añade aquí son los puntos. */
+.zonas { display: flex; flex-direction: column; gap: var(--s3); }
+/* Ancho de control y no de columna: estirado a 880 px el monigote mide medio
+   palmo y los puntos se separan tanto que dejan de leerse como un cuerpo. */
+.zonas-svg { width: 100%; max-width: 300px; height: auto; display: block; }
+/* El punto en reposo: disco de papel con su filete, como el número de la guía.
+   No es una marca todavía —no duele ahí— es un sitio donde se puede marcar. */
+.zonas-punto {
+  fill: var(--surface); stroke: var(--hairline-strong); stroke-width: 1;
+  cursor: pointer;
+  transition: fill var(--fast), stroke var(--fast);
+}
+.zonas-punto:hover { stroke: var(--accent); }
+/* Y marcado. En el rojo de los datos y no en el acento: aquí el color no invita
+   a nada, DICE algo —le molesta—, y el acento de la casa es lo que se pulsa.
+   Es el mismo `--data-rose` con el que se dibuja la serie del dolor, así que lo
+   que él marca el domingo y la línea que su entrenador mira el lunes comparten
+   tinta. Ver «la ley del color». */
+.zonas-punto[data-on] { fill: var(--data-rose); stroke: var(--data-rose); }
+/* Sin ratón el punto no se pulsa —14 px de diana—: se marca en los renglones de
+   abajo y el dibujo dice dónde cae cada uno. */
+@media (hover: none) {
+  .zonas-punto { cursor: default; }
+}
+
+/* ── EL SÍ/NO NO ES «ELEGIR UNA DE DOS» ────────────────────────────────────
+   Ver `ui/Opciones`. Las dos respuestas son siempre las mismas y una confirma
+   mientras la otra niega: con su marca se distinguen por la FORMA, antes de leer
+   la palabra, y un formulario contestado se repasa de reojo.
+
+   Dos rectángulos del mismo ancho y no dos píldoras del ancho de su palabra:
+   «Sí» mide la mitad que «No» con el redondeo de píldora, y dos respuestas que
+   valen lo mismo no pueden tener dos tamaños. El ancho mínimo es el que le da
+   sitio al icono y a la palabra sin apretarlos. */
+.opciones-libres.es-sino { gap: var(--s2); }
+.opciones-libres.es-sino > .chip-op {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s1);
+  min-width: 84px; height: var(--h-control-lg);
+  padding: 0 var(--s3); border-radius: var(--r-control);
+}
+
+/* ── LO CONTESTADO, YA DADO ────────────────────────────────────────────────
+   Un chip que no es un botón: lo que marcó. Las que no eligió no se pintan —ver
+   `ui/Opciones`—, así que esto no necesita un estado «apagado». */
+.chip-op.es-sino { display: inline-flex; align-items: center; gap: var(--s1); }
+.chip-op.es-dada {
+  background: var(--fill); border-color: transparent; color: var(--text);
+  font-weight: 500;
+}
+.opciones-libres.es-leida { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+/* La cifra suelta: se escribe en una caja de su tamaño y se lee como cifra.
+   Ver el tipo `number` en `QUESTION_KINDS`: lo que lleva unidad es una medida y
+   tiene su propia pieza.
+
+   ── Y SE CUENTA CON DOS BOTONES ────────────────────────────────────────────
+   Ver `ui/Contador`. Lo que se pregunta con este tipo son cuántos días, cuántas
+   veces, cuántas horas: números pequeños que alguien cuenta con los dedos, y un
+   campo de texto para eso pide el teclado entero en un móvil.
+
+   ── EL RECUADRO ES EL CONTROL, como en la placa ────────────────────────────
+   Eran tres piezas sueltas con ocho píxeles de aire entre ellas: un «−» desnudo,
+   una casilla con su propio canto y un «+» desnudo, los tres flotando en el
+   renglón. Bajando por la hoja del alta eso se lee como tres cosas y no como una
+   respuesta —y los dos signos, sin caja, no se leen como algo que se pulse—.
+
+   Ahora es UN recuadro con la cifra en medio y los dos signos dentro, separados
+   por su filete. El canto, el fondo y el foco viven en el conjunto, que es
+   exactamente la decisión que ya está tomada en `.placa`: el otro sitio donde el
+   cliente contesta con una cifra. */
+/* El alto viaja en una variable propia y no en la declaración, y no es un
+   capricho: la caja la fija el conjunto, pero los dos signos de dentro son
+   `.btn-icon`, que el bloque de ergonomía táctil agranda por su cuenta. Con dos
+   declaraciones sueltas hay que ganarle en especificidad desde cada sitio que
+   cambie el alto —la hoja del cliente lo hace— y a la tercera se descuadra. Con
+   la variable, quien quiera otro alto dice UNA cosa y el recuadro y sus signos
+   la siguen los dos. */
+/* `width: max-content` y no `inline-flex` a secas: un `inline-flex` es un hijo
+   flex como cualquier otro y en una columna se estira a lo ancho del renglón.
+   Mientras no tuvo canto no se veía —dentro solo hay tres cajas—, pero con el
+   recuadro puesto la cuenta del parte de la sesión salía en una caja de 712 px
+   con un dígito dentro. */
+.contador {
+  --h-cuenta: var(--h-control);
+  display: inline-flex; align-items: stretch;
+  width: max-content; height: var(--h-cuenta);
+  background: var(--surface);
+  border: 1px solid var(--edge-control); border-radius: var(--r-control);
+  box-shadow: var(--shadow-field);
+  transition: border-color var(--fast), box-shadow var(--fast);
+}
+.contador:hover { border-color: var(--hairline-strong); }
+/* El foco en el recuadro entero: dentro ya no hay ningún canto propio al que
+   pegarle el halo. Mismo recurso que `.placa:focus-within`. */
+.contador:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.contador > .btn-icon {
+  width: var(--h-cuenta); height: auto; border-radius: 0; flex-shrink: 0;
+}
+/* La casilla se desnuda: el canto que traía ahora lo pone el conjunto. Se queda
+   con los dos filetes que la separan de los signos —sin ellos, pulsar «+» y
+   escribir el número parecen el mismo objetivo— y con su ancho de tres dígitos.
+   El `:focus` de `.input` traía su propio halo; aquí lo da el recuadro. */
+.contador > .input-cifra {
+  width: 66px; text-align: center; min-height: 0;
+  border: 0; border-left: 1px solid var(--hairline); border-right: 1px solid var(--hairline);
+  border-radius: 0; background: transparent; box-shadow: none;
+}
+.contador > .input-cifra:hover,
+.contador > .input-cifra:focus {
+  border-color: var(--hairline); box-shadow: none; outline: none;
+}
+/* Y el suelo táctil, aquí y no en el bloque de ergonomía: quien cambia de alto
+   ahora es el recuadro, y sus signos ya lo siguen por la variable. */
+@media (max-width: 1023.98px) {
+  .contador { --h-cuenta: var(--h-control-touch); }
+}
+.input-cifra { max-width: 120px; }
+.feedback-cifra { font-size: var(--fs-lg); font-variant-numeric: tabular-nums; }

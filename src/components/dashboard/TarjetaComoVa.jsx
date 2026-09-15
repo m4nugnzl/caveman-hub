@@ -41,8 +41,44 @@ const peso = (v) => localeNumber(v, { maximumFractionDigits: 1 });
 const PARA_EL_CLIENTE = {
   'no-goal': {
     title: 'Tu entrenador aún no ha fijado tu objetivo',
-    detail: 'En cuanto lo fije, aquí verás semana a semana si vas en rumbo.',
+    detail: 'En cuanto lo fije, aquí verás cómo va tu peso semana a semana.',
   },
+};
+
+/**
+ * EL RITMO, DICHO COMO UN HECHO. Lo que el cliente lee en vez del veredicto.
+ *
+ * ══ Por qué el cliente no ve el veredicto ══════════════════════════════════
+ *
+ * Porque está escrito en el prototipo que el dueño aprobó
+ * (`docs/portal-dos-aparatos.html`, «mi progreso»): *«lo que sigue fuera es el
+ * veredicto: ni nota de adherencia, ni "en rumbo". Las cifras son suyas; el
+ * juicio es de su entrenador»*. Y en la app estaba dentro: su panel abría con
+ * **«✓ En rumbo: −0,34 kg/semana»** en verde, con marca de aprobado.
+ *
+ * Son las dos leyes de la casa a la vez: el semáforo JUZGA (`ley-del-color`) y
+ * la app RESALTA, no dictamina (`la-app-no-receta`). Un «en rumbo» en verde en
+ * la pantalla del cliente es la aplicación poniéndole nota a su semana por
+ * delante de la persona que le cobra por ponérsela.
+ *
+ * El dato no se le quita —es suyo—: se le da sin el juicio. «A tu ritmo de las
+ * últimas ocho semanas, −0,34 kg por semana» es exactamente la misma cifra y es
+ * la frase del prototipo.
+ */
+const ritmoDelCliente = (trend) => {
+  if (!trend?.ok || !Number.isFinite(trend.perWeek)) return null;
+  /* Con dos decimales y el signo menos de verdad (−, no el guion): es la cifra
+     con la que su entrenador decide, y redondeada a uno «−0,34» sale «−0,3», que
+     es otra. `kg()` de aquí arriba redondea a uno a propósito para el desvío del
+     objetivo, que es otra cosa. */
+  const n = `${trend.perWeek > 0 ? '+' : '−'}${localeNumber(Math.abs(trend.perWeek), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+  return {
+    title: `A tu ritmo de las últimas ${trend.weeks} semanas`,
+    detail: `${n} kg por semana`,
+  };
 };
 
 /**
@@ -89,8 +125,18 @@ export const TarjetaComoVa = ({
   isClient = false,
   onAbrirFases,
 }) => {
-  const dicho = (isClient && veredicto && PARA_EL_CLIENTE[veredicto.id]) || veredicto;
-  const tono = veredicto?.tone || 'unknown';
+  /*
+    Al cliente se le traduce lo que describe los DATOS —«faltan semanas», «la
+    tendencia es poco fiable»— y se le retira lo que le pone nota. Ver
+    `ritmoDelCliente`, que es lo que lee en su lugar.
+  */
+  const suRitmo = isClient ? ritmoDelCliente(trend) : null;
+  const dicho = isClient
+    ? PARA_EL_CLIENTE[veredicto?.id] || suRitmo || veredicto
+    : veredicto;
+  /* Sin tono para el cliente: la marca de aprobado y el verde son el juicio, y
+     el juicio es de su entrenador. Lo que queda es la cifra. */
+  const tono = isClient ? 'neutro' : veredicto?.tone || 'unknown';
   const Icono = MARCA[tono] || CircleHelp;
 
   const fase = fases?.current || null;
@@ -160,9 +206,13 @@ export const TarjetaComoVa = ({
           */}
           {!(canEditGoal && !goal && veredicto?.id === 'no-goal') && (
           <p className={`comova-juicio is-${tono}`}>
-            <span className="comova-marca" aria-hidden="true">
-              <Icono size={13} strokeWidth={2.5} />
-            </span>
+            {/* La marca es la del veredicto: un visto, un aviso. Al cliente no
+                se le pone nota, así que no lleva ninguna. */}
+            {!isClient && (
+              <span className="comova-marca" aria-hidden="true">
+                <Icono size={13} strokeWidth={2.5} />
+              </span>
+            )}
             <span className="comova-say">
               <strong>{dicho?.title || (proyeccion ? 'Sin veredicto' : 'Todavía no hay nada que leer')}</strong>
               {proyeccion && proyeccion.objetivo !== null ? (

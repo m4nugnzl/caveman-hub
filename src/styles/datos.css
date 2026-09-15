@@ -64,38 +64,6 @@
    a tener cincuenta familias.
    ========================================================================== */
 
-/* El carril de días. Una rejilla y no una tabla: en el móvil las tres columnas
-   se apilan sin que haya que decidir cuál se corta. */
-.week-days { display: flex; flex-direction: column; }
-.week-day {
-  display: grid;
-  grid-template-columns: minmax(88px, auto) 1fr auto;
-  align-items: baseline; gap: var(--s2) var(--s3);
-  padding: var(--s3) 0;
-  border-top: 1px solid var(--hairline);
-}
-.week-day:first-child { border-top: 0; padding-top: 0; }
-
-.week-day-name { font-family: var(--font-display); font-weight: 650; }
-.week-day-facts { font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; }
-.week-day-when { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
-
-/* El día que no se entrenó. En tinta terciaria y NO en el rojo de aviso: que
-   alguien se salte un día es información, no una alarma — y en cuanto se pinta
-   de rojo, una semana con dos descansos parece una urgencia. */
-.week-day.is-missing > .week-day-name { color: var(--text-tertiary); font-weight: 500; }
-.week-day.is-missing > .week-day-facts { color: var(--text-tertiary); font-style: italic; }
-
-/* Lo que escribió, debajo de su día y ocupando la fila entera. */
-.week-day-note,
-.week-quote {
-  grid-column: 1 / -1;
-  font-size: var(--fs-sm); color: var(--text-secondary);
-  padding-left: var(--s3);
-  border-left: 2px solid var(--hairline-strong);
-}
-.week-quote > strong { font-family: var(--font-display); color: var(--text); margin-right: var(--s2); }
-
 /* ── LA COMPARATIVA de un check-in ─────────────────────────────────────────
    Dos fotos del mismo ángulo, a la misma altura y del mismo tamaño: comparar
    exige que lo único que cambie sea el cuerpo.
@@ -131,11 +99,6 @@
   border: 1px dashed var(--hairline-strong); border-radius: var(--r-md);
 }
 
-@media (max-width: 560px) {
-  .week-day { grid-template-columns: 1fr auto; }
-  .week-day-facts { grid-column: 1 / -1; }
-}
-
 /* ── LA FILA de métricas ───────────────────────────────────────────────────
    Dos o cuatro columnas, nunca tres. El porqué está en `MetricRow`
    (`ui/metrics.jsx`); aquí solo está el reparto.
@@ -166,7 +129,12 @@
    pasaban a gastar pantalla y media — se vio recorriendo el panel del
    entrenador a 390 px, donde «Su semana» era más ficha de métrica que semana.
    Una etiqueta larga envuelve dentro de su media celda, que es más barato. */
-@media (max-width: 720px) {
+/* Al ancho del TELÉFONO y no al del chasis, que es donde cayó primero al
+   recoger los anchos: este bloque habla del móvil —lo dice él mismo, «a 390 px
+   TAMBIÉN es 2×2»— y a 900 px las cuatro cifras caben de sobra en una fila. Es
+   la regla para elegir lado cuando un corte viejo cae entre dos de la escala:
+   manda el sujeto del que habla la regla, no la distancia en píxeles. */
+@media (max-width: 639.98px) {
   .metric-row.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   /* A dos columnas, quien abre renglón es quien no lleva filete —y la de abajo
      necesita aire por arriba, que en una sola fila lo daba el filete vertical.
@@ -174,7 +142,7 @@
      Y el canal se estrecha: 22 px a cada lado se comen un tercio de una columna
      de 160 px, y entonces «12.400» parte en dos renglones. */
 }
-@media (max-width: 420px) {
+@media (max-width: 639.98px) {
   .metric-slot { display: none; }
 }
 
@@ -254,8 +222,8 @@
 .meter-track { flex: 1; min-width: 0; position: relative; height: 22px; background: var(--fill-subtle); border-radius: var(--r-sm); overflow: hidden; }
 .meter-fill {
   height: 100%; border-radius: var(--r-sm);
-  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
-  font-size: var(--fs-xs); font-weight: 650; color: var(--text-inverse);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: var(--s2);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-inverse);
   transition: width var(--normal);
   /* El color por DEFECTO de una barra de datos, y va aquí a propósito: una
      pantalla no puede escribir `var(--data-*)` —lo prohíbe `npm run verify`,
@@ -267,3 +235,54 @@
 }
 .meter-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--negative); opacity: 0.5; z-index: 2; }
 
+/* Aquí vivía `.aguja`, la regla graduada del peso en la portada del cliente.
+   Su componente (`Client/TuPeso`) ya no existe —el peso del teléfono lo pinta
+   `movil/PantallaTu` con `.tel-aguja`, en `portal-telefono.css`— y la regla se
+   quedó huérfana. `npm run verify` no la delataba por una casualidad: la tabla
+   de glifos de `ui/Escala` tenía una entrada llamada `aguja` y el detector,
+   que busca el nombre por todo `src`, la daba por usada. Al morir los glifos
+   salió a la luz. */
+
+/* La cifra de la portada. Va a la escala de cifras de la casa —no a un tamaño
+   suelto—, que es lo que evita que el producto se vea a cachos. */
+.peso-cifra {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+.peso-cifra > small {
+  margin-left: var(--s2);
+  font-size: var(--fs-base); font-weight: 600; letter-spacing: 0;
+  color: var(--text-tertiary);
+}
+/* ── L-07 · En el portal, el peso es una LECTURA, no el trabajo ────────────
+   La misma cifra vale escalones distintos según de quién sea la pantalla. En
+   el Resumen del entrenador, el peso es a lo que va: se abre la ficha para ver
+   cómo va esa persona. En el portal de ella, lo que se viene a hacer es
+   entrenar —la firma es la sesión de hoy—, y el peso es el dato que se
+   consulta de paso. Iba al mismo cuerpo que la firma y por encima de ella.
+
+   Un escalón abajo, y vale para los dos sitios donde sale dentro del portal:
+   la regla de la portada (`TuPeso`) y la tarjeta del cuerpo de «Tu progreso»
+   (`TarjetaCuerpo`). En el panel del entrenador no cambia nada. */
+.layout-portal .peso-cifra { font-size: var(--fs-xl); }
+
+/* ── LA CIFRA-HOJA: el peso vuelve al escalón de arriba, y solo en el teléfono
+   L-07 (arriba) bajó el peso del portal un escalón con un argumento correcto:
+   «lo que se viene a hacer es entrenar, y el peso es el dato que se consulta de
+   paso». Sigue siendo cierto en la tarjeta del cuerpo de «Tu progreso» y deja de
+   serlo en la portada del teléfono, donde el peso es UNA de las tres cosas que
+   hay —la decisión, la cifra y las tres puertas— y no la quinta de siete.
+
+   42 px es `--fs-2xl`, o sea el escalón de la escala, no un tamaño suelto: el
+   prototipo pedía 52 y manda la escala. Ver `movil-tanda-2-la-sesion`, donde ya
+   se tomó esta misma decisión con el campo de la revisión.
+
+   Solo por debajo de 640: por encima, el portal es una rejilla con sitio de
+   sobra y ahí L-07 sigue teniendo razón. */
+@media (max-width: 639.98px) {
+  .layout-portal .cifra-hoja .peso-cifra { font-size: var(--fs-2xl); }
+}

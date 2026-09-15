@@ -55,7 +55,16 @@ import { blockSessionsOf, currentBlock, weeksOfBlock } from './blocks';
 import { migrateBlockPlans } from './blocksMigration';
 import { conditionsFor } from './conditions';
 import { freeSheetName } from './pieces';
-import { hasCycleMap, planDays, rescaleMeals, targetsFor } from './nutrition';
+import {
+  cuadra,
+  dayMacros,
+  hasCycleMap,
+  macroSplit,
+  planDays,
+  rescaleMeals,
+  targetsAlRecibir,
+  targetsFor,
+} from './nutrition';
 import { unitLabelPlural } from './training';
 
 /**
@@ -203,18 +212,103 @@ const no = (texto) => ({ estado: 'no', filas: [{ texto }], veto: [], ojo: [], pl
 const va = (filas, plan) => ({ estado: 'va', filas, veto: [], ojo: [], plan });
 
 /**
- * El reescalado, que es la firma de repartir una dieta.
+ * ══ EL REESCALADO, QUE ES LA FIRMA DE REPARTIR UNA DIETA ═══════════════════
  *
  * **Mandar la misma dieta a ocho no es darles la misma dieta.** El menú entra
- * ajustado al objetivo que el destinatario YA tiene (`rescaleMeals` mueve la
- * fuente de hidratos y deja quieta la proteína), y lo que viaja entre sus días
- * es la proporción, no las cifras. Quien no tenga objetivo puesto lo recibe tal
- * cual, y la columna lo dice: es lo que hay, pero enterarse después no.
+ * ajustado a lo que el destinatario YA tiene pautado, y lo que viaja entre los
+ * días de un ciclado es la proporción, no las cifras. Quien no tenga objetivo
+ * puesto lo recibe tal cual, y la columna lo dice: es lo que hay, pero
+ * enterarse después no.
+ *
+ * ── Y APUNTA A LO PAUTADO, NO AL SALTO ─────────────────────────────────────
+ *
+ * Esto escalaba el menú EN PROPORCIÓN —`origen.objetivoKcals` → el objetivo del
+ * destinatario—, y esa cuenta arrastra intacta la distancia que el menú de
+ * origen tuviera con su propio objetivo: un menú que sumaba 2.150 sobre 2.000
+ * pautados llegaba a alguien de 3.000 sumando 3.225. El que recibe heredaba el
+ * descuadre del que manda, y encima crecido en la misma proporción.
+ *
+ * Es la misma avería que se curó en la ventana del objetivo y se cura con la
+ * misma pieza: `rescaleMeals` mide lo que SUMA el menú (`dayMacros`) y lo lleva
+ * a lo pautado, en vez de multiplicarlo por un salto.
+ *
+ *     salto      menú × (objetivo suyo / objetivo mío)  →  2.150 → 3.225
+ *     objetivo   menú → lo que tiene pautado            →  2.150 → 3.000
+ *
+ * Con los tres macros puestos se va a los tres, que es lo que hace que la dieta
+ * acabe siendo la SUYA y no una copia de la del otro con otras calorías: dos
+ * personas de 3.000 kcal con 180 y 120 g de proteína pautados no comen lo
+ * mismo. Con solo la cifra de energía, a la cifra de energía.
  */
-const reescalado = (pieza, dieta, dia) => {
+const aLoPautado = (targets) => {
+  const objetivo = {
+    protein: Number(targets?.proteinGrams) || 0,
+    carbs: Number(targets?.carbsGrams) || 0,
+    fats: Number(targets?.fatsGrams) || 0,
+  };
+  /* La misma regla que `dayKcalTarget`: la cifra escrita, o la que suman sus
+     macros. Un plan pautado solo por macros tiene objetivo, aunque la casilla
+     de las kcal esté en blanco. */
+  const kcals = Number(targets?.targetKcals) || Math.round(macroSplit(targets).total) || 0;
+  if (!kcals) return null;
+
+  const conMacros = objetivo.protein > 0 && objetivo.carbs > 0 && objetivo.fats > 0;
+  return { kcals, conMacros, como: conMacros ? { objetivo } : { objetivoKcals: kcals } };
+};
+
+/* ¿El menú YA está en lo pautado? Es lo que separa «no hay nada que mover» de
+   «no hay de dónde moverlo»: `rescaleMeals` devuelve `null` en los dos casos y
+   decir lo segundo cuando pasa lo primero es una columna que asusta sin
+   motivo. El margen es el de toda la aplicación (`cuadra`, con su suelo). */
+const yaCuadra = (meals, destino) => {
+  const suma = dayMacros(meals);
+  if (destino.conMacros) {
+    return ['protein', 'carbs', 'fats'].every((k) =>
+      cuadra(Math.round(suma[k]), destino.como.objetivo[k], k)
+    );
+  }
+  return cuadra(Math.round(suma.kcal), destino.kcals, 'kcals');
+};
+
+/**
+ * Un menú llevado a lo pautado de su día. El TEXTO lo pone cada consecuencia,
+ * que no dice lo mismo un día suelto que una dieta de cuatro.
+ */
+const alObjetivo = (meals, targets) => {
+  const destino = aLoPautado(targets);
+  if (!destino) return { meals, destino: null, movido: false, cuadraba: false };
+
+  const hecho = rescaleMeals(meals, destino.como);
+  return {
+    meals: hecho ? hecho.meals : meals,
+    destino,
+    movido: Boolean(hecho),
+    cuadraba: !hecho && yaCuadra(meals, destino),
+  };
+};
+
+/** Lo que se dice de un menú llevado —o no— a lo pautado de un día. */
+const filaDelAjuste = ({ destino, movido, cuadraba }) => {
+  if (!destino) return { texto: 'No tiene objetivo puesto: entra tal cual' };
+  if (movido) {
+    return { texto: `Ajustado a sus ${destino.kcals} kcal${destino.conMacros ? ' y sus macros' : ''}` };
+  }
+  if (cuadraba) return null;
+  return { texto: `Nada que mover para llegar a sus ${destino.kcals} kcal: entra tal cual` };
+};
+
+/**
+ * LA COMIDA SUELTA, que es la única que sigue escalando en proporción — y no
+ * por descuido: una comida no tiene objetivo propio en el destino contra el que
+ * medirse. Se añade al final de un día que ya tiene el suyo, así que lo único
+ * conservable es su tamaño RELATIVO: lo que era un quinto del día de quien la
+ * manda entra como un quinto del de quien la recibe. Por eso aquí sí hace falta
+ * el objetivo de origen, y por eso sin él se dice y entra tal cual.
+ */
+const reescaladoDeLaComida = (pieza, dieta, dia) => {
   const desde = Number(pieza?.origen?.objetivoKcals) || 0;
   const hasta = Number(targetsFor(dieta, dia?.id)?.targetKcals) || 0;
-  const meals = pieza.tipo === TIPO.DIA_DIETA ? pieza.carga?.meals || [] : [pieza.carga];
+  const meals = [pieza.carga];
 
   if (!hasta) return { meals, fila: { texto: 'No tiene objetivo puesto: entra tal cual' } };
   if (!desde) return { meals, fila: { texto: 'Sin objetivo de origen: entra sin reescalar' } };
@@ -344,7 +438,7 @@ const CONSECUENCIA = {
     const dia = dias.length === 1 ? dias[0] : buscarPorNombre(dias, sitio, (d) => d.name);
     if (!dia) return no(sitio ? `No tiene ningún día «${sitio}»` : 'Falta decir en qué día cae');
 
-    const { meals, fila } = reescalado(pieza, datos, dia);
+    const { meals, fila } = reescaladoDeLaComida(pieza, datos, dia);
     const alimentos = (pieza.carga?.options?.[0]?.foods || []).length;
     return va(
       [
@@ -364,8 +458,14 @@ const CONSECUENCIA = {
   [TIPO.DIA_DIETA]: (pieza, { datos }) => {
     const dias = planDays(datos);
     /* Contra el primero, que es el que manda el objetivo del plan mientras no
-       haya reparto del ciclo. Ver `targetsFor`. */
-    const { meals, fila } = reescalado(pieza, datos, dias[0]);
+       haya reparto del ciclo. Ver `targetsFor`.
+
+       Y aquí NO hace falta el objetivo de origen: un día suelto no tiene
+       proporción que conservar con nadie, así que se mide su propio menú y se
+       lleva a lo pautado. La fila de «sin objetivo de origen» solo tiene
+       sentido donde el ciclado se puede perder — la dieta entera. */
+    const { meals, ...ajuste } = alObjetivo(pieza.carga?.meals || [], targetsFor(datos, dias[0]?.id));
+    const fila = filaDelAjuste(ajuste);
     return va(
       [
         { texto: `${pieza.titulo} · ${cuenta(meals.length, 'comida', 'comidas')}`, marca: 'entra' },
@@ -389,14 +489,15 @@ const CONSECUENCIA = {
     toma mirando esta columna, igual que con un condicionante que veta.
 
     ── Lo que viaja y lo que no ───────────────────────────────────────────────
-    Viajan los días con su nombre y su menú, cada uno REESCALADO al objetivo que
-    el destinatario ya tiene. No viajan sus objetivos —«mandar la misma dieta a
-    ocho no es darles la misma dieta»— ni sus hábitos, pasos, cardio o
+    Viajan los días con su nombre y su menú, cada uno AJUSTADO a lo que el
+    destinatario ya tiene pautado —no escalado por el salto entre los dos
+    objetivos: ver `aLoPautado`—. No viajan sus objetivos —«mandar la misma
+    dieta a ocho no es darles la misma dieta»— ni sus hábitos, pasos, cardio o
     equivalencias, que son de la persona y no del plan.
 
     ── Y la proporción entre días ────────────────────────────────────────────
     Con un alto/bajo, lo que define el plan no son las cifras sino la DISTANCIA
-    entre ellas. El primer día se reescala al objetivo del destinatario y los
+    entre ellas. El primer día apunta al objetivo del destinatario y los
     demás guardan su proporción con él, así que un ciclado del 20 % sigue siendo
     del 20 % con otras calorías. Sin objetivo de origen no hay proporción que
     calcular y entra tal cual, dicho en la columna.
@@ -407,11 +508,18 @@ const CONSECUENCIA = {
     if (entran.length === 0) return no('La dieta que llevas no tiene ningún día');
 
     const suyasComidas = suyos.reduce((n, d) => n + (d.meals?.length || 0), 0);
-    const suPrimero = Number(targetsFor(datos, suyos[0]?.id)?.targetKcals) || 0;
     const desde = Number(pieza.origen?.objetivoKcals) || 0;
 
+    /* Los objetivos que va a tener cada día NUEVO, pedidos a quien los escribe
+       (`targetsAlRecibir`, la mitad de `replaceDietDays`): el primero conserva
+       el del destinatario y los demás lo multiplican por su proporción, con la
+       proteína y las grasas quietas. Así el menú se lleva EXACTAMENTE a la
+       cifra que se va a guardar con él, y no a una parecida calculada aquí. */
+    const objetivos = targetsAlRecibir(datos, entran);
+    const suPrimero = Number(objetivos[0]?.targetKcals) || 0;
+
     /*
-      ── Y SE CUENTA CUÁNTOS SE HAN PODIDO REESCALAR DE VERDAD ────────────────
+      ── Y SE CUENTA CUÁNTOS SE HAN PODIDO AJUSTAR DE VERDAD ──────────────────
       `rescaleMeals` mueve lo que NO es fuente de proteína, así que hay saltos
       que no puede dar: bajar de 3.050 a 1.950 kcal en un desayuno de claras y
       huevo pide tocar precisamente lo que no se toca, y entonces devuelve
@@ -419,30 +527,35 @@ const CONSECUENCIA = {
       primera versión de esto escribía «Reescalada de 3.050 a 1.950» pasara lo
       que pasara, y una columna que miente en la única pantalla que escribe en
       el plan de ocho personas es peor que no tener columna.
-    */
-    let reescalados = 0;
-    const dias = entran.map((dia) => {
-      /* Cada día contra el objetivo del destinatario multiplicado por la
-         proporción que ese día tenía en el plan de origen. */
-      const proporcion = Number(dia.proporcion) || 1;
-      const hasta = suPrimero ? Math.round(suPrimero * proporcion) : 0;
-      const deEsteDia = desde ? Math.round(desde * proporcion) : 0;
 
-      if (!hasta || !deEsteDia || deEsteDia === hasta) return { ...dia, meals: dia.meals || [] };
-      const hecho = rescaleMeals(dia.meals || [], { fromKcals: deEsteDia, toKcals: hasta });
-      if (hecho) reescalados += 1;
-      return { ...dia, meals: hecho ? hecho.meals : dia.meals || [] };
+      Y sin objetivo de ORIGEN no se toca nada, aunque el ajuste ya no lo use
+      para escalar: lo que falta entonces es la proporción —sin ella todos los
+      días vienen marcados con un 1— y llevarlos a todos a la misma cifra
+      aplanaría un ciclado que sí existe en el menú. Es la única fila donde el
+      objetivo del que manda sigue haciendo falta.
+    */
+    let ajustados = 0;
+    let fallidos = 0;
+    const dias = entran.map((dia, i) => {
+      if (!desde) return { ...dia, meals: dia.meals || [] };
+      const { meals, destino, movido, cuadraba } = alObjetivo(dia.meals || [], objetivos[i]);
+      if (movido) ajustados += 1;
+      else if (destino && !cuadraba && (dia.meals || []).length > 0) fallidos += 1;
+      return { ...dia, meals };
     });
 
-    /* Solo cuentan los días que TIENEN menú: uno vacío no se reescala y decir
-       «2 de 3» por él sería contar un fallo que no ha ocurrido. */
-    const conMenu = entran.filter((d) => (d.meals || []).length > 0).length;
+    /* El denominador son los días que PEDÍAN moverse: uno vacío no se ajusta, y
+       uno que ya cuadraba tampoco — contarlos como «1 de 3» sería contar dos
+       fallos que no han ocurrido. */
+    const pedian = ajustados + fallidos;
     const laCuenta =
-      reescalados === 0
-        ? `Nada que mover para llegar a sus ${suPrimero} kcal: entra tal cual`
-        : reescalados >= conMenu
-          ? `Reescalada de ${desde} a ${suPrimero} kcal, y sus días guardan la proporción`
-          : `Reescalados ${reescalados} de ${conMenu} días a sus ${suPrimero} kcal; el resto entra tal cual`;
+      ajustados === 0
+        ? pedian === 0
+          ? `Su menú ya cuadra con sus ${suPrimero} kcal: entra tal cual`
+          : `Nada que mover para llegar a sus ${suPrimero} kcal: entra tal cual`
+        : fallidos === 0
+          ? `Ajustada a sus ${suPrimero} kcal, y sus días guardan la proporción`
+          : `Ajustados ${ajustados} de ${pedian} días a sus ${suPrimero} kcal; el resto entra tal cual`;
 
     const total = dias.reduce((n, d) => n + (d.meals?.length || 0), 0);
     /* Sin las casillas del destinatario a mano —aquí se contesta por ocho

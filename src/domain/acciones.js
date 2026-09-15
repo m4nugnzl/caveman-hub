@@ -361,7 +361,7 @@ export const cuentaAcciones = (plan) => accionesDe(plan).length;
 
 /** El día en que se le pide el check-in, dicho como se lee. */
 export const diaDelCheckin = (protocolo) =>
-  DIAS.find((d) => d.id === sanitizeSchedule(protocolo?.schedule).day)?.corto || 'lunes';
+  DIAS.find((d) => d.id === sanitizeSchedule(protocolo?.schedule).weekday)?.corto || 'lunes';
 
 // ══ ESCRIBIR ═══════════════════════════════════════════════════════════════
 

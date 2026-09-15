@@ -32,7 +32,7 @@ import { WEEK_DAYS, rotatingSlots } from '@/domain/training';
  * Cuatro columnas de plan en 390 px son cuatro columnas de 90, o un carril que
  * se arrastra para leer lo que ya se sabe. En el móvil se viene a apuntar
  * series, no a repasar el mesociclo: ahí manda la sesión. Lo decide
- * `ClientRoutine` con la media query, no este archivo.
+ * `ClientRoutineRoute` con la media query, no este archivo.
  */
 export const PlanDelBloque = ({ program, bloque, cliente, unidad, unidades, onAbrirHoja }) => {
   const plan = blockPlan(program, bloque);
@@ -62,8 +62,12 @@ export const PlanDelBloque = ({ program, bloque, cliente, unidad, unidades, onAb
     <section className="plan-tramo" aria-label={`Las sesiones de ${bloque.name}`}>
       <div className="plan-tramo-cab">
         <h3 className="plan-titulo">Tus sesiones</h3>
+        {/* «pulsa una para abrirla y apuntar» se ha ido: la tarjeta se enciende
+            al acercarse y lleva el nombre de la sesión en titular — la ley de
+            los gestos. Una instrucción que describe lo que el dibujo ya dice es
+            de lo que el dueño llama «demasiado texto». Queda el dato. */}
         <span className="plan-tramo-meta">
-          {`${plan.sessions.length} en cada ${unidad.toLowerCase()} · pulsa una para abrirla y apuntar`}
+          {`${plan.sessions.length} en cada ${unidad.toLowerCase()}`}
         </span>
       </div>
 

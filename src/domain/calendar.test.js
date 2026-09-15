@@ -1,14 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CHECKIN_CADENCES,
+  WEEKDAYS,
   checkInDates,
   checkInSchedule,
   currentCheckInPeriod,
+  estadoDeLaEntrega,
   moveCheckIn,
   monthGrid,
   nextCheckIn,
+  periodoAEntregar,
   weekCells,
 } from './calendar';
+import { DIAS } from './protocol';
 
 /**
  * Las dos preguntas del check-in.
@@ -68,6 +73,150 @@ describe('currentCheckInPeriod', () => {
     const periodo = currentCheckInPeriod(QUINCENAL_JUEVES, '2026-08-03', '2026-08-24');
     expect(periodo.start).toBe('2026-08-17');
     expect(periodo.dueOn).toBe('2026-08-20');
+  });
+});
+
+/*
+  ══ «¿ME DEBE LA REVISIÓN?» ═══════════════════════════════════════════════════
+  Lo preguntan su portada —para la fila— y la barra del pulgar —para el punto—, y
+  tienen que contestar lo mismo. Lo que se fija aquí es el emparejamiento: la
+  entrega cuenta si es de este PERIODO, no de esta semana natural.
+*/
+describe('estadoDeLaEntrega', () => {
+  const suya = { preferences: SEMANAL_JUEVES, startDate: '2026-08-03' };
+
+  it('sin nada entregado y con el día pasado, espera', () => {
+    const out = estadoDeLaEntrega({ ...suya, today: '2026-08-14' });
+    expect(out.desde).toBe('2026-08-10');
+    expect(out.sinEntregar).toBe(true);
+    expect(out.espera).toBe(true);
+  });
+
+  /*
+    Antes del día no se le reclama nada — con lo anterior en orden.
+
+    La entrega del periodo pasado va en el caso a propósito. Sin ella, lo que
+    está abierto un martes no es el jueves que todavía no ha llegado sino el
+    jueves pasado, que sí debe (ver `periodoAEntregar`), y esta prueba pasaba por
+    el motivo equivocado: no porque no le toque, sino porque el fixture no tenía
+    nada atrasado.
+  */
+  it('antes de su día no espera', () => {
+    const entrega = { weekStart: '2026-08-03', submittedAt: '2026-08-06T10:00:00Z' };
+    expect(estadoDeLaEntrega({ ...suya, entrega, today: '2026-08-11' }).espera).toBe(false);
+  });
+
+  it('entregada la de este periodo, no espera', () => {
+    const entrega = { weekStart: '2026-08-10', submittedAt: '2026-08-13T10:00:00Z' };
+    const out = estadoDeLaEntrega({ ...suya, entrega, today: '2026-08-14' });
+    expect(out.sinEntregar).toBe(false);
+    expect(out.espera).toBe(false);
+  });
+
+  /* La del periodo ANTERIOR no cuenta: si contara, quien entregó hace quince
+     días no volvería a ver nunca que le toca. */
+  it('la entrega de un periodo pasado no cuenta', () => {
+    const entrega = { weekStart: '2026-08-03', submittedAt: '2026-08-06T10:00:00Z' };
+    expect(estadoDeLaEntrega({ ...suya, entrega, today: '2026-08-14' }).espera).toBe(true);
+  });
+
+  /*
+    El caso que se equivocaba escrito a mano en cada pantalla: con cadencia
+    quincenal el periodo empezó hace dos semanas, y comparar contra el lunes de
+    hoy daba por no entregada una revisión que sí lo estaba.
+  */
+  it('con cadencia quincenal la ventana es el periodo, no la semana', () => {
+    const quincenal = { preferences: QUINCENAL_JUEVES, startDate: '2026-08-03' };
+    const entrega = { weekStart: '2026-08-17', submittedAt: '2026-08-20T09:00:00Z' };
+    const out = estadoDeLaEntrega({ ...quincenal, entrega, today: '2026-08-24' });
+    expect(out.desde).toBe('2026-08-17');
+    expect(out.espera).toBe(false);
+  });
+
+  /* Sin día elegido no hay periodo, y entonces nadie le debe nada: reclamar algo
+     que nadie ha fijado es ruido. */
+  it('sin pauta no espera nada', () => {
+    const out = estadoDeLaEntrega({ preferences: {}, startDate: '2026-08-03', today: '2026-08-14' });
+    expect(out.periodo).toBeNull();
+    expect(out.espera).toBe(false);
+  });
+});
+
+/*
+  ══ La ventana de gracia ═══════════════════════════════════════════════════
+
+  La avería: una revisión se archiva en la semana en la que estás HOY, no en la
+  que debías. Con la revisión el domingo, entregar el martes la guardaba en la
+  semana nueva —consumiéndola sin haberla vivido— y dejaba la vieja sin entregar.
+  Una entrega, dos semanas contadas.
+
+  Lo que se fija aquí es la regla entera: de tu día al siguiente, lo que entregas
+  es la que debías. Y que la ventana se cierre sola al llegar el día nuevo, que es
+  lo que impide que esto se convierta en un cliente entregando para siempre la
+  revisión de hace tres meses.
+*/
+describe('periodoAEntregar', () => {
+  /** Domingo, cada semana: el caso donde la ventana dura de lunes a sábado. */
+  const DOMINGO = { checkin: { weekday: 6, everyWeeks: 1 } };
+  const suya = { preferences: DOMINGO, startDate: '2026-08-03' };
+
+  it('sin día elegido no hay nada abierto', () => {
+    expect(periodoAEntregar({ preferences: {}, startDate: '2026-08-03', today: '2026-08-11' })).toBeNull();
+  });
+
+  it('llegado su día, lo abierto es el periodo de hoy', () => {
+    const out = periodoAEntregar({ ...suya, today: '2026-08-16' });
+    expect(out.start).toBe('2026-08-10');
+    expect(out.tarde).toBeUndefined();
+  });
+
+  /* El caso reportado: se le pasó el domingo y entrega el martes. Lo que manda
+     es la del 3, no la del 10 — si no, la del 10 queda consumida sin vivirla. */
+  it('pasado su día y sin entregar, lo abierto es el periodo anterior', () => {
+    const out = periodoAEntregar({ ...suya, today: '2026-08-11' });
+    expect(out.start).toBe('2026-08-03');
+    expect(out.dueOn).toBe('2026-08-09');
+    expect(out.tarde).toBe(true);
+  });
+
+  it('entregado el anterior, lo abierto vuelve a ser el de hoy', () => {
+    const entrega = { weekStart: '2026-08-03', submittedAt: '2026-08-09T18:00:00Z' };
+    const out = periodoAEntregar({ ...suya, entrega, today: '2026-08-11' });
+    expect(out.start).toBe('2026-08-10');
+    expect(out.tarde).toBeUndefined();
+  });
+
+  /* La ventana no es un plazo inventado: se cierra exactamente cuando llega el
+     día siguiente, y a partir de ahí la vieja es cosa de `deliverableWeeks`. */
+  it('la ventana se cierra al llegar el día nuevo', () => {
+    expect(periodoAEntregar({ ...suya, today: '2026-08-15' }).start).toBe('2026-08-03');
+    expect(periodoAEntregar({ ...suya, today: '2026-08-16' }).start).toBe('2026-08-10');
+  });
+
+  /* Con la revisión el lunes no hay nada que hacer: el periodo en curso YA es el
+     que se debe toda la semana, así que `isDue` es cierto desde el primer día y
+     no se entra nunca en la rama de la gracia. */
+  it('con la revisión el lunes la regla no cambia nada', () => {
+    const lunes = { preferences: { checkin: { weekday: 0, everyWeeks: 1 } }, startDate: '2026-08-03' };
+    for (const dia of ['2026-08-10', '2026-08-12', '2026-08-16']) {
+      expect(periodoAEntregar({ ...lunes, today: dia }).start).toBe('2026-08-10');
+    }
+  });
+
+  /* Quien empezó este lunes no arrastra nada: el periodo anterior cae antes de
+     su alta y no existe. Es la misma guarda que `periodStartOf`. */
+  it('el alta reciente no inventa un periodo anterior', () => {
+    const out = periodoAEntregar({ preferences: DOMINGO, startDate: '2026-08-10', today: '2026-08-12' });
+    expect(out.start).toBe('2026-08-10');
+    expect(out.tarde).toBeUndefined();
+  });
+
+  /* Con cadencia quincenal la ventana dura dos semanas, sin ninguna regla
+     aparte: es el mismo `isDue` del periodo en curso. */
+  it('con cadencia quincenal la ventana dura el periodo entero', () => {
+    const quincenal = { preferences: { checkin: { weekday: 3, everyWeeks: 2 } }, startDate: '2026-08-03' };
+    expect(periodoAEntregar({ ...quincenal, today: '2026-08-19' }).start).toBe('2026-08-03');
+    expect(periodoAEntregar({ ...quincenal, today: '2026-08-27' }).start).toBe('2026-08-17');
   });
 });
 
@@ -211,21 +360,27 @@ describe('moveCheckIn', () => {
   });
 
   it('mueve la entrega de su periodo', () => {
-    expect(moveCheckIn(QUINCENAL_JUEVES, '2026-08-03', '2026-08-18')).toEqual(['2026-08-18']);
+    expect(moveCheckIn(QUINCENAL_JUEVES, '2026-08-03', '2026-08-18')).toEqual({
+      dates: ['2026-08-18'],
+      notes: {},
+    });
   });
 
   /* Una por periodo. Sin esto, dos fechas en la misma quincena y `dueOnOf` se
      quedaría con la primera sin que nadie lo hubiera decidido. */
   it('la segunda fecha del mismo periodo sustituye a la primera', () => {
-    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-21')).toEqual(['2026-08-21']);
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-21')).toEqual({
+      dates: ['2026-08-21'],
+      notes: {},
+    });
   });
 
   it('volver a pulsar la misma fecha la quita', () => {
-    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-18')).toEqual([]);
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-18')).toEqual({ dates: [], notes: {} });
   });
 
   it('mover al propio día de la pauta no guarda nada', () => {
-    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-20')).toEqual([]);
+    expect(moveCheckIn(MOVIDA, '2026-08-03', '2026-08-20')).toEqual({ dates: [], notes: {} });
   });
 
   it('respeta el tope', () => {
@@ -239,6 +394,70 @@ describe('moveCheckIn', () => {
     expect(checkInSchedule(llena).dates).toHaveLength(12);
     // Un periodo nuevo ya no cabe; uno que ya tenía fecha sí, porque la sustituye.
     expect(moveCheckIn(llena, '2026-08-03', '2027-01-05')).toBeNull();
-    expect(moveCheckIn(llena, '2026-08-03', '2026-09-02')).toHaveLength(12);
+    expect(moveCheckIn(llena, '2026-08-03', '2026-09-02').dates).toHaveLength(12);
+  });
+
+  /* ══ El porqué ══════════════════════════════════════════════════════════
+     Una fecha movida sin motivo, tres semanas después, es un día raro en el
+     calendario. Se guarda apuntado a SU fecha, y se cae con ella. */
+  it('guarda el motivo apuntado a su fecha', () => {
+    expect(
+      moveCheckIn(QUINCENAL_JUEVES, '2026-08-03', '2026-08-18', { motivo: 'Está de viaje' })
+    ).toEqual({ dates: ['2026-08-18'], notes: { '2026-08-18': 'Está de viaje' } });
+  });
+
+  it('devolver la fecha a su pauta se lleva su motivo', () => {
+    const conNota = {
+      checkin: { weekday: 3, everyWeeks: 2, dates: ['2026-08-18'], notes: { '2026-08-18': 'Viaje' } },
+    };
+    expect(moveCheckIn(conNota, '2026-08-03', '2026-08-18')).toEqual({ dates: [], notes: {} });
+  });
+
+  it('las notas de otros periodos sobreviven', () => {
+    const dos = {
+      checkin: {
+        weekday: 3,
+        everyWeeks: 1,
+        dates: ['2026-08-04', '2026-08-11'],
+        notes: { '2026-08-04': 'Viaje', '2026-08-11': 'Boda' },
+      },
+    };
+    /* Se mueve la del segundo periodo a otro día: la nota de la semana anterior
+       no tiene por qué enterarse. */
+    expect(moveCheckIn(dos, '2026-08-03', '2026-08-12')).toEqual({
+      dates: ['2026-08-04', '2026-08-12'],
+      notes: { '2026-08-04': 'Viaje' },
+    });
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   UNA SOLA CITA — la cadencia y su tope
+   ══════════════════════════════════════════════════════════════════════════ */
+
+describe('la cadencia', () => {
+  it('ofrece la de tres semanas, que era la que faltaba', () => {
+    expect(CHECKIN_CADENCES.map((c) => c.weeks)).toEqual([1, 2, 3, 4]);
+  });
+
+  /* El horario del protocolo acepta hasta ocho, y SIEMBRA esta pauta. Si aquí
+     solo cupieran las cuatro de la lista, sembrar «cada 6» se convertiría en
+     silencio en «cada semana». */
+  it('acepta cualquier cadencia que el horario pueda sembrar', () => {
+    expect(checkInSchedule({ checkin: { weekday: 0, everyWeeks: 6 } }).everyWeeks).toBe(6);
+    expect(checkInSchedule({ checkin: { weekday: 0, everyWeeks: 99 } }).everyWeeks).toBe(1);
+    expect(checkInSchedule({ checkin: { weekday: 0, everyWeeks: 0 } }).everyWeeks).toBe(1);
+  });
+
+  /* La numeración es UNA: lunes es 0 en el calendario y lunes es 0 en el
+     horario del protocolo. Cruzarlas con un desfase de uno es la avería que la
+     unificación vino a cerrar. */
+  it('la numeración del día es la misma en las dos listas', () => {
+    expect(DIAS.map((d) => d.id)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(DIAS).toHaveLength(WEEKDAYS.length);
+    expect(DIAS[0].corto).toBe('lunes');
+    expect(WEEKDAYS[0]).toBe('Lun');
+    expect(DIAS[6].corto).toBe('domingo');
+    expect(WEEKDAYS[6]).toBe('Dom');
   });
 });

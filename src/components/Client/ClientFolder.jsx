@@ -22,7 +22,7 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * Solo si su entrenador tiene Drive conectado Y le ha hecho su carpeta. Sin las
  * dos cosas, este bloque no existe — no hay «conecta tu Drive» ni «pídesela a tu
  * entrenador»: una sección que solo sirve para anunciar lo que no tienes es
- * cromo, y el portal del cliente no lo lleva (ver `IntakePrompt`).
+ * cromo, y el portal del cliente no lo lleva.
  *
  * ══ Y lo que hay dentro no se lista al entrar ══════════════════════════════
  *
@@ -30,24 +30,36 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * todos los días para mirar otra cosa. Lo que se pinta de entrada es lo que ya se
  * sabe —que la carpeta existe y qué le piden— y el contenido se trae si lo pide.
  */
-export const ClientFolder = ({ client }) => {
+/**
+ * @param carpeta  La carpeta ya consultada por quien monta esto. Va como
+ *   parámetro desde que la puerta es una FILA en «Tú»: quien pinta la fila tiene
+ *   que saber ANTES si hay carpeta —ofrecer «Tus documentos» para abrir una capa
+ *   vacía es prometer algo que no existe—, y sin esto la consulta se haría dos
+ *   veces, una para decidir la fila y otra al abrirla.
+ * @param desnudo  Dentro de una capa, sin `Panel`: la ventana ya pone el título.
+ */
+export const ClientFolder = ({ client, carpeta = null, desnudo = false }) => {
   const { loadClientFolder, driveFiles, driveUpload } = useActions();
   const input = useRef(null);
 
-  const [folder, setFolder] = useState(null);
+  const [propia, setPropia] = useState(null);
   const [archivos, setArchivos] = useState(null);
   const [subiendo, setSubiendo] = useState(false);
   const [aviso, setAviso] = useState(null);
 
+  const dada = carpeta !== null;
+  const folder = dada ? carpeta : propia;
+
   useEffect(() => {
+    if (dada) return undefined;
     let vivo = true;
     loadClientFolder(client.id).then((res) => {
-      if (vivo && res.ok) setFolder(res.folder);
+      if (vivo && res.ok) setPropia(res.folder);
     });
     return () => {
       vivo = false;
     };
-  }, [client.id, loadClientFolder]);
+  }, [client.id, loadClientFolder, dada]);
 
   if (!folder) return null;
 
@@ -87,22 +99,39 @@ export const ClientFolder = ({ client }) => {
     if (!res.ok) setAviso({ tone: 'error', text: res.error });
   };
 
-  return (
-    <Panel
-      title="Tu carpeta"
-      sub="Compartida con tu entrenador. Lo que dejes aquí lo tiene él sin buscarlo en un chat."
-      className="col gap-3"
-      action={
-        <a
-          className="btn btn-secondary btn-sm"
-          href={folder.url}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          <ExternalLink size={13} /> Abrir
-        </a>
-      }
+  const abrir = (
+    <a
+      className="btn btn-secondary btn-sm"
+      href={folder.url}
+      target="_blank"
+      rel="noreferrer noopener"
     >
+      <ExternalLink size={13} /> Abrir
+    </a>
+  );
+
+  const Marco = desnudo ? 'div' : Panel;
+  const marcoProps = desnudo
+    ? { className: 'col gap-3' }
+    : {
+        title: 'Tu carpeta',
+        sub: 'Compartida con tu entrenador. Lo que dejes aquí lo tiene él sin buscarlo en un chat.',
+        className: 'col gap-3',
+        action: abrir,
+      };
+
+  return (
+    <Marco {...marcoProps}>
+      {/* Desnudo, el título lo pone la ventana y la frase que lo explicaba
+          sobra: quien ha abierto «Tus documentos» ya sabe a qué ha entrado. Lo
+          que no puede perderse es la puerta a Drive, así que baja al cuerpo. */}
+      {desnudo && (
+        <div className="row between wrap gap-2">
+          <span className="t-sm t-secondary">Compartida con tu entrenador.</span>
+          {abrir}
+        </div>
+      )}
+
       {aviso && <Notice tone={aviso.tone}>{aviso.text}</Notice>}
 
       {folder.uploads ? (
@@ -159,29 +188,28 @@ export const ClientFolder = ({ client }) => {
           <p className="t-xs t-tertiary">Todavía no hay nada dentro.</p>
         ) : (
           <div className="col gap-2">
-            {archivos.map((f) => (
-              <a
-                key={f.id}
-                className="card-inset row between wrap gap-2"
-                href={f.webViewLink}
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                <span className="row gap-2 t-sm" style={{ minWidth: 0 }}>
-                  <FileText size={15} className="shrink-0" />
-                  <span
-                    style={{
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {f.name}
+            {/* En cuadrícula, la misma pieza que lo que te dejó al empezar
+                (`IntakeDeliverables`): lo que hay dentro de una carpeta se
+                busca por el dibujo y por el sitio, no se lee renglón a
+                renglón. Y con el nombre entero —antes se recortaba con puntos
+                suspensivos en una línea, que es justo lo que hay que leer para
+                saber cuál es. */}
+            <div className="papeles">
+              {archivos.map((f) => (
+                <a
+                  key={f.id}
+                  className="papel"
+                  href={f.webViewLink}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  <span className="list-icon" aria-hidden="true">
+                    <FileText size={15} />
                   </span>
-                </span>
-                <span className="t-xs link shrink-0">Abrir</span>
-              </a>
-            ))}
+                  <b>{f.name}</b>
+                </a>
+              ))}
+            </div>
             {/* Abrirlo en Drive pide su cuenta de Google, que puede no ser la del
                 correo con el que se compartió. Se dice aquí y no como error
                 después: es lo único de esta pantalla que puede no funcionarle. */}
@@ -191,6 +219,6 @@ export const ClientFolder = ({ client }) => {
             </p>
           </div>
         ))}
-    </Panel>
+    </Marco>
   );
 };

@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Archive,
   CircleAlert,
@@ -629,6 +629,7 @@ export const ClientPortfolio = () => {
     teamMembers,
   } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   /* La marca deslizante de las pestañas de tramo: el mismo conmutador que el
      carril del cliente y el del portal. */
@@ -651,7 +652,10 @@ export const ClientPortfolio = () => {
      clasificación — con «o», marcar dos siempre devuelve más gente que marcar
      una, y entonces el gesto de afinar la lista la ensancha. */
   const [tagsFiltro, setTagsFiltro] = useState([]);
-  const [alta, setAlta] = useState(false);
+  /* Abierta ya si se ha llegado aquí pulsando «Nuevo cliente» en otra pantalla
+     (el vacío de Inicio): el botón dice lo que pasa al pulsarlo, así que tiene
+     que dejar el formulario delante y no la lista con el mismo botón otra vez. */
+  const [alta, setAlta] = useState(() => Boolean(location.state?.alta));
   /* El que se acaba de crear, para poder seguir con él sin ir a buscarlo. */
   const [recien, setRecien] = useState(null);
   /* Los marcados para una acción en lote: avisar, etiquetar, pausar. Ids y no
@@ -1176,7 +1180,7 @@ export const ClientPortfolio = () => {
                 ahora ocupa el hueco que había.
 
                 La misma anatomía la monta `ui/Cinta`, así que la cartera y
-                las cuatro listas del Taller siguen arrancando igual. La cinta
+                las listas del Taller siguen arrancando igual. La cinta
                 del CLIENTE no cambia: allí el raíl son cinco DESTINOS a los que
                 se va, no tramos de la lista que ya estás mirando. */}
             <div className="cartera-cab-linea">

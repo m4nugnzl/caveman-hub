@@ -110,12 +110,16 @@ const UnmatchedRow = ({ label, clients, onLink, onCreate }) => {
           type="button"
           className="chip chip-dashed"
           disabled={busy}
-          title={`Crear a ${label} como cliente y asignarle este pago`}
+          title={`Dar de alta a ${label} como cliente y asignarle este pago`}
           onClick={() =>
             act(() => onCreate({ externalKey: nameKey(label), externalLabel: label }))
           }
         >
-          <UserPlus size={13} /> Dar de alta
+          {/* El mismo nombre que en la cartera y en el vacío de Inicio: dar de
+              alta a alguien se ofrece con un solo rótulo en toda la casa, y «dar
+              de alta» se queda para la frase, que es donde cabe. Ver
+              `docs/producto.md` §5.8. */}
+          <UserPlus size={13} /> Nuevo cliente
         </button>
       </div>
     </div>

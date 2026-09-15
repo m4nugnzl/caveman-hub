@@ -1,0 +1,1745 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Registrar y comparar</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · Registrar y comparar — 13 sep 2026
+   La app del cliente, de cero, en los dos aparatos.
+
+   Encargo: (1) fuera la miniatura obligatoria del ejercicio; (2) el PC no se
+   enseñó; (3) olvidar el lenguaje visual preconcebido —color, paleta, formas—
+   y hacer la mejor app posible mirando a lo mejor del mercado.
+
+   ── Plan de tokens, antes de escribir una línea ───────────────────────────
+   COLOR   Se retira el papel crema (#f1efe8), el azul #3b49df y el verde de
+           la casa. Entra un suelo FRÍO casi blanco (#F6F7F9), tinta azulada
+           (#0E1116) y UN solo color de acción, azul acero #1F55E0. El
+           semáforo queda acotado a juzgar entregas, nunca a juzgar lo que
+           levantas. Seis valores, ni uno más. Por qué frío: esta app es un
+           instrumento de medida, no una papelería; el crema calienta lo que
+           tiene que estar callado para que destaquen las cifras.
+   TIPO    Dos familias con dos oficios. Instrument Sans para todo lo que se
+           lee. JetBrains Mono SOLO en el carril del registro: series, kilos,
+           macros. El mono no es estética de terminal, es lo que hace que el
+           «100 × 8» de esta semana caiga exactamente encima del de la
+           anterior. Sin tercera fuente y sin serif: el display se consigue
+           con TAMAÑO y tracking, no con otra familia.
+   PLANTA  Teléfono: una columna, el pulgar manda, la sesión es un modo que
+           sustituye la app. PC: dos columnas fijas —el trabajo a la
+           izquierda, su pasado a la derecha— y una parrilla que enseña diez
+           semanas de una vez. Descartado: el PC como teléfono estirado (es
+           lo que hay hoy) y el PC como panel de widgets (eso es el panel del
+           entrenador, y esta app no es suya).
+   FIRMA   La línea de la serie: la pauta en fantasma y lo que hiciste
+           cayendo encima, en el mismo renglón y en el mismo eje. Es lo único
+           de esta lista que ningún competidor puede copiar sin cambiar antes
+           su modelo de datos.
+
+   ── Segunda pasada ────────────────────────────────────────────────────────
+   La paleta salió a la primera como gris frío + azul, que es exactamente lo
+   que sale por defecto para cualquier producto parecido. Se revisó y se dejó,
+   pero por una razón explícita: el presupuesto de audacia se gasta ENTERO en
+   la cifra y en la línea de la serie, y un acento raro competiría con el dato,
+   que es el producto. Lo que sí cambió en la segunda pasada: los datos dejan
+   de distinguirse por color (hoy se distinguen por macro y por grupo muscular)
+   y pasan a distinguirse por posición y peso. El color queda para una sola
+   cosa: «esto se puede tocar».
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  color-scheme: light;
+  --suelo:#F6F7F9; --hoja:#FFFFFF; --hundido:#EDEFF3;
+  --tinta:#0E1116; --tinta-2:#565D6B; --tinta-3:#878E9C;
+  --linea:#E4E7EC; --linea-2:#CED4DC;
+  --accion:#1F55E0; --accion-suave:#EAEFFD;
+  --verde:#0E7A4F; --ambar:#B4690E; --rojo:#BE3A2E;
+  --banda:#0E1116; --banda-2:#181C23; --banda-3:#242932;
+  --sombra:0 1px 2px rgba(14,17,22,.05), 0 1px 1px rgba(14,17,22,.04);
+  --sombra-m:0 10px 30px rgba(14,17,22,.12), 0 2px 6px rgba(14,17,22,.05);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--suelo); color:var(--tinta);
+  font-family:"Instrument Sans",system-ui,sans-serif; font-size:16.5px; line-height:1.62;
+  font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+}
+.env{max-width:722px;margin:0 auto;padding:0 24px}
+.ancho{max-width:1244px;margin:0 auto;padding:0 24px}
+.seccion{padding:80px 0}
+.seccion.hoja{background:var(--hoja);border-block:1px solid var(--linea)}
+.seccion.banda{background:var(--banda);color:#EEF1F5;border:0}
+.seccion.banda .rotulo{color:#7E8798}
+.seccion.banda h2,.seccion.banda h3{color:#fff}
+.seccion.banda p{color:#B9C0CC}
+.seccion.banda .entradilla{color:#C6CCD6}
+
+h1{font-size:clamp(38px,6.4vw,62px);line-height:1.02;letter-spacing:-.035em;font-weight:700;margin:0 0 18px}
+h2{font-size:clamp(27px,3.4vw,37px);line-height:1.1;letter-spacing:-.028em;font-weight:700;margin:0 0 14px}
+h3{font-size:20px;line-height:1.25;letter-spacing:-.016em;font-weight:650;margin:36px 0 8px}
+p{margin:0 0 16px;color:var(--tinta-2)}
+p b,li b,td b{color:var(--tinta);font-weight:650}
+.seccion.banda p b,.seccion.banda li b{color:#fff}
+a{color:var(--accion)}
+.rotulo{font-size:11.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--tinta-3);margin-bottom:12px}
+.entradilla{font-size:20.5px;line-height:1.5;color:var(--tinta-2);letter-spacing:-.012em}
+.pie-lamina{max-width:780px;margin:22px auto 0;font-size:14.5px;line-height:1.6;color:var(--tinta-3);text-align:center}
+.seccion.banda .pie-lamina{color:#8A93A3}
+.seccion.banda .pie-lamina b{color:#E4E8EE}
+ul{margin:0 0 16px;padding-left:20px;color:var(--tinta-2)}
+li{margin-bottom:7px}
+
+.portada{padding:108px 0 76px;background:var(--hoja);border-bottom:1px solid var(--linea)}
+.frase{font-size:clamp(29px,4.4vw,44px);line-height:1.13;letter-spacing:-.032em;font-weight:700;margin:36px 0 0}
+.frase span{color:var(--tinta-3)}
+.meta-doc{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--tinta-3);margin-top:30px;border-top:1px solid var(--linea);padding-top:16px}
+
+table.t{width:100%;border-collapse:collapse;margin:12px 0 24px;font-size:14.5px;line-height:1.5}
+table.t th{text-align:left;font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);font-weight:700;padding:0 14px 8px 0;border-bottom:1px solid var(--linea)}
+table.t td{padding:12px 14px 12px 0;border-bottom:1px solid var(--linea);vertical-align:top;color:var(--tinta-2)}
+table.t td:first-child{color:var(--tinta);font-weight:600}
+table.t th:last-child,table.t td:last-child{padding-right:0}
+.no{color:var(--tinta-3)}
+
+.prueba{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:28px 0 10px}
+.prueba div{background:var(--hoja);border:1px solid var(--linea);border-radius:14px;padding:17px 19px}
+.seccion.hoja .prueba div{background:var(--suelo)}
+.prueba .n{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.prueba .q{font-size:13.5px;color:var(--tinta-3);margin-top:7px;line-height:1.42}
+
+.paleta{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:24px 0 8px}
+.paleta > div{border-radius:12px;overflow:hidden;border:1px solid var(--linea);background:var(--hoja)}
+.paleta i{display:block;height:60px}
+.paleta b{display:block;font-size:12.5px;padding:9px 10px 1px;font-weight:650}
+.paleta em{display:block;font-size:10.5px;padding:0 10px 10px;color:var(--tinta-3);font-style:normal;font-family:"JetBrains Mono",monospace}
+.especimen{background:var(--hoja);border:1px solid var(--linea);border-radius:16px;padding:28px;margin:24px 0}
+.seccion.hoja .especimen{background:var(--suelo)}
+.especimen .gr{font-size:54px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.especimen .md{font-size:15.5px;color:var(--tinta-2);margin-top:16px}
+.especimen .mono{font-family:"JetBrains Mono",monospace;font-size:13.5px;letter-spacing:-.02em;margin-top:16px;color:var(--tinta)}
+.especimen .et{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--tinta-3);font-weight:700;margin-bottom:10px}
+
+/* ══ EL APARATO ════════════════════════════════════════════════════════════
+   Todo lo que va dentro de un teléfono o de un PC lleva prefijo .a- o .tel-
+   o .pc-. Ninguna de estas clases toca la prosa del documento.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* — piezas compartidas por los dos aparatos — */
+.a-sup{font-size:12.5px;font-weight:600;color:var(--tinta-3);letter-spacing:.01em}
+.a-tit{font-size:26px;font-weight:700;letter-spacing:-.032em;line-height:1.08;color:var(--tinta);margin:2px 0 0}
+.a-tit.xl{font-size:44px;letter-spacing:-.04em}
+.a-pie{font-size:12.5px;color:var(--tinta-3);margin-top:4px}
+.a-hoja{background:var(--hoja);border:1px solid var(--linea);border-radius:16px;box-shadow:var(--sombra);overflow:hidden}
+.a-rot{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--tinta-3)}
+.a-fila{display:flex;align-items:center;gap:12px;padding:13px 15px;border-bottom:1px solid var(--linea);background:var(--hoja)}
+.a-fila:last-child{border-bottom:0}
+.a-fila .k{font-size:15px;font-weight:600;color:var(--tinta);letter-spacing:-.01em}
+.a-fila .s{font-size:12.5px;color:var(--tinta-3);margin-top:1px}
+.a-fila .der{margin-left:auto;text-align:right;display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap}
+.a-fila > div{min-width:0}
+.a-fila.tocable{cursor:pointer;transition:background .12s ease}
+.a-fila.tocable:hover{background:#FAFBFC}
+.a-fila.viva{background:var(--accion-suave)}
+.a-mono{font-family:"JetBrains Mono",monospace;font-size:13px;letter-spacing:-.03em;color:var(--tinta);font-weight:500}
+.a-mono.q{color:var(--tinta-3);font-weight:400}
+.a-boton{display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:13px;background:var(--accion);color:#fff;font-size:15.5px;font-weight:650;letter-spacing:-.01em;border:0;width:100%;cursor:pointer;font-family:inherit;transition:transform .1s ease,filter .12s ease}
+.a-boton:hover{filter:brightness(1.07)}
+.a-boton:active{transform:scale(.985)}
+.a-boton.linea{background:transparent;color:var(--tinta);border:1px solid var(--linea-2)}
+.a-boton.chico{height:36px;font-size:13.5px;border-radius:10px;width:auto;padding:0 14px}
+.a-verbo{color:var(--accion);font-weight:650;font-size:13.5px;cursor:pointer}
+.a-chip{display:inline-flex;align-items:center;height:28px;padding:0 11px;border-radius:999px;background:var(--hundido);font-size:12.5px;font-weight:600;color:var(--tinta-2);cursor:pointer}
+.a-chip.on{background:var(--tinta);color:#fff}
+.a-punto{width:7px;height:7px;border-radius:50%;background:var(--accion);flex:none}
+.a-hecho{width:20px;height:20px;border-radius:7px;background:var(--tinta);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+.a-vacio{width:20px;height:20px;border-radius:7px;border:1.5px solid var(--linea-2);flex:none}
+
+/* la firma: la línea de la serie */
+.a-serie{display:grid;grid-template-columns:16px 1fr auto;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--linea)}
+.a-serie:last-child{border-bottom:0}
+.a-serie .idx{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--tinta-3);font-weight:500}
+.a-serie .pedido{font-family:"JetBrains Mono",monospace;font-size:12.5px;color:var(--tinta-3);letter-spacing:-.03em}
+.a-serie .hecho{font-family:"JetBrains Mono",monospace;font-size:15px;font-weight:700;color:var(--tinta);letter-spacing:-.035em}
+.a-serie .hecho.nada{color:var(--linea-2);font-weight:400}
+.a-serie .hecho i{font-style:normal;font-size:11px;font-weight:500;color:var(--tinta-3);margin-left:5px}
+
+/* la celda de registro (teléfono, modo sesión) */
+.a-set{display:grid;grid-template-columns:16px 1fr 1fr 34px;align-items:center;gap:9px;padding:7px 0}
+.a-cel{height:42px;border-radius:11px;background:var(--hundido);display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:16px;font-weight:600;letter-spacing:-.03em;color:var(--tinta)}
+.a-cel.fantasma{color:var(--tinta-3);font-weight:400;background:#F3F5F8}
+.a-cel.puesta{background:var(--hoja);border:1px solid var(--linea)}
+.a-tick{width:34px;height:42px;border-radius:11px;border:1px solid var(--linea-2);background:var(--hoja);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--tinta-3)}
+.a-tick.on{background:var(--tinta);border-color:var(--tinta);color:#fff}
+
+/* curvas y rieles */
+.a-spark{display:block}
+.a-riel{display:flex;gap:3px;align-items:flex-end}
+.a-riel i{flex:1;height:6px;border-radius:2px;background:var(--linea)}
+.a-riel i.ok{background:var(--tinta)}
+.a-riel i.hoy{background:var(--accion)}
+
+/* pestañas internas */
+.a-tabs{display:flex;gap:4px;padding:3px;background:var(--hundido);border-radius:11px}
+.a-tabs button{flex:1;height:32px;border:0;background:transparent;border-radius:9px;font-family:inherit;font-size:13px;font-weight:600;color:var(--tinta-2);cursor:pointer}
+.a-tabs button.on{background:var(--hoja);color:var(--tinta);box-shadow:var(--sombra)}
+
+/* — el teléfono — */
+.tel{width:390px;flex:none;height:812px;border-radius:48px;border:11px solid #22262E;background:var(--suelo);position:relative;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.45)}
+.tel-vp{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--suelo);text-align:left;color:var(--tinta)}
+.tel-estado{height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px 0 30px;font-size:13.5px;font-weight:650;color:var(--tinta)}
+.tel-estado .sig{display:flex;gap:5px;align-items:center;opacity:.85}
+.tel-estado .sig b{display:block;width:16px;height:10px;border:1.3px solid var(--tinta);border-radius:3px}
+.tel-cuerpo{flex:1;overflow:hidden;padding:4px 16px 10px}
+.tel-barra{height:74px;flex:none;display:flex;border-top:1px solid var(--linea);background:rgba(255,255,255,.92);backdrop-filter:blur(8px);padding-bottom:14px}
+.tel-barra button{flex:1;border:0;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-family:inherit;font-size:10.5px;font-weight:600;color:var(--tinta-3);cursor:pointer;padding-top:9px}
+.tel-barra button.on{color:var(--tinta)}
+.tel-barra svg{display:block}
+.tel-pant{display:none;height:100%;overflow-y:auto;padding-bottom:8px;scrollbar-width:none}
+.tel-pant::-webkit-scrollbar{display:none}
+.tel-pant.on{display:block}
+.tel-cab{padding:10px 2px 14px}
+
+/* la hoja que sube */
+.tel-hoja{position:absolute;left:0;right:0;bottom:0;top:96px;background:var(--hoja);border-radius:22px 22px 0 0;box-shadow:0 -14px 40px rgba(14,17,22,.18);z-index:12;display:none;flex-direction:column;overflow:hidden}
+.tel-hoja.on{display:flex}
+.tel-hoja .agarre{width:38px;height:4px;border-radius:2px;background:var(--linea-2);margin:9px auto 0;flex:none}
+.tel-hoja .cont{padding:14px 18px 22px;overflow-y:auto;scrollbar-width:none}
+.tel-hoja .cont::-webkit-scrollbar{display:none}
+
+/* modo sesión: sustituye la app entera */
+.tel-modo{position:absolute;top:46px;left:0;right:0;bottom:0;background:var(--suelo);z-index:9;display:none;flex-direction:column}
+.tel-modo.on{display:flex}
+.tel-modo .cab{flex:none;padding:14px 18px 12px;background:var(--hoja);border-bottom:1px solid var(--linea);display:flex;align-items:center;gap:12px}
+.tel-modo .cuerpo{flex:1;overflow-y:auto;padding:14px 16px 100px;scrollbar-width:none}
+.tel-modo .cuerpo::-webkit-scrollbar{display:none}
+.tel-modo .pulgar{position:absolute;left:16px;right:16px;bottom:20px}
+
+/* — el PC — */
+.pc{max-width:1196px;margin:0 auto;border-radius:12px;overflow:hidden;box-shadow:0 30px 70px rgba(0,0,0,.5);background:var(--hoja)}
+.pc-chrome{height:36px;background:#E7EAEF;display:flex;align-items:center;gap:7px;padding:0 14px;border-bottom:1px solid var(--linea)}
+.pc-chrome i{width:10px;height:10px;border-radius:50%;background:#CFD4DC;display:block}
+.pc-chrome .url{margin-left:14px;background:var(--hoja);border-radius:6px;height:22px;display:flex;align-items:center;padding:0 12px;font-size:11.5px;color:var(--tinta-3);min-width:280px}
+.pc-app{height:726px;display:flex;flex-direction:column;background:var(--suelo);position:relative;color:var(--tinta);text-align:left}
+.pc-top{height:52px;flex:none;display:flex;align-items:center;gap:26px;padding:0 22px;background:var(--hoja);border-bottom:1px solid var(--linea)}
+.pc-top .marca{font-size:13px;font-weight:700;letter-spacing:.14em}
+.pc-top nav{display:flex;gap:3px}
+.pc-top nav button{border:0;background:transparent;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--tinta-3);padding:7px 12px;border-radius:9px;cursor:pointer}
+.pc-top nav button.on{background:var(--hundido);color:var(--tinta)}
+.pc-top .der{margin-left:auto;display:flex;align-items:center;gap:12px}
+.pc-top .buscar{display:flex;align-items:center;gap:8px;height:32px;padding:0 10px 0 12px;border:1px solid var(--linea);border-radius:9px;font-size:12.5px;color:var(--tinta-3);cursor:pointer;min-width:190px}
+.pc-top .buscar kbd{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10.5px;background:var(--hundido);border-radius:5px;padding:2px 5px;color:var(--tinta-2)}
+.pc-top .avatar{width:28px;height:28px;border-radius:50%;background:var(--tinta);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700}
+.pc-pant{display:none;flex:1;overflow:hidden}
+.pc-pant.on{display:grid}
+.pc-dos{grid-template-columns:minmax(0,1fr) 392px}
+.pc-obra{overflow-y:auto;padding:24px 26px 30px;scrollbar-width:thin}
+.pc-costado{overflow-y:auto;border-left:1px solid var(--linea);background:var(--hoja);padding:22px 22px 30px;scrollbar-width:thin}
+
+/* la parrilla del bloque */
+.parrilla{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.parrilla th{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);text-align:left;padding:0 0 9px}
+.parrilla th.c{text-align:center}
+.parrilla td{padding:0 4px 4px 0}
+.parrilla .sem{font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--tinta-3);white-space:nowrap;padding-right:12px;font-weight:500}
+.celda{height:46px;border-radius:10px;background:var(--hoja);border:1px solid var(--linea);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;transition:border-color .12s ease,background .12s ease}
+.celda:hover{border-color:var(--linea-2)}
+.celda .kg{font-family:"JetBrains Mono",monospace;font-size:12.5px;font-weight:600;letter-spacing:-.03em;color:var(--tinta)}
+.celda .mi{font-size:10px;color:var(--tinta-3)}
+.celda.no{background:transparent;border-style:dashed;border-color:var(--linea)}
+.celda.no .kg{color:var(--linea-2)}
+.celda.sel{border-color:var(--accion);background:var(--accion-suave);box-shadow:0 0 0 1px var(--accion)}
+.celda.hoy{border-color:var(--tinta);border-style:solid}
+
+/* la mesa de comparación */
+.mesa{width:100%;border-collapse:collapse;font-size:13.5px}
+.mesa th{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--tinta-3);text-align:left;padding:0 12px 9px 0;border-bottom:1px solid var(--linea)}
+.mesa td{padding:11px 12px 11px 0;border-bottom:1px solid var(--linea);color:var(--tinta-2)}
+.mesa tr.viva td{background:var(--accion-suave)}
+.mesa td.n{font-family:"JetBrains Mono",monospace;letter-spacing:-.03em;color:var(--tinta);font-weight:500}
+.mesa td.q{font-family:"JetBrains Mono",monospace;letter-spacing:-.03em;color:var(--tinta-3);font-size:12.5px}
+.mesa .ej{font-weight:600;color:var(--tinta)}
+
+/* ⌘K */
+.pc-k{position:absolute;inset:0;background:rgba(14,17,22,.28);display:none;align-items:flex-start;justify-content:center;padding-top:110px;z-index:20}
+.pc-k.on{display:flex}
+.pc-k .caja{width:560px;background:var(--hoja);border-radius:14px;box-shadow:0 24px 60px rgba(14,17,22,.3);overflow:hidden}
+.pc-k .campo{height:52px;display:flex;align-items:center;gap:10px;padding:0 16px;border-bottom:1px solid var(--linea);font-size:16px}
+.pc-k .campo .cur{width:1.5px;height:19px;background:var(--accion);animation:parpadeo 1.1s steps(1) infinite}
+@keyframes parpadeo{50%{opacity:0}}
+.pc-k .res{padding:6px}
+.pc-k .res .r{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;font-size:13.5px;color:var(--tinta-2)}
+.pc-k .res .r.on{background:var(--hundido);color:var(--tinta)}
+.pc-k .res .r .d{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--tinta-3)}
+.pc-k .res .g{font-size:10.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--tinta-3);padding:10px 11px 5px}
+
+/* cajas de lámina */
+.banco{display:flex;gap:40px;justify-content:center;align-items:flex-start;flex-wrap:wrap;margin-top:34px}
+.pieza{text-align:center}
+.pieza .et{font-size:12px;color:#8A93A3;margin-top:14px;font-weight:600;letter-spacing:.02em}
+.mandos{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:26px 0 4px}
+.mandos button{border:1px solid var(--banda-3);background:var(--banda-2);color:#C6CCD6;font-family:inherit;font-size:13px;font-weight:600;padding:9px 15px;border-radius:10px;cursor:pointer;transition:background .12s ease,color .12s ease}
+.mandos button:hover{background:var(--banda-3);color:#fff}
+.mandos button.on{background:#fff;color:var(--banda);border-color:#fff}
+.comparador{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px}
+.comparador > div{background:var(--banda-2);border:1px solid var(--banda-3);border-radius:14px;padding:18px 20px}
+.comparador h4{margin:0 0 12px;font-size:12px;letter-spacing:.11em;text-transform:uppercase;color:#7E8798;font-weight:700}
+.comparador .demo{background:var(--suelo);border-radius:10px;padding:14px}
+.comparador.clara > div{background:var(--suelo);border-color:var(--linea)}
+.comparador.clara h4{color:var(--tinta-3)}
+.comparador.clara .demo{background:var(--hoja);border:1px solid var(--linea)}
+.comparador .nota{font-size:12.5px;color:#8A93A3;margin:12px 0 0;line-height:1.5}
+.comparador.clara .nota{color:var(--tinta-3)}
+
+@media (max-width:900px){
+  .prueba{grid-template-columns:1fr}
+  .paleta{grid-template-columns:repeat(3,1fr)}
+  .comparador{grid-template-columns:1fr}
+  .seccion{padding:56px 0}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ PORTADA ═══════════════════════════════════════════════════════════ -->
+<header class="portada">
+  <div class="env">
+    <div class="rotulo">Estudio · 13 de septiembre de 2026</div>
+    <h1>Registrar y comparar</h1>
+    <p class="entradilla">
+      La app del cliente rehecha de cero en sus dos aparatos, con el lenguaje visual
+      empezado de nuevo: ni la paleta, ni las formas, ni la letra de hoy entran aquí por
+      inercia. Cada decisión sale del oficio de la app o de una lección concreta de las
+      mejores aplicaciones que existen para esto.
+    </p>
+    <p class="frase">
+      El teléfono registra.<br>El PC compara.<br>
+      <span>Y ninguna pantalla necesita la foto de un ejercicio para tener cara.</span>
+    </p>
+    <div class="meta-doc">
+      <span>Corrige a «La app del cliente» (13 sep)</span>
+      <span>Prototipos clicables: teléfono y PC</span>
+      <span>Nada construido</span>
+    </div>
+  </div>
+</header>
+
+<!-- ══ LA MINIATURA SE CAE ═══════════════════════════════════════════════ -->
+<section class="seccion">
+  <div class="env">
+    <div class="rotulo">Lo primero que se cae</div>
+    <h2>La miniatura del vídeo no puede ser la cara de la app</h2>
+    <p>
+      Tenías razón y además hay número. La miniatura de YouTube parecía gratis porque ya
+      guardamos el identificador del vídeo, pero «gratis» era solo el coste técnico. El coste
+      de producto lo paga el entrenador, y lo paga siempre.
+    </p>
+
+    <div class="prueba">
+      <div><div class="n">239</div><div class="q">ejercicios del catálogo con el que arranca todo entrenador. La tabla <b>no tiene columna de vídeo</b>: ninguno puede tener miniatura, nunca.</div></div>
+      <div><div class="n">7</div><div class="q">ejercicios propios en la base de demostración. Solo estos pueden llevar vídeo.</div></div>
+      <div><div class="n">3</div><div class="q">de esos siete lo tienen puesto. Tres de doscientos cuarenta y seis renglones: <b>el 1,2 %</b>.</div></div>
+    </div>
+    <p style="font-size:13.5px;color:var(--tinta-3)">
+      Contado contra la base local, tablas <b style="font-weight:600">catalog_exercises</b> y
+      <b style="font-weight:600">exercises</b>. Un entrenador de verdad tendrá más de siete
+      propios, pero la proporción no cambia de orden: el catálogo es el grueso y el catálogo
+      no tiene vídeo.
+    </p>
+
+    <h3>Las cuatro averías, en orden de gravedad</h3>
+    <table class="t libre">
+      <tr><td>La foto no la elegimos nosotros</td><td>La miniatura la fija YouTube. En un vídeo de gimnasio el primer fotograma suele ser el careto del entrenador, un logo o una careta de intro. La app estaría afirmando «esto es una sentadilla» sin haber mirado la imagen.</td></tr>
+      <tr><td>El vídeo puede no ser el ejercicio</td><td>El campo es una URL que se pega a mano. Si alguien pega el vídeo equivocado —o uno que explica dos ejercicios—, la lista entera miente con una imagen, que es la forma más difícil de desmentir.</td></tr>
+      <tr><td>Una lista de iniciales es peor que una lista sin fotos</td><td>Con el 1,2 % cubierto, la columna de imagen es una columna de letras grises con tres excepciones. El ojo lee esa columna como «aquí falta algo», y el que parece incompleto es el entrenador.</td></tr>
+      <tr><td>Se rompe sola</td><td>Cuarenta renglones son cuarenta peticiones a un tercero. Vídeo borrado o privado, miniatura rota; sin red, huecos. Una cara que depende de un servidor ajeno no es una cara.</td></tr>
+    </table>
+
+    <h3>Lo que ocupa su sitio: tu propio dato</h3>
+    <p>
+      El renglón no necesita una foto: necesita <b>una cifra que solo existe si eres tú quien
+      mira</b>. Lo que hiciste la última vez, y hacia dónde va. Eso está siempre disponible
+      después de la primera sesión, no depende de nadie, no puede estar equivocado y —a
+      diferencia de una miniatura— es distinto en la pantalla de cada persona.
+    </p>
+
+    <div class="comparador clara">
+      <div>
+        <h4>Lo que proponía el estudio anterior</h4>
+        <div class="demo">
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <span style="width:44px;height:44px;border-radius:10px;background:var(--hundido);display:flex;align-items:center;justify-content:center;color:var(--tinta-3);font-size:10px;text-align:center;line-height:1.1;flex:none">sin<br>vídeo</span>
+            <div><div class="k">Press militar</div><div class="s">4 × 6-8</div></div>
+          </div>
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <span style="width:44px;height:44px;border-radius:10px;background:#D9DEE6;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex:none">E</span>
+            <div><div class="k">Elevaciones laterales</div><div class="s">3 × 10-12</div></div>
+          </div>
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <span style="width:44px;height:44px;border-radius:10px;background:#C9CFD9;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:700;flex:none">F</span>
+            <div><div class="k">Fondos en paralelas</div><div class="s">3 × 10-12</div></div>
+          </div>
+        </div>
+        <p class="nota">Tres renglones, cero información nueva. La columna de la izquierda solo dice quién tiene vídeo y quién no, que es un problema del entrenador, no del que entrena.</p>
+      </div>
+      <div>
+        <h4>Lo que propone este</h4>
+        <div class="demo">
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <div><div class="k">Press militar</div><div class="s">4 × 6-8 · RIR 2</div></div>
+            <div class="der"><svg class="a-spark" width="56" height="20" viewBox="0 0 56 20" fill="none" aria-hidden="true"><polyline points="0,15 9,14 18,12 27,13 36,9 45,8 56,5" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:14px;font-weight:600">65 × 11</span></div>
+          </div>
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <div><div class="k">Elevaciones laterales</div><div class="s">3 × 10-12 · RIR 1</div></div>
+            <div class="der"><svg class="a-spark" width="56" height="20" viewBox="0 0 56 20" fill="none" aria-hidden="true"><polyline points="0,13 9,12 18,12 27,10 36,11 45,7 56,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:14px;font-weight:600">30 × 11</span></div>
+          </div>
+          <div class="a-fila" style="border:0;padding:11px 0">
+            <div><div class="k">Fondos en paralelas</div><div class="s">3 × 10-12 · primera vez</div></div>
+            <div class="der"><span class="a-mono q" style="font-size:13px">sin registro</span></div>
+          </div>
+        </div>
+        <p class="nota">La cifra de la derecha es lo último que levantaste y la línea son tus ocho últimas sesiones en ese ejercicio. El que no tiene pasado lo dice con una palabra, no con un hueco.</p>
+      </div>
+    </div>
+
+    <h3>Y el vídeo, ¿dónde vive?</h3>
+    <p>
+      Donde sirve: <b>dentro de la ficha del ejercicio, en un renglón, y solo si existe</b>.
+      «Ver el vídeo» con el nombre del sitio al que te lleva. No se despliega, no ocupa una
+      cuarta parte de la hoja y no se convierte en el sitio donde el ojo aterriza. Lo que sí
+      sube a lo alto de la ficha es <b>lo que te repite tu entrenador</b> —el texto del
+      <span style="font-family:'JetBrains Mono',monospace;font-size:13px">cue</span>—, que
+      lo tienen cuatro de siete ejercicios y es lo único de esa pantalla que no puedes
+      encontrar en internet.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL MERCADO ════════════════════════════════════════════════════════ -->
+<section class="seccion hoja">
+  <div class="env">
+    <div class="rotulo">De dónde se copia</div>
+    <h2>Lo mejor del mercado, y qué se le coge a cada uno</h2>
+    <p>
+      No hay una app que haga esto bien entera. Hay siete que hacen bien una cosa cada una.
+      Esta es la lista de la que sale el diseño de las páginas siguientes, con lo que se toma
+      y lo que se deja fuera a propósito.
+    </p>
+
+    <table class="t libre">
+      <thead><tr><th style="width:20%">App</th><th style="width:40%">Qué hace mejor que nadie</th><th>Qué entra aquí · qué no</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Hevy</td>
+          <td>Registrar en el gimnasio. La fila de la serie es una celda en la que escribes, con lo que hiciste la vez pasada puesto ya en gris dentro del hueco. La sesión es un modo con una sola salida.</td>
+          <td><b>Entra</b> el fantasma de la vez anterior y la sesión como modo. <span class="no">No entra</span> el cronómetro que arranca solo ni el muro social.</td>
+        </tr>
+        <tr>
+          <td>Strong</td>
+          <td>La página de cada ejercicio: tu récord y tu historia en un sitio, no repartidos.</td>
+          <td><b>Entra</b> la cifra del récord con su fecha. <span class="no">No entra</span> el «1RM estimado» como titular: es una fórmula, no un hecho tuyo.</td>
+        </tr>
+        <tr>
+          <td>MacroFactor</td>
+          <td>Tratar el peso como una señal con ruido: enseña la tendencia, no el pesaje suelto, y fecha cada cambio de objetivo.</td>
+          <td><b>Entra</b> la línea de tendencia sobre los puntos y el «1 750 kcal desde el 2 de julio». <span class="no">No entra</span> el algoritmo que decide por ti: aquí el objetivo lo pone tu entrenador.</td>
+        </tr>
+        <tr>
+          <td>Whoop · Oura</td>
+          <td>Una pantalla, un número, una frase que lo explica. Todo lo demás cuelga de ahí.</td>
+          <td><b>Entra</b> un solo titular por pantalla, y que el titular sea el dato. <span class="no">No entra</span> inventarse una puntuación: esta app no juzga tu entreno.</td>
+        </tr>
+        <tr>
+          <td>Strava</td>
+          <td>La sesión terminada es un objeto con identidad —fecha, duración, lo que movió— y el pasado es un hilo de objetos, no una tabla.</td>
+          <td><b>Entra</b> la sesión acabada como algo que se guarda y se vuelve a abrir. <span class="no">No entra</span> nada social.</td>
+        </tr>
+        <tr>
+          <td>Apple Salud</td>
+          <td>La gráfica es el objeto principal de la pantalla, con el rango de tiempo arriba y el detalle debajo.</td>
+          <td><b>Entra</b> la gráfica a tamaño grande con su selector de rango. <span class="no">No entran</span> los anillos ni el color por categoría.</td>
+        </tr>
+        <tr>
+          <td>Linear</td>
+          <td>El aparato de escritorio: lista a la izquierda, detalle a la derecha, todo alcanzable con el teclado, nada tarda más de lo que dura el gesto.</td>
+          <td><b>Entra</b> entero para el PC: dos columnas fijas, ⌘K y respuesta inmediata. <span class="no">No entra</span> la densidad de una herramienta de trabajo: aquí el usuario entra dos veces por semana.</td>
+        </tr>
+        <tr>
+          <td>Efort · Coachway</td>
+          <td>Lo ya estudiado con capturas en el repositorio: el bloque como línea de tiempo y el contador de sesiones hechas.</td>
+          <td><b>Entra</b> la línea de tiempo del bloque. <span class="no">No entra</span> su color de marca pintándolo todo, ni los anillos de macros, ni el chat como cuarto destino.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px;color:var(--tinta-3)">
+      Las lecciones de las seis primeras salen de conocer esas aplicaciones, no de capturas
+      guardadas en el repositorio. Las de Efort y Coachway sí están en
+      <b style="font-weight:600">capturas/referencias/</b> y ya se estudiaron.
+    </p>
+
+    <h3>Lo que no tiene ninguna</h3>
+    <p>
+      Todas enseñan lo que hiciste. Ninguna puede enseñar <b>lo que te habían pedido al lado de
+      lo que hiciste</b>, porque en todas el plan lo escribe el usuario: pedido y hecho son la
+      misma cosa. Aquí no. Aquí el entrenador deja una pauta y tú dejas un registro, y los dos
+      están guardados por separado en la misma fila.
+    </p>
+    <p>
+      Esa es la firma del producto y es la que manda en el diseño: <b>cada serie se dibuja dos
+      veces en el mismo renglón</b> —lo pedido en fantasma, lo hecho encima— y esa forma se
+      repite en el teléfono, en el PC, en la ficha del ejercicio y en el historial.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL IDIOMA ═════════════════════════════════════════════════════════ -->
+<section class="seccion">
+  <div class="env">
+    <div class="rotulo">El lenguaje visual, empezado de cero</div>
+    <h2>Seis colores, dos letras, cuatro leyes</h2>
+    <p>
+      Nada de lo que sigue viene del lenguaje actual. El papel crema, el azul de la casa, la
+      fuente Archivo y las tarjetas dentro de tarjetas se quedan fuera. Lo que entra sale de
+      una sola idea: <b>esta app es un instrumento de medida</b>, y en un instrumento el
+      chasis está callado para que se lea la aguja.
+    </p>
+
+    <h3>Color</h3>
+    <div class="paleta">
+      <div><i style="background:#F6F7F9"></i><b>Suelo</b><em>#F6F7F9</em></div>
+      <div><i style="background:#FFFFFF;box-shadow:inset 0 0 0 1px #E4E7EC"></i><b>Hoja</b><em>#FFFFFF</em></div>
+      <div><i style="background:#EDEFF3"></i><b>Hundido</b><em>#EDEFF3</em></div>
+      <div><i style="background:#0E1116"></i><b>Tinta</b><em>#0E1116</em></div>
+      <div><i style="background:#878E9C"></i><b>Tinta apagada</b><em>#878E9C</em></div>
+      <div><i style="background:#1F55E0"></i><b>Acción</b><em>#1F55E0</em></div>
+    </div>
+    <p>
+      El suelo es frío —azulado, no crema— porque lo que tiene que brillar son cifras y líneas.
+      La tinta es casi negra con la misma temperatura, así que el texto y el fondo son familia
+      y el contraste no vibra: 16,8:1 sobre el suelo, muy por encima de lo exigible.
+    </p>
+    <p>
+      <b>El azul significa una sola cosa en toda la app: esto se puede tocar.</b> Nunca decora
+      una cabecera, nunca colorea un dato, nunca marca una categoría. El verde, el ámbar y el
+      rojo siguen existiendo, pero acotados a juzgar entregas —esto llegó, esto falta—; jamás
+      a juzgar una serie. El día que un kilo se pinte de rojo, la app está opinando sobre tu
+      entreno, y esta app no opina.
+    </p>
+
+    <h3>Letra</h3>
+    <div class="especimen">
+      <div class="et">Instrument Sans · lo que se lee</div>
+      <div class="gr">Press banca</div>
+      <div class="md">Pecho · barra · 4 series. La misma familia hace el titular de 44 px y el pie de 12, con peso y tracking distintos. No hace falta una segunda voz para tener jerarquía: hace falta una escala.</div>
+      <div class="et" style="margin-top:26px">JetBrains Mono · lo que se mide</div>
+      <div class="mono">
+        6-8 × 4 &nbsp;→&nbsp; 100,0 × 8 &nbsp; 100,0 × 8 &nbsp; 100,0 × 6<br>
+        6-8 × 4 &nbsp;→&nbsp; &nbsp;97,5 × 8 &nbsp; &nbsp;97,5 × 8 &nbsp; &nbsp;97,5 × 6
+      </div>
+      <div class="md" style="margin-top:10px">
+        El monoespaciado no está por estética: está para que la semana de arriba caiga
+        exactamente sobre la de abajo. Comparar dos semanas es el trabajo de esta app, y sin
+        columnas alineadas hay que leer en vez de mirar.
+      </div>
+    </div>
+
+    <h3>Las cuatro leyes de la forma</h3>
+    <table class="t libre">
+      <tr><td>Una hoja por pantalla</td><td>Se acabaron las tarjetas dentro de tarjetas. Hay un suelo, y encima hojas blancas con renglones separados por una línea de un píxel. Un renglón nunca tiene su propio marco.</td></tr>
+      <tr><td>El número es la imagen</td><td>Donde otra app pondría una foto, va una cifra grande o una curva de ocho puntos. Las únicas fotografías de la app son las tuyas, en Tú.</td></tr>
+      <tr><td>El color se toca</td><td>Azul = acción. Todo lo demás es tinta, con tres niveles de gris para la jerarquía. Si algo importa, se dice con tamaño y con peso.</td></tr>
+      <tr><td>El aire va de cuatro en cuatro</td><td>4, 8, 12, 16, 24, 32, 48. Radios: 10 en mandos, 16 en hojas, redondo en píldoras. Una sombra casi invisible; la separación la hace el suelo, no la sombra.</td></tr>
+    </table>
+
+    <h3>Y la ley del movimiento</h3>
+    <p>
+      Cuatro reglas, porque lo que engancha es la respuesta al tacto: <b>lo tocado responde
+      antes de 100 ms</b> y siempre con el mismo gesto (el elemento se hunde un 1,5 %);
+      <b>lo que se guarda se ve guardado donde ocurrió</b>, no en un aviso arriba; <b>nada gira
+      esperando</b> —la app enseña el hueco con su forma, no un reloj—; y <b>una serie apuntada
+      cae en su sitio</b> con un desplazamiento de 6 px y 140 ms, que es la única celebración
+      que hay. Con <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px">prefers-reduced-motion</span>
+      todo eso desaparece y el estado final sigue siendo correcto.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL TELÉFONO ═══════════════════════════════════════════════════════ -->
+<section class="seccion banda">
+  <div class="ancho" style="text-align:center">
+    <div class="rotulo">El aparato que registra</div>
+    <h2 style="max-width:20ch;margin-inline:auto">El teléfono, a tamaño real y funcionando</h2>
+    <p style="max-width:62ch;margin:0 auto">
+      390 × 812, sin escalar, porque a escala no se puede juzgar ni si el pulgar llega ni si
+      el texto se lee. Los seis botones cambian la pantalla de verdad: se puede empezar la
+      sesión, marcar series y abrir la ficha de un ejercicio.
+    </p>
+  </div>
+
+  <div class="ancho">
+    <div class="mandos" id="mandos-tel">
+      <button data-tel="hoy" class="on">Hoy</button>
+      <button data-tel="entreno">Entreno</button>
+      <button data-tel="comer">Comer</button>
+      <button data-tel="tu">Tú</button>
+      <button data-tel="sesion">Modo sesión</button>
+      <button data-tel="ficha">La ficha del ejercicio</button>
+    </div>
+
+    <div class="banco">
+      <div class="pieza">
+        <div class="tel">
+          <div class="tel-vp">
+            <div class="tel-estado">
+              <span>9:41</span>
+              <span class="sig"><svg width="16" height="11" viewBox="0 0 16 11" fill="none"><path d="M1 8.5v2M5 6v4.5M9 3.5v7M13 1v9.5" stroke="#0E1116" stroke-width="1.8" stroke-linecap="round"/></svg><b></b></span>
+            </div>
+
+            <div class="tel-cuerpo">
+
+              <!-- ── HOY ── -->
+              <div class="tel-pant on" data-pant="hoy">
+                <div class="tel-cab">
+                  <div class="a-sup">Sábado 13 · bloque 1 · semana 10 de 10</div>
+                  <div class="a-tit">Empuje</div>
+                  <div class="a-pie">6 ejercicios · 21 series · unos 50 min</div>
+                </div>
+                <button class="a-boton" data-ir-sesion>Empezar</button>
+
+                <div class="a-hoja" style="margin-top:14px">
+                  <div class="a-fila tocable" data-ir-ficha>
+                    <div><div class="k">Press banca</div><div class="s">4 × 6-8 · RIR 2</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,14 8,13 17,11 26,12 35,8 43,7 52,4" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">100 × 8</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Press militar</div><div class="s">4 × 6-8 · RIR 2</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,13 8,13 17,10 26,11 35,9 43,6 52,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">65 × 11</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Press inclinado con mancuernas</div><div class="s">4 × 6-8 · RIR 2</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,12 8,12 17,11 26,9 35,10 43,7 52,5" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">48 × 8</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Elevaciones laterales</div><div class="s">3 × 10-12 · RIR 1</div></div>
+                    <div class="der"><span class="a-mono" style="font-size:13.5px;font-weight:600">30 × 11</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Fondos en paralelas</div><div class="s">3 × 10-12 · RIR 1</div></div>
+                    <div class="der"><span class="a-mono q" style="font-size:12.5px">sin registro</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Extensión de tríceps en polea</div><div class="s">3 × 10-12 · RIR 1</div></div>
+                    <div class="der"><span class="a-mono" style="font-size:13.5px;font-weight:600">50 × 11</span></div>
+                  </div>
+                </div>
+
+                <div class="a-rot" style="margin:22px 0 8px 2px">Hoy también</div>
+                <div class="a-hoja">
+                  <div class="a-fila tocable">
+                    <div><div class="k">Comer</div><div class="s">1 078 de 1 750 kcal</div></div>
+                    <div class="der"><span class="a-mono q">672 por repartir</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Pésate</div><div class="s">78,4 kg el jueves</div></div>
+                    <div class="der"><span class="a-verbo">Apuntar</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Cuestionario de la semana</div><div class="s">Te lo pidieron el viernes</div></div>
+                    <div class="der"><span class="a-punto"></span><span class="a-verbo">Contestar</span></div>
+                  </div>
+                  <div class="a-fila">
+                    <div><div class="k">Fotos</div><div class="s">Tocan mañana domingo</div></div>
+                  </div>
+                </div>
+
+                <div style="display:flex;gap:18px;padding:20px 4px 8px">
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">124</div><div class="a-pie">sesiones</div></div>
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">10</div><div class="a-pie">semanas seguidas</div></div>
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">930 000</div><div class="a-pie">kg movidos</div></div>
+                </div>
+              </div>
+
+              <!-- ── ENTRENO ── -->
+              <div class="tel-pant" data-pant="entreno">
+                <div class="tel-cab">
+                  <div class="a-sup">Bloque 1 · fuerza e hipertrofia</div>
+                  <div class="a-tit">Semana 10 de 10</div>
+                  <div class="a-riel" style="margin-top:12px">
+                    <i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="ok"></i><i class="hoy"></i>
+                  </div>
+                  <div class="a-pie" style="margin-top:8px">Empezó el 7 de julio · acaba el domingo</div>
+                </div>
+
+                <div class="a-hoja">
+                  <div class="a-fila viva tocable">
+                    <div><div class="k">Empuje</div><div class="s">Hoy · 6 ejercicios</div></div>
+                    <div class="der"><span class="a-verbo" data-ir-sesion>Empezar</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Tirón</div><div class="s">Lunes · 4 ejercicios</div></div>
+                    <div class="der"><span class="a-mono q">pendiente</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Pierna</div><div class="s">Miércoles · 4 ejercicios</div></div>
+                    <div class="der"><span class="a-mono q">pendiente</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Full body</div><div class="s">Viernes · 3 ejercicios</div></div>
+                    <div class="der"><span class="a-mono q">pendiente</span></div>
+                  </div>
+                </div>
+
+                <div class="a-rot" style="margin:24px 0 8px 2px">Tus ejercicios · 38</div>
+                <div class="a-hoja">
+                  <div class="a-fila tocable" data-ir-ficha>
+                    <div><div class="k">Press banca</div><div class="s">14 sesiones · mejor 105 × 5</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,14 8,13 17,11 26,12 35,8 43,7 52,4" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">100 × 8</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Sentadilla</div><div class="s">12 sesiones · mejor 122,5 × 4</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,15 8,14 17,13 26,10 35,10 43,6 52,5" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">115 × 6</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Peso muerto</div><div class="s">9 sesiones · mejor 150 × 3</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,13 8,11 17,12 26,9 35,7 43,7 52,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">140 × 5</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Remo con barra</div><div class="s">11 sesiones · mejor 82,5 × 6</div></div>
+                    <div class="der"><svg class="a-spark" width="52" height="18" viewBox="0 0 52 18" fill="none"><polyline points="0,12 8,12 17,10 26,11 35,8 43,8 52,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="a-mono" style="font-size:13.5px;font-weight:600">77,5 × 8</span></div>
+                  </div>
+                </div>
+
+                <div class="a-hoja" style="margin-top:14px">
+                  <div class="a-fila tocable">
+                    <div><div class="k">Bloques anteriores</div><div class="s">Adaptación · 6 semanas · hasta el 4 de julio</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── COMER ── -->
+              <div class="tel-pant" data-pant="comer">
+                <div class="tel-cab">
+                  <div class="a-sup">Sábado 13 · día B de 5</div>
+                  <div class="a-tit xl">1 750<span style="font-size:19px;font-weight:600;color:var(--tinta-3);letter-spacing:0;margin-left:6px">kcal</span></div>
+                  <div class="a-pie">1 078 apuntadas · desde el 2 de julio</div>
+                </div>
+
+                <div class="a-hoja" style="padding:14px 15px;display:flex;gap:26px">
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">140</div><div class="a-pie">proteína</div></div>
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">165</div><div class="a-pie">hidratos</div></div>
+                  <div><div class="a-mono" style="font-size:17px;font-weight:700">52</div><div class="a-pie">grasas</div></div>
+                </div>
+
+                <div class="a-hoja" style="margin-top:14px">
+                  <div class="a-fila tocable">
+                    <div><div class="k">Desayuno</div><div class="s">Avena, claras y plátano · 2 opciones</div></div>
+                    <div class="der"><span class="a-hecho">✓</span><span class="a-mono">420</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Comida</div><div class="s">Pollo, arroz y verdura · 3 opciones</div></div>
+                    <div class="der"><span class="a-hecho">✓</span><span class="a-mono">658</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Merienda</div><div class="s">Yogur y fruta · 2 opciones</div></div>
+                    <div class="der"><span class="a-vacio"></span><span class="a-mono q">240</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Cena</div><div class="s">Salmón y patata · 2 opciones</div></div>
+                    <div class="der"><span class="a-vacio"></span><span class="a-mono q">432</span></div>
+                  </div>
+                </div>
+
+                <div class="a-rot" style="margin:24px 0 8px 2px">Tus calorías</div>
+                <div class="a-hoja" style="padding:16px 15px 12px">
+                  <svg width="100%" height="76" viewBox="0 0 320 76" fill="none" preserveAspectRatio="none">
+                    <path d="M0 18 H96 V34 H198 V52 H320" stroke="#0E1116" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M0 18 H96 V34 H198 V52 H320 V76 H0 Z" fill="#0E1116" opacity=".05"/>
+                  </svg>
+                  <div style="display:flex;justify-content:space-between;margin-top:6px">
+                    <span class="a-mono q" style="font-size:11.5px">2 100 · abr</span>
+                    <span class="a-mono q" style="font-size:11.5px">1 950 · may</span>
+                    <span class="a-mono" style="font-size:11.5px;font-weight:600">1 750 · jul</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── TÚ ── -->
+              <div class="tel-pant" data-pant="tu">
+                <div class="tel-cab" style="display:flex;align-items:center;gap:13px">
+                  <span style="width:46px;height:46px;border-radius:50%;background:var(--tinta);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex:none">ME</span>
+                  <div>
+                    <div class="a-tit" style="font-size:21px">Marta Espinosa</div>
+                    <div class="a-pie">Entrenando desde el 29 de octubre</div>
+                  </div>
+                </div>
+
+                <div class="a-hoja" style="padding:16px 15px">
+                  <div class="a-rot">Tu peso</div>
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
+                    <span class="a-tit xl" style="font-size:40px">78,4</span>
+                    <span class="a-sup">kg · jueves</span>
+                    <span class="a-mono" style="margin-left:auto;font-size:13px">−0,34 kg/sem</span>
+                  </div>
+                  <svg width="100%" height="86" viewBox="0 0 320 86" fill="none" style="margin-top:10px">
+                    <path d="M4 14 C60 22, 96 30, 150 44 S250 62, 316 70" stroke="#0E1116" stroke-width="2" stroke-linecap="round"/>
+                    <g fill="#878E9C">
+                      <circle cx="16" cy="10" r="2.6"/><circle cx="52" cy="26" r="2.6"/><circle cx="88" cy="20" r="2.6"/><circle cx="124" cy="40" r="2.6"/><circle cx="160" cy="38" r="2.6"/><circle cx="196" cy="56" r="2.6"/><circle cx="232" cy="50" r="2.6"/><circle cx="268" cy="70" r="2.6"/><circle cx="304" cy="64" r="2.6"/>
+                    </g>
+                  </svg>
+                  <div style="display:flex;justify-content:space-between">
+                    <span class="a-mono q" style="font-size:11.5px">81,4 · 7 jul</span>
+                    <span class="a-mono q" style="font-size:11.5px">10 semanas</span>
+                    <span class="a-mono q" style="font-size:11.5px">78,4 · hoy</span>
+                  </div>
+                </div>
+
+                <div class="a-hoja" style="margin-top:14px">
+                  <div class="a-fila tocable">
+                    <div><div class="k">Medidas</div><div class="s">Cintura 82,0 · el jueves</div></div>
+                    <div class="der"><span class="a-mono q">−4,5 cm</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Fotos</div><div class="s">6 tandas · la última el 6 de septiembre</div></div>
+                    <div class="der"><span class="a-verbo">Comparar</span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Lo que te piden</div><div class="s">Cuestionario de la semana</div></div>
+                    <div class="der"><span class="a-punto"></span></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Tu entrenador</div><div class="s">Javier Ruiz · desde octubre</div></div>
+                  </div>
+                  <div class="a-fila tocable">
+                    <div><div class="k">Cuenta</div><div class="s">Datos, privacidad y avisos</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── LA FICHA (hoja que sube) ── -->
+              <div class="tel-hoja" data-hoja>
+                <div class="agarre"></div>
+                <div class="cont">
+                  <div style="display:flex;align-items:flex-start;gap:12px">
+                    <div>
+                      <div class="a-tit" style="font-size:23px">Press banca</div>
+                      <div class="a-pie">Pecho · barra</div>
+                    </div>
+                    <button class="a-chip" style="margin-left:auto" data-cerrar-hoja>Cerrar</button>
+                  </div>
+
+                  <div class="a-hoja" style="margin-top:16px;padding:14px 15px;background:var(--suelo);box-shadow:none">
+                    <div class="a-rot">Lo que te repite siempre</div>
+                    <p style="margin:6px 0 0;font-size:14.5px;line-height:1.5;color:var(--tinta)">
+                      Que no rebote. Si el hombro molesta, cierra un dedo el agarre.
+                    </p>
+                  </div>
+
+                  <div class="a-hoja" style="margin-top:12px">
+                    <div class="a-fila tocable">
+                      <div><div class="k">Ver el vídeo</div><div class="s">youtube.com · 1 min 12 s</div></div>
+                      <div class="der"><span class="a-verbo">Abrir</span></div>
+                    </div>
+                  </div>
+
+                  <div style="display:flex;gap:22px;padding:18px 2px 14px">
+                    <div><div class="a-mono" style="font-size:16px;font-weight:700">105 × 5</div><div class="a-pie">tu mejor serie · 14 mar</div></div>
+                    <div><div class="a-mono" style="font-size:16px;font-weight:700">14</div><div class="a-pie">sesiones</div></div>
+                  </div>
+
+                  <div class="a-tabs" data-tabs>
+                    <button class="on" data-tab="hist">Historial</button>
+                    <button data-tab="pauta">Pauta</button>
+                    <button data-tab="curva">Curva</button>
+                  </div>
+
+                  <div data-cuerpo="hist" style="margin-top:14px">
+                    <div class="a-rot" style="margin-bottom:4px">Pedido → hecho</div>
+                    <div style="display:flex;gap:14px;margin-top:10px">
+                      <div class="a-mono q" style="font-size:11.5px;width:54px;flex:none;padding-top:9px">6 sep<br>sem 9</div>
+                      <div style="flex:1">
+                        <div class="a-serie"><span class="idx">1</span><span class="pedido">6-8 · RIR 2</span><span class="hecho">100 × 8</span></div>
+                        <div class="a-serie"><span class="idx">2</span><span class="pedido">6-8</span><span class="hecho">100 × 8</span></div>
+                        <div class="a-serie"><span class="idx">3</span><span class="pedido">6-8</span><span class="hecho">100 × 6</span></div>
+                        <div class="a-serie"><span class="idx">4</span><span class="pedido">6-8</span><span class="hecho">100 × 6</span></div>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:14px;margin-top:16px">
+                      <div class="a-mono q" style="font-size:11.5px;width:54px;flex:none;padding-top:9px">30 ago<br>sem 8</div>
+                      <div style="flex:1">
+                        <div class="a-serie"><span class="idx">1</span><span class="pedido">6-8 · RIR 2</span><span class="hecho">97,5 × 8</span></div>
+                        <div class="a-serie"><span class="idx">2</span><span class="pedido">6-8</span><span class="hecho">97,5 × 8</span></div>
+                        <div class="a-serie"><span class="idx">3</span><span class="pedido">6-8</span><span class="hecho">97,5 × 6</span></div>
+                        <div class="a-serie"><span class="idx">4</span><span class="pedido">6-8</span><span class="hecho nada">no la apuntaste</span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div data-cuerpo="pauta" hidden style="margin-top:14px">
+                    <div class="a-hoja">
+                      <div class="a-fila"><div><div class="k">4 series de 6 a 8</div><div class="s">RIR 2 · descanso 2:00</div></div></div>
+                      <div class="a-fila"><div><div class="k">100 kg</div><div class="s">Te lo pusieron así el 4 de julio</div></div></div>
+                      <div class="a-fila"><div><div class="k">Si no llegas</div><div class="s">Baja a 95 y acaba las cuatro series</div></div></div>
+                    </div>
+                  </div>
+
+                  <div data-cuerpo="curva" hidden style="margin-top:14px">
+                    <div class="a-hoja" style="padding:16px 15px 10px">
+                      <svg width="100%" height="120" viewBox="0 0 300 120" fill="none">
+                        <g stroke="#E4E7EC" stroke-width="1"><path d="M0 30h300M0 60h300M0 90h300"/></g>
+                        <polyline points="10,96 52,88 94,84 136,70 178,72 220,54 262,40 292,30" stroke="#0E1116" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <g fill="#0E1116"><circle cx="10" cy="96" r="3"/><circle cx="52" cy="88" r="3"/><circle cx="94" cy="84" r="3"/><circle cx="136" cy="70" r="3"/><circle cx="178" cy="72" r="3"/><circle cx="220" cy="54" r="3"/><circle cx="262" cy="40" r="3"/><circle cx="292" cy="30" r="3"/></g>
+                      </svg>
+                      <div style="display:flex;justify-content:space-between;padding-top:6px">
+                        <span class="a-mono q" style="font-size:11.5px">80 kg · jul</span>
+                        <span class="a-mono" style="font-size:11.5px;font-weight:600">100 kg · 6 sep</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ── MODO SESIÓN ── -->
+              <div class="tel-modo" data-modo>
+                <div class="cab">
+                  <button class="a-chip" data-salir-sesion>Dejarla</button>
+                  <div style="text-align:center;flex:1">
+                    <div style="font-size:15px;font-weight:650;letter-spacing:-.01em">Empuje</div>
+                    <div class="a-mono q" style="font-size:12px">semana 10 · 6 ejercicios</div>
+                  </div>
+                  <span class="a-verbo">Terminar</span>
+                </div>
+
+                <div class="cuerpo">
+                  <div class="a-hoja" style="padding:14px 15px">
+                    <div style="display:flex;align-items:baseline;gap:8px">
+                      <div class="k" style="font-size:16.5px;font-weight:650">Press banca</div>
+                      <span class="a-verbo" style="margin-left:auto" data-ir-ficha>Ver ficha</span>
+                    </div>
+                    <div class="a-pie" style="margin-bottom:8px">4 × 6-8 · RIR 2 · descanso 2:00</div>
+
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">1</span><span class="a-cel puesta">100</span><span class="a-cel puesta">8</span><span class="a-tick on" data-tick>✓</span></div>
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">2</span><span class="a-cel puesta">100</span><span class="a-cel puesta">8</span><span class="a-tick on" data-tick>✓</span></div>
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">3</span><span class="a-cel fantasma">100</span><span class="a-cel fantasma">8</span><span class="a-tick" data-tick>✓</span></div>
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">4</span><span class="a-cel fantasma">100</span><span class="a-cel fantasma">8</span><span class="a-tick" data-tick>✓</span></div>
+                    <div class="a-pie" style="margin-top:8px">En gris, lo que hiciste el 6 de septiembre. Toca el número para cambiarlo.</div>
+                  </div>
+
+                  <div class="a-hoja" style="padding:14px 15px;margin-top:12px">
+                    <div class="k" style="font-size:16.5px;font-weight:650">Press militar</div>
+                    <div class="a-pie" style="margin-bottom:8px">4 × 6-8 · RIR 2 · la vez pasada 65 × 11</div>
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">1</span><span class="a-cel fantasma">65</span><span class="a-cel fantasma">11</span><span class="a-tick" data-tick>✓</span></div>
+                    <div class="a-set"><span class="idx a-mono q" style="font-size:11px">2</span><span class="a-cel fantasma">65</span><span class="a-cel fantasma">11</span><span class="a-tick" data-tick>✓</span></div>
+                  </div>
+
+                  <div class="a-hoja" style="padding:14px 15px;margin-top:12px;opacity:.55">
+                    <div class="k" style="font-size:16.5px;font-weight:650">Press inclinado con mancuernas</div>
+                    <div class="a-pie">4 × 6-8 · RIR 2</div>
+                  </div>
+                </div>
+
+                <div class="pulgar">
+                  <div class="a-hoja" style="display:flex;align-items:center;gap:12px;padding:11px 14px">
+                    <div><span class="a-mono" style="font-size:15px;font-weight:700" data-cuenta>2</span><span class="a-mono q" style="font-size:13px"> de 21 series</span><div class="a-pie">2 350 kg movidos</div></div>
+                    <button class="a-boton chico" style="margin-left:auto">Terminar</button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <nav class="tel-barra" id="barra-tel">
+              <button class="on" data-tel="hoy">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="4.5" width="17" height="16" rx="4"/><path d="M8 2.6v3.8M16 2.6v3.8"/><circle cx="12" cy="14" r="1.8" fill="currentColor" stroke="none"/></svg>
+                Hoy
+              </button>
+              <button data-tel="entreno">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 12h16M7 8.5v7M17 8.5v7M2.6 10.5v3M21.4 10.5v3"/></svg>
+                Entreno
+              </button>
+              <button data-tel="comer">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 11h17a8.5 8.5 0 0 1-17 0Z"/><path d="M2.5 20h19"/></svg>
+                Comer
+              </button>
+              <button data-tel="tu">
+                <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8.2" r="3.6"/><path d="M5 19.4a7 7 0 0 1 14 0"/></svg>
+                Tú
+              </button>
+            </nav>
+          </div>
+        </div>
+        <div class="et">390 × 812 · tamaño real</div>
+      </div>
+    </div>
+
+    <p class="pie-lamina">
+      <b>Ninguna pantalla tiene una imagen</b> y ninguna la echa de menos: la cara la ponen la
+      cifra de la derecha y la curva de ocho puntos. En la ficha, el renglón «Ver el vídeo»
+      sencillamente no existe cuando no hay vídeo —y la ficha sigue estando completa, porque lo
+      que la llena es lo que te repite tu entrenador y lo que tú has levantado.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL PC ═════════════════════════════════════════════════════════════ -->
+<section class="seccion hoja">
+  <div class="env">
+    <div class="rotulo">El otro aparato</div>
+    <h2>Para qué se abre el PC</h2>
+    <p>
+      Esta es la pregunta que el estudio anterior no contestó, y por eso no había PC. La
+      respuesta no puede ser «para ver lo que te ha puesto tu entrenador», porque eso lo hace
+      mejor el teléfono y además pone al entrenador en el centro de una app que no es suya.
+    </p>
+    <p>
+      La respuesta es el ancho. <b>Un monitor cabe lo que un teléfono no: dos cosas a la vez.</b>
+      Y las dos cosas que esta app tiene para comparar son diez semanas de un bloque y dos
+      fotos de la misma persona con dos meses de diferencia. De ahí sale todo lo demás.
+    </p>
+
+    <table class="t libre">
+      <thead><tr><th style="width:26%">Lo que el PC hace y el teléfono no</th><th>Cómo se traduce en pantalla</th></tr></thead>
+      <tbody>
+        <tr><td>Ver el bloque entero</td><td>La parrilla: diez semanas en filas, las sesiones en columnas, el volumen dentro de cada celda. En el teléfono esto son cuarenta pantallas.</td></tr>
+        <tr><td>Comparar dos momentos</td><td>Pinchas una celda y el costado te enseña esa sesión con su pedido → hecho. Pinchas otra y cambia. Nunca te vas de la pantalla.</td></tr>
+        <tr><td>Leer una tabla ancha</td><td>El historial de un ejercicio con una columna por serie: lo que ningún teléfono aguanta y donde de verdad se ve una progresión.</td></tr>
+        <tr><td>Ir a cualquier sitio sin buscar</td><td>⌘K: escribes «press» y te lleva a ese ejercicio, a una fecha o a una pantalla. Es lo que hace Linear y aquí sirve igual.</td></tr>
+        <tr><td>Poner dos fotos juntas</td><td>El comparador de Tú, que en el teléfono no cabe sin encoger las dos.</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Lo que el PC <b>no</b> hace: registrar una sesión. Se puede —nadie lo impide—, pero la
+      pantalla no se diseña para eso. El sitio de apuntar es el gimnasio, y en el gimnasio hay
+      un teléfono.
+    </p>
+  </div>
+</section>
+
+<section class="seccion banda">
+  <div class="ancho" style="text-align:center">
+    <div class="rotulo">El aparato que compara</div>
+    <h2 style="max-width:22ch;margin-inline:auto">El PC, funcionando</h2>
+    <p style="max-width:64ch;margin:0 auto">
+      1 196 px de ancho útil, el de un portátil de trabajo. Las celdas de la parrilla se
+      pinchan y el costado cambia de verdad: los kilos de cada semana están calculados, no
+      dibujados.
+    </p>
+  </div>
+
+  <div class="ancho">
+    <div class="mandos" id="mandos-pc">
+      <button data-pc="entreno" class="on">Entreno · la parrilla</button>
+      <button data-pc="ejercicio">Un ejercicio</button>
+      <button data-pc="comer">Comer</button>
+      <button data-pc="tu">Tú · comparar</button>
+      <button data-pc="__k">⌘K</button>
+    </div>
+
+    <div class="pc">
+      <div class="pc-chrome">
+        <i></i><i></i><i></i>
+        <span class="url">caveman.app/mi/entreno</span>
+      </div>
+      <div class="pc-app" id="pc-app">
+        <div class="pc-top">
+          <span class="marca">CAVEMAN</span>
+          <nav id="nav-pc">
+            <button data-pc="hoy">Hoy</button>
+            <button data-pc="entreno" class="on">Entreno</button>
+            <button data-pc="comer">Comer</button>
+            <button data-pc="tu">Tú</button>
+          </nav>
+          <div class="der">
+            <div class="buscar" data-abrir-k>Buscar o ir a… <kbd>⌘K</kbd></div>
+            <span class="avatar">ME</span>
+          </div>
+        </div>
+
+        <!-- ── PC · ENTRENO ── -->
+        <div class="pc-pant pc-dos on" data-pcpant="entreno">
+          <div class="pc-obra">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px">
+              <div>
+                <div class="a-sup">Bloque 1 · fuerza e hipertrofia · desde el 7 de julio</div>
+                <div class="a-tit">Semana 10 de 10</div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <span class="a-chip on">Este bloque</span>
+                <span class="a-chip">Adaptación</span>
+                <span class="a-chip">Todo</span>
+              </div>
+            </div>
+
+            <div style="margin-top:22px">
+              <table class="parrilla">
+                <thead>
+                  <tr><th style="width:62px"></th><th class="c">Empuje</th><th class="c">Tirón</th><th class="c">Pierna</th><th class="c">Full body</th></tr>
+                </thead>
+                <tbody id="parrilla"></tbody>
+              </table>
+              <div style="display:flex;gap:18px;margin-top:12px">
+                <span class="a-pie">Cada celda: lo que moviste esa sesión.</span>
+                <span class="a-pie" style="margin-left:auto" id="total-bloque"></span>
+              </div>
+            </div>
+
+            <div class="a-rot" style="margin:30px 0 10px">Tus ejercicios</div>
+            <table class="mesa">
+              <thead><tr><th>Ejercicio</th><th style="width:80px">Sesiones</th><th style="width:110px">Mejor serie</th><th style="width:100px">La última</th><th style="width:90px">10 semanas</th></tr></thead>
+              <tbody>
+                <tr class="tocable" data-ir-pc="ejercicio" style="cursor:pointer"><td class="ej">Press banca</td><td>14</td><td class="n">105 × 5</td><td class="n">100 × 8</td><td><svg class="a-spark" width="72" height="20" viewBox="0 0 72 20" fill="none"><polyline points="0,16 12,15 24,12 36,13 48,8 60,6 72,3" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></td></tr>
+                <tr><td class="ej">Sentadilla</td><td>12</td><td class="n">122,5 × 4</td><td class="n">115 × 6</td><td><svg class="a-spark" width="72" height="20" viewBox="0 0 72 20" fill="none"><polyline points="0,17 12,16 24,14 36,11 48,11 60,7 72,5" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></td></tr>
+                <tr><td class="ej">Peso muerto</td><td>9</td><td class="n">150 × 3</td><td class="n">140 × 5</td><td><svg class="a-spark" width="72" height="20" viewBox="0 0 72 20" fill="none"><polyline points="0,14 12,12 24,13 36,10 48,7 60,7 72,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></td></tr>
+                <tr><td class="ej">Press militar</td><td>14</td><td class="n">70 × 6</td><td class="n">65 × 11</td><td><svg class="a-spark" width="72" height="20" viewBox="0 0 72 20" fill="none"><polyline points="0,14 12,14 24,11 36,12 48,9 60,7 72,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></td></tr>
+                <tr><td class="ej">Remo con barra</td><td>11</td><td class="n">82,5 × 6</td><td class="n">77,5 × 8</td><td><svg class="a-spark" width="72" height="20" viewBox="0 0 72 20" fill="none"><polyline points="0,13 12,13 24,11 36,12 48,9 60,9 72,6" stroke="#878E9C" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></td></tr>
+                <tr><td class="ej">Fondos en paralelas</td><td>0</td><td class="q">sin registro</td><td class="q">—</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="pc-costado" id="costado-pc"></aside>
+        </div>
+
+        <!-- ── PC · UN EJERCICIO ── -->
+        <div class="pc-pant pc-dos" data-pcpant="ejercicio">
+          <div class="pc-obra">
+            <div class="a-sup" style="cursor:pointer" data-ir-pc="entreno">← Tus ejercicios</div>
+            <div class="a-tit" style="margin-top:4px">Press banca</div>
+            <div class="a-pie">Pecho · barra · 14 sesiones desde el 29 de octubre</div>
+
+            <div style="display:flex;gap:8px;margin:18px 0 16px">
+              <span class="a-chip on">Este bloque</span>
+              <span class="a-chip">Todo</span>
+              <span class="a-chip" style="margin-left:auto">Serie más pesada</span>
+              <span class="a-chip">Volumen</span>
+            </div>
+
+            <table class="mesa">
+              <thead><tr><th style="width:96px">Cuándo</th><th style="width:110px">Pedido</th><th>1</th><th>2</th><th>3</th><th>4</th><th style="width:96px">Volumen</th></tr></thead>
+              <tbody>
+                <tr class="viva"><td><b>6 sep</b><div class="a-pie">semana 9</div></td><td class="q">6-8 · RIR 2</td><td class="n">100 × 8</td><td class="n">100 × 8</td><td class="n">100 × 6</td><td class="n">100 × 6</td><td class="n">2 800</td></tr>
+                <tr><td><b>30 ago</b><div class="a-pie">semana 8</div></td><td class="q">6-8 · RIR 2</td><td class="n">97,5 × 8</td><td class="n">97,5 × 8</td><td class="n">97,5 × 6</td><td class="q">no la apuntaste</td><td class="n">2 145</td></tr>
+                <tr><td><b>23 ago</b><div class="a-pie">semana 7</div></td><td class="q">6-8 · RIR 2</td><td class="n">95 × 8</td><td class="n">95 × 8</td><td class="n">95 × 6</td><td class="n">95 × 6</td><td class="n">2 660</td></tr>
+                <tr><td><b>16 ago</b><div class="a-pie">semana 6</div></td><td class="q">6-8 · RIR 2</td><td class="n">92,5 × 8</td><td class="n">92,5 × 8</td><td class="n">92,5 × 6</td><td class="n">92,5 × 6</td><td class="n">2 590</td></tr>
+                <tr><td><b>9 ago</b><div class="a-pie">semana 5</div></td><td class="q">8-10 · RIR 3</td><td class="n">90 × 10</td><td class="n">90 × 10</td><td class="n">90 × 8</td><td class="n">90 × 8</td><td class="n">3 240</td></tr>
+                <tr><td><b>2 ago</b><div class="a-pie">semana 4</div></td><td class="q">8-10 · RIR 3</td><td class="n">87,5 × 10</td><td class="n">87,5 × 10</td><td class="n">87,5 × 8</td><td class="n">87,5 × 8</td><td class="n">3 150</td></tr>
+              </tbody>
+            </table>
+            <p class="a-pie" style="margin-top:12px">
+              Una columna por serie y la pauta a la izquierda: de un vistazo se ve que en la
+              semana 6 cambió el rango de repeticiones y que el volumen bajó por eso, no
+              porque fueras a menos.
+            </p>
+          </div>
+
+          <aside class="pc-costado">
+            <div class="a-rot">La serie más pesada</div>
+            <svg width="100%" height="150" viewBox="0 0 340 150" fill="none" style="margin-top:10px">
+              <g stroke="#E4E7EC" stroke-width="1"><path d="M0 34h340M0 70h340M0 106h340"/></g>
+              <polyline points="12,122 58,112 104,104 150,86 196,90 242,66 288,48 330,34" stroke="#0E1116" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              <g fill="#0E1116"><circle cx="12" cy="122" r="3.4"/><circle cx="58" cy="112" r="3.4"/><circle cx="104" cy="104" r="3.4"/><circle cx="150" cy="86" r="3.4"/><circle cx="196" cy="90" r="3.4"/><circle cx="242" cy="66" r="3.4"/><circle cx="288" cy="48" r="3.4"/><circle cx="330" cy="34" r="3.4"/></g>
+            </svg>
+            <div style="display:flex;justify-content:space-between;margin-bottom:22px">
+              <span class="a-mono q" style="font-size:11.5px">80 kg · 7 jul</span>
+              <span class="a-mono" style="font-size:11.5px;font-weight:600">100 kg · 6 sep</span>
+            </div>
+
+            <div style="display:flex;gap:26px;padding-bottom:20px;border-bottom:1px solid var(--linea)">
+              <div><div class="a-mono" style="font-size:17px;font-weight:700">105 × 5</div><div class="a-pie">tu mejor serie · 14 mar</div></div>
+              <div><div class="a-mono" style="font-size:17px;font-weight:700">80 → 100 kg</div><div class="a-pie">en diez semanas</div></div>
+            </div>
+
+            <div class="a-rot" style="margin:22px 0 6px">Lo que te repite siempre</div>
+            <p style="margin:0;font-size:14.5px;line-height:1.5;color:var(--tinta)">
+              Que no rebote. Si el hombro molesta, cierra un dedo el agarre.
+            </p>
+
+            <div class="a-hoja" style="margin-top:18px">
+              <div class="a-fila tocable">
+                <div><div class="k">Ver el vídeo</div><div class="s">youtube.com · 1 min 12 s</div></div>
+                <div class="der"><span class="a-verbo">Abrir</span></div>
+              </div>
+              <div class="a-fila">
+                <div><div class="k">Ahora mismo te toca</div><div class="s">4 × 6-8 · RIR 2 · descanso 2:00</div></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- ── PC · COMER ── -->
+        <div class="pc-pant pc-dos" data-pcpant="comer">
+          <div class="pc-obra">
+            <div class="a-sup">Tu dieta desde el 2 de julio</div>
+            <div class="a-tit">1 750 kcal · 140 P · 165 H · 52 G</div>
+
+            <div class="a-rot" style="margin:26px 0 10px">Tus cinco días</div>
+            <table class="mesa">
+              <thead><tr><th style="width:130px">Día</th><th style="width:90px">kcal</th><th style="width:70px">P</th><th style="width:70px">H</th><th style="width:70px">G</th><th>Cuándo te toca</th></tr></thead>
+              <tbody>
+                <tr class="viva"><td class="ej">B · entreno fuerte</td><td class="n">1 750</td><td class="n">140</td><td class="n">165</td><td class="n">52</td><td>Hoy, y los miércoles</td></tr>
+                <tr><td class="ej">A · descanso</td><td class="n">1 550</td><td class="n">140</td><td class="n">110</td><td class="n">52</td><td>Domingos y martes</td></tr>
+                <tr><td class="ej">C · entreno suave</td><td class="n">1 650</td><td class="n">140</td><td class="n">140</td><td class="n">50</td><td>Lunes y viernes</td></tr>
+                <tr><td class="ej">D · libre</td><td class="n">2 000</td><td class="n">130</td><td class="n">210</td><td class="n">58</td><td>Cuando lo uses</td></tr>
+                <tr><td class="ej">E · viaje</td><td class="n">1 700</td><td class="n">135</td><td class="n">160</td><td class="n">52</td><td>Cuando lo uses</td></tr>
+              </tbody>
+            </table>
+
+            <div class="a-rot" style="margin:30px 0 10px">El día B, comida a comida</div>
+            <div class="a-hoja">
+              <div class="a-fila"><div><div class="k">Desayuno</div><div class="s">80 g de avena · 5 claras · 1 plátano · 10 g de crema de cacahuete</div></div><div class="der"><span class="a-mono q">2 opciones</span><span class="a-mono">420</span></div></div>
+              <div class="a-fila"><div><div class="k">Comida</div><div class="s">160 g de pollo · 90 g de arroz en crudo · verdura libre · 10 ml de aceite</div></div><div class="der"><span class="a-mono q">3 opciones</span><span class="a-mono">658</span></div></div>
+              <div class="a-fila"><div><div class="k">Merienda</div><div class="s">2 yogures griegos · 150 g de fruta · 15 g de nueces</div></div><div class="der"><span class="a-mono q">2 opciones</span><span class="a-mono">240</span></div></div>
+              <div class="a-fila"><div><div class="k">Cena</div><div class="s">150 g de salmón · 250 g de patata · ensalada · 5 ml de aceite</div></div><div class="der"><span class="a-mono q">2 opciones</span><span class="a-mono">432</span></div></div>
+            </div>
+          </div>
+
+          <aside class="pc-costado">
+            <div class="a-rot">Tus calorías</div>
+            <svg width="100%" height="120" viewBox="0 0 340 120" fill="none" style="margin-top:12px">
+              <path d="M0 26 H104 V54 H210 V84 H340" stroke="#0E1116" stroke-width="2.2" stroke-linejoin="round"/>
+              <path d="M0 26 H104 V54 H210 V84 H340 V120 H0 Z" fill="#0E1116" opacity=".05"/>
+            </svg>
+            <table class="mesa" style="margin-top:6px">
+              <tbody>
+                <tr><td class="n">1 750</td><td>desde el 2 de julio</td></tr>
+                <tr><td class="n">1 950</td><td>del 6 de mayo al 1 de julio</td></tr>
+                <tr><td class="n">2 100</td><td>del 1 de abril al 5 de mayo</td></tr>
+              </tbody>
+            </table>
+            <p class="a-pie" style="margin-top:14px">
+              Tres bajadas en cinco meses, cada una con su fecha. Ningún «tu entrenador ha
+              cambiado tus calorías»: el hecho, y ya.
+            </p>
+
+            <div class="a-rot" style="margin:26px 0 8px">Tu peso en esos cinco meses</div>
+            <svg width="100%" height="110" viewBox="0 0 340 110" fill="none">
+              <path d="M6 16 C70 26, 120 40, 176 58 S280 84, 334 92" stroke="#0E1116" stroke-width="2.2" stroke-linecap="round"/>
+              <g fill="#878E9C"><circle cx="20" cy="14" r="2.8"/><circle cx="60" cy="30" r="2.8"/><circle cx="100" cy="26" r="2.8"/><circle cx="140" cy="46" r="2.8"/><circle cx="180" cy="52" r="2.8"/><circle cx="220" cy="70" r="2.8"/><circle cx="260" cy="66" r="2.8"/><circle cx="300" cy="88" r="2.8"/><circle cx="330" cy="84" r="2.8"/></g>
+            </svg>
+            <div style="display:flex;justify-content:space-between">
+              <span class="a-mono q" style="font-size:11.5px">84,1 kg</span>
+              <span class="a-mono" style="font-size:11.5px;font-weight:600">78,4 kg</span>
+            </div>
+          </aside>
+        </div>
+
+        <!-- ── PC · TÚ ── -->
+        <div class="pc-pant pc-dos" data-pcpant="tu">
+          <div class="pc-obra">
+            <div style="display:flex;align-items:center;gap:14px">
+              <span style="width:52px;height:52px;border-radius:50%;background:var(--tinta);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none">ME</span>
+              <div>
+                <div class="a-tit">Marta Espinosa</div>
+                <div class="a-pie">124 sesiones · 10 semanas seguidas · 930 000 kg movidos</div>
+              </div>
+            </div>
+
+            <div class="a-hoja" style="margin-top:22px;padding:20px 22px">
+              <div style="display:flex;align-items:baseline;gap:10px">
+                <div class="a-rot">Tu peso</div>
+                <span class="a-mono" style="margin-left:auto;font-size:13px">−0,34 kg/sem · objetivo −0,30</span>
+              </div>
+              <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px">
+                <span class="a-tit xl">78,4</span><span class="a-sup">kg · el jueves</span>
+              </div>
+              <svg width="100%" height="170" viewBox="0 0 700 170" fill="none" style="margin-top:6px" preserveAspectRatio="none">
+                <g stroke="#E4E7EC" stroke-width="1"><path d="M0 40h700M0 80h700M0 120h700"/></g>
+                <path d="M10 24 C140 44, 250 66, 360 84 S580 128, 690 140" stroke="#0E1116" stroke-width="2.4" stroke-linecap="round"/>
+                <g fill="#878E9C"><circle cx="24" cy="18" r="3"/><circle cx="80" cy="38" r="3"/><circle cx="136" cy="30" r="3"/><circle cx="192" cy="54" r="3"/><circle cx="248" cy="62" r="3"/><circle cx="304" cy="56" r="3"/><circle cx="360" cy="86" r="3"/><circle cx="416" cy="80" r="3"/><circle cx="472" cy="104" r="3"/><circle cx="528" cy="98" r="3"/><circle cx="584" cy="126" r="3"/><circle cx="640" cy="120" r="3"/><circle cx="690" cy="138" r="3"/></g>
+              </svg>
+              <div style="display:flex;justify-content:space-between">
+                <span class="a-mono q" style="font-size:11.5px">7 jul · 81,4</span>
+                <span class="a-mono q" style="font-size:11.5px">la línea es la tendencia; los puntos, cada pesaje</span>
+                <span class="a-mono" style="font-size:11.5px;font-weight:600">hoy · 78,4</span>
+              </div>
+            </div>
+
+            <div class="a-rot" style="margin:28px 0 10px">Tus medidas</div>
+            <table class="mesa">
+              <thead><tr><th>Cuándo</th><th>Peso</th><th>Cintura</th><th>Cadera</th><th>Pecho</th><th>Brazo</th></tr></thead>
+              <tbody>
+                <tr class="viva"><td><b>11 sep</b></td><td class="n">78,4</td><td class="n">82,0</td><td class="n">98,5</td><td class="n">101,0</td><td class="n">36,5</td></tr>
+                <tr><td><b>28 ago</b></td><td class="n">79,2</td><td class="n">83,5</td><td class="n">99,0</td><td class="n">101,0</td><td class="n">36,0</td></tr>
+                <tr><td><b>14 ago</b></td><td class="n">80,1</td><td class="n">84,5</td><td class="n">99,5</td><td class="n">101,5</td><td class="n">36,0</td></tr>
+                <tr><td><b>7 jul</b></td><td class="n">81,4</td><td class="n">86,5</td><td class="n">100,0</td><td class="n">101,0</td><td class="n">35,5</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="pc-costado">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div class="a-rot">Comparar</div>
+              <span class="a-chip on" style="margin-left:auto">Frontal</span>
+              <span class="a-chip">Lateral</span>
+              <span class="a-chip">Espalda</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+              <div>
+                <div style="aspect-ratio:3/4;background:var(--hundido);border-radius:12px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden">
+                  <svg width="74" height="118" viewBox="0 0 74 118" fill="none" stroke="#B9C0CC" stroke-width="2.2" stroke-linecap="round"><circle cx="37" cy="17" r="10"/><path d="M37 28v42M37 36l-18 14M37 36l18 14M37 70l-12 40M37 70l12 40"/></svg>
+                </div>
+                <div class="a-mono q" style="font-size:11.5px;margin-top:7px">7 jul · 81,4 kg</div>
+              </div>
+              <div>
+                <div style="aspect-ratio:3/4;background:var(--hundido);border-radius:12px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden">
+                  <svg width="74" height="118" viewBox="0 0 74 118" fill="none" stroke="#8A90A0" stroke-width="2.2" stroke-linecap="round"><circle cx="37" cy="17" r="10"/><path d="M37 28v42M37 35l-19 13M37 35l19 13M37 70l-11 40M37 70l11 40"/></svg>
+                </div>
+                <div class="a-mono" style="font-size:11.5px;margin-top:7px;font-weight:600">6 sep · 78,6 kg</div>
+              </div>
+            </div>
+            <p class="a-pie" style="margin-top:12px">
+              Nueve semanas de diferencia, el mismo encuadre y la misma luz. Es lo único de
+              esta app que se enseña como imagen, y es tuya.
+            </p>
+
+            <div class="a-hoja" style="margin-top:20px">
+              <div class="a-fila tocable"><div><div class="k">Hacerte las fotos de esta semana</div><div class="s">Tocan mañana domingo</div></div><div class="der"><span class="a-verbo">Empezar</span></div></div>
+              <div class="a-fila tocable"><div><div class="k">Cuestionario de la semana</div><div class="s">Te lo pidieron el viernes</div></div><div class="der"><span class="a-punto"></span></div></div>
+              <div class="a-fila tocable"><div><div class="k">Descargar todo lo tuyo</div><div class="s">Registro, medidas y fotos en un archivo</div></div></div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- ── PC · HOY (mismo mueble) ── -->
+        <div class="pc-pant pc-dos" data-pcpant="hoy">
+          <div class="pc-obra">
+            <div class="a-sup">Sábado 13 de septiembre · bloque 1 · semana 10 de 10</div>
+            <div class="a-tit">Empuje</div>
+            <div class="a-pie">6 ejercicios · 21 series · unos 50 minutos</div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="a-boton" style="width:auto;padding:0 22px">Empezar en el teléfono</button>
+              <button class="a-boton linea" style="width:auto;padding:0 22px">Ver la sesión</button>
+            </div>
+            <p class="a-pie" style="margin-top:10px;max-width:52ch">
+              El botón manda un aviso al teléfono y deja la sesión abierta allí. El PC no
+              finge ser el sitio donde se apunta.
+            </p>
+
+            <div class="a-rot" style="margin:28px 0 10px">La sesión de hoy</div>
+            <table class="mesa">
+              <thead><tr><th>Ejercicio</th><th style="width:130px">Te toca</th><th style="width:110px">La vez pasada</th><th style="width:100px">Tu mejor</th></tr></thead>
+              <tbody>
+                <tr class="tocable" data-ir-pc="ejercicio" style="cursor:pointer"><td class="ej">Press banca</td><td class="q">4 × 6-8 · RIR 2</td><td class="n">100 × 8</td><td class="n">105 × 5</td></tr>
+                <tr><td class="ej">Press militar</td><td class="q">4 × 6-8 · RIR 2</td><td class="n">65 × 11</td><td class="n">70 × 6</td></tr>
+                <tr><td class="ej">Press inclinado con mancuernas</td><td class="q">4 × 6-8 · RIR 2</td><td class="n">48 × 8</td><td class="n">52,5 × 6</td></tr>
+                <tr><td class="ej">Elevaciones laterales</td><td class="q">3 × 10-12 · RIR 1</td><td class="n">30 × 11</td><td class="n">32,5 × 10</td></tr>
+                <tr><td class="ej">Fondos en paralelas</td><td class="q">3 × 10-12 · RIR 1</td><td class="q">sin registro</td><td class="q">—</td></tr>
+                <tr><td class="ej">Extensión de tríceps en polea</td><td class="q">3 × 10-12 · RIR 1</td><td class="n">50 × 11</td><td class="n">52,5 × 10</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <aside class="pc-costado">
+            <div class="a-rot">Hoy también</div>
+            <div class="a-hoja" style="margin-top:10px">
+              <div class="a-fila tocable"><div><div class="k">Comer</div><div class="s">1 078 de 1 750 kcal</div></div><div class="der"><span class="a-mono q">672</span></div></div>
+              <div class="a-fila tocable"><div><div class="k">Pésate</div><div class="s">78,4 kg el jueves</div></div><div class="der"><span class="a-verbo">Apuntar</span></div></div>
+              <div class="a-fila tocable"><div><div class="k">Cuestionario de la semana</div><div class="s">Te lo pidieron el viernes</div></div><div class="der"><span class="a-punto"></span></div></div>
+            </div>
+            <div class="a-rot" style="margin:26px 0 10px">La semana</div>
+            <div class="a-hoja">
+              <div class="a-fila"><div><div class="k">Empuje</div><div class="s">Hoy</div></div><div class="der"><span class="a-mono q">pendiente</span></div></div>
+              <div class="a-fila"><div><div class="k">Tirón</div><div class="s">Lunes</div></div><div class="der"><span class="a-mono q">pendiente</span></div></div>
+              <div class="a-fila"><div><div class="k">Pierna</div><div class="s">Miércoles</div></div><div class="der"><span class="a-mono q">pendiente</span></div></div>
+              <div class="a-fila"><div><div class="k">Full body</div><div class="s">Viernes</div></div><div class="der"><span class="a-mono q">pendiente</span></div></div>
+            </div>
+          </aside>
+        </div>
+
+        <!-- ── ⌘K ── -->
+        <div class="pc-k" id="pc-k">
+          <div class="caja">
+            <div class="campo"><span style="color:var(--tinta-3)">⌘K</span> <span>press</span><span class="cur"></span></div>
+            <div class="res">
+              <div class="g">Ejercicios</div>
+              <div class="r on">Press banca <span class="d">100 × 8 · hoy</span></div>
+              <div class="r">Press militar <span class="d">65 × 11 · hoy</span></div>
+              <div class="r">Press inclinado con mancuernas <span class="d">48 × 8 · hace 7 días</span></div>
+              <div class="g">Sesiones</div>
+              <div class="r">Empuje · semana 9 <span class="d">6 sep · 9 320 kg</span></div>
+              <div class="r">Empuje · semana 8 <span class="d">30 ago · 8 568 kg</span></div>
+              <div class="g">Ir a</div>
+              <div class="r">Tu peso <span class="d">78,4 kg</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="pie-lamina">
+      El mismo mueble en las cinco pantallas: <b>el trabajo a la izquierda, su pasado a la
+      derecha</b>, un solo techo de ancho y nada que se mueva de sitio al cambiar de destino.
+      Prueba a pinchar celdas de semanas distintas en la parrilla: el costado enseña esa
+      sesión con su pedido → hecho sin que te vayas de la pantalla. Eso es lo que el teléfono
+      no puede hacer.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL CIERRE ═════════════════════════════════════════════════════════ -->
+<section class="seccion">
+  <div class="env">
+    <div class="rotulo">El balance</div>
+    <h2>Lo que sale y lo que entra</h2>
+
+    <h3>Sale</h3>
+    <ul>
+      <li><b>La miniatura del vídeo</b> en renglones, listas, fichas y mesas. Con ella, la idea de que la app necesita fotos de ejercicios.</li>
+      <li><b>El papel crema y el azul de la casa</b>: suelo frío, tinta fría, un azul de acción más oscuro y saturado.</li>
+      <li><b>Las tarjetas dentro de tarjetas.</b> Una hoja, renglones dentro, y una línea de un píxel separándolos.</li>
+      <li><b>El color como categoría</b> —macros, grupos musculares, estados de entreno—. Se distingue por posición y por peso.</li>
+      <li><b>El PC como teléfono estirado</b>, que es lo que hay hoy: mismas pantallas con más margen.</li>
+      <li><b>El h1 que repite el nombre de la pestaña</b> y los subtítulos que definen la sección en vez de traer un dato.</li>
+    </ul>
+
+    <h3>Entra</h3>
+    <ul>
+      <li><b>La cifra y la curva de ocho puntos</b> en cada renglón de ejercicio: la cara de la app es tu propio registro.</li>
+      <li><b>La línea de la serie</b> —pedido en fantasma, hecho encima— como forma repetida en los dos aparatos.</li>
+      <li><b>La sesión como modo</b>, con el fantasma de la vez pasada dentro de la casilla vacía.</li>
+      <li><b>La parrilla del bloque</b> y el costado que se enciende con la celda: el motivo de abrir el PC.</li>
+      <li><b>⌘K</b> en el PC, con ejercicios, sesiones y fechas dentro.</li>
+      <li><b>Dos familias tipográficas con dos oficios</b>, y el monoespaciado solo donde se compara.</li>
+      <li><b>El comparador de fotos</b> a dos columnas, que es donde las únicas imágenes de la app tienen sentido.</li>
+    </ul>
+
+    <h3>Las tandas</h3>
+    <table class="t libre">
+      <thead><tr><th style="width:22%">Tanda</th><th style="width:46%">Qué</th><th>Dónde</th></tr></thead>
+      <tbody>
+        <tr><td>1 · El idioma</td><td>Los seis colores, las dos familias y la escala de aire. Es la única tanda que toca a las dos mitades de la aplicación: el portal y el panel del entrenador comparten hoja de estilos.</td><td><b>src/styles/tokens.css</b>, <b>tipografia.css</b> y el guardián <b>scripts/verify-styles.mjs</b>, que lleva la tesis vieja escrita dentro</td></tr>
+        <tr><td>2 · El renglón</td><td>La cifra de la última serie y la curva de ocho puntos en cada ejercicio. Sustituye entera a la tanda «la cara» del estudio anterior. Pide una consulta que hoy no existe: el último registro por ejercicio y cliente.</td><td>Pieza nueva sobre el registro que ya vive en <b>workout_data.blocks</b>; <b>ExerciseList</b>, <b>HojaDelCliente</b></td></tr>
+        <tr><td>3 · La sesión</td><td>El modo sesión con el fantasma de la vez pasada dentro de la casilla, la cuenta de series bajo el pulgar y una sola salida.</td><td><b>ClientRoutine</b>, <b>HojaDelCliente</b>, <b>SesionAMedias</b></td></tr>
+        <tr><td>4 · La ficha</td><td>Sin vídeo obligatorio: arriba lo que te repite tu entrenador, el vídeo en un renglón que desaparece si no lo hay, y las tres pestañas con el historial a dos carriles.</td><td><b>FichaEjercicioCliente</b>, pieza <b>ui/Hoja</b></td></tr>
+        <tr><td>5 · El PC</td><td>La parrilla, el costado vivo, la mesa del ejercicio y ⌘K. Es la tanda más grande y la única que crea pantallas que no existen.</td><td><b>responsive.css</b>, <b>ClientLayout</b>, rutas de <b>/mi</b></td></tr>
+        <tr><td>6 · La voz</td><td>Los treinta puntos ya inventariados. No cambia respecto al estudio anterior y se puede hacer en cualquier momento.</td><td>Los <b>sub=</b> de <b>PageHead</b> y <b>Fila</b>, y los vacíos</td></tr>
+      </tbody>
+    </table>
+    <p>
+      Ninguna toca el dominio, ni las políticas de la base, ni el modelo de datos. La tanda 2
+      es la única que necesita leer algo que hoy no se lee, y lo lee de donde ya está guardado.
+    </p>
+
+    <h3>Lo que hay que decidir antes de construir</h3>
+    <table class="t libre">
+      <tbody>
+        <tr>
+          <td>¿El idioma nuevo es de toda la app o solo del portal?</td>
+          <td>
+            El portal y el panel del entrenador comparten <b>tokens.css</b>. Si el lenguaje
+            nuevo se queda solo en el portal, hay dos productos con dos caras dentro del mismo
+            repositorio, y eso es exactamente lo que costó cuatro replanteamientos arreglar.
+            <b>Recomendación: entra en las dos mitades</b>, empezando por el portal, con el
+            guardián de estilos actualizado en la misma tanda.
+          </td>
+        </tr>
+        <tr>
+          <td>¿La curva de ocho puntos se calcula al vuelo o se guarda?</td>
+          <td>
+            Al vuelo desde <b>workout_data</b> es cero migración pero recorre todo el bloque en
+            cada lista. <b>Recomendación: al vuelo ahora</b>; si se nota, se guarda un resumen
+            por ejercicio, que es una decisión reversible.
+          </td>
+        </tr>
+        <tr>
+          <td>¿⌘K en la app de alguien que entra dos veces por semana?</td>
+          <td>
+            Un atajo de teclado no puede ser la única puerta a nada. <b>Recomendación: sí, pero
+            todo lo que hay dentro tiene también su camino pinchando</b>; ⌘K es el atajo del
+            que ya conoce la casa, no el mapa.
+          </td>
+        </tr>
+        <tr>
+          <td>¿Se mantiene «Comer» en lugar de «Dieta»?</td>
+          <td>
+            Sigue pendiente del estudio anterior y no cambia con esto. <b>Recomendación: sí</b>,
+            con las rutas viejas rebotando.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>El suelo de calidad, sin anunciarlo</h3>
+    <p>
+      Todo lo de arriba se sostiene solo si: el foco de teclado se ve en los dos aparatos, el
+      contraste del texto apagado sobre suelo pasa de 4,5:1 —el
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px">#878E9C</span> de
+      los pies está justo en el límite y por eso nunca lleva información que no esté repetida
+      en otro sitio—, las casillas de la sesión tienen 42 px de alto y 16 px de letra para que
+      el teclado del teléfono no haga zoom, y
+      <span style="font-family:'JetBrains Mono',monospace;font-size:12.5px">prefers-reduced-motion</span>
+      apaga las cuatro animaciones sin dejar ningún estado a medias.
+    </p>
+  </div>
+</section>
+
+<footer class="seccion hoja" style="padding:44px 0">
+  <div class="env" style="display:flex;gap:20px;flex-wrap:wrap;font-size:13.5px;color:var(--tinta-3)">
+    <span>Caveman Hub · estudio interno</span>
+    <span>13 de septiembre de 2026</span>
+    <span style="margin-left:auto">Corrige a «La app del cliente» · nada construido</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ── el teléfono ────────────────────────────────────────────────────── */
+  var tel = {
+    pants: document.querySelectorAll('[data-pant]'),
+    hoja: document.querySelector('[data-hoja]'),
+    modo: document.querySelector('[data-modo]'),
+    mandos: document.querySelectorAll('#mandos-tel button'),
+    barra: document.querySelectorAll('#barra-tel button')
+  };
+
+  function marcar(lista, valor, attr){
+    lista.forEach(function(b){ b.classList.toggle('on', b.getAttribute(attr) === valor); });
+  }
+
+  function irTel(destino){
+    if (destino === 'sesion'){ tel.modo.classList.add('on'); marcar(tel.mandos,'sesion','data-tel'); return; }
+    if (destino === 'ficha'){ tel.modo.classList.remove('on'); tel.hoja.classList.add('on'); marcar(tel.mandos,'ficha','data-tel'); return; }
+    tel.modo.classList.remove('on');
+    tel.hoja.classList.remove('on');
+    tel.pants.forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-pant') === destino); });
+    marcar(tel.mandos, destino, 'data-tel');
+    marcar(tel.barra, destino, 'data-tel');
+  }
+
+  tel.mandos.forEach(function(b){ b.addEventListener('click', function(){ irTel(b.getAttribute('data-tel')); }); });
+  tel.barra.forEach(function(b){ b.addEventListener('click', function(){ irTel(b.getAttribute('data-tel')); }); });
+
+  document.querySelectorAll('[data-ir-sesion]').forEach(function(b){
+    b.addEventListener('click', function(){ irTel('sesion'); });
+  });
+  document.querySelectorAll('[data-salir-sesion]').forEach(function(b){
+    b.addEventListener('click', function(){ irTel('hoy'); });
+  });
+  document.querySelectorAll('[data-ir-ficha]').forEach(function(b){
+    b.addEventListener('click', function(e){ e.stopPropagation(); tel.hoja.classList.add('on'); });
+  });
+  document.querySelectorAll('[data-cerrar-hoja]').forEach(function(b){
+    b.addEventListener('click', function(){ tel.hoja.classList.remove('on'); });
+  });
+
+  /* pestañas de la ficha */
+  var tabs = document.querySelector('[data-tabs]');
+  if (tabs){
+    tabs.querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){
+        var cual = b.getAttribute('data-tab');
+        tabs.querySelectorAll('button').forEach(function(o){ o.classList.toggle('on', o === b); });
+        document.querySelectorAll('[data-cuerpo]').forEach(function(c){
+          c.hidden = c.getAttribute('data-cuerpo') !== cual;
+        });
+      });
+    });
+  }
+
+  /* marcar series en el modo sesión */
+  var cuenta = document.querySelector('[data-cuenta]');
+  document.querySelectorAll('[data-tick]').forEach(function(t){
+    t.addEventListener('click', function(){
+      var fila = t.parentElement;
+      var encendido = t.classList.toggle('on');
+      fila.querySelectorAll('.a-cel').forEach(function(c){
+        c.classList.toggle('fantasma', !encendido);
+        c.classList.toggle('puesta', encendido);
+      });
+      if (cuenta) cuenta.textContent = String(document.querySelectorAll('[data-tick].on').length);
+    });
+  });
+
+  /* ── el PC ──────────────────────────────────────────────────────────── */
+  var pc = {
+    pants: document.querySelectorAll('[data-pcpant]'),
+    mandos: document.querySelectorAll('#mandos-pc button'),
+    nav: document.querySelectorAll('#nav-pc button'),
+    k: document.getElementById('pc-k'),
+    url: document.querySelector('.pc-chrome .url')
+  };
+  var RUTA = { entreno:'/mi/entreno', ejercicio:'/mi/entreno/press-banca', comer:'/mi/comer', tu:'/mi/tu', hoy:'/mi/hoy' };
+
+  function irPc(destino){
+    if (destino === '__k'){ pc.k.classList.add('on'); return; }
+    pc.k.classList.remove('on');
+    pc.pants.forEach(function(p){ p.classList.toggle('on', p.getAttribute('data-pcpant') === destino); });
+    marcar(pc.mandos, destino, 'data-pc');
+    marcar(pc.nav, destino === 'ejercicio' ? 'entreno' : destino, 'data-pc');
+    if (pc.url) pc.url.textContent = 'caveman.app' + (RUTA[destino] || '/mi');
+  }
+
+  pc.mandos.forEach(function(b){ b.addEventListener('click', function(){ irPc(b.getAttribute('data-pc')); }); });
+  pc.nav.forEach(function(b){ b.addEventListener('click', function(){ irPc(b.getAttribute('data-pc')); }); });
+  document.querySelectorAll('[data-ir-pc]').forEach(function(b){
+    b.addEventListener('click', function(){ irPc(b.getAttribute('data-ir-pc')); });
+  });
+  document.querySelectorAll('[data-abrir-k]').forEach(function(b){
+    b.addEventListener('click', function(){ pc.k.classList.add('on'); });
+  });
+  if (pc.k) pc.k.addEventListener('click', function(){ pc.k.classList.remove('on'); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && pc.k) pc.k.classList.remove('on');
+  });
+
+  /* ── el bloque, calculado: la parrilla y el costado salen de aquí ───── */
+  var SESIONES = ['Empuje','Tirón','Pierna','Full body'];
+  var DIA = { 'Empuje':0, 'Tirón':-5, 'Pierna':-3, 'Full body':-1 };
+  /* [nombre, pauta de las semanas 6-10, pauta de las 1-5, kilos de la semana 9, repeticiones] */
+  var EJ = {
+    'Empuje':[
+      ['Press banca','6-8 · RIR 2','8-10 · RIR 3',100,[8,8,6,6]],
+      ['Press militar','6-8 · RIR 2','8-10 · RIR 3',65,[11,10,9,9]],
+      ['Press inclinado con mancuernas','6-8 · RIR 2','8-10 · RIR 3',48,[8,8,7,7]],
+      ['Elevaciones laterales','10-12 · RIR 1','12-15 · RIR 1',30,[11,11,10]],
+      ['Extensión de tríceps en polea','10-12 · RIR 1','12-15 · RIR 1',50,[11,11,10]],
+      ['Fondos en paralelas','10-12 · RIR 1','12-15 · RIR 1',8,[10,10,9],10]
+    ],
+    'Tirón':[
+      ['Peso muerto','4-6 · RIR 2','6-8 · RIR 3',140,[5,5,4,4]],
+      ['Remo con barra','6-8 · RIR 2','8-10 · RIR 3',77.5,[8,8,7,7]],
+      ['Jalón al pecho','8-10 · RIR 1','10-12 · RIR 2',65,[10,10,9]],
+      ['Curl con barra','10-12 · RIR 1','12-15 · RIR 1',35,[11,10,10]]
+    ],
+    'Pierna':[
+      ['Sentadilla','5-7 · RIR 2','8-10 · RIR 3',115,[6,6,5,5]],
+      ['Prensa','8-10 · RIR 2','10-12 · RIR 3',200,[10,10,9,9]],
+      ['Curl femoral','10-12 · RIR 1','12-15 · RIR 1',55,[11,11,10]],
+      ['Gemelo de pie','12-15 · RIR 1','15-20 · RIR 1',90,[14,13,13]]
+    ],
+    'Full body':[
+      ['Sentadilla frontal','5-7 · RIR 2','8-10 · RIR 3',85,[6,6,5]],
+      ['Press banca','6-8 · RIR 2','8-10 · RIR 3',95,[8,7,7]],
+      ['Remo con mancuerna','8-10 · RIR 1','10-12 · RIR 2',34,[10,10,9]]
+    ]
+  };
+  var MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var HOY = new Date(2026, 8, 13);           /* sábado 13 de septiembre */
+  var FALTA = { '6|Pierna': true };          /* la sesión que no hizo */
+  var FALTA_SERIE = { '8|Empuje': '0|3' };   /* la serie que dejó sin apuntar */
+
+  function mil(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function coma(n){ return (Math.round(n * 10) / 10).toString().replace('.', ','); }
+  function peso(base, semana){
+    var v = base * (1 - (9 - semana) * 0.025);
+    return base >= 20 ? Math.round(v / 2.5) * 2.5 : Math.round(v);
+  }
+  function ejercicios(sesion, semana){
+    return EJ[sesion].filter(function(ej){ return !ej[5] || semana >= ej[5]; });
+  }
+  function reps(ej, semana){
+    return semana <= 5 ? ej[4].map(function(r){ return r + 2; }) : ej[4];
+  }
+  function pauta(ej, semana){ return semana <= 5 ? ej[2] : ej[1]; }
+  function perdida(semana, sesion, iEj, iSerie){
+    return FALTA_SERIE[semana + '|' + sesion] === (iEj + '|' + iSerie);
+  }
+  function fecha(semana, sesion){
+    var d = new Date(HOY.getTime());
+    d.setDate(d.getDate() - (10 - semana) * 7 + DIA[sesion]);
+    return d.getDate() + ' ' + MESES[d.getMonth()];
+  }
+  function volumen(semana, sesion){
+    return ejercicios(sesion, semana).reduce(function(t, ej, iEj){
+      var p = peso(ej[3], semana);
+      return t + reps(ej, semana).reduce(function(s, r, iSerie){
+        return perdida(semana, sesion, iEj, iSerie) ? s : s + p * r;
+      }, 0);
+    }, 0);
+  }
+  function series(semana, sesion){
+    return ejercicios(sesion, semana).reduce(function(t, ej){ return t + reps(ej, semana).length; }, 0);
+  }
+  function estado(semana, sesion){
+    if (semana === 10) return 'pendiente';
+    if (FALTA[semana + '|' + sesion]) return 'falta';
+    return 'hecha';
+  }
+
+  var cuerpoParrilla = document.getElementById('parrilla');
+  var costado = document.getElementById('costado-pc');
+
+  function pintarCostado(semana, sesion){
+    if (!costado) return;
+    var est = estado(semana, sesion);
+    var html = '<div class="a-sup">' + (est === 'pendiente' ? 'Te toca · ' : '') + fecha(semana, sesion) +
+               ' · semana ' + semana + ' de 10</div>' +
+               '<div class="a-tit" style="font-size:22px;margin-top:2px">' + sesion + '</div>';
+
+    if (est === 'falta'){
+      html += '<p class="a-pie" style="margin-top:10px">No la hiciste. A la semana siguiente volvió a tocar y esa sí está.</p>';
+      costado.innerHTML = html;
+      return;
+    }
+    html += '<div class="a-pie">' + (est === 'hecha'
+      ? mil(volumen(semana, sesion)) + ' kg movidos · ' + series(semana, sesion) + ' series'
+      : ejercicios(sesion, semana).length + ' ejercicios · ' + series(semana, sesion) + ' series') + '</div>';
+    html += '<div class="a-rot" style="margin:22px 0 4px">' + (est === 'hecha' ? 'Pedido → hecho' : 'Lo que te han puesto') + '</div>';
+
+    ejercicios(sesion, semana).forEach(function(ej, iEj){
+      var p = peso(ej[3], semana);
+      html += '<div style="margin-top:14px">' +
+              '<div style="font-size:14.5px;font-weight:650;letter-spacing:-.01em">' + ej[0] + '</div>';
+      reps(ej, semana).forEach(function(r, i){
+        var falla = perdida(semana, sesion, iEj, i);
+        var dato = est === 'hecha' ? (falla ? 'no la apuntaste' : coma(p) + ' × ' + r) : 'sin apuntar';
+        html += '<div class="a-serie">' +
+                '<span class="idx">' + (i + 1) + '</span>' +
+                '<span class="pedido">' + (i === 0 ? pauta(ej, semana) : pauta(ej, semana).split(' · ')[0]) + '</span>' +
+                '<span class="hecho' + (est === 'hecha' && !falla ? '' : ' nada') + '">' + dato + '</span>' +
+                '</div>';
+      });
+      html += '</div>';
+    });
+    costado.innerHTML = html;
+  }
+
+  if (cuerpoParrilla){
+    var filas = '', total = 0, hechas = 0;
+    for (var s = 10; s >= 1; s--){
+      filas += '<tr><td class="sem">sem ' + s + '</td>';
+      SESIONES.forEach(function(ses){
+        var est = estado(s, ses);
+        var clase = 'celda' + (est !== 'hecha' ? ' no' : '') + (s === 10 && ses === 'Empuje' ? ' hoy' : '');
+        var dentro;
+        if (est === 'hecha'){
+          total += volumen(s, ses); hechas++;
+          dentro = '<span class="kg">' + mil(volumen(s, ses)) + '</span><span class="mi">' + fecha(s, ses) + '</span>';
+        } else if (est === 'falta'){
+          dentro = '<span class="kg">—</span><span class="mi">no la hiciste</span>';
+        } else {
+          dentro = '<span class="kg">·</span><span class="mi">' + (s === 10 && ses === 'Empuje' ? 'hoy' : fecha(s, ses)) + '</span>';
+        }
+        filas += '<td><div class="' + clase + '" data-sem="' + s + '" data-ses="' + ses + '">' + dentro + '</div></td>';
+      });
+      filas += '</tr>';
+    }
+    cuerpoParrilla.innerHTML = filas;
+
+    var pieTotal = document.getElementById('total-bloque');
+    if (pieTotal) pieTotal.textContent = mil(total) + ' kg en el bloque · ' + hechas + ' de 40 sesiones';
+
+    var celdas = cuerpoParrilla.querySelectorAll('.celda');
+    celdas.forEach(function(c){
+      c.addEventListener('click', function(){
+        celdas.forEach(function(o){ o.classList.remove('sel'); });
+        c.classList.add('sel');
+        pintarCostado(parseInt(c.getAttribute('data-sem'), 10), c.getAttribute('data-ses'));
+      });
+    });
+
+    var inicial = cuerpoParrilla.querySelector('[data-sem="9"][data-ses="Empuje"]');
+    if (inicial) inicial.click();
+  }
+})();
+</script>
+</body>
+</html>

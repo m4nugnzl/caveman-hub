@@ -13,7 +13,16 @@
 import { isBlank, round, toNum, toNum0 } from '@/lib/num';
 import { newId, deepClone } from '@/lib/ids';
 import { norm, pluralEs } from '@/lib/texto';
+import { todayISO } from '@/lib/dates';
 import { MICRO_TARGET_FIELDS, freezeMicros } from './micros';
+/* El comparador de nombres, de su módulo y no de `foodEquiv`: ése importa de
+   aquí, y pedirle la categoría cerraría el círculo. Es la misma función que usan
+   las equivalencias, así que la cesta y ellas resuelven igual. */
+import { matchFood } from './foodMatch';
+/* `training` no sabe nada de dietas, así que no hay ciclo: la capa de debajo es
+   ella. Lo que se trae es el calendario del ciclo —qué día es hoy— que es de
+   quien reparte el entreno, no de quien reparte la comida. */
+import { claveDelDia } from './training';
 
 /**
  * Las columnas heredadas, una por día de los que cabían antes de que los días
@@ -236,36 +245,51 @@ export const addDietDay = (nutrition, { desde = null, name = null } = {}) => {
  * cliente con un mapa roto —«hoy te toca» sin día al que apuntar—, así que se
  * borra y hay que volver a repartir. La pantalla lo dice antes.
  */
-export const replaceDietDays = (nutrition, days = []) => {
-  const base = withDays(nutrition || emptyNutrition());
-  if (days.length === 0) return base;
 
+/**
+ * LOS OBJETIVOS QUE VA A TENER CADA DÍA al recibir una dieta entera.
+ *
+ * Es la mitad de `replaceDietDays` que hace falta ANTES de escribir nada: el
+ * reparto lleva cada menú a lo pautado de su día, y ese «lo pautado» tiene que
+ * ser EXACTAMENTE el que se va a guardar con él. Calculado en dos sitios con
+ * dos criterios, el plan acabaría diciendo una cifra y su propio menú sumando
+ * otra — que es la avería que el reajuste del menú acaba de curar. Ver
+ * `reparto.js`.
+ */
+export const targetsAlRecibir = (nutrition, days = []) => {
+  const base = withDays(nutrition || emptyNutrition());
   /* Su objetivo, el del primer día que tenía: es lo que NO viaja. Cuelga de
      `.targets` del día, como lo lee `targetsFor`. */
   const suyo = soloTargets(base.days[0]?.targets);
   const kcals = toNum0(suyo.targetKcals);
 
-  const nuevos = days.map((dia, i) => {
-    const proporcion = Number(dia.proporcion) || 1;
+  return days.map((dia, i) => {
+    const proporcion = Number(dia?.proporcion) || 1;
     /* El primero se queda su objetivo tal cual; sin objetivo puesto no hay nada
        que escalar y los días nuevos nacen con el mismo (vacío) que tenía. */
     const escala = i > 0 && kcals > 0 && proporcion !== 1;
-    const suKcal = escala ? Math.round(kcals * proporcion) : 0;
-    const targets = escala
-      ? {
-          ...suyo,
-          targetKcals: suKcal,
-          carbsGrams:
-            carbsFromRest({ kcals: suKcal, protein: suyo.proteinGrams, fats: suyo.fatsGrams }) ??
-            suyo.carbsGrams,
-        }
-      : suyo;
+    if (!escala) return suyo;
 
+    const suKcal = Math.round(kcals * proporcion);
     return {
-      ...buildDietDay({ name: dia.name || `Día ${i + 1}`, targets }),
-      meals: cloneMeals(dia.meals || []),
+      ...suyo,
+      targetKcals: suKcal,
+      carbsGrams:
+        carbsFromRest({ kcals: suKcal, protein: suyo.proteinGrams, fats: suyo.fatsGrams }) ??
+        suyo.carbsGrams,
     };
   });
+};
+
+export const replaceDietDays = (nutrition, days = []) => {
+  const base = withDays(nutrition || emptyNutrition());
+  if (days.length === 0) return base;
+
+  const objetivos = targetsAlRecibir(base, days);
+  const nuevos = days.map((dia, i) => ({
+    ...buildDietDay({ name: dia.name || `Día ${i + 1}`, targets: objetivos[i] }),
+    meals: cloneMeals(dia.meals || []),
+  }));
 
   return {
     ...base,
@@ -669,6 +693,198 @@ export const targetsFor = (nutrition, dayId) => ({
   stepsGoal: nutrition?.stepsGoal ?? '',
 });
 
+/**
+ * Las kcal PAUTADAS de un día: la cifra escrita, o la que suman sus macros.
+ *
+ * No es lo mismo un objetivo escrito que uno deducido, pero las dos cosas son
+ * lo que le han puesto, y quien lee la dieta no distingue entre ellas. La regla
+ * estaba escrita dentro de la dieta del cliente y la necesitan también su
+ * portada y la cinta de días: copiada, el día que alguien arregle una de las
+ * dos, la otra se queda diciendo otra cifra.
+ */
+export const dayKcalTarget = (nutrition, dayId) => {
+  const targets = targetsFor(nutrition, dayId);
+  const escrito = Number(targets?.targetKcals) || 0;
+  if (escrito > 0) return escrito;
+  const suma = macroSplit(targets).total;
+  return suma > 0 ? Math.round(suma) : 0;
+};
+
+/**
+ * QUÉ COME HOY: la dieta que le cae a la casilla de hoy, con su cifra.
+ *
+ * ══ CON UNA SOLA DIETA NO HAY NADA QUE REPARTIR ════════════════════════════
+ *
+ * Y esa es la respuesta que faltaba. Esto pedía SIEMPRE un reparto —el mapa de
+ * casillas a días— y devolvía `null` sin él, así que a quien tiene una dieta y
+ * ya está, su portada no le decía qué comer: le salía «Hoy» con la línea de los
+ * pasos y nada más. Y es la mayoría, porque el alto/bajo es una pauta avanzada
+ * y el reparto por días es algo que el entrenador hace después, si lo hace.
+ *
+ * Con un solo día no hay pregunta que contestar: hoy come lo que come todos los
+ * días. No se inventa nada, y por eso tampoco depende del tipo de ciclo — un
+ * rotativo con una sola dieta también sabe qué toca.
+ *
+ * El nombre de ese día NO viaja: se llama «Dieta única», que es como se llama
+ * por dentro cuando nadie le ha puesto nombre, no algo que el cliente haya
+ * leído nunca. Quien lo pinta lo titula.
+ *
+ * ── Con varias, hace falta el reparto ──────────────────────────────────────
+ * Un plan con dos dietas y sin repartir no dice nada: elegir una de las dos
+ * sería mandarle a comer el menú de otro día.
+ *
+ * Y con un ciclo rotativo hace falta además saber en qué casilla cae hoy, que
+ * no se deduce del calendario —no hay martes, hay un D4—. Aquí decía que esa
+ * fecha «no se guarda en ninguna parte», y era falso: se guarda desde siempre
+ * en el microciclo (`micro.date`), y desde el 13 de septiembre de 2026
+ * `semanaDelCliente` hace la cuenta. Quien llama pasa la casilla en `casilla`;
+ * sin ella, esto sigue contestando solo a los ciclos naturales.
+ *
+ * ── Y una dieta vacía no es una respuesta ──────────────────────────────────
+ * Sin comidas y sin objetivo, el día existe en los datos y no existe para
+ * nadie: la fila diría «Tu dieta · 0 comidas» y llevaría a una pantalla en
+ * blanco. Ahí no hay nada que decir todavía.
+ *
+ * @param slots  Las casillas de su ciclo (`clientCycleSlots`).
+ * @returns `{ id, name, kcal, comidas, unica }` o `null`.
+ */
+export const dietaDeHoy = (nutrition, slots = [], fecha = todayISO(), casilla = null) => {
+  const dias = planDays(nutrition);
+  const unica = dias.length === 1;
+
+  const dia = unica ? dias[0] : deLaCasilla(nutrition, slots, fecha, casilla);
+  if (!dia) return null;
+
+  const kcal = dayKcalTarget(nutrition, dia.id);
+  const comidas = mealsForVariant(nutrition, dia.id).length;
+  if (kcal <= 0 && comidas === 0) return null;
+
+  return { id: dia.id, name: dia.name, kcal, comidas, unica };
+};
+
+/**
+ * CÓMO SE REPARTE SU CICLO: cada dieta del plan con cuántas casillas le tocan.
+ *
+ * ══ Por qué es una cuenta y no tres textos ═════════════════════════════════
+ *
+ * En el prototipo esto se escribía a mano en tres sitios —el subtítulo de la
+ * pantalla, la línea del reparto y las tarjetas de «Tus dietas»— y ya se
+ * contradecían entre ellos. El día que el entrenador monta una tercera dieta,
+ * un texto a mano se queda diciendo que hay dos.
+ *
+ * Aquí sale una vez, del mismo mapa que usa todo lo demás (`cycleMap`), y quien
+ * lo pinta elige qué parte enseña.
+ *
+ * @param slots `cycleSlots(...)`. Sin ellos, todas las dietas salen con cero
+ *   casillas, que es la verdad de un plan sin repartir.
+ * @returns `[{ id, name, kcal, targets, dias, casillas }]` — `casillas` son las
+ *   etiquetas cortas de los días que le tocan, para decir CUÁLES.
+ */
+export const repartoDelCiclo = (nutrition, slots = []) => {
+  const mapa = cycleMap(nutrition, slots);
+
+  return planDays(nutrition).map((dia) => {
+    const suyas = slots.filter((s) => mapa[s.key] === dia.id);
+    return {
+      id: dia.id,
+      name: dia.name,
+      kcal: dayKcalTarget(nutrition, dia.id),
+      targets: targetsFor(nutrition, dia.id),
+      dias: suyas.length,
+      casillas: suyas.map((s) => s.corto),
+    };
+  });
+};
+
+/**
+ * QUÉ MANDOS TIENE ESTA DIETA: si se puede elegir por día, por dieta, o ninguno.
+ *
+ * ══ Por qué sube al dominio ════════════════════════════════════════════════
+ *
+ * Porque desde el 13 de septiembre lo preguntan DOS: la pantalla, para decidir
+ * qué pinta debajo, y la RUTA, que es quien monta la cabecera y por tanto quien
+ * tiene que saber si hay un segmentado que poner en ella (el dueño: *«aún queda
+ * para el caso del PC poner en la cabecera las opciones»*). Escrita dos veces,
+ * la cabecera acabaría ofreciendo un mando que la pantalla no usa —o al revés—
+ * el día que el entrenador monte una dieta más.
+ *
+ *   · «El día» solo existe con el ciclo REPARTIDO y con más de una casilla que
+ *     mirar: siete casillas que llevan todas al mismo sitio no mandan nada.
+ *   · «Tus dietas» solo con más de una dieta: elegir entre una no es elegir.
+ *
+ * @param columnas Cuántas casillas se enumeran de verdad —siete con la semana
+ *   puesta, las del ciclo sin ella—. Lo sabe quien pinta, no el plan.
+ */
+export const mandosDeLaDieta = (nutrition, slots = [], columnas = slots.length) => {
+  const mapa = cycleMap(nutrition, slots);
+  return {
+    hayDia: slots.some((s) => mapa[s.key]) && columnas > 1,
+    hayDietas: planDays(nutrition).length > 1,
+  };
+};
+
+/**
+ * UNA SIGLA CORTA Y DISTINTA PARA CADA DIETA, para la cinta de días.
+ *
+ * ══ Por qué no basta con la inicial ════════════════════════════════════════
+ *
+ * Porque el nombre lo escribe el entrenador. «Alto» y «Bajo» dan A y B, pero
+ * «Día alto» y «Día bajo» dan D y D: la cinta diría lo mismo los siete días. Y
+ * ese nombre es de lo más normal del mundo.
+ *
+ * La regla es **la ÚLTIMA palabra**, que en castellano es donde vive la
+ * distinción: «día alto» → A, «día de descanso» → D, «entreno» → E. Si con una
+ * letra dos siguen chocando, se alarga la sigla hasta que no —hasta cuatro—, y
+ * si ni así, se numeran: dos dietas que se llaman igual no se distinguen por su
+ * nombre, y el número por lo menos no miente.
+ *
+ * ── Por qué hace falta, y qué sustituye ───────────────────────────────────
+ * A la muesca que marcaba «los días altos». Con dos dietas decía la verdad; con
+ * tres, una marca de dos estados miente —el medio no es ni alto ni bajo— y el
+ * color no clasifica en esta casa. La letra sí lo dice, y lo dice para
+ * cualquier número de dietas.
+ *
+ * @returns `{ [dayId]: 'A' }`
+ */
+export const siglasDeDietas = (dias = []) => {
+  const ultimas = dias.map((d) =>
+    String(d?.name || '').trim().split(/\s+/).filter(Boolean).pop() || ''
+  );
+
+  for (let largo = 1; largo <= 4; largo += 1) {
+    const siglas = ultimas.map((p) => recorta(p, largo));
+    if (new Set(siglas).size === dias.length) {
+      return Object.fromEntries(dias.map((d, i) => [d.id, siglas[i]]));
+    }
+  }
+
+  return Object.fromEntries(dias.map((d, i) => [d.id, String(i + 1)]));
+};
+
+/** Las `n` primeras letras, con la inicial en mayúscula. Sin nombre, un signo. */
+const recorta = (palabra, n) => {
+  const trozo = palabra.slice(0, n);
+  return trozo ? trozo.charAt(0).toUpperCase() + trozo.slice(1).toLowerCase() : '·';
+};
+
+/**
+ * El día que el reparto pone en la casilla de hoy, si hay casilla y reparto.
+ *
+ * `casilla` es la de hoy cuando quien llama SABE cuál es: en un ciclo rotativo
+ * la casilla no se deduce de la fecha —no hay martes, hay un D4— y hasta el 13
+ * de septiembre de 2026 eso hacía que la portada de quien lleva un rotativo no
+ * dijera qué comer. La sabe `semanaDelCliente`, que coloca su ciclo en los días
+ * naturales a partir de la fecha de su microciclo. Sin ella, la casilla es el
+ * día de la semana, que es lo que había.
+ */
+const deLaCasilla = (nutrition, slots, fecha, casilla = null) => {
+  const clave = casilla || claveDelDia(fecha);
+  if (!clave || !slots.some((s) => s.key === clave)) return null;
+
+  const dayId = cycleMap(nutrition, slots)[clave];
+  return dayId ? planDays(nutrition).find((d) => d.id === dayId) : null;
+};
+
 export const buildMeal = () => ({
   id: newId('meal'),
   name: 'Nueva Comida',
@@ -898,6 +1114,30 @@ export const unitsLabel = (entry) => {
   return `${String(units).replace('.', ',')} ${nombre}`;
 };
 
+/**
+ * La unidad ABREVIADA: «cda», «reb», «ud».
+ *
+ * Vivía dentro de `MealCard` —la pieza del entrenador— y ahora la piden dos
+ * tablas: la suya y la comida del cliente (`ComidaDelCliente`). Es una regla del
+ * vocabulario de la nutrición, igual que `unitsLabel`, así que baja aquí en vez
+ * de cruzar un import del portal al editor.
+ *
+ * Se abrevian las medidas con abreviatura reconocible y el resto cae en «ud»,
+ * que se entiende sin aprender nada. El nombre entero no se pierde: va en el
+ * `title` de la casilla.
+ */
+const ABREVIATURAS = {
+  cucharada: 'cda',
+  cucharadita: 'cdta',
+  rebanada: 'reb',
+  vaso: 'vaso',
+  lata: 'lata',
+  cazo: 'cazo',
+  filete: 'fil',
+};
+
+export const abreviarUnidad = (label) => ABREVIATURAS[String(label || '').toLowerCase()] || 'ud';
+
 // ── Cálculos ───────────────────────────────────────────────────────────────
 
 const kcalOf = ({ protein, carbs, fats }) =>
@@ -951,6 +1191,29 @@ export const mealKcalRange = (meal) => {
 export const dayKcals = (meals) =>
   (meals || []).reduce((sum, meal) => sum + mealKcalRange(meal).first, 0);
 
+/**
+ * Los cuatro números que SUMA el menú, con la primera opción de cada comida.
+ *
+ * La misma referencia que `dayKcals` —la opción 1 es la que cuenta para el
+ * día—, pero con los macros y no solo con la energía: es lo que hace falta para
+ * saber a qué distancia está el menú de lo pautado, que es de donde arranca el
+ * reajuste. Ver `rescaleMeals`.
+ */
+export const dayMacros = (meals) => {
+  const totals = (meals || []).reduce(
+    (acc, meal) => {
+      const m = optionMacros((meal?.options || [])[0]);
+      return {
+        protein: acc.protein + m.protein,
+        carbs: acc.carbs + m.carbs,
+        fats: acc.fats + m.fats,
+      };
+    },
+    { protein: 0, carbs: 0, fats: 0 }
+  );
+  return { ...totals, kcal: kcalOf(totals) };
+};
+
 /** Rango del día entre elegir siempre la opción más ligera o la más pesada. */
 export const dayKcalRange = (meals) =>
   (meals || []).reduce(
@@ -979,6 +1242,94 @@ export const macroSplit = (nutrition) => {
           fats: round((parts.fats / total) * 100),
         }
       : { protein: 0, carbs: 0, fats: 0 },
+  };
+};
+
+/**
+ * CUADRAR LOS MACROS CONTRA EL OBJETIVO: quién absorbe el cambio.
+ *
+ * ══ El aviso que no llevaba a ninguna parte ═════════════════════════════════
+ *
+ * Bajar de 2.500 a 2.300 kcal dejaba los tres gramajes donde estaban, y el
+ * editor contestaba con una línea roja: «los macros suman 2.499 kcal, 199 por
+ * encima del objetivo de 2.300». Cierto, inútil y sin salida — el entrenador
+ * tenía que dividir 199 entre 4 en la cabeza para saber que eran 50 g de
+ * hidratos, y teclearlos.
+ *
+ * Esto es esa división. No propone un objetivo: el número lo ha puesto el
+ * entrenador. Lo que se elige es **quién lo absorbe**, que es la decisión de
+ * oficio, y de ahí salen los gramos.
+ *
+ * ══ Se cuadra contra el OBJETIVO, no contra el salto ═══════════════════════
+ *
+ * O sea `(kcal − lo que no se mueve) / 4`, y no «los hidratos de antes menos
+ * 50». La diferencia se ve cuando lo de antes ya venía descuadrado —que es el
+ * caso normal, porque los gramos se redondean—: restando el salto, el descuadre
+ * viejo sobrevive al ajuste y se arrastra para siempre; cuadrando contra el
+ * objetivo, muere aquí.
+ *
+ * @param antes  Los gramos de partida, `{ protein, carbs, fats }`.
+ * @param kcals  El objetivo al que tienen que sumar.
+ * @param ancla  Quién absorbe:
+ *   · `'carbs'` | `'fats'` | `'protein'` — ese macro absorbe y los otros dos se
+ *     quedan clavados. `'carbs'` es lo que hace un entrenador nueve de cada
+ *     diez veces, y es también el motor de «a mano»: se teclean dos y el
+ *     tercero cuadra.
+ *   · `'kcals'` — hidratos y grasas en la proporción que ya tienen entre ellos;
+ *     la proteína no se toca. El ajuste clásico.
+ *   · `'reparto'` — los tres a la vez: el porcentaje de cada macro no cambia.
+ * @returns `{ protein, carbs, fats, cabe }`. `cabe` es falso cuando lo pedido no
+ *   entra —bajar 600 kcal con la proteína quieta y 40 g de hidratos en la
+ *   dieta—: los gramos salen a cero y quien llame lo dice, en vez de enseñar un
+ *   número negativo.
+ */
+export const cuadrarMacros = ({ antes, kcals, ancla = 'carbs' } = {}) => {
+  const base = {
+    protein: toNum0(antes?.protein),
+    carbs: toNum0(antes?.carbs),
+    fats: toNum0(antes?.fats),
+  };
+  const objetivo = toNum0(kcals);
+  /* Sin objetivo no hay contra qué cuadrar: los gramos son lo que son. */
+  if (objetivo <= 0) return { ...base, cabe: true };
+
+  const energia = (m) =>
+    m.protein * KCAL_PER_GRAM.protein + m.carbs * KCAL_PER_GRAM.carbs + m.fats * KCAL_PER_GRAM.fats;
+
+  if (ancla === 'reparto') {
+    const total = energia(base);
+    /* Sin macros de partida no hay reparto que mantener. */
+    if (total <= 0) return { ...base, cabe: false };
+    const factor = objetivo / total;
+    return {
+      protein: Math.round(base.protein * factor),
+      carbs: Math.round(base.carbs * factor),
+      fats: Math.round(base.fats * factor),
+      cabe: true,
+    };
+  }
+
+  if (ancla === 'kcals') {
+    const libre = objetivo - base.protein * KCAL_PER_GRAM.protein;
+    const hc = base.carbs * KCAL_PER_GRAM.carbs;
+    const gr = base.fats * KCAL_PER_GRAM.fats;
+    /* En la proporción que ya tienen entre ellos; sin ninguno de los dos, dos
+       tercios de hidratos, que es el reparto de una dieta normal. */
+    const parteHC = hc + gr > 0 ? hc / (hc + gr) : 0.67;
+    return {
+      protein: base.protein,
+      carbs: Math.max(0, Math.round((libre * parteHC) / KCAL_PER_GRAM.carbs)),
+      fats: Math.max(0, Math.round((libre * (1 - parteHC)) / KCAL_PER_GRAM.fats)),
+      cabe: libre >= 0,
+    };
+  }
+
+  const clave = ['protein', 'carbs', 'fats'].includes(ancla) ? ancla : 'carbs';
+  const libre = objetivo - energia({ ...base, [clave]: 0 });
+  return {
+    ...base,
+    [clave]: Math.max(0, Math.round(libre / KCAL_PER_GRAM[clave])),
+    cabe: libre >= 0,
   };
 };
 
@@ -1431,6 +1782,119 @@ export const vozDelReparto = (reparto) => {
 };
 
 /**
+ * EL REPARTO SIGUE AL OBJETIVO DEL DÍA.
+ *
+ * ══ La avería que cierra ═══════════════════════════════════════════════════
+ *
+ * Una dieta tiene el objetivo escrito en dos pisos: lo que se le pide al día y
+ * lo que se le pide a cada comida. Al bajar el día de 2.400 a 2.250 el segundo
+ * piso se quedaba donde estaba —cuatro comidas de 600, que siguen sumando
+ * 2.400—, y como el reajuste apunta a lo que el entrenador escribió en cada
+ * comida (`objetivosPorComida`), el menú aterrizaba clavado en la cifra vieja:
+ * las cuatro comidas cuadraban con su 600 y el día decía «145 de más» para
+ * siempre, sin manera de arreglarlo desde la ventana del objetivo.
+ *
+ * Medido en la dieta de la que salió: día 2.250/115/324/55, reparto
+ * 2.400/120/354/55, menú 2.395/127/359/50. El reajuste movía cuatro gramajes y
+ * dejaba los hidratos exactamente donde estaban, porque cada comida YA estaba
+ * dentro del margen de su propio objetivo.
+ *
+ * ══ Y se lleva a lo pautado, no se escala en proporción ════════════════════
+ *
+ * Es la misma ley que el menú un piso más abajo: mover el reparto el mismo
+ * tanto por ciento que se ha movido el día arrastra intacta la distancia que el
+ * reparto ya tuviera. El reparto ES una división del día, así que se vuelve a
+ * dividir el día — respetando la forma que tiene, que esa sí es del entrenador.
+ *
+ * ══ Las tres reglas ════════════════════════════════════════════════════════
+ *
+ *   · **O está repartido entero, o no se toca.** Con una comida sin objetivo,
+ *     lo que sobra del día es suyo —eso ya lo hace `objetivosPorComida`— y no
+ *     hay nada viejo que corregir. Un reparto a medias es trabajo sin terminar,
+ *     no trabajo caducado.
+ *   · **Una comida con candado no se mueve** (`meal.fijo`), y las demás cargan
+ *     con todo el salto: el batido de después de entrenar son 300 kcal y punto.
+ *   · **El blanco de los hidratos sigue siendo «el resto».** No se rellena: se
+ *     recalcula solo, y por eso los hidratos van los ÚLTIMOS — cuando las kcal
+ *     y los otros dos macros de esa comida ya están escalados, `carbsFromRest`
+ *     los deriva sobre la cifra nueva.
+ *
+ * @param objetivo  Lo pautado del día: `{ kcals, protein, carbs, fats }`.
+ * @returns `{ meals, cambios }` con el reparto nuevo, o `null` cuando no hay
+ *   nada que mover — que es la respuesta normal y la que pide la ley del reposo.
+ */
+const ORDEN_DEL_REPARTO = ['kcals', 'protein', 'fats', 'carbs'];
+
+export const repartoAlObjetivo = (meals = [], objetivo = null) => {
+  const lista = meals || [];
+  if (lista.length === 0) return null;
+  if (!lista.every((meal) => mealTarget(meal))) return null;
+
+  const nuevos = lista.map((meal) => ({ ...(meal.target || {}) }));
+  /* Sobre el borrador y no sobre el original: una casilla que esta misma vuelta
+     acaba de escribirse ya cuenta como escrita. */
+  const hayCifra = (i, clave) => String(nuevos[i]?.[clave] ?? '').trim() !== '';
+
+  for (const clave of ORDEN_DEL_REPARTO) {
+    const meta = toNum0(objetivo?.[clave]);
+    if (!(meta > 0)) continue;
+
+    let puesto = 0;
+    const libres = [];
+    lista.forEach((meal, i) => {
+      if (meal?.fijo === true || !hayCifra(i, clave)) {
+        /* Resuelto y no en crudo: el hueco de los hidratos vale lo que vale
+           AHORA, con las kcal de esa comida ya escaladas. */
+        puesto += toNum0(mealTarget({ target: nuevos[i] })?.[clave]);
+        return;
+      }
+      libres.push(i);
+    });
+
+    const resto = meta - puesto;
+    const suma = libres.reduce((n, i) => n + toNum0(nuevos[i][clave]), 0);
+    /* Sin nadie que pueda cogerlo, o sin sitio que repartir, no se inventa un
+       número: el descuadre es del entrenador y `vozDelReparto` ya se lo dice. */
+    if (!(suma > 0) || !(resto > 0)) continue;
+
+    /*
+      Y las cuatro celdas tienen que SUMAR la cifra del día, que es justo lo que
+      esto viene a arreglar: cuatro comidas iguales de 2.250 kcal salen a 562,5
+      y redondear cada una por su cuenta da 2.252.
+
+      Así que se reparte por el resto más grande: todas se quedan con su parte
+      entera y los gramos sueltos van a quien más cerca estaba del siguiente. Es
+      la misma decisión que el reparto del sobrante del escalón de cocina un
+      piso más abajo, y por el mismo motivo — la alternativa es cargarle el
+      descuadre entero a una comida y que se vea.
+    */
+    const parte = libres.map((i) => (toNum0(nuevos[i][clave]) / suma) * resto);
+    let repartido = 0;
+    libres.forEach((i, n) => {
+      nuevos[i][clave] = Math.floor(parte[n]);
+      repartido += nuevos[i][clave];
+    });
+    const cola = libres
+      .map((i, n) => ({ i, resto: parte[n] - Math.floor(parte[n]) }))
+      .sort((a, b) => b.resto - a.resto);
+    for (let n = 0; n < resto - repartido && n < cola.length; n += 1) {
+      nuevos[cola[n].i][clave] += 1;
+    }
+  }
+
+  const cambios = [];
+  lista.forEach((meal, i) => {
+    const antes = mealTarget(meal);
+    const ahora = mealTarget({ target: nuevos[i] });
+    if (TARGET_KEYS.every((k) => toNum0(antes?.[k]) === toNum0(ahora?.[k]))) return;
+    cambios.push({ meal: meal.name, antes, ahora, fijo: meal?.fijo === true });
+  });
+  if (cambios.length === 0) return null;
+
+  return { meals: lista.map((meal, i) => ({ ...meal, target: nuevos[i] })), cambios };
+};
+
+/**
  * Los hidratos que faltan para cuadrar una comida.
  *
  * ── Por qué solo los hidratos ───────────────────────────────────────────────
@@ -1517,8 +1981,8 @@ export const optionGaps = (meal) => {
  *   · CADA OPCIÓN A SU PROPORCIÓN. Todas las alternativas de una comida bajan
  *     en la misma proporción que el día, así que siguen siendo equivalentes
  *     entre sí después del ajuste.
- *   · REDONDEO DE COCINA: a 5 g desde 25 g, al gramo por debajo. Un menú con
- *     «87,3 g de arroz» no lo pesa nadie.
+ *   · REDONDEO DE COCINA: el escalón crece con la cantidad y un cambio que no
+ *     llega a un escalón NO SALE. Ver `escalonDeCocina`.
  *
  * ── Cuándo se rinde, y lo dice ──────────────────────────────────────────────
  * Una opción hecha solo de proteína y unidades no tiene de dónde recortar; y
@@ -1526,8 +1990,12 @@ export const optionGaps = (meal) => {
  * se quedan como están y salen en `sinTocar`, para que la vista previa lo
  * cuente en vez de callar.
  *
- * @returns `{ meals, cambios, sinTocar, ratio }`, o `null` si no hay nada que
- *   reescalar (sin objetivo previo, sin cambio, o sin ningún gramo que mover).
+ * @returns `{ meals, cambios, sinTocar, fuera, ratio }`, o `null` si no hay nada
+ *   que reescalar (sin objetivo previo, sin cambio, o sin ningún gramo que
+ *   mover). `fuera` son las alternativas que acaban lejos —en kilocalorías— de
+ *   la primera opción de su comida, o sea las que han dejado de ser
+ *   intercambiables; solo al apuntar a un objetivo, que es cuando todas las
+ *   opciones de una comida apuntan al mismo sitio.
  */
 /**
  * LAS DOS MEDIDAS CON LAS QUE SE REESCALA, y quién no se mueve en cada una.
@@ -1557,56 +2025,1042 @@ const MEDIDAS = {
     quieta: (m) => !(m.kcal > 0 && (m.carbs * 4) / m.kcal >= 0.5),
     sinNada: 'no tiene ninguna fuente de hidratos que mover',
   },
+  fats: {
+    unidad: 'g de grasas',
+    valor: (m) => m.fats,
+    quieta: (m) => !(m.kcal > 0 && (m.fats * 9) / m.kcal >= 0.5),
+    sinNada: 'no tiene ninguna fuente de grasas que mover',
+  },
+  protein: {
+    unidad: 'g de proteína',
+    valor: (m) => m.protein,
+    quieta: (m) => !(m.kcal > 0 && (m.protein * 4) / m.kcal >= 0.5),
+    sinNada: 'no tiene ninguna fuente de proteína que mover',
+  },
 };
 
-export const rescaleMeals = (meals = [], { fromKcals, toKcals, fromCarbs, toCarbs } = {}) => {
-  const porHidratos = fromCarbs !== undefined || toCarbs !== undefined;
-  const medida = porHidratos ? MEDIDAS.carbs : MEDIDAS.kcals;
-  const from = toNum0(porHidratos ? fromCarbs : fromKcals);
-  const to = toNum0(porHidratos ? toCarbs : toKcals);
-  if (!from || !to || from === to || meals.length === 0) return null;
-  const ratio = to / from;
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CESTA: qué alimentos absorben el recorte
+   ══════════════════════════════════════════════════════════════════════════
+
+   ══ La avería que cierra ═══════════════════════════════════════════════════
+
+   La regla era «es fuente de hidratos si más de la mitad de su energía son
+   hidratos», y eso mete en el mismo saco la manzana (≈95 %) y la pasta (≈85 %):
+   en una bajada de 50 g de hidratos, las dos pierden exactamente la misma
+   proporción y la manzana se queda en 125 g.
+
+   Eso no lo hace nadie. La fruta y la verdura se sostienen, y el recorte sale
+   del arroz, la patata, la pasta y el pan. El porcentaje de energía describe lo
+   que un alimento ES; la cesta describe de dónde se recorta, que es una decisión
+   del oficio y no una propiedad del alimento.
+
+   ── Sale gratis: la categoría ya existe ────────────────────────────────────
+   Las categorías son las del catálogo (`FOOD_CATEGORIES`) y una entrada de dieta
+   se resuelve a la suya por NOMBRE con `matchFood`, que es exactamente lo que ya
+   hacen las equivalencias. Cero datos nuevos y cero migración.
+
+   ── Y hay reserva, para cuando no queda otra ───────────────────────────────
+   Una comida que solo lleva fruta no tiene cesta principal. Antes que rendirse
+   —y dejar la comida entera sin ajustar— se recorta de la reserva: es lo que
+   haría a mano quien se quedara sin arroz que quitar. */
+export const CESTAS = {
+  carbs: {
+    principal: ['Cereales', 'Tubérculos', 'Legumbres', 'Dulces'],
+    reserva: ['Fruta', 'Verdura'],
+  },
+  fats: { principal: ['Grasas', 'Frutos secos'], reserva: [] },
+  protein: { principal: ['Carne', 'Pescado', 'Huevos', 'Lácteos'], reserva: [] },
+  /* Por kcal se mueve todo lo que no sea fuente de proteína: no hay cesta que
+     elegir, porque el recorte no tiene macro. Se queda con la regla de siempre. */
+  kcals: null,
+};
+
+/**
+ * DE QUÉ FILAS SALE EL CAMBIO, para una medida y una opción.
+ *
+ * Estaba escrito dentro de `unaPasada`, que era su único cliente. Sale aquí
+ * porque ahora hay un segundo —`objetivosPorComida`, que necesita saber si una
+ * comida tiene siquiera de dónde mover un macro antes de asignarle parte de
+ * él—, y dos copias de esta regla es exactamente lo que no puede haber: el
+ * objetivo se repartiría con un criterio y el ajuste se daría con otro.
+ *
+ * Con categorías resueltas manda la cesta; sin catálogo, la densidad del macro.
+ * Y si la cesta principal se queda vacía entra la reserva, que es lo que hace
+ * que una comida de solo fruta se pueda ajustar en vez de rendirse.
+ */
+const elegiblesPara = (foods = [], clave, { catalog = [], intocable = null } = {}) => {
+  const medida = MEDIDAS[clave];
+  if (!medida) return [];
+
+  const fuera = intocable || (() => false);
+  /* La categoría de una entrada, resuelta por nombre. Sin catálogo —`platos.js`,
+     `reparto.js`, cualquier prueba— no hay ninguna y todo cae en la regla de
+     densidad de siempre: la cesta MEJORA el criterio donde hay con qué, y nunca
+     lo empeora donde no lo hay. */
+  const categoriaDe = (f) =>
+    catalog.length > 0 ? matchFood(f.name, catalog).food?.category ?? null : null;
+  const enCesta = (f, lista) => {
+    const cat = categoriaDe(f);
+    return cat ? lista.includes(cat) : !medida.quieta(foodMacros(f));
+  };
+
+  const cesta = CESTAS[clave];
+  if (!cesta) return foods.filter((f) => !fuera(f) && !medida.quieta(foodMacros(f)));
+
+  const principal = foods.filter((f) => !fuera(f) && enCesta(f, cesta.principal));
+  if (principal.length > 0 || cesta.reserva.length === 0) return principal;
+  return foods.filter((f) => !fuera(f) && enCesta(f, cesta.reserva));
+};
+
+/**
+ * ══ EL OBJETIVO BAJA UN PISO: DE DÍA A COMIDA ══════════════════════════════
+ *
+ * ── Lo que no se podía arreglar mirando el día ─────────────────────────────
+ * Un día con cuatro comidas de dos opciones son dieciséis menús distintos, y el
+ * cliente elige uno cada mañana. Cuadrar el día contra lo pautado solo cuadra
+ * UNO de los dieciséis —el de las primeras opciones, que es el que suma
+ * `dayMacros`—; los otros quince quedan donde estén. Medido en la pantalla:
+ * 2.167 y 2.368 kcal sobre 2.250 pautadas según qué opciones estuvieran
+ * abiertas, y ninguna de las dos era la combinación que el reajuste acababa de
+ * cuadrar.
+ *
+ * Recorrer las combinaciones no es la salida: son N₁×N₂×…×Nₖ. La salida es
+ * bajar el objetivo un piso. Si cada opción cuadra con el objetivo de SU
+ * comida, cuadran las dieciséis a la vez y el problema deja de ser
+ * combinatorio. Es además lo que `optionGaps` lleva diciendo desde que se
+ * escribió —«una opción B que se va 300 kcal por encima de la A no es una
+ * alternativa, es otra comida»—, que hasta ahora solo medía.
+ *
+ * ── De dónde sale el objetivo de una comida ────────────────────────────────
+ * De dos sitios, y en este orden:
+ *
+ *   · **Lo que el entrenador repartió.** Si la comida tiene objetivo puesto
+ *     (`mealTarget`), va a ese número exacto. Lo escribió él y no se toca.
+ *   · **Lo que queda, en la proporción que ya tiene.** El resto del día
+ *     —lo pautado menos lo ya repartido— se divide entre las comidas sin
+ *     objetivo según lo que hoy pesa cada una. Este es el caso normal: el
+ *     reparto casi nunca está relleno, y sin derivarlo no habría contra qué
+ *     cuadrar las alternativas.
+ *
+ * Y la cuenta derivada es EXACTAMENTE la que el reajuste ya hacía con el día:
+ * comida × (pautado / lo que suma el menú). Por eso la primera opción de cada
+ * comida acaba en el mismo gramaje que antes de este cambio, y lo único nuevo
+ * es que las alternativas apuntan ahí también en vez de conservar su distancia.
+ *
+ * ── Y solo reparte entre quien puede cogerlo ───────────────────────────────
+ * Un desayuno de avena y claras no tiene ni una fuente de grasa. Darle su
+ * parte proporcional de los 60 g pautados es darle algo que no puede coger: la
+ * pasada de las grasas no encuentra de dónde, el desayuno se queda en 4 g, y
+ * los 8 g que le sobraban al día no se los lleva nadie. El día acababa corto
+ * por repartir bien.
+ *
+ * Así que una comida sin fuente de un macro no entra en el reparto de ese
+ * macro: se queda en lo que tiene y su parte pasa a las que sí pueden moverlo,
+ * que es lo que hace a mano quien echa el aceite en la comida porque en el
+ * desayuno no hay dónde. Quién puede se pregunta con la MISMA regla con la que
+ * luego se ajusta (`elegiblesPara`) — repartir con un criterio y ajustar con
+ * otro sería volver a lo de antes por otro camino.
+ *
+ * ── Cuando el reparto no deja sitio ────────────────────────────────────────
+ * Si las comidas con objetivo puesto ya se comen el día entero —o se pasan—, a
+ * las demás no les queda nada que repartir. Ahí no se inventa un número: se
+ * quedan en lo que suman hoy y no se mueven. El descuadre del reparto es del
+ * entrenador y la aplicación ya se lo dice en su sitio (`vozDelReparto`);
+ * corregírselo por detrás sería recetar, y aquí no se receta.
+ *
+ * @param objetivo  Lo pautado del DÍA, con las claves que haya:
+ *   `{ protein, carbs, fats }` o `{ kcals }`.
+ * @param catalog/quietos  Los mismos que recibe el ajuste, para preguntar por
+ *   la capacidad con su regla exacta.
+ * @returns Un objetivo por comida, en el mismo orden que `meals`.
+ */
+export const objetivosPorComida = (meals = [], objetivo = null, { catalog = [], quietos = null } = {}) => {
+  const lista = meals || [];
+  const metas = lista.map(() => ({}));
+
+  /* Lo que suma hoy la primera opción de cada comida: la misma referencia que
+     `dayMacros` usa para el día, comida a comida. */
+  const ahora = lista.map((meal) => {
+    const m = optionMacros((meal?.options || [])[0]);
+    return { kcals: m.kcal, protein: m.protein, carbs: m.carbs, fats: m.fats };
+  });
+  const repartido = lista.map(mealTarget);
+
+  for (const clave of TARGET_KEYS) {
+    const meta = toNum0(objetivo?.[clave]);
+    if (!(meta > 0)) continue;
+
+    let puesto = 0;
+    const libres = [];
+    lista.forEach((meal, i) => {
+      /* Un cero escrito en la casilla de proteína o de grasa no se distingue de
+         una casilla en blanco una vez guardado —`mealTarget` los junta—, así que
+         «repartido» aquí es «puesto y mayor que cero». Los hidratos sí se
+         distinguen, y su blanco llega ya resuelto como el resto del día. */
+      const suyo = toNum0(repartido[i]?.[clave]);
+      if (suyo > 0) {
+        metas[i][clave] = suyo;
+        puesto += suyo;
+        return;
+      }
+
+      /* ¿Puede esta comida mover este macro? Con la regla del ajuste, sobre su
+         primera opción, que es la que marca el día. El umbral es el mismo que
+         `unaPasada` usa para rendirse: por debajo de un gramo no hay nada que
+         escalar. */
+      const primera = (meal?.options || [])[0];
+      const puede = elegiblesPara(primera?.foods || [], clave, {
+        catalog,
+        intocable: (f) =>
+          f.fijo === true ||
+          f.showAs === 'units' ||
+          quietos?.has(claveDelCambio(meal?.name, 1, f.name)) === true,
+      }).reduce((n, f) => n + MEDIDAS[clave].valor(foodMacros(f)), 0);
+
+      if (puede > 1) libres.push(i);
+      else {
+        metas[i][clave] = ahora[i][clave];
+        puesto += ahora[i][clave];
+      }
+    });
+
+    const resto = meta - puesto;
+    const suma = libres.reduce((n, i) => n + ahora[i][clave], 0);
+    for (const i of libres) {
+      metas[i][clave] = resto > 0 && suma > 0 ? (ahora[i][clave] / suma) * resto : ahora[i][clave];
+    }
+  }
+
+  return metas;
+};
+
+
+/**
+ * UNA PASADA del reescalado: una medida, un factor, y los gramos que se mueven.
+ *
+ * Se extrajo de `rescaleMeals` cuando el reparto dejó de ser uno solo. Con
+ * «P 0 · HC 40 · GR 4» hay que mover dos macros con dos factores distintos, y
+ * escribir eso dentro del bucle habría sido una segunda regla de escalado
+ * conviviendo con la primera.
+ *
+ * @returns `{ meals, ratio, cambios }` — sin `sinTocar`: quién se ha quedado sin
+ *   tocar solo se sabe cuando han pasado TODAS las pasadas, y decirlo por pasada
+ *   listaría como intocada una comida que la siguiente sí mueve.
+ */
+/**
+ * La llave de UN gramaje dentro del menú: comida, opción y alimento.
+ *
+ * La usan las dos puntas de la misma conversación —el dominio, para fundir los
+ * cambios de varias pasadas y para saber qué filas ha apartado el entrenador; y
+ * la ventana, para marcarlas—, así que se escribe una vez. Con el nombre de la
+ * comida y no con su índice porque es lo que la vista previa enseña.
+ */
+export const claveDelCambio = (meal, option, food) => `${meal}·${option}·${food}`;
+
+/**
+ * EL ESCALÓN CON EL QUE SE ESCRIBE UN GRAMAJE.
+ *
+ * ══ Por qué la regla vieja hacía el ridículo ═══════════════════════════════
+ *
+ * Era «a 5 g desde 25 g, al gramo por debajo», y con eso el reajuste devolvía
+ * una lista llena de correcciones que nadie escribe a mano: 10 g de miel a 8,
+ * 20 g de whey a 19, 100 g de pollo a 95. Son ciertas —el factor sale así— y
+ * son ridículas: ningún entrenador cambia una pauta por un cinco por ciento, y
+ * verlo propuesto veinte veces resta crédito a los cambios que sí importan.
+ *
+ * El escalón crece con la cantidad, que es como se escriben los gramajes de
+ * verdad: lo pequeño va de cinco en cinco, un plato de diez en diez y un vaso
+ * de leche de veinticinco en veinticinco. Cada escalón vale entre el 5 y el
+ * 12 % de lo que hay en la fila, así que la regla trae de propina el suelo que
+ * faltaba: un cambio que no llega a un escalón no llega a la lista, la fila se
+ * queda como estaba y el resto de su opción absorbe la diferencia.
+ *
+ *     10 g de miel  · escalón 5   → se mueve a 5 o a 15, nunca a 8
+ *     100 g de pollo· escalón 10  → se mueve a 90 o a 110, nunca a 95
+ *     400 g de leche· escalón 25  → 375, no 355
+ */
+export const escalonDeCocina = (gramos) => {
+  const g = Math.abs(toNum0(gramos));
+  if (g < 50) return 5;
+  if (g < 200) return 10;
+  if (g < 500) return 25;
+  return 50;
+};
+
+/**
+ * El múltiplo del escalón más cercano al gramaje ideal.
+ *
+ * En un empate gana QUEDARSE: 95 g con escalón de 10 está a la misma distancia
+ * de 90 que de 100, y 100 es lo que ya había escrito. Un empate resuelto hacia
+ * el cambio es exactamente el cambio que no hacía falta.
+ *
+ * El suelo es el propio escalón, para que nada caiga a cero —o el gramaje de
+ * partida si ya era más pequeño, que es la pizca de canela: subirla a 5 g por
+ * redondear sería inventarse una pauta.
+ */
+const aEscalon = (ideal, desde, paso) => {
+  const suelo = Math.min(paso, Math.max(1, Math.round(desde)));
+  const abajo = Math.max(0, Math.floor(ideal / paso) * paso);
+  const arriba = abajo + paso;
+  const dAbajo = ideal - abajo;
+  const dArriba = arriba - ideal;
+  const elegido =
+    dAbajo < dArriba
+      ? abajo
+      : dArriba < dAbajo
+        ? arriba
+        : Math.abs(abajo - desde) <= Math.abs(arriba - desde)
+          ? abajo
+          : arriba;
+  return Math.max(suelo, elegido);
+};
+
+const unaPasada = (
+  meals,
+  clave,
+  from,
+  to,
+  { catalog = [], quietos = null, sentido = null, sentidos = null, origen = null, metas = null } = {}
+) => {
+  const medida = MEDIDAS[clave];
+  if (!medida) return null;
+  /* Con objetivo por comida no hay un `from` ni un `to` del día: cada opción
+     tiene el suyo y la pasada siempre se da. Ver `objetivosPorComida`. */
+  if (!metas && (!from || !to || from === to)) return null;
+  const ratio = metas ? null : to / from;
 
   const cambios = [];
-  const sinTocar = [];
 
-  const fija = (f) => f.showAs === 'units' || medida.quieta(foodMacros(f));
-
-  const nuevas = meals.map((meal) => ({
+  const nuevas = meals.map((meal, mealIndex) => ({
     ...meal,
     options: (meal.options || []).map((option, optIndex) => {
       const total = medida.valor(optionMacros(option));
-      if (total <= 0) {
-        if ((option.foods || []).length > 0) sinTocar.push({ meal: meal.name, option: optIndex + 1 });
-        return option;
-      }
+      if (total <= 0) return option;
 
-      const kcalFijas = (option.foods || [])
-        .filter(fija)
+      /*
+        ADÓNDE VA ESTA OPCIÓN. Con objetivo por comida, al de su comida — el
+        mismo para todas sus alternativas, que es lo que las vuelve de verdad
+        intercambiables. Escalando en proporción, a su propio tamaño por el
+        factor del día, que es lo de siempre.
+
+        Sin nada a lo que apuntar, la opción se queda: llevarla a cero sería
+        borrar una comida por no tener cifra.
+      */
+      const objetivo = metas ? toNum0(metas[mealIndex]?.[clave]) : total * ratio;
+      if (!(objetivo > 0)) return option;
+
+      /*
+        ══ Y LO QUE YA CUADRA NO SE TOCA ══════════════════════════════════════
+
+        Con el objetivo en la comida hay un veredicto por opción, así que se
+        puede preguntar antes de mover nada: ¿está esta opción dentro del margen
+        de lo que le toca? Si lo está, se queda — proponer un cambio sobre una
+        cifra que la propia aplicación pinta en verde es contradecirse en dos
+        pantallas seguidas.
+
+        Y hace falta preguntarlo. Sin esto, un menú que ya estaba en lo pautado
+        salía con gramajes movidos igual: `aEscalon` lleva cada fila al múltiplo
+        de su escalón, y un aceite escrito en 34 g se iba a 35 sin que nadie
+        hubiera pedido nada. El día entero se libraba de eso por un guardia que
+        solo miraba el total (`from === to`); la opción necesita el suyo.
+      */
+      if (metas && cuadra(total, objetivo, clave)) return option;
+
+      const foods = option.foods || [];
+
+      /*
+        Lo que NUNCA se mueve, pase lo que pase: lo que se cuenta por unidades
+        —«1 plátano» no puede volverse 0,8 plátanos— y lo que el entrenador ha
+        marcado como fijo en la fila. El `fijo` es la marca por alimento: el
+        plátano de después de entrenar, el aceite de la ensalada, los 30 g de
+        avena que son el desayuno entero de esa persona.
+      */
+      /*
+        Y `quietos` es la TERCERA razón, la del momento: las filas que el
+        entrenador ha apartado en la vista previa de este ajuste. No se escribe
+        en la dieta —para eso está `fijo`, que es la marca permanente—, y no
+        tacha el renglón: lo fija y el reescalado se rehace, así que lo que ese
+        alimento dejaba de poner lo pone el resto de su opción y la comida sigue
+        cuadrando. Descontar el cambio sin recalcular habría dejado la opción a
+        medio ajustar, que es exactamente lo que nadie quiere firmar.
+      */
+      const intocable = (f) =>
+        f.fijo === true ||
+        f.showAs === 'units' ||
+        quietos?.has(claveDelCambio(meal.name, optIndex + 1, f.name)) === true;
+
+      /* Y de los demás, los que están en la cesta. Ver `elegiblesPara`, que es
+         la misma regla con la que se repartió el objetivo. */
+      const elegibles = elegiblesPara(foods, clave, { catalog, intocable });
+
+      const mueve = new Set(elegibles.map((f) => f.id ?? f.name));
+      const puedeMoverse = (f) => mueve.has(f.id ?? f.name);
+
+      const quietas = foods
+        .filter((f) => !puedeMoverse(f))
         .reduce((n, f) => n + medida.valor(foodMacros(f)), 0);
-      const kcalVariables = total - kcalFijas;
+      const variables = total - quietas;
       /* El factor de lo variable: lo que tiene que moverse para que la opción
          entera quede en su proporción, con lo fijo quieto. */
-      const factor = kcalVariables > 1 ? (total * ratio - kcalFijas) / kcalVariables : null;
+      const factor = variables > 1 ? (objetivo - quietas) / variables : null;
 
-      if (factor === null || factor < 0.25 || factor > 4) {
-        sinTocar.push({ meal: meal.name, option: optIndex + 1 });
-        return option;
+      /* Fuera de 0,25–4 ya no es un ajuste, es otra dieta: la opción se queda. */
+      if (factor === null || factor < 0.25 || factor > 4) return option;
+
+      /* Cada fila movible con su gramaje llevado al escalón de cocina, y lo que
+         vale un gramo suyo en la medida de esta pasada: la medida es lineal con
+         los gramos, así que con esa razón se puede probar un escalón arriba o
+         abajo sin recalcular macros. */
+      /*
+        ── Y NADA VA A CONTRAPELO ────────────────────────────────────────────
+        Un ajuste tiene un sentido, y ningún gramaje puede ir contra él: en un
+        recorte nada sube y en una subida nada baja. Parece obvio y no lo era —
+        con «100 g de crema de arroz» redondeados a 80 la comida se quedaba
+        corta, y de todo lo que había en la mesa lo que mejor tapaba ese hueco
+        eran cinco gramos más de miel. La cuenta salía y el renglón decía «Miel
+        10 → 15» EN UNA BAJADA de hidratos, que es de las cosas que hacen cerrar
+        una aplicación. El tope va aquí, en el redondeo, y otra vez abajo en el
+        reparto del sobrante, que es el que lo proponía.
+
+        ── Y el sentido es el DEL AJUSTE, no el de esta pasada ────────────────
+        Con dos vueltas, mirar el factor de la pasada no basta: recortar cien
+        gramos de pollo se lleva los hidratos que ese pollo ponía, así que la
+        segunda vuelta de los hidratos se encuentra el día por debajo y su
+        factor sale mayor que uno. Y ahí estaba otra vez la miel subiendo de 10
+        a 15 dentro de una bajada de hidratos de 367 a 300.
+
+        Así que el sentido se decide UNA vez, con lo que sumaba el menú al
+        principio contra lo pautado, y el tope se mide contra el gramaje DEL
+        PRINCIPIO (`origen`) y no contra el que traía esta pasada. Ninguna
+        vuelta puede devolver una fila al otro lado de donde empezó. */
+      /* Y el sentido es el de ESTA opción cuando cada una tiene su objetivo: la
+         alternativa que se pasaba baja aunque el día entero suba. */
+      const suyo = sentidos ? sentidos.get(`${mealIndex}·${optIndex}·${clave}`) : sentido;
+      const baja = suyo !== null && suyo !== undefined ? suyo < 0 : objetivo < total;
+      const aFavor = (gramos, tope) => (baja ? Math.min(tope, gramos) : Math.max(tope, gramos));
+
+      const piezas = new Map();
+      foods.forEach((f, i) => {
+        const antes = toNum0(f.grams);
+        if (!puedeMoverse(f) || !(antes > 0)) return;
+        const paso = escalonDeCocina(antes);
+        const tope = origen?.get(claveDelCambio(meal.name, optIndex + 1, f.name)) ?? antes;
+        piezas.set(i, {
+          antes,
+          tope,
+          paso,
+          gramos: aFavor(aEscalon(antes * factor, antes, paso), tope),
+          porGramo: medida.valor(foodMacros(f)) / antes,
+          movida: 0,
+        });
+      });
+
+      /*
+        ══ Y EL SOBRANTE DEL REDONDEO SE COLOCA ═══════════════════════════════
+
+        Redondear cada fila por su cuenta desvía la opción entera: tres filas
+        redondeadas hacia abajo son treinta kilocalorías de menos, y con
+        escalones de cocina —que son gruesos a propósito— esa deriva ya se nota
+        en el día. Así que el resto se reparte: se prueba un escalón arriba o
+        abajo en cada fila y se aplica el que más acerque la opción a su
+        objetivo, hasta que ningún movimiento mejore.
+
+        Cada fila puede apartarse UN escalón de su redondeo y no más, y nunca a
+        contrapelo del ajuste (ver `aFavor`). Con eso los gramajes siguen siendo
+        redondos, ninguno se va de su sitio, y el que absorbe el resto es el
+        alimento al que menos le cuesta —que es lo que se hace a mano: bajar el
+        arroz otros diez gramos antes que tocar el aceite.
+      */
+      const valorAhora = () =>
+        quietas + [...piezas.values()].reduce((n, p) => n + p.gramos * p.porGramo, 0);
+
+      for (let vuelta = 0; vuelta < 12; vuelta += 1) {
+        const error = objetivo - valorAhora();
+        let mejor = null;
+        for (const [i, p] of piezas) {
+          if (p.porGramo <= 0) continue;
+          for (const signo of [-1, 1]) {
+            if (Math.abs(p.movida + signo) > 1) continue;
+            const gramos = p.gramos + signo * p.paso;
+            if (gramos < Math.min(p.paso, p.antes)) continue;
+            if (baja ? gramos > p.tope : gramos < p.tope) continue;
+            const queda = Math.abs(error - signo * p.paso * p.porGramo);
+            if (queda < Math.abs(error) && (!mejor || queda < mejor.queda))
+              mejor = { i, signo, gramos, queda };
+          }
+        }
+        if (!mejor) break;
+        const p = piezas.get(mejor.i);
+        p.gramos = mejor.gramos;
+        p.movida += mejor.signo;
       }
 
-      const foods = (option.foods || []).map((f) => {
-        if (fija(f)) return f;
-        const gramos = toNum0(f.grams) * factor;
-        const paso = gramos >= 25 ? 5 : 1;
-        const nuevos = Math.max(paso, Math.round(gramos / paso) * paso);
-        if (nuevos === toNum0(f.grams)) return f;
-        cambios.push({ meal: meal.name, option: optIndex + 1, food: f.name, from: toNum0(f.grams), to: nuevos });
-        return { ...f, grams: nuevos };
+      const siguientes = foods.map((f, i) => {
+        const p = piezas.get(i);
+        if (!p || p.gramos === p.antes) return f;
+        cambios.push({
+          meal: meal.name,
+          option: optIndex + 1,
+          food: f.name,
+          from: p.antes,
+          to: p.gramos,
+        });
+        return { ...f, grams: p.gramos };
       });
-      return { ...option, foods };
+      return { ...option, foods: siguientes };
     }),
   }));
 
+  return { meals: nuevas, ratio, cambios };
+};
+
+/**
+ * ══ EL REAJUSTE APUNTA A LO PAUTADO, NO AL SALTO ═══════════════════════════
+ *
+ * `objetivo` es la forma con la que se ajusta una dieta desde la ventana del
+ * objetivo, y es la que arregla la avería que se veía en pantalla: «tenía 2.500
+ * y le he bajado cinco gramos de proteína; ahora no cumple ni las kcal ni los
+ * macros».
+ *
+ * Lo que hacía era escalar el menú EN LA MISMA PROPORCIÓN en que se movía lo
+ * pautado —de 120 a 115 g de proteína son un 4 % menos, así que el menú perdía
+ * un 4 %—. Y esa cuenta arrastra intacta la distancia que el menú ya tuviera:
+ * con 148 g de proteína pautados 120, el menú se quedaba en 142 contra 115. El
+ * reajuste movía gramos y no cuadraba nada, que es peor que no moverlos.
+ *
+ *     salto      menú × (pautado nuevo / pautado viejo)   →  148 → 142 · sobra 27
+ *     objetivo   menú → pautado nuevo                     →  148 → 115 · clavado
+ *
+ * La diferencia es de dónde sale el `from` de cada pasada: de lo que había
+ * PAUTADO antes, o de lo que SUMA el menú ahora (`dayMacros`, con la primera
+ * opción de cada comida, que es la que cuenta para el día). Y se mide otra vez
+ * antes de cada pasada, porque bajar el arroz también baja algo de proteína.
+ *
+ * Van los tres macros, haya cambiado su cifra o no: el arroz y el aceite se
+ * corrigen igual que la proteína, porque lo que se pide es que el menú cuadre
+ * con lo pautado, no que se mueva lo que se acaba de teclear. Lo que impide que
+ * eso se vuelva un menú reescrito cada vez es el escalón de cocina, que ya está
+ * para eso: una diferencia que no llega a un escalón no propone nada.
+ *
+ * @param objetivo  Los macros pautados a los que hay que LLEVAR el menú:
+ *   `{ protein, carbs, fats }`.
+ * @param objetivoKcals  Lo mismo sin macros pautados: las kilocalorías a las
+ *   que llevar el menú. El camino corto de una dieta pautada solo en energía.
+ * @param fromKcals/toKcals  Escalar EN PROPORCIÓN, sin objetivo al que llegar:
+ *   un plato llevado a su ración (`platos.js`) o una dieta que se manda a otra
+ *   persona (`reparto.js`), donde no hay un menú de destino contra el que
+ *   medirse.
+ * @param fromCarbs/toCarbs  Lo mismo con la fuente de hidratos.
+ * @param reparto  DE DÓNDE SALEN las calorías, macro a macro:
+ *   `{ carbs: { from, to }, fats: {…}, protein: {…} }`, también en proporción.
+ * @param catalog  El catálogo de alimentos, para resolver la cesta por
+ *   categoría. Sin él se mantiene la regla de densidad de siempre.
+ * @param quietos  Las filas que el entrenador ha apartado en la vista previa
+ *   (`Set` de `claveDelCambio`). Se fijan y el resto de su opción absorbe lo
+ *   que ellas dejan de poner.
+ * @param fijados  Los gramajes que ha ESCRITO en la vista previa (`Map` de
+ *   `claveDelCambio` a gramos). Hermanos de los apartados —apartar es escribir
+ *   el gramaje que ya tenía— y por eso comparten camino.
+ */
+export const rescaleMeals = (
+  meals = [],
+  {
+    objetivo = null,
+    objetivoKcals = 0,
+    fromKcals,
+    toKcals,
+    fromCarbs,
+    toCarbs,
+    reparto = null,
+    catalog = [],
+    quietos = null,
+    fijados = null,
+  } = {}
+) => {
+  if (meals.length === 0) return null;
+
+  /*
+    ══ LO ESCRITO A MANO VA PRIMERO ═══════════════════════════════════════════
+
+    Un gramaje escrito no es otra pasada: es el punto de partida. Se pone antes
+    de reescalar nada y esa fila queda inmóvil el resto del camino, así que el
+    total de su opción ya cuenta con él y lo que falte para cuadrar sale de los
+    demás alimentos. Eso es lo que hace que dejar el chocolate en 30 g baje la
+    patata un poco más, en vez de dejar la comida a medio ajustar.
+
+    Y cuenta como cambio por derecho propio: sin esto, escribir un gramaje sin
+    tocar nada más devolvía `null` —«aquí no se mueve nada»— y lo escrito se
+    perdía justo al guardar.
+  */
+  const aMano = fijados && fijados.size > 0 ? fijados : null;
+  const forzados = [];
+  let partida = meals;
+  if (aMano) {
+    partida = meals.map((meal) => ({
+      ...meal,
+      options: (meal.options || []).map((option, i) => ({
+        ...option,
+        foods: (option.foods || []).map((f) => {
+          const llave = claveDelCambio(meal.name, i + 1, f.name);
+          if (!aMano.has(llave)) return f;
+          const nuevos = Math.round(toNum0(aMano.get(llave)));
+          const antes = toNum0(f.grams);
+          /* Una casilla a medio escribir —vacía, o un cero— no es un gramaje: la
+             fila se queda donde estaba hasta que diga algo. */
+          if (!(nuevos > 0) || nuevos === antes) return f;
+          forzados.push({ meal: meal.name, option: i + 1, food: f.name, from: antes, to: nuevos, aMano: true });
+          return { ...f, grams: nuevos };
+        }),
+      })),
+    }));
+  }
+
+  /* Y las dos clases de fila quieta se juntan aquí: las apartadas y las
+     escritas. De ahí para abajo el reescalado no tiene que saber cuál es cuál. */
+  const inmoviles = aMano ? new Set([...(quietos || []), ...aMano.keys()]) : quietos;
+
+  /*
+    ══ Qué pasadas hay que dar ════════════════════════════════════════════════
+
+    El OBJETIVO manda cuando llega, porque es lo que el entrenador tiene
+    pautado: una pasada por macro, con la cifra a la que hay que llegar. Detrás
+    van las tres formas en proporción —el reparto y las dos cortas de siempre,
+    por kcal y por hidratos—, que siguen valiendo para quien no tiene un destino
+    contra el que medirse: un plato llevado a su ración, una dieta que se manda
+    a otra persona.
+
+    El orden es hidratos → grasas → proteína, y es el orden en que se ajusta una
+    dieta de verdad: lo primero que se mueve es el hidrato.
+  */
+  const pasos = [];
+  /* Con objetivo, el `from` de cada pasada no llega escrito: se mide sobre el
+     menú justo antes de darla. Ver la cabecera. */
+  let alObjetivo = false;
+  /* Lo pautado del día, guardado tal cual para bajarlo a las comidas. */
+  let delDia = null;
+  if (objetivo && ['carbs', 'fats', 'protein'].some((k) => toNum0(objetivo[k]) > 0)) {
+    alObjetivo = true;
+    delDia = {};
+    for (const clave of ['carbs', 'fats', 'protein']) {
+      const to = toNum0(objetivo[clave]);
+      if (to > 0) {
+        pasos.push({ clave, to });
+        delDia[clave] = to;
+      }
+    }
+  } else if (toNum0(objetivoKcals) > 0) {
+    alObjetivo = true;
+    delDia = { kcals: toNum0(objetivoKcals) };
+    pasos.push({ clave: 'kcals', to: toNum0(objetivoKcals) });
+  } else if (reparto) {
+    for (const clave of ['carbs', 'fats', 'protein']) {
+      const tramo = reparto[clave];
+      const from = toNum0(tramo?.from);
+      const to = toNum0(tramo?.to);
+      if (from && to && from !== to) pasos.push({ clave, from, to });
+    }
+  } else if (fromCarbs !== undefined || toCarbs !== undefined) {
+    pasos.push({ clave: 'carbs', from: toNum0(fromCarbs), to: toNum0(toCarbs) });
+  } else {
+    pasos.push({ clave: 'kcals', from: toNum0(fromKcals), to: toNum0(toKcals) });
+  }
+
+  /*
+    ══ EL OBJETIVO DE CADA COMIDA, una sola vez ═══════════════════════════════
+
+    Se calcula sobre el menú de PARTIDA y no se vuelve a tocar: si se recalculara
+    entre vuelta y vuelta, cada pasada movería la portería que la siguiente tiene
+    que meter. Ver `objetivosPorComida`.
+  */
+  const metas = alObjetivo
+    ? objetivosPorComida(partida, delDia, { catalog, quietos: inmoviles })
+    : null;
+
+  /*
+    EL SENTIDO DE CADA OPCIÓN Y EL GRAMAJE DE PARTIDA, decididos antes de mover
+    nada: son el tope que ninguna vuelta puede saltarse. Ver `unaPasada`.
+
+    Y el sentido es de la OPCIÓN, no del día: con el objetivo bajado a la comida,
+    una alternativa que se pasaba tiene que bajar aunque el día entero suba. Con
+    un solo sentido para todos, esa opción se quedaba clavada.
+  */
+  const sentidosDe = (lista) => {
+    if (!metas) return null;
+    const mapa = new Map();
+    lista.forEach((meal, mi) =>
+      (meal.options || []).forEach((option, oi) => {
+        const suma = optionMacros(option);
+        for (const paso of pasos) {
+          const meta = toNum0(metas[mi]?.[paso.clave]);
+          mapa.set(
+            `${mi}·${oi}·${paso.clave}`,
+            meta > 0 ? Math.sign(meta - MEDIDAS[paso.clave].valor(suma)) : 0
+          );
+        }
+      })
+    );
+    return mapa;
+  };
+
+  const origen = alObjetivo ? new Map() : null;
+  if (origen) {
+    for (const meal of partida) {
+      (meal.options || []).forEach((option, i) =>
+        (option.foods || []).forEach((f) =>
+          origen.set(claveDelCambio(meal.name, i + 1, f.name), toNum0(f.grams))
+        )
+      );
+    }
+  }
+
+  /*
+    ══ Y SE DAN DOS VUELTAS, porque los macros no viven separados ═════════════
+
+    Ningún alimento es un macro puro: quitar cien gramos de pollo se lleva por
+    delante dos de grasa, y el arroz trae su propia proteína. Así que la pasada
+    de las grasas —que va antes— acaba corta por culpa de la de la proteína, que
+    va después, y el menú se queda a cuatro gramos de lo pautado sin que ninguna
+    de las dos haya hecho nada mal.
+
+    La segunda vuelta vuelve a medir y remata. Lo que queda entonces es el error
+    del escalón de cocina, que es el que tiene que quedar. Solo al apuntar a un
+    objetivo: escalar en proporción no tiene adónde converger, y una vuelta de
+    más ahí sería escalar dos veces.
+
+    ── Y van en una función porque hay que darlas más de una vez ──────────────
+    El reparador de más abajo necesita preguntar «¿y si esta opción no llevara
+    aguacate?», y eso es volver a dar las dos vueltas sobre otro menú de partida.
+    Estaba escrito en línea cuando solo se daban una vez.
+
+    `metas` y `origen` NO se recalculan —son la portería y el tope, y moverlos
+    entre intentos sería comparar dos cosas distintas—, pero `sentidos` SÍ: una
+    opción a la que se le ha quitado una fila es otra opción, y la que se pasaba
+    de grasa puede necesitar subir de hidratos. Ver la ley de la dirección.
+  */
+  const vueltas = (desde) => {
+    let anda = desde;
+    const partes = [];
+    const movidos = new Map();
+    const sentidos = sentidosDe(desde);
+    for (let vuelta = 0; vuelta < (alObjetivo ? 2 : 1); vuelta += 1) {
+      for (const paso of pasos) {
+        /* Lo que suma el menú AHORA, no lo que sumaba al abrir: cada pasada deja
+           el siguiente macro en otro sitio, y medirlo una sola vez al principio
+           dejaría la última apuntando a un número que ya no existe. */
+        const from = alObjetivo
+          ? Math.round(MEDIDAS[paso.clave].valor(dayMacros(anda)))
+          : paso.from;
+        const res = unaPasada(anda, paso.clave, from, paso.to, {
+          catalog,
+          quietos: inmoviles,
+          sentidos,
+          origen,
+          metas,
+        });
+        if (!res) continue;
+        anda = res.meals;
+        /* El parte es el de la PRIMERA vuelta: es la que contesta a lo que se ha
+           pedido, y la segunda solo remata su redondeo. */
+        if (vuelta === 0)
+          partes.push({ ...paso, from, ratio: res.ratio, unidad: MEDIDAS[paso.clave].unidad });
+        /* Los cambios se funden por alimento: el arroz puede moverse en la pasada
+           de hidratos y no en las demás, pero si dos pasadas lo tocaran, la vista
+           previa tiene que enseñar UN renglón —de dónde sale y dónde acaba— y no
+           dos saltos que el entrenador tendría que sumar en la cabeza. */
+        for (const c of res.cambios) {
+          const llave = claveDelCambio(c.meal, c.option, c.food);
+          const previo = movidos.get(llave);
+          movidos.set(llave, previo ? { ...previo, to: c.to } : c);
+        }
+      }
+    }
+    return { meals: anda, partes, movidos };
+  };
+
+  let { meals: actuales, partes: dados, movidos } = vueltas(partida);
+
+  /*
+    ══ CUANDO NO HAY GRAMAJE QUE LA CUADRE, SE PROPONE QUITAR UNA FILA ════════
+
+    ── La avería, medida ──────────────────────────────────────────────────────
+    Una comida de patata, tres huevos, brócoli y aguacate contra 562 kcal y 15 g
+    de grasa: los tres huevos ya ponen 16 g de grasa ellos solos y se cuentan por
+    unidades, así que son intocables. El factor de la pasada sale negativo,
+    `unaPasada` se planta —y hace bien— y la opción se queda en 758 kcal con el
+    aviso de «revísala a mano». Ningún gramaje la arregla. Quitar el aguacate,
+    sí: 592 kcal y 16 g de grasa sobre 15.
+
+    ── Por qué esto no es recetar ─────────────────────────────────────────────
+    Es el mismo trato que el resto de la lista: se propone, se ve, se desmarca y
+    no toca la dieta hasta que se guarda. La diferencia con inventar una comida
+    es que aquí no se AÑADE nada — añadir un alimento sí sería escribirle la
+    dieta a alguien, y eso no se hace ni pidiéndolo.
+
+    ── Y una comida tiene una estructura, así que hay frenos ──────────────────
+    Quitar el plato principal no es ajustar, es borrar la comida. Una fila solo
+    es candidata si:
+
+      · **lleva el macro que está atascado**, con la misma cesta con la que se
+        ajusta (`elegiblesPara`). Sin esto, el reparador quitaba el pan de una
+        comida a la que le sobraba GRASA: el pan no pone grasa, pero quitarlo
+        cuadraba la proteína de rebote y la patata crecía para tapar el hueco.
+        La cuenta salía y el renglón era inexplicable. Se quita lo que estorba,
+        no lo que resulta que mueve el marcador;
+      · no es la más grande de su opción —nunca el plato principal—;
+      · no llega a un tercio de las kcal de la opción: lo que se quita es un
+        acompañamiento, no media comida;
+      · no está fija, no se cuenta por unidades y no la has apartado ni escrito
+        tú en la vista previa;
+      · y su opción se queda con dos alimentos por lo menos.
+
+    ── Una sola puerta: que no haya gramaje que la cuadre ─────────────────────
+    La opción sigue fuera del margen después de las dos vueltas. Y solo esa: lo
+    que cuadra no pierde nada, aunque quitando algo cuadrara «mejor».
+
+    Estuvo escrita una segunda —«la opción cuadra, sí, pero dejando una fila en
+    un gramaje de adorno: 120 g de aguacate en 10 g no son una ración, son una
+    coma»— y se retiró al medirla, porque esa situación no existe: `unaPasada`
+    se planta con un factor por debajo de 0,25, así que ninguna fila baja de una
+    cuarta parte de lo que tenía y no hay adorno que rescatar. Queda escrito
+    para que nadie la vuelva a añadir sin medirla.
+
+    ── Se prueba, no se adivina ───────────────────────────────────────────────
+    Para cada candidata se quita, se vuelven a dar las dos vueltas y se cuenta
+    cuántos macros de esa comida quedan dentro del margen. Gana la que más
+    arregla, y solo si arregla MÁS que no tocar nada; en empate, la fila más
+    pequeña. Un «quita lo más graso» habría propuesto el brócoli en media docena
+    de menús: en el de arriba, quitar la patata deja la opción peor que estaba.
+
+    ── Una por opción ─────────────────────────────────────────────────────────
+    Quitar dos de cuatro alimentos es escribirle otra comida al cliente. Cuando
+    con una no basta, se quita esa y el aviso de siempre dice lo que queda.
+  */
+  const quitadas = [];
+  if (metas) {
+    const dentro = (option, meta) =>
+      TARGET_KEYS.filter(
+        (k) => toNum0(meta?.[k]) > 0 && cuadra(MEDIDAS[k].valor(optionMacros(option)), meta[k], k)
+      ).length;
+    const pedidos = (meta) => TARGET_KEYS.filter((k) => toNum0(meta?.[k]) > 0).length;
+
+    partida.forEach((meal, mi) => {
+      const meta = metas[mi];
+      if (!meta || pedidos(meta) === 0) return;
+      (meal.options || []).forEach((option, oi) => {
+        const foods = option.foods || [];
+        /* Con dos alimentos no hay acompañamiento que quitar: lo que queda es
+           media comida. */
+        if (foods.length < 3) return;
+        const despues = actuales[mi]?.options?.[oi] || option;
+
+        const base = dentro(despues, meta);
+
+        /* Quién lleva el macro que está atascado, con la cesta del ajuste. Y de
+           aquí sale también la ley del reposo, sin escribirla dos veces: una
+           opción que cuadra no tiene ningún macro fuera, así que no señala a
+           nadie y no hay candidatas que probar. Estuvo además un `if` arriba
+           diciendo lo mismo; se quitó al no poder hacerlo fallar. */
+        const intocable = (f) =>
+          f.fijo === true ||
+          f.showAs === 'units' ||
+          inmoviles?.has(claveDelCambio(meal.name, oi + 1, f.name)) === true;
+        const estorban = new Set();
+        for (const clave of TARGET_KEYS) {
+          if (!(toNum0(meta[clave]) > 0)) continue;
+          if (cuadra(MEDIDAS[clave].valor(optionMacros(despues)), meta[clave], clave)) continue;
+          for (const f of elegiblesPara(foods, clave, { catalog, intocable }))
+            estorban.add(f.id ?? f.name);
+        }
+
+        const total = optionMacros(option).kcal;
+        const mayor = Math.max(...foods.map((f) => foodMacros(f).kcal));
+        const candidatas = foods.filter((f) => {
+          const suya = foodMacros(f).kcal;
+          if (!(suya > 0) || suya >= mayor || suya > total / 3) return false;
+          if (intocable(f)) return false;
+          return estorban.has(f.id ?? f.name);
+        });
+        if (candidatas.length === 0) return;
+
+        /*
+          EL ENSAYO SE HACE CON LA OPCIÓN SOLA, y no con el menú entero.
+
+          Con el objetivo bajado a la comida, una opción se ajusta contra la meta
+          de SU comida y nada más: ni el día ni sus hermanas entran en la cuenta.
+          Así que para preguntar «¿y si esta no llevara aguacate?» basta con dar
+          las dos vueltas sobre ella, y las demás se pasan vacías —`unaPasada` se
+          salta una opción sin alimentos— para que los índices de `metas`,
+          `sentidos` y `origen` sigan cuadrando.
+
+          No es una microoptimización: esto corre en un `useMemo` mientras se
+          teclea el objetivo, y recalcular el menú entero una vez por candidata
+          lo dejaba en 173 ms por tecla con cinco comidas de seis opciones (7 ms
+          sin el reparador). Con la opción sola baja a la decena de milisegundos.
+        */
+        const enSolitario = (suyos) =>
+          partida.map((m, i) => ({
+            ...m,
+            options: (m.options || []).map((o, j) => ({
+              ...o,
+              foods: i === mi && j === oi ? suyos : [],
+            })),
+          }));
+
+        let mejor = null;
+        for (const f of candidatas) {
+          const sin = enSolitario(foods.filter((x) => x !== f));
+          const ensayo = vueltas(sin).meals[mi]?.options?.[oi];
+          const puntos = dentro(ensayo, meta);
+          if (puntos <= base) continue;
+          const coste = foodMacros(f).kcal;
+          if (!mejor || puntos > mejor.puntos || (puntos === mejor.puntos && coste < mejor.coste))
+            mejor = { food: f, puntos, coste, mi, oi, meal: meal.name };
+        }
+        if (mejor) quitadas.push(mejor);
+      });
+    });
+
+    if (quitadas.length > 0) {
+      const podada = partida.map((meal, mi) => {
+        const suyas = quitadas.filter((q) => q.mi === mi);
+        if (suyas.length === 0) return meal;
+        return {
+          ...meal,
+          options: (meal.options || []).map((option, oi) => {
+            const q = suyas.find((x) => x.oi === oi);
+            return q
+              ? { ...option, foods: (option.foods || []).filter((x) => x !== q.food) }
+              : option;
+          }),
+        };
+      });
+      ({ meals: actuales, partes: dados, movidos } = vueltas(podada));
+    }
+  }
+
+  /* Y las tres clases de renglón se juntan aquí: lo escrito a mano, lo movido
+     por las pasadas y lo que se propone quitar. */
+  const porAlimento = new Map(forzados.map((c) => [claveDelCambio(c.meal, c.option, c.food), c]));
+  for (const [llave, c] of movidos) {
+    const previo = porAlimento.get(llave);
+    porAlimento.set(llave, previo ? { ...previo, to: c.to } : c);
+  }
+  for (const q of quitadas) {
+    porAlimento.set(claveDelCambio(q.meal, q.oi + 1, q.food.name), {
+      meal: q.meal,
+      option: q.oi + 1,
+      food: q.food.name,
+      from: toNum0(q.food.grams),
+      to: 0,
+      quitar: true,
+    });
+  }
+
+  const cambios = [...porAlimento.values()].filter((c) => c.from !== c.to);
   if (cambios.length === 0) return null;
-  return { meals: nuevas, ratio, cambios, sinTocar, medida: porHidratos ? 'carbs' : 'kcals', unidad: medida.unidad, sinNada: medida.sinNada };
+
+  /*
+    Y quién se ha quedado sin tocar, contado UNA vez sobre el resultado: una
+    opción con alimentos y sin un solo gramo movido.
+
+    ── Pero «no se ha movido» no es «no se ha podido» ─────────────────────────
+    Con el objetivo bajado a la comida, la mayoría de las alternativas que no se
+    mueven es porque YA cuadran con su comida — y decirle al entrenador que «se
+    quedan como están: no tienen de dónde recortar» sería alarmar por lo único
+    que ha salido bien. Así que se mide: una opción dentro del margen de su
+    objetivo no sale en la lista. La que sigue fuera, sí, que es la que
+    `rescaleMeals` no ha sabido cuadrar y él tiene que mirar.
+  */
+  /*
+    ══ LAS QUE HAN DEJADO DE SER ALTERNATIVAS ═════════════════════════════════
+
+    Con el objetivo en la comida, todas las opciones de una comida apuntan al
+    mismo sitio, así que por fin se puede comprobar lo que `optionGaps` lleva
+    diciendo desde que se escribió: «una opción B que se va 300 kcal por encima
+    de la A no es una alternativa, es otra comida».
+
+    Y no todas se pueden cuadrar. Una cena que es el doble que su hermana pide
+    un factor por debajo de 0,25, y ahí `unaPasada` se planta a propósito: media
+    ración de todo no es la misma comida más pequeña. Lo que no puede pasar es
+    que el reajuste mueva dieciocho gramajes, diga «hecho» y deje una opción 485
+    kcal por encima sin mencionarlo — que es justo la avería que esto venía a
+    cerrar, reaparecida al final. Se dice y no se arregla: el entrenador decide
+    si esa alternativa se queda, se recorta a mano o deja de serlo.
+
+    ── Contra la opción 1, y no contra el objetivo derivado ───────────────────
+    Porque cuando el reparto no está puesto, el objetivo de la comida lo hemos
+    derivado nosotros: es una cuenta interna, no una cifra que el entrenador
+    haya escrito, y señalar la opción 1 por alejarse de ella sería contarle
+    nuestra contabilidad. Lo que sí es suyo —y lo que mira en la hoja— es si las
+    alternativas siguen siendo intercambiables. Esa es la pregunta que se
+    contesta aquí.
+
+    ── Y se juzga en kilocalorías ─────────────────────────────────────────────
+    Macro a macro el aviso no se apagaría nunca: el gramaje se escribe en
+    escalones de cocina —25 g en un plato de arroz, casi 20 g de hidratos—
+    mientras que el margen del 5 % sobre lo que le toca a esa comida son 8. La
+    opción queda todo lo cerca que el escalón permite y aun así saldría
+    señalada, no por estar mal sino por medirla con una regla más fina que la
+    herramienta. En kilocalorías los restos se compensan entre macros y el suelo
+    de 25 kcal los absorbe. Es además con lo que `optionGaps` ya juzga una
+    opción dentro de la hoja: dos sitios, un veredicto.
+  */
+  const fuera = [];
+  if (metas) {
+    for (const meal of actuales) {
+      const opciones = meal.options || [];
+      const primera = Math.round(optionMacros(opciones[0]).kcal);
+      if (!(primera > 0)) continue;
+      opciones.forEach((option, i) => {
+        if (i === 0 || (option.foods || []).length === 0) return;
+        const tiene = Math.round(optionMacros(option).kcal);
+        if (cuadra(tiene, primera, 'kcals')) return;
+        fuera.push({ meal: meal.name, option: i + 1, kcals: tiene, primera, diff: tiene - primera });
+      });
+    }
+  }
+
+  /*
+    Y quién se ha quedado sin tocar: una opción con alimentos y sin un solo
+    gramo movido.
+
+    ── «No se ha movido» no es «no se ha podido» ──────────────────────────────
+    Con el objetivo bajado a la comida, casi todas las alternativas que no se
+    mueven es porque YA cuadran con lo que les toca — y decirle al entrenador
+    que «se quedan como están: no tienen de dónde recortar» sería alarmar por lo
+    único que ha salido bien. Sin tocar de verdad es no haberse movido Y seguir
+    lejos de su objetivo.
+  */
+  const leFaltaba = (option, meta) => {
+    const suyo = Math.round(kcalOf(meta || {}) || toNum0(meta?.kcals));
+    if (!(suyo > 0)) return true;
+    return !cuadra(Math.round(optionMacros(option).kcal), suyo, 'kcals');
+  };
+
+  const tocadas = new Set(cambios.map((c) => `${c.meal}·${c.option}`));
+  const sinTocar = [];
+  meals.forEach((meal, mi) => {
+    (meal.options || []).forEach((option, i) => {
+      if ((option.foods || []).length === 0) return;
+      if (tocadas.has(`${meal.name}·${i + 1}`)) return;
+      if (metas && !leFaltaba(actuales[mi]?.options?.[i] || option, metas[mi])) return;
+      sinTocar.push({ meal: meal.name, option: i + 1 });
+    });
+  });
+
+  const uno = pasos.length === 1 ? MEDIDAS[pasos[0].clave] : null;
+  return {
+    meals: actuales,
+    /* El de la única pasada; con varias no hay UN factor, y fingir uno sería
+       decir que la dieta se ha escalado en bloque cuando no lo ha hecho. */
+    ratio: dados.length === 1 ? dados[0].ratio : null,
+    cambios,
+    sinTocar,
+    fuera,
+    medida: pasos.length === 1 ? pasos[0].clave : 'macros',
+    pasos: dados,
+    unidad: uno ? uno.unidad : 'g',
+    sinNada: uno ? uno.sinNada : 'no tiene de dónde recortar lo que has pedido',
+  };
 };

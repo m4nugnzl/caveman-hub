@@ -25,7 +25,7 @@
 }
 
 .palette {
-  width: 100%; max-width: 580px; max-height: 70vh;
+  width: 100%; max-width: 580px; max-height: 70vh; max-height: 70svh;
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--surface-raised);
   border: 1px solid var(--hairline-strong); border-radius: var(--r-xl);
@@ -70,15 +70,15 @@
    del cursor, porque es lo que acota lo que se está buscando. */
 .palette-scope {
   display: inline-flex; align-items: center; gap: 2px;
-  padding: 3px 4px 3px 8px; border-radius: var(--r-sm);
+  padding: 3px var(--s1) 3px var(--s2); border-radius: var(--r-sm);
   background: var(--fill); color: var(--text);
-  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 650;
+  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600;
   white-space: nowrap; flex-shrink: 0;
 }
 
 .palette-list { overflow-y: auto; padding: var(--s2); }
 .palette-group { display: flex; flex-direction: column; gap: 1px; padding-bottom: var(--s2); }
-.palette-group > .section-label { padding: var(--s2) var(--s2) 4px; }
+.palette-group > .section-label { padding: var(--s2) var(--s2) var(--s1); }
 
 .palette-row {
   display: flex; align-items: center; gap: var(--s3);
@@ -89,7 +89,7 @@
 /* El resaltado lo lleva `data-active`, no `:hover`: con el teclado el ratón no se
    mueve, y si el subrayado dependiera del puntero la fila señalada no se vería. */
 .palette-row[data-active='true'] { background: var(--fill); color: var(--text); }
-.palette-row > .label { flex-shrink: 0; font-size: var(--fs-base); font-weight: 550; }
+.palette-row > .label { flex-shrink: 0; font-size: var(--fs-base); font-weight: 500; }
 .palette-row > .hint {
   flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--text-tertiary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -99,7 +99,7 @@
    llegar al segundo nivel (Tab no existe); aquí es un blanco real, y el `kbd`
    decorativo se esconde donde no hay teclado. */
 .palette-into {
-  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: var(--s1); flex-shrink: 0;
   min-width: 34px; min-height: 34px; justify-content: center;
   padding: 2px 6px; border: 0; border-radius: var(--r-sm);
   background: none; color: var(--text-tertiary); cursor: pointer;
@@ -114,11 +114,11 @@
   padding: var(--s2) var(--s4); border-top: 1px solid var(--hairline);
   font-size: var(--fs-2xs); color: var(--text-tertiary);
 }
-.palette-foot > span { display: inline-flex; align-items: center; gap: 4px; }
+.palette-foot > span { display: inline-flex; align-items: center; gap: var(--s1); }
 
-@media (max-width: 560px) {
+@media (max-width: 639.98px) {
   .palette-backdrop { padding: var(--s4) var(--s3); }
-  .palette { max-height: 82vh; }
+  .palette { max-height: 82vh; max-height: 82svh; }
   /* Los atajos de teclado no tienen sentido donde no hay teclado. */
   .palette-foot { display: none; }
 }
@@ -154,9 +154,6 @@
   gap: var(--s5);
   align-items: start;
 }
-/* El panel pegajoso se ancla al canto de arriba del viewport: en el chasis con
-   barra lateral ya no hay cabecera que esquivar (ver EL CHASIS). */
-.trabajo-side { display: flex; flex-direction: column; gap: var(--s3); position: sticky; top: var(--s5); }
 
 /* ── LA REGLA ──────────────────────────────────────────────────────────────
    La firma del producto en su versión con datos: catorce marcas de graduación,
@@ -185,173 +182,26 @@
   padding: var(--s4) 0 var(--s3);
   border-block: 1px solid var(--hairline);
 }
-/* Centrada y no a la línea base: desde que un tramo puede llevar su botón a la
-   derecha —«El estudio», «Pesajes y medidas»—, alinear por la base de las letras
-   deja el botón medio hundido. Entre dos textos de una línea la diferencia no se
-   ve; con un control al lado, sí. */
-.franja-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
-.franja-hint {
-  font-size: var(--fs-xs); color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── EL DOCUMENTO: varias franjas seguidas, como los tramos de un informe ──
-   Lo estrena la revisión de un cliente, y es lo que la saca de ser una pila.
-   Era una columna de tarjetas del mismo peso —«Cómo va», «Su cuerpo», «Lo que
-   te dice»— cada una con su fondo y su sombra, y dentro de la primera, cuatro
-   tarjetas más. Nada decía qué mirar antes, así que todo pesaba igual y el
-   conjunto se leía como piezas pegadas.
-
-   Como tramos de un documento, lo que separa un asunto del siguiente es un
-   filete y un rótulo, que es lo que separa los apartados de cualquier informe.
-   Y entonces **la única tarjeta de la pantalla es la decisión**, encendida con
-   la lumbre: lo que se lee no tiene superficie y lo que se hace sí. Eso es lo
-   que hace la jerarquía, no el tamaño de las letras.
-
-   Los filetes no se suman: cada franja lleva el suyo arriba y abajo, así que
-   dos seguidas darían una línea de 2 px. Manda el de abajo de la anterior. */
-.revision-doc { display: flex; flex-direction: column; }
-.revision-doc > .franja { border-top: 0; }
-.revision-doc > .franja:first-child { padding-top: 0; }
-/* Lo que NO es un tramo —el histórico, que conserva su superficie porque es el
-   archivo de las otras semanas y no un apartado de ésta— necesita separarse del
-   último filete: pegado a él parecería el pie del documento. */
-.revision-doc > :not(.franja) { margin-top: var(--s5); }
 
 /* El «hoy» de la leyenda, en la tinta de su barra. */
-.scale-legend > .is-hoy { color: var(--accent); }
 
 .scale { display: flex; align-items: flex-end; gap: 3px; height: 76px; }
-.scale-day { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: stretch; height: 100%; }
-
-/* Un día CON actividad es un botón: lleva a ese día en el hilo. El reset deja
-   la marca exactamente como la versión muda; el hover sube la tinta de la barra
-   un grado, que es la señal de «esto se pulsa» sin inventar otro lenguaje. */
-button.scale-day { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; }
-button.scale-day:hover > .scale-track > .scale-bar { background: var(--text-secondary); }
-button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--accent); }
-
-.scale-track { flex: 1; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
-.scale-bar {
-  /* Con el ancho al 100 % y catorce días repartiéndose 1.280 px, cada barra
-     medía 68 px y la pieza dejaba de leerse como una regla graduada para
-     parecer un gráfico de barras cualquiera. El tope la mantiene esbelta y
-     centrada sobre su marca, que es lo que hace la lectura de cinta métrica. */
-  width: 100%; max-width: 34px; border-radius: 2px 2px 0 0;
-  background: var(--text-tertiary);
-  transition: height var(--normal);
-}
-
-/* La marca de graduación. El día de hoy lleva la suya a plena tinta y más alta:
-   es el extremo de la cinta, y sin eso la tira se lee sin saber por dónde va. */
-.scale-tick { height: 5px; margin-top: 4px; border-left: 1px solid var(--hairline-strong); align-self: center; width: 1px; }
-/* «Hoy» va en BRASA: es exactamente el trabajo de esa tinta —decir dónde
-   estás— aplicado al eje del tiempo. La marca sube y la barra se enciende;
-   los otros trece días siguen en tinta, porque son contexto. */
-.scale-day.is-today > .scale-tick { height: 9px; border-color: var(--accent); }
-.scale-day.is-today > .scale-track > .scale-bar { background: var(--accent); }
-
-.scale-legend {
-  display: flex; justify-content: space-between;
-  font-size: var(--fs-xs); font-weight: 700;
- letter-spacing: 0;
-  color: var(--text-tertiary);
-}
 
 /* ── EL HILO ───────────────────────────────────────────────────────────────
    Una fila por cosa que pasó. La fila entera es pulsable y lleva a la sección
    del cliente donde está ese dato: un aviso del que no se puede tirar se ignora
    a la tercera. */
-.feed-day { display: flex; flex-direction: column; gap: var(--s2); }
-
-.feed-date { display: flex; align-items: baseline; gap: var(--s2); padding-left: 2px; }
-.feed-date > .k {
-  font-size: var(--fs-xs); font-weight: 700;
- letter-spacing: 0;
-  color: var(--text-secondary);
-}
-.feed-date > .n { font-size: var(--fs-2xs); font-weight: 700; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-
-.feed-rows {
-  display: flex; flex-direction: column;
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); overflow: hidden;
-}
-
-.feed-row {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: 11px var(--s4); min-height: 46px;
-  background: none; border: 0; font: inherit; color: inherit; text-align: left;
-  cursor: pointer; width: 100%;
-  transition: background-color var(--fast);
-}
-.feed-row + .feed-row { border-top: 1px solid var(--hairline); }
-.feed-row:hover { background: var(--fill-subtle); }
 
 .feed-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.feed-row > .who {
-  font-family: var(--font-display);
-  font-weight: 650; font-size: var(--fs-sm);
-  width: 132px; flex-shrink: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.feed-row > .what { flex: 1; min-width: 0; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.feed-row > .what > .detail { color: var(--text-tertiary); }
-
-.feed-kind {
-  font-size: var(--fs-xs); font-weight: 700;
- letter-spacing: 0;
-  color: var(--text-tertiary); flex-shrink: 0;
-}
 
 /* ── LA BANDEJA ────────────────────────────────────────────────────────────
    Mismo patrón que la ficha de la cartera: la tarjeta entera abre al cliente
    mediante una capa de clic por debajo del contenido, y los botones de acción
    van por encima. Envolver todo en un <button> sería HTML inválido, porque
    dentro hay botones. */
-.inbox-item {
-  position: relative;
-  display: flex; flex-direction: column; gap: 2px;
-  padding: var(--s3); border-radius: var(--r-md);
-  background: var(--surface-sunken);
-  border-left: 3px solid var(--hairline-strong);
-}
-.inbox-item.is-bad { border-left-color: var(--negative); }
-.inbox-item.is-warn { border-left-color: var(--warning); }
-.inbox-item.is-info { border-left-color: var(--info); }
 
-.inbox-hit { position: absolute; inset: 0; z-index: 0; background: none; border: 0; cursor: pointer; border-radius: var(--r-md); }
-.inbox-hit:hover { background: var(--fill-subtle); }
-.inbox-item > * { position: relative; pointer-events: none; }
-.inbox-item > footer { pointer-events: auto; margin-top: var(--s2); }
-
-.inbox-item > .who { font-family: var(--font-display); font-weight: 700; font-size: var(--fs-sm); }
-.inbox-item > .what { font-size: var(--fs-sm); font-weight: 600; }
-.inbox-item > .detail { font-size: var(--fs-xs); color: var(--text-tertiary); }
-
-.today-bridge {
-  display: flex; align-items: center; gap: var(--s2);
-  padding: var(--s3) var(--s4); border-radius: var(--r-md);
-  background: var(--surface); border: 1px dashed var(--hairline-strong);
-  color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); font-weight: 600;
-  cursor: pointer; text-align: left;
-  transition: border-color var(--fast), color var(--fast);
-}
-.today-bridge:hover { border-color: var(--accent); color: var(--text); }
-
-@media (max-width: 1040px) {
+@media (max-width: 1023.98px) {
   .trabajo { grid-template-columns: minmax(0, 1fr); }
-  /* Lo accionable ENCIMA: en una columna el orden de lectura es el de la página,
-     y lo que hay que HACER va primero — la bandeja en «Hoy», la decisión en una
-     revisión. Y deja de ser pegajoso: en vertical, «sticky» significa un panel
-     que te persigue tapando el trabajo. */
-  .trabajo-side { order: -1; position: static; }
-}
-
-@media (max-width: 560px) {
-  .feed-row { flex-wrap: wrap; row-gap: 2px; }
-  .feed-row > .who { width: auto; flex: 1; }
-  .feed-row > .what { flex-basis: 100%; order: 10; padding-left: 15px; }
 }
 
 /* ==========================================================================
@@ -378,7 +228,7 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
 }
 .toast-text { font-size: var(--fs-sm); min-width: 0; }
 .toast-x {
-  border: 0; background: none; padding: 4px; margin: -2px;
+  border: 0; background: none; padding: var(--s1); margin: -2px;
   display: grid; place-items: center; flex-shrink: 0;
   color: var(--text-tertiary); cursor: pointer; border-radius: var(--r-xs);
 }
@@ -429,6 +279,30 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      solo se monta con un cliente abierto, así que su presencia ES el estado. */
   body:has(.cliente-cab) .app-header { display: none; }
 
+  /* ── Y en el portal del cliente, tampoco ─────────────────────────────────
+     Vivía en `piezas.css` dentro del corte del TELÉFONO (639,98), con el
+     argumento de que a una tableta «le caben la cabecera y una cabecera de
+     pantalla». Le caben, y aun así estaba mal: el corte de la NAVEGACIÓN es
+     este, no aquel. A 834 px las pestañas de arriba ya se han ido y navega la
+     barra del pulgar, así que la cabecera se quedaba sola arriba siendo las
+     tres cosas que no son suyas —la marca del fabricante, un buscador con
+     atajo de teclado sobre cuatro pantallas, y su avatar, que tiene sitio en
+     «Tú»— y encima con la barra de abajo debajo: **dos chasis apilados**.
+     Medido en `capturas/portal-13sep/tablet-inicio.png`.
+
+     Por encima de 1024 se queda: ahí arriba las pestañas del portal son la
+     navegación y la cabecera es lo único que sostiene la cuenta. Quitarla en el
+     escritorio es parte del chasis nuevo (`P-09`), no de esta línea. */
+  body:has(.layout-portal) .app-header { display: none; }
+
+  /* ── Y sin cabecera, el hueco de arriba lo pone la página ────────────────
+     Retirada la franja, el portal empieza en el borde físico de la pantalla. En
+     un navegador eso está bien; instalado en la pantalla de inicio de un
+     teléfono, «el borde» es debajo de la muesca y de la barra de estado, y lo
+     primero de cada pantalla se metía ahí. Se declara el hueco seguro, que en
+     cualquier sitio donde no exista vale cero y deja el margen de siempre. */
+  .layout-portal { padding-top: calc(env(safe-area-inset-top, 0px) + var(--hueco-hoja)); }
+
   .layout { padding-bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s5)); }
 
   /* El aviso efímero, por encima de la barra del pulgar: debajo quedaría
@@ -450,12 +324,27 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
     flex: 1; min-width: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     padding: 0 2px; border: 0; background: transparent; cursor: pointer;
-    font-family: inherit; font-size: var(--fs-2xs); font-weight: 650;
+    font-family: inherit; font-size: var(--fs-2xs); font-weight: 600;
     color: var(--text-tertiary); text-decoration: none;
     -webkit-tap-highlight-color: transparent;
   }
-  .bottombar-item > span {
+  /* La etiqueta. `:not(.bottombar-ic)` desde que el icono también va envuelto:
+     sin eso, el recorte de la palabra se le aplicaba de paso al punto de aviso,
+     que sobresale del icono a propósito. */
+  .bottombar-item > span:not(.bottombar-ic) {
     max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* El envoltorio del icono existe SOLO para colgar el punto: un pseudo sobre el
+     propio `<svg>` no se puede pintar, y sobre el destino entero el punto caería
+     en la esquina de una caja de 78 px en vez de junto al dibujo. */
+  .bottombar-ic { position: relative; display: grid; place-items: center; }
+  /* «Ahí dentro hay algo esperándote». En el ACENTO y no en la brasa: no es un
+     suspenso ni una urgencia, es una oferta de mirar. Ver `la ley del color`. */
+  .bottombar-ic.avisa::after {
+    content: ''; position: absolute; top: -1px; right: -4px;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--surface);
   }
   /* Tinta plena y LA REGLETA de brasa en el canto de arriba: la misma marca de
      «aquí estás» que llevan la barra lateral y las pestañas, en el borde por el
@@ -497,23 +386,18 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   }
   .sheet-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
   .sheet-backdrop[data-state='closing'] > .sheet { animation: hoja-sale var(--fast) both; }
-  .sheet-grip {
-    width: 34px; height: 4px; border-radius: var(--r-pill);
-    background: var(--hairline-strong); align-self: center; margin-bottom: var(--s2);
-  }
+  /* La agarradera ya no se dibuja aquí: es la MISMA pieza que la de la ventana
+     cuando baja a hoja, y desde que además recibe el arrastre para cerrar tiene
+     que ser una sola regla. Está junto al modal, en `controles.css` («LA
+     AGARRADERA»). Dibujarla en dos sitios era garantizar que un día una tuviera
+     diana táctil y la otra no. */
   .sheet-item {
     display: flex; align-items: center; gap: var(--s3);
     min-height: 46px; padding: 0 var(--s3); border-radius: var(--r-md);
-    font-size: var(--fs-base); font-weight: 550;
+    font-size: var(--fs-base); font-weight: 500;
     color: var(--text); text-decoration: none;
   }
   .sheet-item.active { background: var(--fill); }
-}
-
-@media (max-width: 760px) {
-  /* Ya ni dos columnas: apiladas, cada una es una sección con su título y su
-     recuento, y se recorren con el gesto que ya se está haciendo, que es bajar. */
-  .board { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ── Ergonomía táctil ────────────────────────────────────────────────────────
@@ -529,13 +413,24 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
   .chip, .segmented-item { min-height: 38px; padding-left: var(--s4); padding-right: var(--s4); }
   .btn { min-height: 44px; }
   .btn-sm { min-height: 36px; }
+  /* El campo también, que faltaba y ahora se nota: con la rejilla puesta mide
+     32 px, y al lado de un botón de 44 en la misma fila de un formulario se
+     quedaba corto de sitio y de dedo. Sube al escalón táctil y no a 44 porque
+     un campo no ejecuta nada —se enfoca—, que es el mismo reparto que ya hacen
+     los chips. La tabla de series se queda fuera: ella se pone su propio alto
+     (`responsive.css`), y ahí el renglón manda. */
+  .input, .select { min-height: var(--h-control-touch); }
+  /* Y el campo pequeño se empareja con el botón pequeño: sin esta línea se
+     quedaba en 40 —la regla de arriba también le alcanza— y un campo apretado
+     acababa MÁS alto que el botón que tiene al lado. */
+  .input-sm, .select-sm { min-height: 36px; }
   .btn-icon { width: 40px; height: 40px; }
   .btn-icon-compact { width: 36px; height: 36px; min-height: 36px; }
   /* Los que no son `.btn` y también se tocan: las filas de menú, las equis de
      cerrar avisos, el asa de arrastre y los botones del editor del panel. */
   .menu-item { min-height: 44px; }
-  .table td { padding-top: 12px; padding-bottom: 12px; }
-  .toast-x, .alert-x { width: 36px; height: 36px; }
+  .table td { padding-top: var(--s3); padding-bottom: var(--s3); }
+  .toast-x { width: 36px; height: 36px; }
   .drag-handle { min-width: 36px; min-height: 44px; }
   /* El ANCHO también, que faltaba: la caja solo crecía a lo alto y su contenido
      es un icono, así que la campana de avisos medía 17 px de ancho por 44 de
@@ -556,31 +451,18 @@ button.scale-day.is-today:hover > .scale-track > .scale-bar { background: var(--
      rejilla de la comida es fija. */
   /* La medida dentro del campo: el destino del dedo crece por dentro sin tocar
      el ancho de la caja, que en la rejilla de la comida es fijo. */
-  .cantidad > .ud { padding: 7px 8px; }
+  .cantidad > .ud { padding: var(--s2) var(--s2); }
 }
 
-/* ── Los campos, a 16 px donde se toca ──────────────────────────────────────
-   Safari en iOS hace ZOOM a la página entera al enfocar cualquier campo con
-   letra menor de 16 px, y no lo deshace al salir. Con la base a 15 y las
-   variantes pequeñas a 13, cada kilo apuntado en el gimnasio dejaba la
-   pantalla ampliada — unas doce veces por sesión.
+/* ── Aquí vivían «los campos, a 16 px donde se toca» ────────────────────────
+   Se han ido al FINAL de `piezas.css`, que es el último archivo de la hoja. El
+   bloque decía de sí mismo «va aquí, al final, a propósito: en un empate gana
+   el último», y eso dejó de ser cierto en cuanto la hoja se partió en zonas:
+   detrás de `jornada.css` van `responsive`, `revision`, `taller`, `formularios`
+   y `piezas`, y cualquier `.loquesea .input` de esos cinco ganaba el empate.
 
-   `hover: none` y no un ancho: el zoom es cosa del dedo, no del tamaño de la
-   ventana, y así un portátil estrecho conserva su tipografía. El padding se
-   recorta para que la altura de los controles no crezca con la letra.
-
-   Va aquí, al final, a propósito: comparte especificidad con las reglas base
-   de `Formularios` y en un empate gana el último. Los selectores compuestos
-   (`.set-cell-target .input`, 0-2-0) pesan más que `.input` a secas, así que
-   se repiten a mano. */
-@media (hover: none) {
-  .input, .select, .textarea { font-size: var(--fs-base); padding-top: 8px; padding-bottom: 8px; }
-  .input-sm, .select-sm { font-size: var(--fs-base); padding-top: 4px; padding-bottom: 4px; }
-  .set-cell-target .input, .set-cell-col .input { font-size: var(--fs-base); }
-  /* El conmutador g/ud NO sube a 16 px: esta regla existe contra el zoom de
-     Safari al enfocar un CAMPO, y ahí ya no hay campo sino dos botones. */
-}
-
+   Se escaparon tres, y uno era la casilla del peso del check-in semanal — la
+   pantalla que más se toca desde el teléfono. Ver el bloque en `piezas.css`. */
 
 /* ══ LA PUESTA EN MARCHA, PLEGADA ══════════════════════════════════════════
    Con el arranque rodado la guía deja el trono de Inicio y queda en un

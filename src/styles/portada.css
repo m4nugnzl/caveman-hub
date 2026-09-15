@@ -555,7 +555,7 @@
   font-weight: 700; letter-spacing: -0.02em;
   color: var(--text); text-decoration: none; white-space: nowrap;
 }
-.lp-nav { display: flex; align-items: center; gap: clamp(16px, 2.4vw, 34px); }
+.lp-nav { display: flex; align-items: center; gap: clamp(var(--s4), 2.4vw, 34px); }
 .lp-bar-cta { display: flex; align-items: center; gap: var(--s4); }
 /* Versalita troquelada también en la navegación: son cuatro rótulos sueltos y en
    caja baja se leían como texto corrido al lado del logotipo. */
@@ -622,13 +622,13 @@
    sitio le queda, y solo entonces hay algo que se salga y que recortar.
 
    Y el alto solo se pone donde hay escena que recortar. En un teléfono y en una
-   ventana baja se quita —ver `@media (max-width: 700px), (max-height: 640px)` al
-   final del archivo—: allí la escena ya cabe o el texto se comería el hueco, y
+   ventana baja se quita —el corte de tableta y el de alto, al final del
+   archivo—: allí la escena ya cabe o el texto se comería el hueco, y
    un canto que no corta nada es un agujero.
    ══════════════════════════════════════════════════════════════════════════ */
 .lp-hero {
   position: relative;
-  padding-top: clamp(44px, 8vh, 92px);
+  padding-top: clamp(var(--s7), 8vh, 92px);
   /* El aire de abajo se va entero: aquí no separa nada, porque lo que hay
      debajo del canto es la franja siguiente pegada a él. */
   padding-bottom: 0;
@@ -745,7 +745,7 @@
 
 .lp-hero-escena {
   display: flex; align-items: flex-end; justify-content: center;
-  margin-top: clamp(32px, 5vh, 68px);
+  margin-top: clamp(var(--s6), 5vh, 68px);
   /* Posicionada y aislada, que es de lo que vive el fulgor: va con `z-index: -1`
      y sin contexto de apilado propio se iría detrás del fondo de la sección.
      `position` además la sube por encima del halo de `.lp-hero::before`, igual
@@ -984,7 +984,7 @@
   width: min(250px, 44%);
   min-height: var(--alto);
   margin: 0;
-  display: flex; flex-direction: column; justify-content: center; gap: 5px;
+  display: flex; flex-direction: column; justify-content: center; gap: var(--s1);
   padding: var(--s3) var(--s4);
   text-align: left;
   border: 1px solid rgba(232, 236, 241, 0.16);
@@ -1038,7 +1038,7 @@
 
 .lp-mas-in {
   display: grid;
-  gap: clamp(32px, 5vw, 72px);
+  gap: clamp(var(--s6), 5vw, 72px);
   align-items: center;
 }
 
@@ -1245,7 +1245,7 @@
 .lp-mas-in { grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr); }
 
 .lp-mas-grid {
-  display: grid; gap: clamp(12px, 1.4vw, 18px);
+  display: grid; gap: clamp(var(--s3), 1.4vw, 18px);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1485,7 +1485,7 @@
   background: linear-gradient(180deg, #14181e 0%, #0f1318 100%);
   border-bottom: 1px solid rgba(232, 236, 241, 0.06);
 }
-.lp-shot-dots { display: flex; gap: clamp(4px, 0.5vw, 6px); }
+.lp-shot-dots { display: flex; gap: clamp(var(--s1), 0.5vw, 6px); }
 .lp-shot-dots > i {
   width: clamp(6px, 0.7vw, 8px); height: clamp(6px, 0.7vw, 8px);
   border-radius: 50%; background: var(--fill-strong);
@@ -1953,14 +1953,14 @@
   display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
 
   position: relative; isolation: isolate;
-  padding: 5px; border-radius: var(--r-pill);
+  padding: var(--s1); border-radius: var(--r-pill);
   background: var(--canvas-alt); border: 1px solid var(--hairline);
 }
 /* La brasa. `z-index: -1` la manda detrás de los botones y el `isolation` del
    carril impide que siga bajando hasta detrás del fondo de la sección. */
 .lp-switch-marca {
   position: absolute; z-index: -1;
-  top: 5px; bottom: 5px; left: 5px;
+  top: var(--s1); bottom: var(--s1); left: var(--s1);
   width: calc(50% - 5px);
   border-radius: var(--r-pill);
   background: var(--accent); box-shadow: var(--shadow-xs);
@@ -1972,7 +1972,7 @@
 .lp-switch.is-anual .lp-switch-marca { translate: 100% 0; }
 
 .lp-switch-item {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   padding: 10px 20px; border: 0; border-radius: var(--r-pill);
   background: transparent; color: var(--text-secondary); cursor: pointer;
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
@@ -1992,7 +1992,7 @@
    que el papel de fondo y tinta se intercambian: la etiqueta se recorta EN la
    brasa en vez de posarse encima. */
 .lp-switch-ahorro {
-  padding: 3px 7px; border-radius: var(--r-pill);
+  padding: 3px var(--s2); border-radius: var(--r-pill);
   background: var(--accent-on); color: var(--accent);
   /* Hereda el tamaño del botón: `--fs-2xs` ya es el escalón más pequeño de la
      escala y lo que separa la etiqueta del texto es el fondo, no la altura.
@@ -2030,14 +2030,14 @@
 .lp-plan.lp-reveal { transition-duration: 0.85s; }
 
 .lp-plan-grid {
-  margin-top: clamp(32px, 4.5vw, 58px);
+  margin-top: clamp(var(--s6), 4.5vw, 58px);
   margin-inline: auto;
   /* 1200 y no 1080 desde que son cuatro planes y no tres: a 1080 las tarjetas
      salían a 253 px, que es menos de lo que necesita «Sin permanencia · baja
      cuando quieras» sin partirse en tres líneas. `auto-fit` sigue decidiendo
      cuántas caben, así que en una ventana estrecha se reparten solas. */
   max-width: 1200px;
-  display: grid; gap: clamp(14px, 1.6vw, 22px);
+  display: grid; gap: clamp(14px, 1.6vw, var(--s5));
   grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   align-items: stretch;
 }
@@ -2110,7 +2110,7 @@
 .lp-plan-tag {
   position: absolute; z-index: 1;
   top: 0; left: 50%; translate: -50% -50%;
-  padding: 5px 14px; border-radius: var(--r-pill);
+  padding: var(--s1) 14px; border-radius: var(--r-pill);
   background: var(--accent); color: var(--accent-on);
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;
@@ -2136,7 +2136,7 @@
    tabla. */
 .lp-plan-price {
   margin-top: clamp(18px, 2vw, 26px);
-  display: flex; align-items: baseline; gap: 5px; line-height: 1;
+  display: flex; align-items: baseline; gap: var(--s1); line-height: 1;
 }
 .lp-plan-price > em {
   font-family: var(--font-display); font-style: italic; font-weight: 800;
@@ -2200,14 +2200,14 @@
    Numeradas. El número no es adorno: convierte diez filas idénticas en una lista
    con principio y final, y deja ver de un vistazo cuánto queda por leer. */
 
-.lp-faq-list { margin-top: clamp(24px, 3.5vw, 44px); display: flex; flex-direction: column; }
+.lp-faq-list { margin-top: clamp(24px, 3.5vw, var(--s7)); display: flex; flex-direction: column; }
 .lp-faq-item { border-top: 1px solid var(--hairline); }
 .lp-faq-item:last-child { border-bottom: 1px solid var(--hairline); }
 .lp-faq-q {
   position: relative; cursor: pointer; list-style: none;
   display: flex; align-items: baseline; gap: var(--s4);
   padding: var(--s5) var(--s6) var(--s5) 0;
-  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.012em;
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.012em;
   transition: color var(--fast);
 }
 /* La respuesta al puntero: el número y el galón se encienden a tinta plena.
@@ -2259,7 +2259,7 @@
    pasa a hierro sobre tiza. */
 
 .lp-slab {
-  padding: clamp(44px, 7vw, 96px) clamp(24px, 5vw, 72px);
+  padding: clamp(var(--s7), 7vw, 96px) clamp(24px, 5vw, 72px);
   background: var(--accent); color: var(--accent-on);
   border-radius: var(--lp-r-xl);
   display: flex; flex-direction: column; align-items: center;
@@ -2317,7 +2317,7 @@
 
 /* ── Y en pantallas estrechas ────────────────────────────────────────────── */
 
-@media (max-width: 1040px) {
+@media (max-width: 1023.98px) {
   /* Las secciones de dos columnas pasan a una, y la pieza va DEBAJO del
      discurso — en vertical, «primero lo que se cuenta» es siempre el orden
      bueno. Aquí la captura gana ancho en vez de perderlo, que es justo lo que
@@ -2352,17 +2352,17 @@
    columnas de 250 px más sus huecos, más el gutter). En cuanto se parten,
    sobresalir no distingue nada —no hay línea que romper— y solo deja dos huecos
    desiguales. */
-@media (max-width: 880px) {
+@media (max-width: 1023.98px) {
   .lp-plan.is-primero { --plan-sale: 0px; }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1023.98px) {
   /* Tres anclas no caben al lado de dos botones, y de las tres cosas que hay en
      la barra la que no puede faltar es la de empezar. */
   .lp-nav { display: none; }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 1023.98px) {
   /* ══════════════════════════════════════════════════════════════════════════
      EL PAR EN UN TELÉFONO: UNA ESCENA, NO TRES BLOQUES
      --------------------------------------------------------------------------
@@ -2559,7 +2559,7 @@
   /* El rótulo se queda con su icono pero pierde el aire: a este tamaño, seis
      píxeles entre la chapa y el nombre son los mismos seis que separan las dos
      líneas de la cita, y la nota deja de leerse como dos cosas. */
-  .lp-par-art .lp-chapa-rotulo { gap: 5px; }
+  .lp-par-art .lp-chapa-rotulo { gap: var(--s1); }
   .lp-par-art .lp-chapa-rotulo > svg { width: 11px; height: 11px; }
 
   /* El fulgor se estira con la escena: con la proporción fija se quedaba en una
@@ -2764,12 +2764,12 @@
    se pisen: un teléfono APAISADO (ancho y bajo) cae en esta, que es la que le
    toca, porque en apaisado la letra tampoco deja nada que cortar.
    ══════════════════════════════════════════════════════════════════════════ */
-@media (min-width: 701px) and (max-height: 640px) {
+@media (min-width: 1024px) and (max-height: 640px) {
   .lp-hero { height: auto; min-height: 0; padding-bottom: var(--lp-air); }
   .lp-hero-corte { overflow: visible; }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 639.98px) {
   /* «Entrar» se va de la barra: con el logotipo y el botón de alta no caben tres
      cosas sin que la marca parta en dos líneas, y de las dos la que no puede
      faltar es la de empezar. Quien ya tiene cuenta la encuentra en el pie, y el
@@ -2816,7 +2816,7 @@
   /* Y el tramo, con la misma cuenta y los números de la bolita pequeña: baja de
      su canto (30) y llega al centro de la siguiente (14). */
   .lp-ruta-paso::before {
-    left: 16px; top: 30px;
+    left: var(--s4); top: 30px;
     height: calc(100% - 30px + var(--paso-gap) + 14px);
   }
 
@@ -2893,8 +2893,9 @@
 .acceso {
   position: relative;
   min-height: 100vh;
+  min-height: 100svh;
   display: flex; flex-direction: column;
-  padding: clamp(16px, 2.4vw, 28px) clamp(20px, 4vw, 44px) clamp(20px, 2.4vw, 32px);
+  padding: clamp(var(--s4), 2.4vw, 28px) clamp(20px, 4vw, var(--s7)) clamp(20px, 2.4vw, var(--s6));
   background: var(--canvas);
   overflow: hidden;
 }
@@ -2964,7 +2965,7 @@
      de ancho no se lee mejor, se lee peor. Lo que crece es la columna que
      habla. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 408px);
-  gap: clamp(32px, 6vw, 76px);
+  gap: clamp(var(--s6), 6vw, 76px);
   align-items: center;
 }
 
@@ -3040,7 +3041,7 @@
   background: var(--surface-raised);
   border-color: var(--hairline-strong);
   border-radius: var(--lp-r-lg);
-  padding: clamp(22px, 3.2vw, 30px);
+  padding: clamp(var(--s5), 3.2vw, 30px);
   box-shadow: 0 34px 70px rgba(0, 0, 0, 0.55);
 }
 /* ── Y el canto de arriba, encendido ────────────────────────────────────────
@@ -3064,7 +3065,7 @@
   opacity: 0.4;
   pointer-events: none;
 }
-.acceso-card-head { display: flex; flex-direction: column; gap: 4px; padding-bottom: var(--s1); }
+.acceso-card-head { display: flex; flex-direction: column; gap: var(--s1); padding-bottom: var(--s1); }
 .acceso-title {
   font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
   letter-spacing: -0.022em;
@@ -3141,7 +3142,7 @@
 .acceso-fine a { color: var(--text-secondary); text-underline-offset: 2px; }
 .acceso-fine a:hover { color: var(--text); }
 
-@media (max-width: 860px) {
+@media (max-width: 1023.98px) {
   /* Una columna, y la que habla se queda en la marca y la frase. Los tres
      hechos se van: en vertical empujan el formulario fuera de la pantalla, y lo
      que hay que ver al abrir esto en un móvil es dónde se escribe el email. */

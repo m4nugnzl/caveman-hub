@@ -24,6 +24,7 @@ export const AnthropometryModule = () => {
     progressPhotos,
     addAnthropometryLog,
     removeAnthropometryLog,
+    apuntarMedida,
     uploadProgressPhoto,
     saveStatus,
     retrySave,
@@ -80,6 +81,9 @@ export const AnthropometryModule = () => {
         onRetry={() => retrySave('anthro', activeClient.id)}
         onAdd={(log) => addAnthropometryLog(activeClient.id, log)}
         onRemove={(logId) => removeAnthropometryLog(activeClient.id, logId)}
+        /* La casilla diaria de una medida: se funde con lo que haya de ese día
+           en vez de sustituirlo. Ver `apuntarMedida`. */
+        onApuntarMedida={(date, id, valor) => apuntarMedida(activeClient.id, date, id, valor)}
         photos={photos}
         onUploadPhoto={uploadProgressPhoto}
         onSetGender={(gender) => updateClient(activeClient.id, { gender })}

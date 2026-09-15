@@ -7,6 +7,32 @@ import { makeScale, smoothPath } from '@/components/ui/charts';
 
 const ALTO = 124;
 const PAD = { top: 10, right: 62, bottom: 18, left: 36 };
+/*
+  ══ A-09 · LA MISMA CURVA SIN EJES, CUANDO NO HAY SITIO PARA EJES ══════════
+
+  Medido en el portal del cliente a 390 px: descontando el margen de página y el
+  relleno del panel quedan ~306 px de ancho, y de esos **98 son eje** —36 de
+  rótulos a la izquierda, 62 de la proyección a la derecha—. Un tercio del
+  lienzo es regla y quedan 208 px de curva. Con doce semanas, cada semana mide
+  17 px y las etiquetas van a 9-10 px.
+
+  Eso no es una gráfica pequeña: es un instrumento diseñado para 520 px de
+  costado, encogido a la mitad sin rediseñarse. Es lo que el dueño llamó «las
+  gráficas horribles», y tenía razón.
+
+  Por debajo de 420 px la curva se queda con el ancho entero y se van los
+  rótulos del eje y la rejilla. No se pierde información: las tres cifras que
+  decían esos rótulos —de dónde salió, dónde está y adónde va— están escritas
+  al lado, en texto y más grandes. Lo que la curva aporta es la FORMA, y la
+  forma es justo lo que los ejes le estaban quitando.
+
+  El umbral no es uno de los cuatro anchos de la casa, y es correcto: aquí no se
+  mide la ventana sino el HUECO de la gráfica —el mismo panel se estrecha en una
+  columna de escritorio—, y eso lo mide `useElementWidth`. Ver la nota de
+  `@container` en `tokens.css`.
+*/
+const ESTRECHO = 420;
+const PAD_ESTRECHO = { top: 8, right: 10, bottom: 16, left: 10 };
 const kg = (v) => (Math.round(v * 10) / 10).toLocaleString('es-ES');
 
 /**
@@ -43,8 +69,11 @@ const kg = (v) => (Math.round(v * 10) / 10).toLocaleString('es-ES');
 export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, ariaLabel = 'Trayectoria de la fase' }) => {
   const [ref, medido] = useElementWidth(320);
   const W = Math.max(240, medido);
-  const innerW = W - PAD.left - PAD.right;
-  const innerH = ALTO - PAD.top - PAD.bottom;
+  /* Ver `ESTRECHO`: sin sitio para ejes, la curva se queda el ancho entero. */
+  const conEjes = W >= ESTRECHO;
+  const pad = conEjes ? PAD : PAD_ESTRECHO;
+  const innerW = W - pad.left - pad.right;
+  const innerH = ALTO - pad.top - pad.bottom;
 
   const datos = useMemo(() => {
     const inicio = weekStart(fase?.startsOn);
@@ -74,13 +103,13 @@ export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, aria
   const escala = makeScale(valores, { padRatio: 0.22 });
   if (!escala) return null;
 
-  const xAt = (semana) => PAD.left + (largo <= 0 ? 0 : (semana / largo) * innerW);
-  const yAt = (v) => PAD.top + innerH - ((v - escala.min) / (escala.max - escala.min || 1)) * innerH;
+  const xAt = (semana) => pad.left + (largo <= 0 ? 0 : (semana / largo) * innerW);
+  const yAt = (v) => pad.top + innerH - ((v - escala.min) / (escala.max - escala.min || 1)) * innerH;
 
   const coords = reales.map((p) => ({ x: xAt(p.x), y: yAt(p.y) }));
   const ultimo = coords[coords.length - 1];
   const camino = coords.length > 1 ? smoothPath(coords) : '';
-  const suelo = PAD.top + innerH;
+  const suelo = pad.top + innerH;
   const ticks = [escala.max, (escala.max + escala.min) / 2, escala.min];
   const xFin = total !== null ? xAt(total) : null;
   const objetivoArriba = conProyeccion && proyeccion.objetivo !== null && proyeccion.objetivo > proyeccion.proyectado;
@@ -88,18 +117,25 @@ export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, aria
   return (
     <figure className="trayecto" ref={ref}>
       <svg className="chart" width={W} height={ALTO} viewBox={`0 0 ${W} ${ALTO}`} role="img" aria-label={ariaLabel}>
-        <g className="chart-grid">
-          {ticks.map((t, i) => (
-            <line key={i} x1={PAD.left} x2={W - PAD.right} y1={yAt(t)} y2={yAt(t)} />
-          ))}
-        </g>
+        {/* La rejilla y los rótulos del eje, solo donde caben. Ver `ESTRECHO`. */}
+        {conEjes && (
+          <g className="chart-grid">
+            {ticks.map((t, i) => (
+              <line key={i} x1={pad.left} x2={W - pad.right} y1={yAt(t)} y2={yAt(t)} />
+            ))}
+          </g>
+        )}
         <g className="chart-axis">
-          {ticks.map((t, i) => (
-            <text key={i} x={PAD.left - 6} y={yAt(t)} textAnchor="end" dominantBaseline="middle">
-              {Math.round(t * 10) / 10}
-            </text>
-          ))}
-          <text x={PAD.left} y={ALTO - 4} textAnchor="start">
+          {conEjes &&
+            ticks.map((t, i) => (
+              <text key={i} x={pad.left - 6} y={yAt(t)} textAnchor="end" dominantBaseline="middle">
+                {Math.round(t * 10) / 10}
+              </text>
+            ))}
+          {/* La primera y la última semana SÍ se quedan en estrecho: son dos
+              palabras al pie y no cuestan ancho de curva, y sin ellas la línea
+              no dice cuánto tiempo abarca. */}
+          <text x={pad.left} y={ALTO - 4} textAnchor="start">
             S1
           </text>
           {xFin !== null && (
@@ -110,7 +146,7 @@ export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, aria
         </g>
 
         {/* Hoy: la vertical que separa lo medido de lo previsto. */}
-        <line className="trayecto-hoy" x1={ultimo.x} x2={ultimo.x} y1={PAD.top} y2={suelo} />
+        <line className="trayecto-hoy" x1={ultimo.x} x2={ultimo.x} y1={pad.top} y2={suelo} />
         {xFin === null || xFin - ultimo.x > 30 ? (
           <text className="chart-axis trayecto-hoy-k" x={ultimo.x} y={ALTO - 4} textAnchor="middle">
             hoy
@@ -140,9 +176,16 @@ export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, aria
               stroke={color}
             />
             <circle className="trayecto-fin" cx={xFin} cy={yAt(proyeccion.proyectado)} r="4" stroke={color} />
-            <text className="trayecto-v" x={xFin + 9} y={yAt(proyeccion.proyectado)} dominantBaseline="middle">
-              {kg(proyeccion.proyectado)}
-            </text>
+            {/* Las dos cifras del final viven en los 62 px de la derecha, así
+                que en estrecho no hay dónde ponerlas — y no hacen falta: el peso
+                proyectado y el objetivo están escritos, en texto y más grandes,
+                en la propia tarjeta que envuelve esta curva. Lo que se queda es
+                el DIBUJO: adónde llega el punteado y dónde está la marca. */}
+            {conEjes && (
+              <text className="trayecto-v" x={xFin + 9} y={yAt(proyeccion.proyectado)} dominantBaseline="middle">
+                {kg(proyeccion.proyectado)}
+              </text>
+            )}
             {proyeccion.objetivo !== null && (
               <>
                 <line
@@ -152,14 +195,16 @@ export const Trayectoria = ({ fase, history, proyeccion = null, hoy, color, aria
                   y1={yAt(proyeccion.objetivo)}
                   y2={yAt(proyeccion.objetivo)}
                 />
-                <text
-                  className="trayecto-objetivo-k"
-                  x={xFin + 9}
-                  y={yAt(proyeccion.objetivo) + (objetivoArriba ? -9 : 9)}
-                  dominantBaseline="middle"
-                >
-                  {kg(proyeccion.objetivo)} obj.
-                </text>
+                {conEjes && (
+                  <text
+                    className="trayecto-objetivo-k"
+                    x={xFin + 9}
+                    y={yAt(proyeccion.objetivo) + (objetivoArriba ? -9 : 9)}
+                    dominantBaseline="middle"
+                  >
+                    {kg(proyeccion.objetivo)} obj.
+                  </text>
+                )}
               </>
             )}
           </>

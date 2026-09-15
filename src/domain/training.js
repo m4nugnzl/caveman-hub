@@ -8,7 +8,7 @@
 
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
-import { addDays, localeNumber, toISODate } from '@/lib/dates';
+import { addDays, daysBetween, localeNumber, toISODate, todayISO, weekStart } from '@/lib/dates';
 // `sessions` no importa de aquí, así que no hay ciclo: es la capa de debajo.
 import { executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
 
@@ -146,6 +146,21 @@ export const MRV_GOALS = {
 };
 
 export const WEEK_DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+/**
+ * Qué día de `WEEK_DAYS` es una fecha: «Sábado».
+ *
+ * ── Por qué no es `new Date().getDay()` a pelo ──────────────────────────────
+ * Porque `getDay()` cuenta desde el DOMINGO y esta lista empieza en lunes, así
+ * que quien la usa escribe `(getDay() + 6) % 7`. Estaba escrito tres veces —la
+ * dieta del cliente, su ruta y el reparto— y es la clase de cuenta que se copia
+ * mal una vez y deja a alguien mirando el menú del martes en domingo.
+ *
+ * Se apoya en el lunes de esa semana y no en el reloj, así que acepta una fecha
+ * y es comprobable sin viajar en el tiempo.
+ */
+export const claveDelDia = (fecha = todayISO()) =>
+  WEEK_DAYS[daysBetween(weekStart(fecha), fecha)] || null;
 
 /*
   ══ Aquí vivía SET_COLORS, y era ocho colores por nada ═══════════════════════

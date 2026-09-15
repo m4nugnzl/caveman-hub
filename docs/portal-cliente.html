@@ -1,0 +1,948 @@
+<title>El portal de Caveman Hub</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,100..125,400..800;1,100..125,400..700&display=swap">
+<style>
+  :root{
+    --papel:#f7f6f2; --tinta:#1b1a17; --tinta-2:#514d45; --tinta-3:#7d776c;
+    --filete:#e7e3d9; --hoja:#fffefb; --senal:#3b49df; --senal-flojo:#eceefc;
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+    --fs-cifra:34px; --fs-lg:20px; --fs-md:15px; --fs-sm:13px; --fs-xs:11px;
+    --font:'Archivo',-apple-system,'Segoe UI',system-ui,sans-serif;
+    --ancha:'Archivo',-apple-system,'Segoe UI',system-ui,sans-serif;
+    --sombra:0 1px 2px rgba(81,77,69,.06),0 8px 24px -12px rgba(81,77,69,.18);
+    --muelle:cubic-bezier(.18,1.02,.34,1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:var(--font);background:#efece4;color:var(--tinta);
+       font-size:var(--fs-md);line-height:1.45;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+  :focus-visible{outline:2px solid var(--senal);outline-offset:2px;border-radius:4px}
+
+  /* ── la página del documento ───────────────────────────────────────── */
+  .doc{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+  .doc h1{font-family:var(--ancha);font-stretch:125%;font-size:34px;font-weight:700;
+          letter-spacing:-.02em;margin:0 0 6px}
+  .doc .lede{color:var(--tinta-2);max-width:62ch;margin:0 0 4px}
+  /* Acotado con `>`: sin él, `.doc h2` (0-1-1) gana a `.h-sesion` (0-1-0) y el
+     nombre de la sesión sale en versalitas grises dentro del prototipo. */
+  .doc > h2{font-size:var(--fs-sm);text-transform:uppercase;letter-spacing:.09em;
+          color:var(--tinta-3);font-weight:700;margin:44px 0 14px}
+  .doc p.nota{color:var(--tinta-2);font-size:var(--fs-sm);max-width:66ch}
+
+  /* ── los mandos ────────────────────────────────────────────────────── */
+  .mandos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:22px 0 26px}
+  .grupo{display:inline-flex;background:#e3dfd5;border-radius:999px;padding:3px}
+  .grupo button{padding:7px 15px;border-radius:999px;font-size:var(--fs-sm);font-weight:600;
+                color:var(--tinta-2);transition:background .18s,color .18s}
+  .grupo button[aria-pressed=true]{background:var(--hoja);color:var(--tinta);box-shadow:var(--sombra)}
+  .leyenda{font-size:var(--fs-sm);color:var(--tinta-3)}
+
+  /* ── el marco del teléfono ─────────────────────────────────────────── */
+  .escena{display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start}
+  .movil{width:390px;height:664px;background:var(--papel);border-radius:24px;
+         box-shadow:0 0 0 9px #22201c,0 24px 60px -20px rgba(34,32,28,.5);
+         overflow:hidden;position:relative;display:flex;flex-direction:column;flex:none}
+  .pc{width:100%;max-width:1080px;height:664px;background:var(--papel);border-radius:10px;
+      box-shadow:0 0 0 1px #d7d2c6,0 24px 60px -24px rgba(34,32,28,.35);
+      overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .pie-marco{font-size:var(--fs-xs);color:var(--tinta-3);margin-top:10px;letter-spacing:.04em;
+             text-transform:uppercase;font-weight:700}
+
+  /* ══ EL CHASIS DEL PORTAL ══════════════════════════════════════════ */
+  .folio{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--papel)}
+  .cuerpo{flex:1;min-height:0;overflow:auto;padding:0 20px 20px;scrollbar-width:thin}
+  .cuerpo::-webkit-scrollbar{width:5px}
+  .cuerpo::-webkit-scrollbar-thumb{background:#ddd8cc;border-radius:9px}
+
+  /* LA CINTA GRADUADA — la firma. Cuatro lecturas, un instrumento. */
+  /* La graduación es DENSA: una menor cada pocos píxeles y una mayor por unidad.
+     Con una sola muesca por semana no se lee como una regla, se lee como puntos
+     sueltos — que es lo que pasaba en la primera versión. */
+  .cinta{height:46px;padding:0 20px;display:flex;align-items:flex-end;gap:12px;
+         flex:none;position:relative;user-select:none}
+  .cinta-regla{flex:1;height:46px;position:relative}
+  .cinta-base{position:absolute;left:0;right:0;bottom:13px;height:1px;background:var(--filete)}
+  .cinta-regla i{position:absolute;bottom:13px;width:1px;background:var(--filete);
+                 transform:translateX(-.5px)}
+  .cinta-regla i.menor{height:5px}
+  .cinta-regla i.mayor{height:11px}
+  .cinta-regla i.hecha{background:#c6bfae}
+  .cinta-regla .aqui{position:absolute;bottom:13px;width:2px;height:20px;background:var(--senal);
+                     border-radius:1px;transform:translateX(-1px);
+                     transition:left .3s var(--muelle)}
+  .cinta-regla .aqui::after{content:'';position:absolute;top:-5px;left:50%;translate:-50% 0;
+                            width:6px;height:6px;border-radius:50%;background:var(--senal)}
+  .cinta-regla b{position:absolute;bottom:-1px;font-size:10px;line-height:12px;font-weight:600;
+                 color:var(--tinta-3);translate:-50% 0;letter-spacing:.02em}
+  .cinta-regla b.on{color:var(--tinta)}
+  .cinta-regla button{position:absolute;top:0;bottom:0;transform:translateX(-50%);
+                      border-radius:6px}
+  .cinta-regla button:hover{background:rgba(81,77,69,.05)}
+  .cinta-pie{font-size:var(--fs-xs);color:var(--tinta-3);padding-bottom:12px;flex:none;
+             font-variant-numeric:tabular-nums;letter-spacing:.02em}
+
+  /* LA BARRA DEL PULGAR */
+  .pulgar{flex:none;height:58px;display:grid;grid-template-columns:repeat(4,1fr);
+          border-top:1px solid var(--filete);background:rgba(255,254,251,.92);
+          backdrop-filter:blur(8px)}
+  .pulgar button{display:flex;flex-direction:column;align-items:center;justify-content:center;
+                 gap:3px;font-size:var(--fs-xs);font-weight:600;color:var(--tinta-3);
+                 position:relative;transition:color .16s}
+  .pulgar button[aria-current=page]{color:var(--tinta)}
+  .pulgar button[aria-current=page]::before{content:'';position:absolute;top:-1px;width:22px;
+                                            height:2px;background:var(--senal);border-radius:2px}
+  .pulgar svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;
+              stroke-linecap:round;stroke-linejoin:round}
+
+  /* EL RIEL VERTICAL (≥1024) */
+  .lienzo-pc{flex:1;min-height:0;display:flex;justify-content:center;gap:20px;padding-top:14px}
+  /* Sin filete de separación: una línea de arriba abajo partía la página en
+     un cuarto y tres cuartos, y lo que distingue al riel son sus iconos. */
+  .riel{width:96px;flex:none;display:flex;flex-direction:column;gap:2px;padding:18px 0 0 8px}
+  .riel button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 0;
+               font-size:var(--fs-xs);font-weight:600;color:var(--tinta-3);position:relative;
+               transition:color .16s}
+  .riel button[aria-current=page]{color:var(--tinta)}
+  .riel button[aria-current=page]::before{content:'';position:absolute;left:0;top:10px;bottom:10px;
+                                          width:2px;background:var(--senal);border-radius:2px}
+  .riel svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;
+            stroke-linecap:round;stroke-linejoin:round}
+  .folio-pc{width:560px;flex:none;display:flex;flex-direction:column;min-height:0}
+
+  /* ══ EL CUADERNO ABIERTO (≥1024) ═══════════════════════════════════
+     Dos páginas de 440 y un lomo. La izquierda es lo pautado; la derecha es
+     lo que en el teléfono se abre a un toque. No es más información: es el
+     mismo segundo nivel, sin tener que ir a buscarlo. */
+  .cuaderno{flex:1;min-height:0;display:flex;flex-direction:column;width:936px}
+  .paginas{flex:1;min-height:0;display:grid;grid-template-columns:440px 440px;
+           gap:56px;position:relative}
+  .paginas::before{content:'';position:absolute;left:50%;top:6px;bottom:6px;width:1px;
+                   background:var(--filete)}
+  .pagina{min-height:0;overflow:auto;padding:4px 0 24px;scrollbar-width:thin}
+  .pagina::-webkit-scrollbar{width:5px}
+  .pagina::-webkit-scrollbar-thumb{background:#ddd8cc;border-radius:9px}
+  .pagina-rotulo{font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.085em;
+                 font-weight:700;color:var(--tinta-3);margin-bottom:12px;display:block}
+
+  /* la semana entera — la página izquierda de Hoy */
+  .semana-fila{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;
+               padding:11px 10px;border-top:1px solid var(--filete);border-radius:10px}
+  .semana-fila:first-of-type{border-top:0}
+  .semana-fila.hoy{background:var(--hoja);box-shadow:var(--sombra);border-top-color:transparent}
+  .semana-fila .d{font-size:var(--fs-sm);font-weight:700;color:var(--tinta-3)}
+  .semana-fila.hoy .d{color:var(--senal)}
+  .semana-fila .q{font-weight:600}
+  .semana-fila .c{font-size:var(--fs-sm);color:var(--tinta-3)}
+  .semana-fila .marcas{display:flex;gap:5px;align-items:center}
+  .pip{width:7px;height:7px;border-radius:50%;background:var(--filete)}
+  .pip.on{background:#c6bfae}
+
+  /* el histórico de un ejercicio — la página derecha de Entreno */
+  .histo{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+         padding:8px 0;border-top:1px solid var(--filete);font-variant-numeric:tabular-nums}
+  .histo:first-of-type{border-top:0}
+  .histo .sem{font-size:var(--fs-sm);color:var(--tinta-3);width:64px}
+  .histo .barra{height:4px;background:var(--filete);border-radius:2px;position:relative}
+  .histo .barra i{position:absolute;left:0;top:0;bottom:0;background:#c6bfae;border-radius:2px}
+  .histo.ultima .barra i{background:var(--senal)}
+  .histo .val{font-weight:600}
+
+  /* las fotos comparadas — la página izquierda de Tú */
+  .par{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+  .par .foto{aspect-ratio:3/4}
+  .par-rot{grid-column:1/-1;font-size:var(--fs-xs);font-weight:700;color:var(--tinta-3);
+           letter-spacing:.06em;text-transform:uppercase}
+
+  /* el hilo — la página derecha de Tú */
+  .hilo{padding:14px 0;border-top:1px solid var(--filete)}
+  .hilo:first-of-type{border-top:0}
+  .hilo .cuando{font-size:var(--fs-sm);color:var(--tinta-3);font-weight:600}
+  .hilo .dijiste{font-size:var(--fs-sm);color:var(--tinta-2);margin:4px 0 0}
+
+  /* la curva del peso — sin ejes, es lo único que se dibuja aparte de la regla */
+  .curva{width:100%;height:78px;display:block;margin:8px 0 4px}
+  .curva path{fill:none;stroke:var(--senal);stroke-width:1.8;stroke-linejoin:round;
+              stroke-linecap:round}
+  .curva circle{fill:var(--senal)}
+
+  /* ══ PIEZAS DE CONTENIDO ═══════════════════════════════════════════ */
+  .h-sesion{font-family:var(--ancha);font-stretch:125%;font-size:var(--fs-cifra);
+            font-weight:700;letter-spacing:-.022em;line-height:1.05;margin:0}
+  .cifra{font-family:var(--ancha);font-stretch:125%;font-size:var(--fs-cifra);font-weight:700;
+         letter-spacing:-.022em;font-variant-numeric:tabular-nums;line-height:1}
+  .cifra small{font-size:var(--fs-md);font-weight:500;color:var(--tinta-3);margin-left:4px;
+               letter-spacing:0}
+  .rotulo{font-size:var(--fs-xs);text-transform:uppercase;letter-spacing:.085em;
+          font-weight:700;color:var(--tinta-3)}
+  .sec{color:var(--tinta-2);font-size:var(--fs-sm);margin:0}
+
+  .tarjeta{background:var(--hoja);border-radius:18px;padding:18px;box-shadow:var(--sombra)}
+  .filas{background:var(--hoja);border-radius:18px;box-shadow:var(--sombra);overflow:hidden}
+  .fila{display:flex;align-items:center;gap:12px;padding:14px 16px;width:100%;text-align:left;
+        border-top:1px solid var(--filete);transition:background .14s}
+  .fila:first-child{border-top:0}
+  .fila:hover{background:#faf8f4}
+  .fila .t{font-weight:600}
+  .fila .s{font-size:var(--fs-sm);color:var(--tinta-3)}
+  .fila .v{margin-left:auto;color:var(--tinta-2);font-variant-numeric:tabular-nums;flex:none}
+  .fila .g{color:#b8b1a2;flex:none}
+
+  .verbo{background:var(--senal);color:#fff;border-radius:999px;padding:11px 22px;
+         font-weight:600;font-size:var(--fs-md);transition:transform .14s var(--muelle),filter .14s}
+  .verbo:hover{filter:brightness(1.08)}
+  .verbo:active{transform:scale(.97)}
+  .verbo-2{border:1.5px solid var(--filete);border-radius:999px;padding:10px 20px;font-weight:600;
+           font-size:var(--fs-md);color:var(--tinta-2)}
+
+  /* LA REGLA DEL PESO */
+  .regla{height:26px;position:relative;margin:10px 0 6px}
+  .regla-via{position:absolute;left:0;right:0;top:11px;height:3px;background:var(--filete);
+             border-radius:2px}
+  .regla-hecho{position:absolute;left:0;top:11px;height:3px;background:var(--senal);
+               border-radius:2px;transition:width .45s var(--muelle)}
+  .regla-tick{position:absolute;top:17px;width:1px;height:6px;background:#cfc9ba}
+  .regla-aguja{position:absolute;top:6px;width:13px;height:13px;border-radius:50%;
+               background:var(--senal);translate:-50% 0;box-shadow:0 0 0 3px var(--papel);
+               transition:left .45s var(--muelle)}
+  .regla-meta{position:absolute;top:5px;width:2px;height:15px;background:var(--tinta-3);translate:-50% 0}
+
+  /* LA VOZ DEL ENTRENADOR — cursiva y cara. Ni color ni caja. */
+  .voz{display:flex;gap:10px;align-items:flex-start;margin-top:10px}
+  .cara{width:26px;height:26px;border-radius:50%;background:#dfe2f7;color:#3b49df;flex:none;
+        display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;
+        letter-spacing:.04em}
+  .voz p{margin:0;font-style:italic;font-weight:500;color:var(--tinta-2);font-size:var(--fs-sm);
+         line-height:1.5}
+  .voz p b{font-style:normal;font-weight:600;color:var(--tinta-2)}
+
+  /* COMIDA */
+  .comida{border-top:1px solid var(--filete)}
+  .comida:first-child{border-top:0}
+  .comida-cab{display:flex;align-items:center;gap:10px;padding:14px 16px;width:100%;text-align:left}
+  .comida-cab .n{font-size:var(--fs-xs);color:var(--tinta-3);font-weight:700;width:12px;flex:none}
+  .comida-cab .t{font-weight:600}
+  .comida-cab .s{font-size:var(--fs-sm);color:var(--tinta-3);margin-left:auto;flex:none}
+  .comida-cab .g{transition:rotate .2s var(--muelle);color:#b8b1a2;flex:none}
+  .comida[data-abierta=si] .comida-cab .g{rotate:90deg}
+  .comida-cuerpo{padding:0 16px 16px 42px;display:none;animation:entra .24s var(--muelle) both}
+  .comida[data-abierta=si] .comida-cuerpo{display:block}
+  .alimento{display:flex;gap:10px;padding:6px 0;font-size:var(--fs-md);border-top:1px dashed #eae6dc}
+  .alimento:first-child{border-top:0}
+  .alimento .p{margin-left:auto;color:var(--tinta-2);font-variant-numeric:tabular-nums;flex:none}
+  .alimento.es-tocable{width:100%;text-align:left;border-radius:8px;padding-left:8px;
+                       padding-right:8px;margin-left:-8px;width:calc(100% + 16px)}
+  .alimento.es-tocable:hover{background:#f1eee6}
+  .alimento.activo{background:var(--senal-flojo)}
+  .alimento.activo>span:first-child{font-weight:600}
+  .opciones{display:flex;gap:6px;margin-bottom:8px}
+  .opcion{border:1.5px solid var(--filete);border-radius:999px;padding:5px 12px;
+          font-size:var(--fs-sm);font-weight:600;color:var(--tinta-2);transition:.16s}
+  .opcion[aria-pressed=true]{border-color:var(--senal);color:var(--senal);background:var(--senal-flojo)}
+
+  /* SERIE — renglón, no tarjeta */
+  .ejercicio{margin-top:18px}
+  .ej-cab{display:flex;align-items:center;gap:10px}
+  .ej-miniatura{width:44px;height:44px;border-radius:11px;flex:none;
+                background:linear-gradient(150deg,#e6e2d7,#d6d1c4);position:relative;overflow:hidden}
+  .ej-miniatura::after{content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at 30% 35%,rgba(255,255,255,.55),transparent 55%)}
+  .ej-cab .t{font-weight:600;line-height:1.2}
+  .ej-cab .s{font-size:var(--fs-sm);color:var(--tinta-3)}
+  .serie{display:grid;grid-template-columns:18px 1fr 58px 58px 34px;gap:8px;align-items:center;
+         padding:9px 0;border-top:1px solid var(--filete);font-variant-numeric:tabular-nums}
+  .serie .i{font-size:var(--fs-sm);color:var(--tinta-3)}
+  .serie .obj{font-size:var(--fs-sm);color:var(--tinta-3)}
+  .serie input{width:100%;border:1px solid var(--filete);border-radius:9px;padding:7px 8px;
+               font:inherit;font-size:16px;text-align:center;background:var(--hoja);
+               font-variant-numeric:tabular-nums}
+  .serie input:focus{border-color:var(--senal);outline:none;box-shadow:0 0 0 3px var(--senal-flojo)}
+  .tic{width:30px;height:30px;border-radius:9px;border:1.5px solid var(--filete);display:flex;
+       align-items:center;justify-content:center;color:transparent;transition:.18s var(--muelle)}
+  .tic[aria-pressed=true]{background:var(--senal);border-color:var(--senal);color:#fff;
+                          transform:scale(1.04)}
+  .tic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2.6;
+           stroke-linecap:round;stroke-linejoin:round}
+
+  .campo-peso{display:flex;align-items:center;gap:10px;padding:14px 16px;width:100%}
+  .campo-peso input{width:86px;border:1px solid var(--filete);border-radius:10px;padding:8px;
+                    font:inherit;font-size:16px;text-align:center;background:var(--hoja);
+                    font-variant-numeric:tabular-nums}
+  .campo-peso input:focus{border-color:var(--senal);outline:none;box-shadow:0 0 0 3px var(--senal-flojo)}
+
+  .fotos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .foto{aspect-ratio:3/4;border-radius:13px;background:linear-gradient(160deg,#e8e4d9,#d8d3c5);
+        position:relative;overflow:hidden}
+  .foto::after{content:'';position:absolute;inset:0;
+    background:radial-gradient(ellipse at 50% 30%,rgba(255,255,255,.5),transparent 60%)}
+  .foto span{position:absolute;left:8px;bottom:7px;font-size:var(--fs-xs);font-weight:700;
+             color:var(--tinta-2);letter-spacing:.05em;text-transform:uppercase;z-index:1}
+
+  .stack{display:flex;flex-direction:column}
+  .gap2>*+*{margin-top:8px} .gap3>*+*{margin-top:12px}
+  .gap4>*+*{margin-top:16px} .gap5>*+*{margin-top:24px}
+  .row{display:flex;align-items:center;gap:10px}
+
+  @keyframes entra{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+  .cascada>*{animation:entra .34s var(--muelle) both}
+  .cascada>*:nth-child(1){animation-delay:.02s}
+  .cascada>*:nth-child(2){animation-delay:.07s}
+  .cascada>*:nth-child(3){animation-delay:.12s}
+  .cascada>*:nth-child(4){animation-delay:.17s}
+  .cascada>*:nth-child(5){animation-delay:.22s}
+
+  /* ══ EL «ANTES» — reconstruido de las capturas del 13 sep ═════════ */
+  .antes{font-size:14px}
+  .cab-marca{height:58px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;
+             border-bottom:1px solid var(--filete);background:rgba(255,254,251,.9)}
+  .marca-logo{width:28px;height:28px;border-radius:7px;background:#14181c;position:relative;flex:none}
+  .marca-logo::before{content:'';position:absolute;left:6px;bottom:7px;width:3px;height:8px;
+                      background:#e8ecf1;border-radius:1px;box-shadow:6px -4px 0 #e8ecf1,12px -8px 0 #e8ecf1}
+  .marca-logo::after{content:'';position:absolute;left:18px;bottom:19px;width:3px;height:3px;
+                     background:#e2564a;border-radius:1px}
+  .marca-txt{font-weight:800;letter-spacing:.14em;font-size:12px}
+  .buscar{margin-left:auto;display:flex;align-items:center;gap:7px;background:#eeeae1;
+          border-radius:999px;padding:6px 11px;font-size:12px;color:var(--tinta-2)}
+  .buscar kbd{border:1px solid #ddd8cc;border-radius:4px;padding:0 4px;font-size:10px;
+              font-family:ui-monospace,monospace}
+  .av{width:26px;height:26px;border-radius:50%;background:#d9e8df;font-size:10px;font-weight:700;
+      display:flex;align-items:center;justify-content:center;color:#2f6a4d}
+  .tabs-antes{display:flex;gap:18px;padding:14px 16px 0;font-size:14px;color:var(--tinta-2)}
+  .tabs-antes b{color:var(--tinta);border-bottom:2px solid var(--senal);padding-bottom:6px}
+  .h1-antes{font-family:var(--ancha);font-stretch:125%;font-size:30px;font-weight:700;
+            letter-spacing:-.02em;margin:14px 0 2px}
+  .regla-antes{border-bottom:1px solid var(--filete);margin:12px 0}
+  .hoja-calculo{width:100%;border-collapse:collapse;font-size:13px;
+                font-variant-numeric:tabular-nums}
+  .hoja-calculo th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+                   color:var(--tinta-3);font-weight:700;text-align:right;padding:6px 4px}
+  .hoja-calculo td{padding:8px 4px;text-align:right;border-top:1px solid var(--filete)}
+  .hoja-calculo td.nom{text-align:left;font-weight:600}
+  .hoja-calculo tr.suma{background:#efece4}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .kpi{background:var(--hoja);border-radius:14px;padding:11px;box-shadow:var(--sombra)}
+  .kpi .k{font-size:11px;color:var(--tinta-3);font-weight:600}
+  .kpi .v{font-size:22px;font-weight:700;color:#2563c9;font-variant-numeric:tabular-nums}
+  .barras{display:flex;align-items:flex-end;gap:4px;height:74px;padding-top:6px}
+  .barras i{flex:1;background:#9b7fd4;border-radius:3px 3px 0 0}
+  .tabla-hist td{padding:7px 4px;border-top:1px solid var(--filete);font-size:13px}
+  .tabla-hist .peso{color:#9a6b12;font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+  .muro{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .muro span{border:1px solid var(--filete);border-radius:999px;padding:5px 10px;font-size:12px;
+             color:var(--tinta-2)}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+  }
+  @media (max-width:900px){
+    .doc{padding:24px 14px 60px}
+    .movil{width:100%;max-width:390px}
+    .escena{gap:24px}
+  }
+</style>
+
+<div class="doc">
+  <h1>El portal del cliente</h1>
+  <p class="lede">Cuatro pantallas, dos anchos y el conmutador de antes y después.
+    El <b>antes</b> está reconstruido de las capturas del 13 de septiembre con una cuenta de
+    cliente real; el <b>después</b> es lo que propone
+    <code>replanteamiento-portal-cliente.md</code>.</p>
+  <p class="nota">Todo lo que se ve es tocable: las pestañas, la cinta de arriba, las comidas,
+    las series, el campo del peso y los días de la dieta.</p>
+
+  <div class="mandos">
+    <div class="grupo" id="mando-version">
+      <button data-v="antes">Antes</button>
+      <button data-v="despues" aria-pressed="true">Después</button>
+    </div>
+    <div class="grupo" id="mando-ancho">
+      <button data-a="movil" aria-pressed="true">Teléfono · 390</button>
+      <button data-a="pc">PC · 1440</button>
+    </div>
+    <span class="leyenda" id="leyenda"></span>
+  </div>
+
+  <div class="escena" id="escena"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   DATOS — los de Marta Ruiz en la demo local, tal cual.
+   ══════════════════════════════════════════════════════════════════════ */
+const D = {
+  nombre:'Marta', coach:'Álex Nieto', coachIni:'AN',
+  semana:10, semanas:10, sesion:'Empuje', series:21, hechas:1,
+  peso:61.0, empezo:64.0, meta:58.0,
+  dias:['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'],
+  reparto:['Entreno','Entreno','Descanso','Entreno','Entreno','Descanso','Descanso'],
+  hoyIdx:0,
+  kcal:{Entreno:2150,Descanso:1750},
+  macros:{Entreno:[140,240,58],Descanso:[140,150,62]},
+  comidas:{
+    Entreno:[
+      {n:'Desayuno',nota:'Antes de entrenar, con calma.',op:['Con avena','Con pan'],
+       foods:[[['Avena','80 g'],['Claras de huevo','200 g'],['Plátano','1 pieza']],
+              [['Pan de centeno','2 rebanadas'],['Queso fresco batido','250 g']]]},
+      {n:'Comida',op:null,
+       foods:[[['Arroz basmati','90 g'],['Pechuga de pollo','180 g'],['Aceite de oliva','1 cda'],['Verdura salteada','200 g']]]},
+      {n:'Merienda',op:null,
+       foods:[[['Yogur griego','1 tarrina'],['Nueces','20 g']]]},
+      {n:'Cena',nota:'Si cenas fuera, busca proteína y verdura y no te preocupes por el resto.',op:null,
+       foods:[[['Salmón','150 g'],['Patata cocida','250 g'],['Ensalada','150 g']]]}],
+    Descanso:[
+      {n:'Desayuno',op:null,foods:[[['Tortilla de 3 huevos','165 g'],['Pan de centeno','1 rebanada']]]},
+      {n:'Comida',op:null,foods:[[['Lentejas cocidas','250 g'],['Atún al natural','2 latas'],['Aceite de oliva','1 cda']]]},
+      {n:'Cena',op:null,foods:[[['Merluza','200 g'],['Verdura al horno','250 g']]]}]
+  },
+  ejercicios:[
+    {n:'Press banca',s:4,obj:'6-8',kg:80,nota:'Baja controlando y no rebotes en el pecho.'},
+    {n:'Press militar',s:4,obj:'6-8',kg:65},
+    {n:'Press inclinado con mancuernas',s:4,obj:'6-8',kg:48},
+    {n:'Elevaciones laterales',s:3,obj:'10-12',kg:30},
+    {n:'Fondos en paralelas',s:3,obj:'10-12',kg:null},
+    {n:'Extensión de tríceps en polea',s:3,obj:'10-12',kg:50}],
+  entregadas:[1,1,1,1,1,1,1,1,1,0],
+  /* ── Lo que llena la página derecha del cuaderno ──────────────────────────
+     Todo esto ES dato del cliente que ya está en la base y hoy no se enseña:
+     el histórico por ejercicio sale de `previousSetsBefore`, las fotos de
+     `progress_photos` (guardan semana y ángulo) y el hilo de
+     `check_ins.coach_notes` + `review_links`. */
+  semanaFilas:[
+    {d:'Lun',q:'Empuje',c:'día de entreno',peso:1,entrega:0},
+    {d:'Mar',q:'Tirón',c:'día de entreno',peso:0,entrega:0},
+    {d:'Mié',q:'Descansas',c:'día de descanso',peso:1,entrega:0},
+    {d:'Jue',q:'Pierna',c:'día de entreno',peso:0,entrega:0},
+    {d:'Vie',q:'Full body',c:'día de entreno',peso:1,entrega:0},
+    {d:'Sáb',q:'Descansas',c:'día de descanso',peso:0,entrega:0},
+    {d:'Dom',q:'Descansas',c:'día de descanso · entregas la semana',peso:0,entrega:1}],
+  histo:{
+    'Press banca':[['semana 3',60,8],['semana 4',65,8],['semana 5',70,7],['semana 6',70,8],
+                   ['semana 7',75,7],['semana 8',75,8],['semana 9',80,6],['semana 10',80,8]],
+    'Press militar':[['semana 6',55,8],['semana 7',60,7],['semana 8',60,8],['semana 9',65,7],
+                     ['semana 10',65,8]]},
+  equiv:{
+    'Avena':[['Pan de centeno','95 g'],['Arroz basmati','75 g'],['Copos de maíz','70 g']],
+    'Claras de huevo':[['Queso fresco batido','200 g'],['Pavo en lonchas','75 g']],
+    'Pechuga de pollo':[['Merluza','215 g'],['Ternera magra','160 g'],['Tofu firme','290 g']],
+    'Arroz basmati':[['Pasta','85 g'],['Patata cocida','360 g'],['Quinoa','90 g']],
+    'Tortilla de 3 huevos':[['Claras + 1 huevo','280 g'],['Queso fresco batido','300 g'],
+                            ['Pavo en lonchas','130 g']]},
+  hilo:[
+    {s:'Semana 9', peso:'61,0 kg', dijiste:'Dormí mal el miércoles y la pierna la acusé.',
+     contesto:'Con lo del sueño no toco nada del plan, pero baja el jueves a 3 series de sentadilla.'},
+    {s:'Semana 8', peso:'61,4 kg', dijiste:'Bien, el press banca por fin subió.',
+     contesto:'Ahí está. Nos quedamos en 80 y apretamos repeticiones antes de subir.'},
+    {s:'Semana 7', peso:'61,9 kg', dijiste:'Comí fuera dos días.',
+     contesto:'No pasa nada, el promedio sigue donde tiene que estar.'}]
+};
+
+/* estado del prototipo */
+const S = {v:'despues', a:'movil', pantalla:'hoy', dia:0, peso:61.0, alim:null,
+           comida:null, opcion:{}, tic:{}, ej:0};
+
+const ICO = {
+  hoy:'<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/>',
+  entreno:'<path d="m12 3 9 4.5-9 4.5-9-4.5z"/><path d="m3 12 9 4.5 9-4.5"/><path d="m3 16.5 9 4.5 9-4.5"/>',
+  dieta:'<path d="M4 14h16a8 8 0 0 1-16 0z"/><path d="M3 19h18"/><path d="M9 10c0-2 1-3 3-3s3 1 3 3"/>',
+  tu:'<circle cx="12" cy="7.5" r="3.5"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>'
+};
+const DEST = [['hoy','Hoy'],['entreno','Entreno'],['dieta','Dieta'],['tu','Tú']];
+const esc = (s)=>String(s).replace(/[&<>"]/g,(c)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = (n)=>String(n).replace('.',',');
+
+/* ══════════════════════════════════════════════════════════════════════
+   LA CINTA — un instrumento, cuatro lecturas.
+   ══════════════════════════════════════════════════════════════════════ */
+/**
+ * Dibuja la regla. `n` unidades (semanas, series, días), `pos` dónde estás,
+ * `hechas` cuántas quedan atrás, `rotulos` los nombres bajo la mayor.
+ * Las menores se reparten para que salgan ~48 muescas sea cual sea `n`: lo que
+ * hace que esto se lea como un metro es la DENSIDAD, no el número de unidades.
+ */
+function regla({n, pos, hechas=0, rotulos=null, pie='', cliqueable=false}){
+  const porUnidad = Math.max(1, Math.round(48/n));
+  const total = n*porUnidad;
+  let html = '<span class="cinta-base"></span>';
+  for (let k=0;k<=total;k++){
+    const x = (k/total)*100;
+    const mayor = k%porUnidad===0;
+    const atras = k < hechas*porUnidad;
+    html += '<i class="'+(mayor?'mayor':'menor')+(atras?' hecha':'')+'" style="left:'+x+'%"></i>';
+  }
+  html += '<span class="aqui" style="left:'+((pos+.5)/n*100)+'%"></span>';
+  if (rotulos) rotulos.forEach((r,i)=>{
+    html += '<b class="'+(i===pos?'on':'')+'" style="left:'+((i+.5)/n*100)+'%">'+esc(r)+'</b>'; });
+  if (cliqueable) for (let i=0;i<n;i++)
+    html += '<button data-dia="'+i+'" aria-label="'+esc(rotulos?rotulos[i]:i+1)+'" style="left:'+
+            ((i+.5)/n*100)+'%;width:'+(100/n)+'%"></button>';
+  return '<div class="cinta"><div class="cinta-regla">'+html+'</div>'+
+         '<span class="cinta-pie">'+esc(pie)+'</span></div>';
+}
+
+function cinta(){
+  if (S.pantalla==='hoy')
+    return regla({n:D.semanas, pos:D.semana-1, hechas:D.semana-1,
+                  pie:'semana '+D.semana+' de '+D.semanas});
+  if (S.pantalla==='entreno')
+    return regla({n:D.series, pos:Math.max(0,hechasHasta()-1), hechas:cuentaHechas(),
+                  pie:cuentaHechas()+' de '+D.series+' series'});
+  if (S.pantalla==='dieta')
+    return regla({n:7, pos:S.dia, hechas:0, rotulos:D.dias, cliqueable:true,
+                  pie:D.reparto[S.dia].toLowerCase()});
+  return regla({n:D.entregadas.length, pos:D.entregadas.length-1,
+                hechas:D.entregadas.filter(Boolean).length,
+                pie:D.entregadas.filter(Boolean).length+' semanas entregadas'});
+}
+const cuentaHechas = ()=>Object.values(S.tic).filter(Boolean).length || D.hechas;
+function hechasHasta(){ let k=0,n=0;
+  D.ejercicios.forEach((e,ei)=>{for(let s=0;s<e.s;s++){ if(S.tic[ei+'-'+s]) n=k+1; k++; }});
+  return n || D.hechas; }
+
+/* ══════════════════════════════════════════════════════════════════════
+   LAS CUATRO PANTALLAS — el DESPUÉS
+   ══════════════════════════════════════════════════════════════════════ */
+function reglaPeso(){
+  const min=Math.min(D.meta,D.peso,S.peso)-1.2, max=D.empezo+.6;
+  const p = (v)=>Math.max(0,Math.min(100,(1-(v-min)/(max-min))*100));
+  const ticks=[0,25,50,75,100].map(t=>'<span class="regla-tick" style="left:'+t+'%"></span>').join('');
+  return '<div class="regla"><span class="regla-via"></span>'+ticks+
+    '<span class="regla-hecho" style="width:'+p(S.peso)+'%"></span>'+
+    '<span class="regla-meta" style="left:'+p(D.meta)+'%"></span>'+
+    '<span class="regla-aguja" style="left:'+p(S.peso)+'%"></span></div>';
+}
+
+function pantallaHoy(){
+  return '<div class="stack gap5 cascada" style="padding-top:16px">'+
+    '<div class="tarjeta">'+
+      '<div class="rotulo">La dejaste a medias</div>'+
+      '<h2 class="h-sesion" style="margin:6px 0 2px">'+D.sesion+'</h2>'+
+      '<p class="sec">llevas 1 de 21 series</p>'+
+      '<div class="row" style="margin-top:14px">'+
+        '<button class="verbo" data-ir="entreno">Seguir</button>'+
+        '<button class="verbo-2">Descartar</button></div>'+
+    '</div>'+
+
+    '<div>'+
+      '<div class="row"><span class="rotulo">Tu peso</span>'+
+        '<span class="sec" style="margin-left:auto">−'+num((D.empezo-S.peso).toFixed(1))+' kg desde julio</span></div>'+
+      '<div class="cifra" style="margin-top:4px">'+num(S.peso.toFixed(1))+'<small>kg</small></div>'+
+      reglaPeso()+
+      '<p class="sec">Empezaste en '+num(D.empezo.toFixed(1))+' · te puso '+num(D.meta.toFixed(1))+'</p>'+
+    '</div>'+
+
+    '<div class="filas">'+
+      '<div class="fila campo-peso">'+
+        '<span><span class="t">Pésate</span><br><span class="s">hoy todavía no</span></span>'+
+        '<span style="margin-left:auto" class="row">'+
+          '<input id="peso" inputmode="decimal" aria-label="Tu peso de hoy">'+
+          '<span class="s">kg</span></span>'+
+      '</div>'+
+      fila('Tu semana','la entregas el domingo','sin entregar')+
+      fila('Cómo vas','tu peso, tus entrenos y tus fotos','')+
+    '</div>'+
+
+    '<div class="voz"><span class="cara">'+D.coachIni+'</span>'+
+      '<p><b>'+D.coach+'</b> · Esta semana cerramos el bloque. No fuerces el press, que vienes de molestia.</p></div>'+
+  '</div>';
+}
+
+function fila(t,s,v){
+  return '<button class="fila"><span><span class="t">'+esc(t)+'</span>'+
+    (s?'<br><span class="s">'+esc(s)+'</span>':'')+'</span>'+
+    /* El valor se pinta SIEMPRE, aunque venga vacío: es lo que empuja el galón
+       al canto derecho. Sin él, la fila sin valor deja el galón pegado al texto
+       y las tres filas de un grupo dejan de alinearse. */
+    '<span class="v">'+esc(v||'')+'</span>'+
+    '<span class="g">›</span></button>';
+}
+
+function pantallaEntreno(enCuaderno){
+  const e = D.ejercicios[S.ej];
+  const series = Array.from({length:e.s},(_,i)=>{
+    const on = !!S.tic[S.ej+'-'+i];
+    return '<div class="serie"><span class="i">'+(i+1)+'</span>'+
+      '<span class="obj">'+e.obj+' reps'+(e.kg?' · plan '+e.kg+' kg':'')+'</span>'+
+      /* El campo va VACÍO: los kilos del plan ya están escritos a su izquierda.
+         Rellenarlos es proponerlos, y la aplicación no receta. */
+      '<input inputmode="decimal" placeholder="kg" aria-label="Kilos de la serie '+(i+1)+'">'+
+      '<input inputmode="numeric" placeholder="reps" aria-label="Repeticiones de la serie '+(i+1)+'">'+
+      '<button class="tic" data-tic="'+S.ej+'-'+i+'" aria-pressed="'+on+'" aria-label="Serie '+(i+1)+' hecha">'+
+        '<svg viewBox="0 0 24 24"><path d="m4 12.5 5.5 5.5L20 7"/></svg></button></div>';
+  }).join('');
+  const otros = D.ejercicios.map((x,i)=>
+    '<button class="fila" data-ej="'+i+'"'+(i===S.ej?' style="background:#faf8f4"':'')+'>'+
+      '<span class="ej-miniatura" style="width:30px;height:30px;border-radius:8px"></span>'+
+      '<span><span class="t">'+esc(x.n)+'</span><br><span class="s">'+x.s+' × '+x.obj+'</span></span>'+
+      '<span class="v"></span><span class="g">›</span></button>').join('');
+  return '<div class="stack gap5 cascada" style="padding-top:16px">'+
+    '<div>'+
+      '<div class="ej-cab"><span class="ej-miniatura"></span>'+
+        '<span><span class="t">'+esc(e.n)+'</span><br><span class="s">'+e.s+' series · '+e.obj+' reps</span></span></div>'+
+      /* La indicación no se dice dos veces: en el cuaderno vive en la página
+         derecha, pegada al histórico del mismo ejercicio. */
+      (e.nota && !enCuaderno
+        ? '<div class="voz"><span class="cara">'+D.coachIni+'</span><p>'+esc(e.nota)+'</p></div>' : '')+
+      '<div style="margin-top:10px">'+series+'</div>'+
+    '</div>'+
+    '<div><div class="rotulo" style="margin-bottom:8px">El resto de '+esc(D.sesion)+'</div>'+
+      '<div class="filas">'+otros+'</div></div>'+
+  '</div>';
+}
+
+function pantallaDieta(todas){
+  const v = D.reparto[S.dia];
+  const [p,c,g] = D.macros[v];
+  const comidas = D.comidas[v].map((m,i)=>{
+    /* En el cuaderno van todas abiertas: el día entero cabe sin tocar nada.
+       En el teléfono van plegadas, porque no cabe. */
+    const abierta = todas || S.comida===v+i;
+    const k = S.opcion[v+i]||0;
+    /* En el cuaderno el alimento se toca y su página derecha cambia. En el
+       teléfono no hay página derecha, así que no se pinta como tocable: un
+       botón que no lleva a ninguna parte es peor que un renglón. */
+    const alimActivo = S.alim || D.comidas[v][0].foods[0][0][0];
+    const lista = m.foods[k].map(f=> todas
+      ? '<button class="alimento es-tocable'+(f[0]===alimActivo?' activo':'')+'" data-alim="'+
+        esc(f[0])+'"><span>'+esc(f[0])+'</span><span class="p">'+esc(f[1])+'</span></button>'
+      : '<div class="alimento"><span>'+esc(f[0])+'</span>'+
+        '<span class="p">'+esc(f[1])+'</span></div>').join('');
+    return '<div class="comida" data-abierta="'+(abierta?'si':'no')+'">'+
+      '<button class="comida-cab" data-comida="'+v+i+'">'+
+        '<span class="n">'+(i+1)+'</span><span class="t">'+esc(m.n)+'</span>'+
+        /* Plegada no es escondida: la línea dice DE QUÉ se compone la comida,
+           que es lo que contesta «¿qué ceno?» sin abrir nada. */
+        '<span class="s">'+esc(m.foods[k].map(f=>f[0].split(' ')[0]).join(' · '))+'</span>'+
+        '<span class="g">›</span></button>'+
+      '<div class="comida-cuerpo">'+
+        (m.op?'<div class="opciones">'+m.op.map((o,j)=>
+          '<button class="opcion" data-op="'+v+i+'" data-k="'+j+'" aria-pressed="'+(j===k)+'">'+esc(o)+'</button>').join('')+'</div>':'')+
+        lista+
+        (m.nota?'<div class="voz"><span class="cara">'+D.coachIni+'</span><p>'+esc(m.nota)+'</p></div>':'')+
+      '</div></div>';
+  }).join('');
+  return '<div class="stack gap5 cascada" style="padding-top:16px">'+
+    '<div>'+
+      '<div class="cifra">'+D.kcal[v]+'<small>kcal</small></div>'+
+      '<p class="sec">Reparte como quieras, cuadra el día.</p>'+
+      '<div class="row" style="margin-top:14px;gap:26px">'+
+        macro(p,'Proteína')+macro(c,'Carbos')+macro(g,'Grasas')+'</div>'+
+    '</div>'+
+    '<div class="filas">'+comidas+'</div>'+
+    /* Las pautas no se dicen dos veces: en el cuaderno viven en la página
+       derecha, así que aquí solo salen cuando esa página no existe. */
+    '<div class="filas">'+(todas?'':fila('Lo que te dijo tu entrenador','agua, comer fuera','2'))+
+      fila('Pasos','','9.000')+'</div>'+
+  '</div>';
+}
+const macro=(v,n)=>'<span><span class="cifra" style="font-size:20px">'+v+'<small style="font-size:12px">g</small></span>'+
+  '<br><span class="rotulo">'+n+'</span></span>';
+
+function pantallaTu(){
+  return '<div class="stack gap5 cascada" style="padding-top:16px">'+
+    '<div class="tarjeta">'+
+      '<div class="rotulo">Tu semana</div>'+
+      '<h2 class="h-sesion" style="font-size:22px;margin:6px 0 2px">Te toca el domingo</h2>'+
+      '<p class="sec">el peso, tres fotos y dos preguntas</p>'+
+      '<div class="row" style="margin-top:14px"><button class="verbo">Empezar</button></div>'+
+    '</div>'+
+    '<div><div class="rotulo" style="margin-bottom:8px">Tus fotos · semana 9</div>'+
+      '<div class="fotos">'+
+        '<div class="foto"><span>Frente</span></div>'+
+        '<div class="foto"><span>Lado</span></div>'+
+        '<div class="foto"><span>Espalda</span></div></div></div>'+
+    '<div class="filas">'+
+      fila('Tu peso y tus medidas','lo que anotas cada semana',num(S.peso.toFixed(1))+' kg')+
+      fila('Lo que te fue contestando','9 semanas','')+
+      fila('Tu calendario','lo que tienes por delante','')+
+    '</div>'+
+    '<div class="filas">'+
+      fila('Tus datos y tu privacidad','qué se guarda de ti','')+
+      fila('Tu cuenta','marta@ejemplo.invalid','')+
+    '</div>'+
+    '<div class="voz"><span class="cara">'+D.coachIni+'</span>'+
+      '<p><b>'+D.coach+'</b> · Te leí lo de la rodilla. La semana que viene cambiamos la prensa.</p></div>'+
+  '</div>';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL CUADERNO ABIERTO — el escritorio, ≥1024
+   ──────────────────────────────────────────────────────────────────────
+   Página izquierda: lo pautado. Página derecha: lo que en el teléfono está
+   a un toque. Mismo contenido, otro mueble. Y ni un instrumento del
+   entrenador: nada de MRV, tonelaje ni adherencia. Ver §1.6 del estudio.
+   ══════════════════════════════════════════════════════════════════════ */
+function curvaPeso(){
+  const ps = [64,63.4,63,62.6,62.3,62,61.9,61.4,61.2,S.peso];
+  const min = Math.min(...ps)-.4, max = Math.max(...ps)+.4;
+  const pts = ps.map((v,i)=>[ (i/(ps.length-1))*100, 30-((v-min)/(max-min))*30 ]);
+  const d = pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' ');
+  const fin = pts[pts.length-1];
+  return '<svg class="curva" viewBox="0 0 100 30" preserveAspectRatio="none" role="img" '+
+         'aria-label="Tu peso, semana a semana"><path d="'+d+'" vector-effect="non-scaling-stroke"/>'+
+         '<circle cx="'+fin[0].toFixed(1)+'" cy="'+fin[1].toFixed(1)+'" r="1.6"/></svg>';
+}
+
+function pagSemana(){
+  return '<span class="pagina-rotulo">Tu semana</span>'+
+    D.semanaFilas.map((f,i)=>{
+      const hoy = i===D.hoyIdx;
+      return '<div class="semana-fila'+(hoy?' hoy':'')+'">'+
+        '<span class="d">'+f.d+'</span>'+
+        '<span><span class="q">'+esc(f.q)+'</span><br><span class="c">'+esc(f.c)+'</span></span>'+
+        /* El verbo SOLO si ese día hay algo que hacer. Un día de descanso no
+           lleva botón: en reposo no está. Y lo que pasó ese día se dice con
+           palabras — dos puntos grises sin leyenda no informan de nada. */
+        (hoy && f.q!=='Descansas'
+          ? '<button class="verbo" style="padding:8px 16px;font-size:13px" data-ir="entreno">Seguir</button>'
+          : '<span class="c">'+(f.peso?'te pesaste':'')+'</span>')+
+      '</div>';
+    }).join('');
+}
+
+function pagPeso(){
+  return '<span class="pagina-rotulo">Tu peso</span>'+
+    '<div class="cifra">'+num(S.peso.toFixed(1))+'<small>kg</small></div>'+
+    reglaPeso()+
+    '<p class="sec">Empezaste en '+num(D.empezo.toFixed(1))+' · te puso '+num(D.meta.toFixed(1))+'</p>'+
+    curvaPeso()+
+    /* Sin ejes, pero con escala: los dos extremos dicen a qué altura está la
+       línea. Una curva sin una sola cifra es un adorno con forma de dato. */
+    '<div class="row" style="justify-content:space-between;margin-top:-2px">'+
+      '<span class="sec">'+num(D.empezo.toFixed(1))+' · hace 10 semanas</span>'+
+      '<span class="sec">'+num(S.peso.toFixed(1))+' · hoy</span></div>'+
+    '<div class="voz" style="margin-top:20px"><span class="cara">'+D.coachIni+'</span>'+
+      '<p><b>'+D.coach+'</b> · Esta semana cerramos el bloque. No fuerces el press, que vienes de molestia.</p></div>';
+}
+
+function pagHistorico(){
+  const e = D.ejercicios[S.ej];
+  const filas = D.histo[e.n];
+  if (!filas) return '<span class="pagina-rotulo">Tus semanas</span>'+
+    '<p class="sec">Todavía no has apuntado este ejercicio. En cuanto lo hagas, aquí verás cómo va.</p>';
+  const max = Math.max(...filas.map(f=>f[1]));
+  const min = Math.min(...filas.map(f=>f[1]));
+  /* La escala arranca por debajo del mínimo, no en cero: con base cero, 60 y
+     80 kg se dibujan casi iguales y la barra deja de contar la progresión,
+     que es justo lo que esta página existe para enseñar. */
+  const suelo = min - (max-min)/3;
+  return '<span class="pagina-rotulo">'+esc(e.n)+' · tus semanas</span>'+
+    filas.map((f,i)=>'<div class="histo'+(i===filas.length-1?' ultima':'')+'">'+
+      '<span class="sem">'+esc(f[0])+'</span>'+
+      '<span class="barra"><i style="width:'+Math.round((f[1]-suelo)/(max-suelo)*100)+'%"></i></span>'+
+      '<span class="val">'+f[1]+' × '+f[2]+'</span></div>').join('')+
+    (e.nota?'<div class="voz" style="margin-top:18px"><span class="cara">'+D.coachIni+'</span>'+
+      '<p>'+esc(e.nota)+'</p></div>':'');
+}
+
+function pagEquivalencias(){
+  /* La página derecha sigue a la izquierda: el alimento en el que estás. Si no
+     has tocado ninguno, el primero del día que se está mirando. */
+  const v = D.reparto[S.dia];
+  const alim = S.alim || D.comidas[v][0].foods[0][0][0];
+  const lista = D.equiv[alim];
+  if (!lista) return '<span class="pagina-rotulo">'+esc(alim)+'</span>'+
+    '<p class="sec">Tu entrenador no le ha puesto equivalencias a este alimento. '+
+    'Pídeselas y aparecerán aquí.</p>'+pautasDelCoach();
+  return '<span class="pagina-rotulo">'+esc(alim)+' · en su lugar</span>'+
+    lista.map(f=>'<div class="alimento"><span>'+esc(f[0])+'</span>'+
+      '<span class="p">'+esc(f[1])+'</span></div>').join('')+
+    '<p class="sec" style="margin-top:8px">Cualquiera '+
+      (lista.length===2?'de las dos':'de las tres')+' cuadra igual el día.</p>'+
+    pautasDelCoach();
+}
+
+function pautasDelCoach(){
+  return '<div style="margin-top:26px"><span class="pagina-rotulo">Lo que te dijo tu entrenador</span>'+
+      '<div class="voz"><span class="cara">'+D.coachIni+'</span>'+
+        '<p><b>Agua</b> · 2,5 L al día. Llévate la botella al trabajo.</p></div>'+
+      '<div class="voz"><span class="cara">'+D.coachIni+'</span>'+
+        '<p><b>Fuera de casa</b> · Elige proteína y verdura y no te preocupes por el resto.</p></div></div>';
+}
+
+function pagFotos(){
+  return '<span class="pagina-rotulo">Semana 1 · hoy</span>'+
+    ['Frente','Lado','Espalda'].map(a=>
+      '<div class="par"><span class="par-rot">'+a+'</span>'+
+        '<div class="foto"><span>sem 1</span></div>'+
+        '<div class="foto"><span>sem 10</span></div></div>').join('');
+}
+
+function pagHilo(){
+  /* El hilo empieza por la semana ABIERTA, que es la única que pide algo. Así
+     el verbo de entregar no necesita tarjeta propia: está donde va a estar su
+     respuesta. */
+  return '<span class="pagina-rotulo">Lo que te fue contestando</span>'+
+    '<div class="hilo"><div class="row"><span class="cuando">Semana 10</span>'+
+      '<span style="margin-left:auto;color:var(--tinta-3);font-size:13px">sin entregar</span></div>'+
+      '<p class="dijiste">El peso, tres fotos y dos preguntas. Te toca el domingo.</p>'+
+      '<button class="verbo" style="margin-top:10px;padding:9px 18px;font-size:13px">Empezar</button>'+
+    '</div>'+
+    D.hilo.map(h=>'<div class="hilo">'+
+      '<div class="row"><span class="cuando">'+esc(h.s)+'</span>'+
+        '<span class="v" style="margin-left:auto;color:var(--tinta-3);font-size:13px">'+esc(h.peso)+'</span></div>'+
+      '<p class="dijiste">«'+esc(h.dijiste)+'»</p>'+
+      '<div class="voz"><span class="cara">'+D.coachIni+'</span><p>'+esc(h.contesto)+'</p></div>'+
+    '</div>').join('');
+}
+
+function cuaderno(){
+  const paginas = {
+    hoy:      [pagSemana, pagPeso],
+    entreno:  [()=>pantallaEntreno(true), pagHistorico],
+    dieta:    [()=>pantallaDieta(true), pagEquivalencias],
+    tu:       [pagFotos, pagHilo]
+  }[S.pantalla];
+  return '<div class="cuaderno">'+cinta()+
+    '<div class="paginas"><div class="pagina">'+paginas[0]()+'</div>'+
+    '<div class="pagina">'+paginas[1]()+'</div></div></div>';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   EL ANTES — reconstruido de capturas/portal-13sep/
+   ══════════════════════════════════════════════════════════════════════ */
+function antesCab(activa){
+  const tabs = ['Mi inicio','Mi rutina','Mi dieta','Lo tuyo'];
+  const i = {hoy:0,entreno:1,dieta:2,tu:3}[activa];
+  return '<div class="cab-marca"><span class="marca-logo"></span>'+
+    '<span class="marca-txt">CAVEMAN HUB</span>'+
+    '<span class="buscar">Buscar <kbd>Ctrl K</kbd></span><span class="av">ME</span></div>'+
+    '<div class="tabs-antes">'+tabs.map((t,j)=>j===i?'<b>'+t+'</b>':'<span>'+t+'</span>').join('')+'</div>';
+}
+function antesCuerpo(){
+  if (S.pantalla==='hoy') return '<div class="cuerpo antes">'+
+    '<h1 class="h1-antes">Buenas, <i>Marta</i></h1><p class="sec">Bloque 1 · semana 10 de 10</p>'+
+    '<div class="regla-antes"></div>'+
+    '<div class="tarjeta"><div class="rotulo">La dejaste a medias</div>'+
+      '<div class="h-sesion" style="font-size:30px;margin:6px 0 2px">Empuje</div>'+
+      '<p class="sec">1 de 21 series · 1 de 6 ejercicios</p>'+
+      '<div class="row" style="margin-top:12px"><button class="verbo">Seguir</button>'+
+      '<button class="verbo-2">Descartar</button></div>'+
+      '<p class="sec" style="margin-top:8px">Descartarla borra la serie que apuntaste.</p></div>'+
+    '<div class="tarjeta" style="margin-top:14px"><span class="rotulo">Tu peso</span>'+
+      '<div class="cifra" style="font-size:26px">61,0<small>kg</small></div>'+reglaPeso()+
+      '<p class="sec">Empezaste en 64,0 · objetivo 58,0</p></div>'+
+    '<div class="filas" style="margin-top:14px">'+
+      fila('Tu progreso','cómo va el bloque y tus fases','')+
+      fila('Tu semana','sin entregar','')+'</div></div>';
+
+  if (S.pantalla==='entreno') return '<div class="cuerpo antes">'+
+    '<h1 class="h1-antes">Mi rutina</h1>'+
+    '<p class="sec">Lo que toca este microciclo, y dónde apuntas lo que levantas.</p>'+
+    '<div class="regla-antes"></div>'+
+    '<div class="row" style="gap:8px"><b style="font-size:18px">Bloque 1</b>'+
+      '<span class="opcion" style="color:var(--senal)">M10</span>'+
+      '<span class="sec">desde el 2 jul · 38 de 40 entrenamientos · 95 % de lo pautado</span></div>'+
+    '<div class="rotulo" style="margin:14px 0 6px">Tus sesiones · 4 en cada microciclo</div>'+
+    D.ejercicios.slice(0,2).map(()=>'').join('')+
+    '<div class="tarjeta"><div style="font-weight:700;font-size:18px">Empuje</div>'+
+      '<p class="sec">21 series · 6 ejercicios</p>'+
+      D.ejercicios.map(e=>'<div class="serie" style="grid-template-columns:1fr 30px 46px">'+
+        '<span style="font-weight:600">'+esc(e.n)+'</span><span class="obj">'+e.s+' ×</span>'+
+        '<span class="obj">'+e.obj+'</span></div>').join('')+
+      '<p class="sec" style="margin-top:8px;font-style:italic">entrenada 10 de 10</p></div></div>';
+
+  if (S.pantalla==='dieta') return '<div class="cuerpo antes">'+
+    '<h1 class="h1-antes">Mi dieta</h1><p class="sec">Hoy te toca Descanso</p>'+
+    '<div class="regla-antes"></div>'+
+    '<div class="cifra">1750<small>kcal</small></div>'+
+    '<p class="sec">Reparte como quieras, cuadra el día.</p>'+
+    '<div class="row" style="margin-top:14px;gap:26px">'+macro(140,'Proteína')+macro(150,'Carbos')+macro(62,'Grasas')+'</div>'+
+    '<table class="hoja-calculo" style="margin-top:18px"><tr><th></th><th>KCAL</th><th>P</th><th>C</th><th>G</th><th>PESO</th></tr>'+
+      '<tr><td class="nom" style="color:var(--tinta-3);font-weight:600">Objetivo del plan</td><td>1750</td><td>140</td><td>150</td><td>62</td><td></td></tr>'+
+      ['Desayuno','Comida','Cena'].map((n,i)=>'<tr><td class="nom">'+n+'</td><td>—</td><td>—</td><td>—</td><td>—</td>'+
+        '<td style="color:var(--tinta-3)">'+[20,27,15][i]+' %</td></tr>').join('')+
+      '<tr><td class="nom" style="color:var(--tinta-3)">Repartidas</td><td>—</td><td>—</td><td>—</td><td>—</td><td style="color:var(--tinta-3)">sin repartir</td></tr>'+
+      '<tr class="suma"><td class="nom">Suman</td><td>1078</td><td>114</td><td>75</td><td>36</td><td style="color:var(--tinta-3)">62 %</td></tr>'+
+    '</table>'+
+    '<p class="sec" style="margin-top:10px;color:#a4402f">Ni un alimento: los 21 que le escribió su entrenador no se pintan (§2.3).</p>'+
+    '<div class="filas" style="margin-top:14px">'+fila('Pasos','','9000')+'</div></div>';
+
+  return '<div class="cuerpo antes">'+
+    '<h1 class="h1-antes">Lo tuyo</h1><p class="sec">Semana 1</p>'+
+    '<div class="regla-antes"></div>'+
+    '<div class="tarjeta"><div class="rotulo">Tu semana</div>'+
+      '<p class="sec" style="margin:6px 0">Cuando la tengas lista, entrégala para que tu entrenador la revise.</p>'+
+      '<button class="verbo">Entregar mi semana</button>'+
+      '<p class="sec" style="margin-top:10px">Se te quedaron sin entregar:</p>'+
+      '<div class="muro"><span>Semana del 31 ago</span><span>Semana del 24 ago</span>'+
+      '<span>Semana del 17 ago</span><span>Semana del 10 ago</span></div></div>'+
+    '<div class="rotulo" style="margin:16px 0 8px">Tus fotos · 3 de 3</div>'+
+    '<div class="fotos"><div class="foto"></div><div class="foto"></div><div class="foto"></div></div>'+
+    '<div class="kpis" style="margin-top:18px">'+
+      ['Último peso|61','Media últimos 3|60,9','Variación total|-3,1','Ritmo semanal|-0,34']
+        .map(k=>{const [a,b]=k.split('|');return '<div class="kpi"><div class="k">'+a+'</div><div class="v">'+b+'</div></div>';}).join('')+
+    '</div>'+
+    '<div class="rotulo" style="margin:16px 0 4px">Historial de registros</div>'+
+    '<table class="tabla-hist" style="width:100%;border-collapse:collapse">'+
+      [['10 sept','61'],['8 sept','60,8'],['6 sept','61'],['4 sept','61']].map(r=>
+      '<tr><td>'+r[0]+'</td><td class="peso">'+r[1]+'</td><td style="text-align:right;color:#b8b1a2">🗑</td></tr>').join('')+
+    '</table></div>';
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MONTAJE
+   ══════════════════════════════════════════════════════════════════════ */
+function cuerpoDespues(){
+  const p = {hoy:pantallaHoy,entreno:pantallaEntreno,dieta:pantallaDieta,tu:pantallaTu}[S.pantalla];
+  return '<div class="cuerpo">'+p()+'</div>';
+}
+function pulgar(){
+  return '<nav class="pulgar">'+DEST.map(([k,t])=>
+    '<button data-ir="'+k+'"'+(S.pantalla===k?' aria-current="page"':'')+'>'+
+    '<svg viewBox="0 0 24 24">'+ICO[k]+'</svg>'+t+'</button>').join('')+'</nav>';
+}
+function riel(){
+  return '<nav class="riel">'+DEST.map(([k,t])=>
+    '<button data-ir="'+k+'"'+(S.pantalla===k?' aria-current="page"':'')+'>'+
+    '<svg viewBox="0 0 24 24">'+ICO[k]+'</svg>'+t+'</button>').join('')+'</nav>';
+}
+
+function pinta(){
+  const esc_ = document.getElementById('escena');
+  const antes = S.v==='antes';
+  let marco;
+  if (S.a==='movil'){
+    marco = '<div class="movil"><div class="folio">'+
+      (antes ? antesCab(S.pantalla)+antesCuerpo() : cinta()+cuerpoDespues())+
+      pulgar()+'</div></div>';
+  } else {
+    marco = antes
+      ? '<div class="pc"><div class="folio">'+antesCab(S.pantalla)+
+        '<div class="cuerpo antes" style="padding:0 40px 30px">'+antesCuerpo()+'</div></div></div>'
+      : '<div class="pc"><div class="folio"><div class="lienzo-pc">'+riel()+
+        cuaderno()+'</div></div></div>';
+  }
+  esc_.innerHTML = marco;
+  document.getElementById('leyenda').textContent = antes
+    ? (S.a==='movil' ? 'Lo que hay hoy a 390 px' : 'Lo que hay hoy a 1440 px: el móvil estirado')
+    : (S.a==='movil' ? 'Una cosa a la vez · 390 px' : 'El cuaderno abierto · 1440 px');
+}
+
+document.addEventListener('click',(ev)=>{
+  const t = ev.target.closest('[data-v],[data-a],[data-ir],[data-dia],[data-comida],[data-op],[data-tic],[data-ej],[data-alim]');
+  if (!t) return;
+  if (t.dataset.v){ S.v=t.dataset.v; sincroniza('mando-version','v'); }
+  else if (t.dataset.a){ S.a=t.dataset.a; sincroniza('mando-ancho','a'); }
+  else if (t.dataset.ir){ S.pantalla=t.dataset.ir; }
+  else if (t.dataset.dia!==undefined){ S.dia=+t.dataset.dia; S.comida=null; S.alim=null; }
+  else if (t.dataset.comida){ S.comida = S.comida===t.dataset.comida ? null : t.dataset.comida; }
+  else if (t.dataset.op){ S.opcion[t.dataset.op]=+t.dataset.k; }
+  else if (t.dataset.tic){ S.tic[t.dataset.tic]=!S.tic[t.dataset.tic]; }
+  else if (t.dataset.ej){ S.ej=+t.dataset.ej; }
+  else if (t.dataset.alim){ S.alim=t.dataset.alim; }
+  pinta();
+});
+document.addEventListener('input',(ev)=>{
+  if (ev.target.id!=='peso') return;
+  const v = parseFloat(String(ev.target.value).replace(',','.'));
+  if (!isNaN(v) && v>30 && v<250){ S.peso=v;
+    const r = document.querySelector('.regla'); if (r){ const foco=document.activeElement;
+      pinta(); const nuevo=document.getElementById('peso');
+      if (nuevo && foco && foco.id==='peso'){ nuevo.focus(); nuevo.setSelectionRange(nuevo.value.length,nuevo.value.length); } }
+  }
+});
+function sincroniza(id,clave){
+  document.querySelectorAll('#'+id+' button').forEach(b=>
+    b.setAttribute('aria-pressed', String(b.dataset[clave]===S[clave])));
+}
+sincroniza('mando-version','v'); sincroniza('mando-ancho','a'); pinta();
+</script>

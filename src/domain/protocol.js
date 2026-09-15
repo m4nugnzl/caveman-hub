@@ -39,6 +39,10 @@
  */
 
 import { clampInt } from '@/lib/num';
+/* El saneado de una medida vive en su módulo, y aquí solo se usa: dos reglas
+   sobre qué es una medida válida acabarían discrepando, y la que se creería
+   sería la del protocolo —que es la que llega al cliente—. */
+import { sanitizeMedida } from './medidas';
 import { newId } from '@/lib/ids';
 
 // ── Los módulos ────────────────────────────────────────────────────────────
@@ -55,25 +59,25 @@ export const MODULES = [
     id: 'warmup',
     area: 'training',
     label: 'Calentamiento y movilidad',
-    hint: 'Una lista de ejercicios previos, con su vídeo y tus indicaciones, delante de cada sesión.',
+    hint: 'Con vídeo, antes de cada sesión.',
   },
   {
     id: 'coachNote',
     area: 'training',
     label: 'Tu nota en cada sesión',
-    hint: 'Puedes dejar una indicación en un día concreto. El cliente la ve al abrirlo.',
+    hint: 'Una indicación tuya en el día que quieras.',
   },
   {
     id: 'clientNote',
     area: 'training',
     label: 'Logbook del cliente',
-    hint: 'Un espacio propio donde tu cliente apunta lo que quiera de cada sesión. Tú lo lees.',
+    hint: 'Sus apuntes de cada sesión.',
   },
   {
     id: 'sessionFeedback',
     area: 'training',
-    label: 'Feedback al terminar de entrenar',
-    hint: 'Las preguntas que elijas abajo. Cada respuesta numérica se convierte en una serie que puedes seguir.',
+    label: 'Feedback de la sesión',
+    hint: 'Tus preguntas al terminar de entrenar.',
   },
   {
     /*
@@ -88,7 +92,7 @@ export const MODULES = [
     id: 'rir',
     area: 'training',
     label: 'RIR objetivo por serie',
-    hint: 'Programas cuántas repeticiones debe dejarse en cada serie, y ves lo que anotó frente a lo que le pediste.',
+    hint: 'Lo que le pides, junto a lo que anota.',
   },
   {
     /*
@@ -102,7 +106,7 @@ export const MODULES = [
     id: 'dietSwaps',
     area: 'nutrition',
     label: 'Equivalencias en la dieta',
-    hint: 'Tu cliente ve con qué puede cambiar cada alimento del menú sin descuadrar el macro de su grupo.',
+    hint: 'Cambia alimentos sin descuadrar los macros.',
   },
 ];
 
@@ -149,13 +153,13 @@ export const SERVICES = [
        lleva puesto, donde «Entrenamiento y Nutrición» gasta una línea entera en
        decir dos cosas. Ver `queLeLlevas`. */
     corto: 'Entreno',
-    hint: 'Su programa, sus sesiones y todo lo que cuelga de ellas.',
+    hint: 'Su programa y sus sesiones.',
   },
   {
     id: 'nutrition',
     label: 'Nutrición',
     corto: 'Dieta',
-    hint: 'Su objetivo de kcal y macros, el menú cerrado y tus pautas.',
+    hint: 'Kcal, macros y menú.',
   },
 ];
 
@@ -243,6 +247,34 @@ const CHECKIN_MODE_IDS = CHECKIN_MODES.map((m) => m.id);
  */
 export const defaultCheckin = () => ({ perimeters: 'optional', folds: 'optional' });
 
+/**
+ * Tope de bloques con estado guardado.
+ *
+ * Los dos de siempre más las medidas del entrenador (`MAX_MEDIDAS` = 12) más las
+ * de fábrica. No es una limitación de producto: es la columna de 8 KB, y un
+ * estado por bloque son unos treinta bytes.
+ */
+export const MAX_CHECKIN_BLOCKS = 24;
+
+/**
+ * Las definiciones de medida que viajan DENTRO del protocolo de un cliente.
+ *
+ * Son las de su catálogo que él tiene encendidas, copiadas, por lo mismo que se
+ * copian las preguntas propias: el portal solo lee su propia fila. El saneado es
+ * el del catálogo, así que no hay dos reglas sobre qué es una medida válida.
+ */
+const sanitizeMedidasDelProtocolo = (raw) => {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const item of raw) {
+    if (out.length >= MAX_CHECKIN_BLOCKS) break;
+    const sana = sanitizeMedida(item, out.length);
+    if (!sana || out.some((m) => m.id === sana.id)) continue;
+    out.push(sana);
+  }
+  return out;
+};
+
 // ── Cuántas veces se pesa ──────────────────────────────────────────────────
 
 /**
@@ -308,55 +340,193 @@ export const defaultWeighIns = () => 0;
  * frecuencia, ni recordatorio en ninguna parte. O sea que la aplicación decidía
  * por el entrenador algo que es suyo, y encima no lo decía.
  *
- *   · `day` — qué día se le pide (1 lunes … 7 domingo).
- *   · `every` — cada cuántas semanas. `1` es todas.
+ *   · `weekday` — qué día se le pide (0 lunes … 6 domingo).
+ *   · `everyWeeks` — cada cuántas semanas. `1` es todas.
  *   · `remindAfter` — a los cuántos días se le recuerda si no lo ha entregado.
  *     **`0` es «no se lo recuerdes»**, no «cero días»: la misma gramática que
  *     los pesajes y las varas de aviso.
+ *
+ * ══ Y desde «Una sola cita», este horario NO decide la revisión ════════════
+ *
+ * Había dos verdades sobre la misma pregunta —«¿cuándo le toca?»— guardadas en
+ * dos claves con dos formas y dos numeraciones del día de la semana:
+ *
+ *   · `preferences.checkin` (0–6, `everyWeeks`), que la lee `domain/calendar.js`
+ *     y de la que cuelgan la cola de revisiones, el calendario y `reviewState`.
+ *     **Es la verdad del producto.**
+ *   · `preferences.protocol.schedule` (1–7, `every`), que se editaba en Taller →
+ *     Protocolos —o sea, en la pantalla donde el entrenador la busca— y no la
+ *     leía el motor de la revisión: decidía `remindAfter` y nada más.
+ *
+ * El entrenador leía ahí «le pides el check-in los jueves, cada 2 semanas», lo
+ * cambiaba, y la aplicación seguía reclamando el lunes. La pantalla que más se
+ * parecía a la decisión era la única que no la tomaba.
+ *
+ * Ahora el horario es **el valor por defecto**: al aplicar un protocolo a un
+ * cliente que todavía no tiene día se le siembra el suyo (ver
+ * `checkinDesdeHorario`), y nunca pisa un día ya elegido en silencio. La cita
+ * vigente de cada persona vive en un solo sitio, `preferences.checkin`.
+ *
+ * ── Y la numeración es UNA ─────────────────────────────────────────────────
+ * `weekday` de 0 a 6 empezando en lunes, que es el orden de `WEEKDAYS` en
+ * `domain/calendar.js` y el que ya tenían guardado los clientes. Lo escrito con
+ * la forma vieja (`day` de 1 a 7, `every`) se traduce al leerlo, así que no hay
+ * migración: el primer guardado lo deja en la forma nueva.
  *
  * ── Y vive AQUÍ, dentro del protocolo, a propósito ─────────────────────────
  * Porque tiene que llegarle al cliente: el recordatorio se calcula en su portal
  * y el portal solo lee su propia fila. Cualquier clave que no pase por
  * `clientProtocol` desaparece en el primer guardado, así que el saneado entra en
  * el mismo sitio que el valor por defecto.
- *
- * Los valores de serie son exactamente lo que la aplicación hacía antes de que
- * esto se pudiera elegir, así que quien no toque nada no puede notarlo.
  */
 /* `plural` va escrito y no calculado: en español los cinco primeros son
    invariables («los lunes») y los dos del fin de semana no («los sábados»).
-   Una regla de sufijo acertaría cinco de siete, que es peor que una lista. */
+   Una regla de sufijo acertaría cinco de siete, que es peor que una lista.
+
+   Los ids son los de `WEEKDAYS` (`domain/calendar.js`): lunes es 0. Una prueba
+   vigila que las dos listas no se separen — cruzarlas con un desfase de uno es
+   exactamente la avería que esta unificación vino a cerrar. */
 export const DIAS = [
-  { id: 1, label: 'Lunes', corto: 'lunes', plural: 'lunes' },
-  { id: 2, label: 'Martes', corto: 'martes', plural: 'martes' },
-  { id: 3, label: 'Miércoles', corto: 'miércoles', plural: 'miércoles' },
-  { id: 4, label: 'Jueves', corto: 'jueves', plural: 'jueves' },
-  { id: 5, label: 'Viernes', corto: 'viernes', plural: 'viernes' },
-  { id: 6, label: 'Sábado', corto: 'sábado', plural: 'sábados' },
-  { id: 7, label: 'Domingo', corto: 'domingo', plural: 'domingos' },
+  { id: 0, label: 'Lunes', corto: 'lunes', plural: 'lunes' },
+  { id: 1, label: 'Martes', corto: 'martes', plural: 'martes' },
+  { id: 2, label: 'Miércoles', corto: 'miércoles', plural: 'miércoles' },
+  { id: 3, label: 'Jueves', corto: 'jueves', plural: 'jueves' },
+  { id: 4, label: 'Viernes', corto: 'viernes', plural: 'viernes' },
+  { id: 5, label: 'Sábado', corto: 'sábado', plural: 'sábados' },
+  { id: 6, label: 'Domingo', corto: 'domingo', plural: 'domingos' },
 ];
 
 export const EVERY_MAX = 8;
 export const REMIND_MAX = 6;
 
-export const defaultSchedule = () => ({ day: 1, every: 1, remindAfter: 0 });
+export const defaultSchedule = () => ({ weekday: 0, everyWeeks: 1, remindAfter: 0 });
 
-export const sanitizeSchedule = (raw) => ({
-  day: clampInt(raw?.day, 1, 7, 1),
-  every: clampInt(raw?.every, 1, EVERY_MAX, 1),
-  remindAfter: clampInt(raw?.remindAfter, 0, REMIND_MAX, 0),
-});
+/**
+ * El horario, completado y acotado — y traduciendo la forma vieja.
+ *
+ * `day` (1–7) y `every` solo se miran cuando no está la clave nueva: así un
+ * protocolo guardado antes de la unificación sigue diciendo lo mismo, y uno que
+ * ya se haya guardado después no puede volver atrás por una clave residual.
+ */
+export const sanitizeSchedule = (raw) => {
+  const viejoDia = Number.isFinite(Number(raw?.day)) ? clampInt(raw.day, 1, 7, 1) - 1 : null;
+  const weekday = raw?.weekday === undefined || raw?.weekday === null ? viejoDia : clampInt(raw.weekday, 0, 6, 0);
+
+  const viejoCada = raw?.every === undefined ? null : clampInt(raw.every, 1, EVERY_MAX, 1);
+  const cada = raw?.everyWeeks === undefined || raw?.everyWeeks === null ? viejoCada : clampInt(raw.everyWeeks, 1, EVERY_MAX, 1);
+
+  return {
+    weekday: weekday === null ? 0 : weekday,
+    everyWeeks: cada === null ? 1 : cada,
+    remindAfter: clampInt(raw?.remindAfter, 0, REMIND_MAX, 0),
+  };
+};
+
+/**
+ * LA CITA QUE SIEMBRA ESTE HORARIO, o `null` si esa persona ya tiene la suya.
+ *
+ * ══ El protocolo propone, la ficha decide ══════════════════════════════════
+ *
+ * Un cliente nace con `weekday: null` —sin revisión— y sin día no se le reclama
+ * nada ni aparece en ninguna cola: el bucle del producto estaba apagado por
+ * defecto para todo el mundo hasta que alguien, normalmente el propio cliente,
+ * elegía un día. Aplicarle un protocolo con horario lo enciende.
+ *
+ * Y no pisa lo elegido: quien ya tiene día se lo queda. Cambiárselo a todos es
+ * una operación con nombre y con consecuencias a la vista —«8 de tus 14 clientes
+ * tienen otro día»—, no un efecto colateral de guardar el protocolo.
+ */
+export const checkinDesdeHorario = (schedule, preferences) => {
+  const suyo = preferences?.checkin;
+  if (Number.isInteger(suyo?.weekday) && suyo.weekday >= 0 && suyo.weekday <= 6) return null;
+
+  const { weekday, everyWeeks } = sanitizeSchedule(schedule);
+  return { weekday, everyWeeks };
+};
 
 /** El día en que se pide, dicho como se lee. */
 export const diaDe = (schedule) =>
-  DIAS.find((d) => d.id === sanitizeSchedule(schedule).day)?.corto || 'lunes';
+  DIAS.find((d) => d.id === sanitizeSchedule(schedule).weekday)?.corto || 'lunes';
 
 /** Y en plural, para «se lo entregas los martes». */
 export const diasDe = (schedule) =>
-  DIAS.find((d) => d.id === sanitizeSchedule(schedule).day)?.plural || 'lunes';
+  DIAS.find((d) => d.id === sanitizeSchedule(schedule).weekday)?.plural || 'lunes';
 
 /** ¿Se le recuerda si no lo entrega? `0` es «no lo recuerdes». */
 export const recuerdaA = (protocol) => sanitizeSchedule(protocol?.schedule).remindAfter;
+
+// ── De dónde salen las calorías al ajustar ─────────────────────────────────
+
+/**
+ * DE DÓNDE SALIERON LAS CALORÍAS LA ÚLTIMA VEZ QUE AJUSTASTE SU DIETA.
+ *
+ * ══ Por qué esto NO tiene pantalla de configuración ════════════════════════
+ *
+ * La aplicación DEDUCÍA de qué campo habías tecleado qué querías hacer: si
+ * cambiaban los hidratos mandaba hidratos, si no mandaba kcal. Con lo cual tocar
+ * los dos campos en el mismo guardado aplicaba el de hidratos en silencio, y el
+ * de kcal que acababas de escribir no hacía nada.
+ *
+ * La heurística se sustituye por una pregunta hecha donde se ejecuta —«¿de dónde
+ * salen las 200 kcal?», arriba de la ventana del reajuste—. Y esto es **la
+ * respuesta que diste la última vez con esta persona**, no un ajuste que se
+ * configura en ninguna parte.
+ *
+ * Tuvo su bloque en el protocolo durante unas horas y no se sostenía: la ventana
+ * ya ofrece las mismas tres opciones en el momento en que importa, así que era
+ * una pantalla para algo que está a un clic de donde se decide. Nadie iría a
+ * cambiarlo ahí. La prueba de si una preferencia merece pantalla es justo esa.
+ *
+ * ── Por eso lo escribe la ventana ──────────────────────────────────────────
+ * `EditarObjetivo` lo guarda al aplicar, y solo cuando has elegido algo distinto
+ * de lo que traías puesto: quien siempre baja hidratos nunca escribe nada, y
+ * quien con Marta recorta de los dos lo dice una vez y no vuelve a decirlo.
+ *
+ * «A mano» no se recuerda — son unos gramos concretos para un ajuste concreto, y
+ * repetirlos tres semanas después sería inventarse una decisión que nadie tomó.
+ *
+ * ── Y es de la PERSONA, así que no se compara ──────────────────────────────
+ * Va en `NOT_COMPARED_KEYS` (`lib/protocolTemplate.js`) con los servicios y la
+ * vara de las alertas: «poner al día» no puede resetear a la general algo que se
+ * afinó con alguien concreto, y sobre todo no puede marcarle como excepción a la
+ * plantilla por haber contestado una pregunta dentro de una ventana.
+ *
+ * Las dos primeras son las dos que la aplicación ya sabía hacer, dichas por su
+ * nombre en vez de adivinadas. La tercera —mantener el reparto— es la que hacía
+ * falta escribir a mano tres veces: bajar los tres a la vez para que los
+ * porcentajes no se muevan.
+ *
+ * Cada una es un ancla de `cuadrarMacros`: dice quién absorbe el cambio y de ahí
+ * salen los gramos. Lo que no está aquí es «a mano», que no es una respuesta
+ * repetible sino unos gramos concretos, y por eso no se guarda.
+ */
+export const AJUSTES = [
+  {
+    id: 'carbs',
+    label: 'Hidratos',
+    hint: 'Lo normal en una bajada: la proteína y las grasas se quedan como están.',
+  },
+  {
+    id: 'kcals',
+    label: 'Hidratos y grasas',
+    hint: 'Se recorta de los dos en la misma proporción. La proteína no se toca.',
+  },
+  {
+    id: 'reparto',
+    label: 'Los tres',
+    hint: 'Los tres bajan a la vez: el porcentaje de cada macro no cambia.',
+  },
+];
+
+const AJUSTE_IDS = AJUSTES.map((a) => a.id);
+
+/** Hidratos, que es lo que hace un entrenador nueve de cada diez veces. */
+export const defaultAjuste = () => 'carbs';
+
+const sanitizeAjuste = (raw) => (AJUSTE_IDS.includes(raw) ? raw : defaultAjuste());
+
+/** De dónde salen las calorías al ajustar, según este protocolo. */
+export const ajusteDe = (protocol) => sanitizeAjuste(protocol?.ajuste);
 
 export const ALERT_DAYS = [
   { id: 'training', label: 'Sin entrenar', hint: 'Días sin registrar un entreno antes de avisarte.' },
@@ -434,10 +604,20 @@ export const defaultHidden = () => ({ weight: false, nutrition: false });
 
 /* Solo el `true` literal oculta. Una clave a medio escribir —o traída de una
    versión futura— no puede dejar a un cliente sin sus cifras por accidente: el
-   silencio se elige, no se hereda de un valor raro. */
+   silencio se elige, no se hereda de un valor raro.
+
+   ══ Y una MEDIDA puede entrar aquí el primer día ══════════════════════════
+   No hace falta que esté en `HIDDEN_INFO`: cualquier id con un `true` se
+   conserva. Es lo que permite ocultarle una glucosa a alguien sin esperar a una
+   versión — hay gente a la que un número de glucosa en su portal le hace el
+   mismo daño que la báscula, y la lista fija habría hecho falta tocarla a mano
+   para cada medida nueva. Ver `domain/medidas.js`. */
 const sanitizeHidden = (raw) => {
   const out = {};
   for (const id of HIDDEN_IDS) out[id] = raw?.[id] === true;
+  for (const [id, valor] of Object.entries(raw || {})) {
+    if (out[id] === undefined && valor === true) out[id] = true;
+  }
   return out;
 };
 
@@ -451,18 +631,247 @@ const sanitizeWeighIns = (raw) => {
 // ── El catálogo de preguntas ───────────────────────────────────────────────
 
 /**
- * Tipos de pregunta. Dos, y con un motivo:
+ * Tipos de pregunta.
  *
- *   · `scale` es la que se puede MEDIR. Una escala numérica se promedia, se
- *     compara entre semanas y se dibuja. Es la que da valor a todo esto.
- *   · `text` es la que no. Sirve para lo que no cabe en un número —«me ha
- *     molestado el hombro al bajar»— y por eso no aparece en ningún gráfico.
+ * La división que de verdad manda no es cuántos hay, sino cuál se puede MEDIR:
+ * una escala se promedia, se compara entre semanas y se dibuja —es la que da
+ * valor a todo esto—, y el resto se lee. Eso lo declara `esSerie` y lo pregunta
+ * todo el que dibuja.
  *
- * No hay «sí/no» a propósito: una respuesta binaria es una escala de dos
- * valores, y desdoblarla en un tipo aparte obligaría a que cada gráfico supiera
- * tratarla. Quien quiera preguntar algo binario pone una escala de 1 a 2.
+ * ══ Eran DOS, y eso era el techo del cuestionario ══════════════════════════
+ *
+ * «Una escala o un texto», y ya. Mientras tanto, el constructor de formularios
+ * libres ofrecía sí/no, elegir una, elegir varias, un número y una fecha con sus
+ * controles escritos (`Client/CampoLibre`). O sea que el mismo cliente contestaba
+ * dos formularios de la misma aplicación con dos vocabularios de control
+ * distintos, y el que se quedaba corto era el que se contesta todas las semanas.
+ *
+ * El argumento que sostenía el techo está escrito arriba y era sobre el «sí/no»:
+ * «una respuesta binaria es una escala de dos valores, y desdoblarla obligaría a
+ * que cada gráfico supiera tratarla». La primera mitad es falsa —«¿has podido
+ * entrenar los días que tocaban?» no es una cantidad, y pintarla como una rampa
+ * de dos escalones dice que sí— y la segunda se arregla de una vez: lo que un
+ * gráfico sabe leer es lo que `esSerie` declara, y todo lo demás se lee como
+ * respuesta. Ni un consumidor pregunta ya «¿no es texto?» para dar por hecho que
+ * es una cifra.
+ *
+ *   · `scale`  — una cantidad de `min` a `max`. Es lo que se dibuja como serie.
+ *   · `text`   — palabras.
+ *   · `bool`   — sí o no.
+ *   · `choice` — una de varias (`ops`).
+ *   · `multi`  — varias de varias (`ops`).
+ *   · `number` — una cifra suelta.
+ *   · `zone`   — dónde le duele: un cuerpo y sus zonas (`ZONAS`).
+ *
+ * ══ Y TRES COSAS QUE NO SON UN TIPO, PERO HACEN QUE NO SE PAREZCAN ════════
+ *
+ * Con siete tipos y nueve escalas seguidas, el cuestionario de la semana se veía
+ * como lo que era: nueve rampas idénticas de diez barras, una debajo de otra,
+ * distinguidas solo por el enunciado. El tipo no es lo único que tiene que
+ * cambiar de una pregunta a otra.
+ *
+ *   · `instrumento` — CON QUÉ SE CONTESTA. No un icono distinto en el mismo
+ *     control, sino un control distinto. Ver más abajo.
+ *   · `anclas` — qué significan las dos puntas de la escala, dicho debajo de
+ *     ellas: «Nada» / «Clavada» en la adherencia, «Por los suelos» / «A tope»
+ *     en la energía. Cada escala pasa a tener su vocabulario, y de paso se
+ *     retiran las ayudas que decían «de 1 (nada) a 10 (clavada)» — eso ya lo
+ *     dice el dibujo.
+ *   · `depende` — que esta pregunta solo se hace si otra trajo respuesta: la
+ *     zona del dolor no existe la semana que no ha dolido nada. Ver `seVe`.
+ *
+ * ══ EL INSTRUMENTO, y por qué murió el `glifo` ═════════════════════════════
+ *
+ * Antes de esto cada escala traía un ICONO (`glifo`) y los once pasos de la
+ * rampa se dibujaban con él: cubiertos la adherencia, un cerebro el estrés, una
+ * hoja las digestiones. La intención era que nueve preguntas seguidas no fueran
+ * el mismo control nueve veces; el resultado fue que eran el mismo control nueve
+ * veces con un dibujo encima, y varios de esos dibujos no significaban nada
+ * —unos cubiertos no son la adherencia, son la comida; un cerebro no es el
+ * estrés—. Un icono repetido once veces en fila tampoco es un icono: es textura.
+ *
+ * Lo que cambia de verdad una pregunta no es su dibujo, es CÓMO SE CONTESTA:
+ *
+ *   · `estrellas` — lo que se VALORA, de 1 a 5. Adherencia, sueño, digestiones.
+ *     Cinco estrellas que se llenan: la calificación de toda la vida, que
+ *     cualquiera sabe usar sin que se lo expliquen.
+ *   · `caras` — lo que se SIENTE, de 1 a 5. Sensaciones, ganas de seguir. Cinco
+ *     caras, de torcida a contenta; se elige la que se parece a cómo fue la
+ *     semana y no hay número que pensar.
+ *   · `deposito` — lo que se GASTA, de 1 a 5. La energía, en tramos de batería.
+ *   · sin instrumento — la RAMPA de discos que crecen, de 0 a 10. Es para las
+ *     cantidades, que es donde el 0-10 significa algo de verdad: el RPE (que es
+ *     una escala del oficio y no se toca), el dolor, el hambre, las agujetas, el
+ *     estrés, la fatiga, los entrenos completados.
+ *
+ * EL INSTRUMENTO MANDA SOBRE EL RANGO. Cinco estrellas son cinco, no diez
+ * medias estrellas, así que una pregunta con instrumento trae su `min` y su
+ * `max` y ni el constructor ni un protocolo guardado los mueven (ver
+ * `sanitizeCustom`). Por eso las ocho que cambiaron de instrumento bajaron de
+ * 1-10 a 1-5, y por eso lo ya contestado se convirtió en la migración 0120: una
+ * serie que cambia de regla a mitad de camino miente.
+ *
+ * El instrumento NO se retoca desde el constructor, igual que la condición: es
+ * del catálogo. Una pregunta inventada por el entrenador no lleva ninguno y sale
+ * en la rampa — darle un instrumento sería decidir por él qué clase de cosa está
+ * preguntando.
+ *
+ * `number` NO es «una medida». Una medida (`domain/medidas.js`) es un número con
+ * unidad, decimales y rango de cordura tomado con un aparato, aterriza en la
+ * antropometría y dibuja su serie; esto es una cifra que alguien cuenta —días,
+ * horas, veces— y se queda en la respuesta. Ofrecer aquí algo con unidad sería
+ * la segunda puerta a lo que ya existe.
  */
-export const QUESTION_KINDS = ['scale', 'text'];
+export const QUESTION_KINDS = ['scale', 'text', 'bool', 'choice', 'multi', 'number', 'zone'];
+
+/** Tope de opciones de una pregunta de elegir. El mismo que el formulario libre. */
+export const MAX_OPS = 8;
+
+/**
+ * LAS ZONAS DEL CUERPO, para «¿dónde te ha molestado?».
+ *
+ * ══ Por qué un cuerpo y no un campo de texto ═══════════════════════════════
+ *
+ * `painZone` llevaba desde el principio siendo texto libre, y el texto libre de
+ * una zona no se puede leer dos veces: «hombro», «hombro dcho», «el deltoides»,
+ * «el mismo de siempre». Son cuatro respuestas a la misma pregunta y ninguna se
+ * puede contar, ni filtrar, ni poner al lado de la anterior para ver si aquello
+ * se ha movido. Una molestia que vuelve tres semanas seguidas es de las pocas
+ * cosas que esta aplicación tiene que ver sola, y no podía.
+ *
+ * Con zonas cerradas sí: la respuesta es una lista de ids y la misma lista de
+ * hace un mes es comparable. Y se señalan sobre la figura del oficio —la misma
+ * silueta de la guía de medición—, que es como se señala dónde duele.
+ *
+ * ── El reparto ────────────────────────────────────────────────────────────
+ * Catorce zonas, izquierda y derecha donde el lado importa (el hombro, el codo,
+ * la cadera, la rodilla, el tobillo) y una sola donde no (la espalda, el cuello).
+ * No es una lámina de anatomía: quien contesta es el cliente, no un
+ * fisioterapeuta, y «lumbares» es lo que él sabe decir.
+ *
+ * `vista` reparte las zonas entre las dos figuras, igual que los pliegues.
+ */
+export const ZONAS = [
+  { id: 'cuello', label: 'Cuello', vista: 'frente', x: 65, y: 44 },
+  { id: 'hombroD', label: 'Hombro dcho.', vista: 'frente', x: 41, y: 60 },
+  { id: 'hombroI', label: 'Hombro izq.', vista: 'frente', x: 89, y: 60 },
+  { id: 'codoD', label: 'Codo dcho.', vista: 'frente', x: 30, y: 118 },
+  { id: 'codoI', label: 'Codo izq.', vista: 'frente', x: 100, y: 118 },
+  { id: 'muneca', label: 'Muñecas', vista: 'frente', x: 30, y: 136 },
+  { id: 'pecho', label: 'Pecho', vista: 'frente', x: 65, y: 74 },
+  { id: 'abdomen', label: 'Abdomen', vista: 'frente', x: 65, y: 116 },
+  { id: 'caderaD', label: 'Cadera dcha.', vista: 'frente', x: 47, y: 146 },
+  { id: 'caderaI', label: 'Cadera izq.', vista: 'frente', x: 83, y: 146 },
+  { id: 'rodillaD', label: 'Rodilla dcha.', vista: 'frente', x: 48, y: 200 },
+  { id: 'rodillaI', label: 'Rodilla izq.', vista: 'frente', x: 82, y: 200 },
+  { id: 'tobilloD', label: 'Tobillo dcho.', vista: 'frente', x: 48, y: 246 },
+  { id: 'tobilloI', label: 'Tobillo izq.', vista: 'frente', x: 82, y: 246 },
+  { id: 'cervicales', label: 'Cervicales', vista: 'espalda', x: 65, y: 46 },
+  { id: 'dorsales', label: 'Dorsales', vista: 'espalda', x: 65, y: 84 },
+  { id: 'lumbares', label: 'Lumbares', vista: 'espalda', x: 65, y: 126 },
+  { id: 'gluteos', label: 'Glúteos', vista: 'espalda', x: 65, y: 152 },
+  { id: 'isquios', label: 'Isquios', vista: 'espalda', x: 50, y: 180 },
+  { id: 'gemelos', label: 'Gemelos', vista: 'espalda', x: 50, y: 222 },
+];
+
+/** Una zona por su id, para poder escribir lo contestado con sus palabras. */
+export const zonaById = (id) => ZONAS.find((z) => z.id === id) || null;
+
+/**
+ * Lo contestado a una pregunta de zonas, como lista de ids limpia.
+ *
+ * Tolera una CADENA, y eso no es defensa por si acaso: `painZone` era texto
+ * libre y lleva meses guardando frases. Lo que se escribió entonces no se puede
+ * convertir en zonas —«el mismo de siempre» no es un id— pero sí se puede seguir
+ * leyendo, así que se devuelve aparte en vez de tirarse. Ver `ZonaDelCuerpo`.
+ */
+export const zonasDe = (valor) => {
+  if (Array.isArray(valor)) return valor.filter((id) => zonaById(id));
+  return [];
+};
+
+/** Y lo que quedó escrito a mano, si esta respuesta es de las viejas. */
+export const zonaEscrita = (valor) =>
+  typeof valor === 'string' && valor.trim() !== '' ? valor.trim() : '';
+
+/**
+ * CÓMO SE LLAMA cada instrumento cuando hay que nombrarlo por escrito.
+ *
+ * El control se explica solo —cinco estrellas son cinco— pero las pantallas del
+ * entrenador sí tienen que decirlo con palabras: el renglón que resume una
+ * pregunta y la nota que explica por qué su escala no se puede tocar. Escrito
+ * una vez, porque la vez que estuvo escrito dos, una decía «depósito» y la otra
+ * «batería».
+ *
+ * `dice` abre frase (el renglón del resumen); `frase` va dentro de una.
+ */
+export const INSTRUMENTOS = {
+  estrellas: { dice: 'Estrellas', frase: 'estrellas' },
+  caras: { dice: 'Caras', frase: 'caras' },
+  deposito: { dice: 'Depósito', frase: 'un depósito' },
+};
+
+/**
+ * CÓMO SE CONTESTA esta pregunta, dicho en un renglón.
+ *
+ * Lo escribían dos pantallas a mano y las dos con el mismo `if` de dos ramas:
+ * «Escala 1–10» o «Texto libre · no se puede medir». Con siete tipos eso pasa de
+ * ser un atajo a ser mentira — una de elegir con tres opciones se anunciaba como
+ * texto libre en la pantalla donde el entrenador decide si la usa.
+ *
+ * Dice además cuál ENTRA EN UNA SERIE, que es la mitad de lo que se viene a
+ * saber aquí: todo lo demás se lee, no se dibuja.
+ */
+export const dicePregunta = (q) => {
+  switch (q?.kind) {
+    /* Con instrumento se nombra el instrumento, no «Escala»: es lo que hace el
+       renglón verdad. «Escala 1–5» en «Energía» describe el rango de algo que
+       el cliente ve como un depósito, y el entrenador que lee esa línea está
+       decidiendo justo si esa pregunta se parece a las de al lado. */
+    case 'scale':
+      return `${INSTRUMENTOS[q.instrumento]?.dice || 'Escala'} ${q.min ?? 1}–${q.max ?? 10}${
+        q.lowerIsBetter ? ' · menos es mejor' : ''
+      }`;
+    case 'bool':
+      return 'Sí o no · no se dibuja';
+    case 'choice':
+    case 'multi': {
+      const n = (q.ops || []).length;
+      const verbo = q.kind === 'choice' ? 'Elegir una' : 'Elegir varias';
+      return `${verbo} de ${n} · no se dibuja`;
+    }
+    case 'number':
+      return 'Un número suelto · no se dibuja';
+    case 'zone':
+      return 'Zonas del cuerpo · no se dibuja';
+    default:
+      return 'Texto libre · no se puede medir';
+  }
+};
+
+/**
+ * Lo contestado, EN PALABRAS, para donde no cabe el control.
+ *
+ * El registro de sensaciones es una línea por sesión con sus respuestas en
+ * píldoras: ahí no entra ni una rampa ni un cuerpo entero, y hasta ahora todo lo
+ * que no era texto se imprimía tal cual —que con una lista de zonas produce
+ * «hombroD,lumbares», o sea el id de la base de datos delante del cliente—.
+ *
+ * Devuelve `''` cuando no hay nada contestado: quien lo llama no tiene que
+ * volver a comprobarlo.
+ */
+export const diceRespuesta = (question, valor) => {
+  if (!hayRespuesta(valor)) return '';
+  if (question?.kind === 'zone') {
+    const dichas = zonasDe(valor).map((id) => zonaById(id).label);
+    return dichas.length > 0 ? dichas.join(', ') : zonaEscrita(valor);
+  }
+  /* El sí/no se guarda como `si`/`no` —es lo que compara una regla— y se lee
+     como «Sí» y «No», que es lo que contestó. */
+  if (question?.kind === 'bool') return valor === 'si' ? 'Sí' : 'No';
+  if (Array.isArray(valor)) return valor.join(', ');
+  return String(valor).trim();
+};
 
 /**
  * Preguntas de serie. Salen de lo que se pregunta de verdad en una revisión, no
@@ -482,10 +891,10 @@ export const SESSION_QUESTIONS = [
     id: 'rpe',
     label: 'Esfuerzo de la sesión',
     short: 'RPE',
-    hint: 'De 1 (muy suave) a 10 (no podía más)',
     kind: 'scale',
     min: 1,
     max: 10,
+    anclas: ['Muy suave', 'No podía más'],
     neutral: true,
     color: 'var(--data-violet)',
   },
@@ -493,10 +902,10 @@ export const SESSION_QUESTIONS = [
     id: 'fatigue',
     label: 'Fatiga al acabar',
     short: 'Fatiga',
-    hint: 'Cómo de vacío has terminado',
     kind: 'scale',
     min: 1,
     max: 10,
+    anclas: ['Entero', 'Vacío'],
     lowerIsBetter: true,
     color: 'var(--data-orange)',
   },
@@ -504,27 +913,39 @@ export const SESSION_QUESTIONS = [
     id: 'pain',
     label: 'Dolor o molestias',
     short: 'Dolor',
-    hint: '0 si no te ha dolido nada',
     kind: 'scale',
     min: 0,
     max: 10,
+    anclas: ['Nada', 'Mucho'],
     lowerIsBetter: true,
     color: 'var(--data-rose)',
   },
   {
+    /*
+      ── De texto libre a ZONAS, el 14 de septiembre ────────────────────────
+      Era `kind: 'text'`, y el texto libre de una zona no se puede leer dos
+      veces: «hombro», «hombro dcho», «el deltoides» y «el mismo de siempre» son
+      cuatro respuestas a la misma pregunta y ninguna se puede contar ni poner al
+      lado de la de la semana pasada. Lo ya guardado se sigue leyendo tal cual
+      (ver `zonaEscrita`): cambia el control, no lo que había escrito.
+    */
     id: 'painZone',
     label: '¿Dónde te ha molestado?',
     short: 'Zona',
-    hint: 'Solo si has marcado dolor',
-    kind: 'text',
+    hint: 'Marca en el dibujo dónde',
+    kind: 'zone',
+    /* Sin dolor no hay sitio que señalar. Ver `depende`. */
+    depende: { de: 'pain', desde: 1 },
   },
   {
     id: 'sleep',
     label: 'Cómo dormiste anoche',
     short: 'Sueño',
     kind: 'scale',
+    instrumento: 'estrellas',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Fatal', 'De un tirón'],
     color: 'var(--data-blue)',
   },
   {
@@ -532,8 +953,10 @@ export const SESSION_QUESTIONS = [
     label: 'Energía',
     short: 'Energía',
     kind: 'scale',
+    instrumento: 'deposito',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Por los suelos', 'A tope'],
     color: 'var(--data-lime)',
   },
   {
@@ -543,6 +966,7 @@ export const SESSION_QUESTIONS = [
     kind: 'scale',
     min: 0,
     max: 10,
+    anclas: ['Ninguna', 'Muchas'],
     lowerIsBetter: true,
     color: 'var(--data-amber)',
   },
@@ -553,6 +977,7 @@ export const SESSION_QUESTIONS = [
     kind: 'scale',
     min: 1,
     max: 10,
+    anclas: ['Ninguno', 'Muchísimo'],
     lowerIsBetter: true,
     color: 'var(--data-pink)',
   },
@@ -561,8 +986,10 @@ export const SESSION_QUESTIONS = [
     label: 'Sensaciones generales',
     short: 'Ánimo',
     kind: 'scale',
+    instrumento: 'caras',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Mal', 'Muy bien'],
     color: 'var(--data-teal)',
   },
   {
@@ -621,20 +1048,21 @@ export const CHECKIN_QUESTIONS = [
     id: 'adherence',
     label: 'Adherencia a la dieta',
     short: 'Dieta',
-    hint: 'De 1 (nada) a 10 (clavada toda la semana)',
     kind: 'scale',
+    instrumento: 'estrellas',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Nada', 'Clavada'],
     color: 'var(--data-lime)',
   },
   {
     id: 'hunger',
     label: 'Hambre',
     short: 'Hambre',
-    hint: '0 si no has pasado nada',
     kind: 'scale',
     min: 0,
     max: 10,
+    anclas: ['Nada', 'Muchísima'],
     lowerIsBetter: true,
     color: 'var(--data-orange)',
   },
@@ -646,6 +1074,7 @@ export const CHECKIN_QUESTIONS = [
     kind: 'scale',
     min: 0,
     max: 10,
+    anclas: ['Ninguno', 'Todos'],
     color: 'var(--data-violet)',
   },
   {
@@ -653,8 +1082,10 @@ export const CHECKIN_QUESTIONS = [
     label: 'Cómo has dormido esta semana',
     short: 'Sueño',
     kind: 'scale',
+    instrumento: 'estrellas',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Fatal', 'De un tirón'],
     color: 'var(--data-blue)',
   },
   {
@@ -662,8 +1093,10 @@ export const CHECKIN_QUESTIONS = [
     label: 'Energía durante el día',
     short: 'Energía',
     kind: 'scale',
+    instrumento: 'deposito',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Por los suelos', 'A tope'],
     color: 'var(--data-teal)',
   },
   {
@@ -674,6 +1107,7 @@ export const CHECKIN_QUESTIONS = [
     kind: 'scale',
     min: 1,
     max: 10,
+    anclas: ['Ninguno', 'Muchísimo'],
     lowerIsBetter: true,
     color: 'var(--data-pink)',
   },
@@ -682,8 +1116,10 @@ export const CHECKIN_QUESTIONS = [
     label: 'Digestiones',
     short: 'Digestión',
     kind: 'scale',
+    instrumento: 'estrellas',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Fatal', 'Perfectas'],
     color: 'var(--data-amber)',
   },
   {
@@ -691,9 +1127,47 @@ export const CHECKIN_QUESTIONS = [
     label: 'Ganas de seguir',
     short: 'Ganas',
     kind: 'scale',
+    instrumento: 'caras',
     min: 1,
-    max: 10,
+    max: 5,
+    anclas: ['Ninguna', 'Muchas'],
     color: 'var(--data-slate)',
+  },
+  /*
+    ── El dolor, que no estaba ───────────────────────────────────────────────
+    La sesión lo pregunta desde el principio (`pain`, `painZone`) y la semana no
+    lo preguntaba de ninguna manera: un entrenador que quisiera saber si a
+    alguien le sigue molestando el hombro al cerrar la semana tenía que
+    inventarse la pregunta a mano. Y es de lo poco que puede cambiar un plan
+    entero.
+
+    Van en pareja y en este orden, como en la sesión: la cantidad primero y el
+    sitio después, porque sin dolor no hay sitio que señalar. Con `week_` delante
+    porque son las gemelas semanales de las de sesión —la misma convención que
+    `week_sleep`, `week_stress` y `week_energy`— y con ids propios porque son
+    series distintas: el dolor de UNA sesión y el de SIETE DÍAS no se promedian
+    juntos.
+  */
+  {
+    id: 'week_pain',
+    label: 'Dolor o molestias esta semana',
+    short: 'Dolor',
+    kind: 'scale',
+    min: 0,
+    max: 10,
+    anclas: ['Nada', 'Mucho'],
+    lowerIsBetter: true,
+    color: 'var(--data-rose)',
+  },
+  {
+    id: 'week_pain_zone',
+    label: '¿Dónde te ha molestado?',
+    short: 'Zona',
+    hint: 'Marca en el dibujo dónde',
+    /* Igual que en la sesión: el cuerpo entero solo sale si ha habido dolor.
+       Ver `depende`. */
+    depende: { de: 'week_pain', desde: 1 },
+    kind: 'zone',
   },
   {
     id: 'obstacles',
@@ -711,6 +1185,25 @@ export const CHECKIN_QUESTIONS = [
 
 /** Todas las preguntas de catálogo, de los dos sitios. Para el saneado. */
 const CATALOGO = [...SESSION_QUESTIONS, ...CHECKIN_QUESTIONS];
+
+/**
+ * Una pregunta del catálogo por su id, sin protocolo delante.
+ *
+ * ══ Para qué hace falta, si ya está `questionById` ═════════════════════════
+ *
+ * `questionById(protocol, id)` resuelve lo PROPIO primero y necesita un
+ * protocolo. Esto contesta otra pregunta: «¿de qué pregunta de serie salió
+ * esto?». Y quien la hace es el modelo de ELEMENTOS —el formulario libre y la
+ * estantería—, que no guarda un protocolo sino un `origen`.
+ *
+ * Un elemento sacado de la estantería copia el enunciado, el rango y las
+ * opciones de su pregunta, pero NO lo que no se puede retocar: con qué se
+ * contesta (`instrumento`), qué significan las puntas (`anclas`) y de qué color
+ * se pinta su serie (`color`). Eso no se copia a propósito —copiarlo sería
+ * dejar que se editara— y por eso hay que ir a buscarlo aquí cada vez que se
+ * pinta. Ver `Client/CampoLibre`.
+ */
+export const catalogQuestionById = (id) => (id ? CATALOGO.find((q) => q.id === id) || null : null);
 
 /**
  * Tope de preguntas propias.
@@ -776,7 +1269,11 @@ export const PROTOCOL_PRESETS = [
     protocol: {
       modules: ['warmup', 'coachNote', 'clientNote', 'sessionFeedback'],
       questions: ['pain', 'painZone', 'rpe', 'mood', 'note'],
-      checkinQuestions: ['week_sleep', 'week_energy', 'obstacles', 'week_note'],
+      /* El dolor también al cerrar la semana: es el preajuste de readaptación y
+         hasta que `week_pain` existió no había forma de preguntarlo ahí. Un
+         preajuste que se llama «Con seguimiento del dolor» y solo lo sigue
+         sesión a sesión deja fuera justo la lectura que decide el plan. */
+      checkinQuestions: ['week_pain', 'week_pain_zone', 'week_sleep', 'week_energy', 'obstacles', 'week_note'],
     },
   },
 ];
@@ -808,6 +1305,9 @@ export const defaultProtocol = () => ({
   checkinQuestions: [],
   custom: [],
   checkin: defaultCheckin(),
+  /* Ninguna medida encendida más allá de los dos bloques de siempre: lo que no
+     está configurado no existe. Ver `domain/medidas.js`. */
+  medidas: [],
   /* Nadie los pide hasta que alguien los pida. Ver `WEIGH_INS_MAX`. */
   weighIns: defaultWeighIns(),
   /*
@@ -826,11 +1326,80 @@ export const defaultProtocol = () => ({
   /* El lunes, todas las semanas y sin recordatorio: la convención de siempre.
      Ver `defaultSchedule`. */
   schedule: defaultSchedule(),
+  /* De dónde salen las calorías cuando ajustas una dieta. Ver `AJUSTES`. */
+  ajuste: defaultAjuste(),
 });
 
 // ── Saneado ────────────────────────────────────────────────────────────────
 
 const isScale = (q) => q?.kind === 'scale';
+
+/**
+ * ¿Esta pregunta se puede DIBUJAR?
+ *
+ * La pregunta que tiene que hacerse todo el que promedia, compara o pinta una
+ * línea. Mientras solo hubo escalas y textos, media aplicación preguntaba
+ * `kind !== 'text'` y daba por hecho que lo demás era una cifra; con sí/no y
+ * elegir una eso empezaría a meter la palabra «Sí» en una serie.
+ *
+ * Una sola función, y todos los gráficos detrás de ella: el día que entre otro
+ * tipo medible se enciende aquí y se enciende en todos los sitios a la vez.
+ */
+export const esSerie = (q) => isScale(q);
+
+/** ¿Esta pregunta se contesta con palabras? */
+export const esTexto = (q) => q?.kind === 'text';
+
+/**
+ * ¿Y esta se LEE, pero no con palabras propias del cliente?
+ *
+ * Sí/no, elegir una, elegir varias, una cifra suelta y las zonas. Ni entran en un
+ * gráfico ni se citan como una frase suya: se enseñan como lo que son, la opción
+ * que marcó. Existe para que ningún consumidor tenga que enumerar tipos.
+ */
+export const esRespuesta = (q) => Boolean(q) && !esSerie(q) && !esTexto(q);
+
+/**
+ * Lo contestado a una pregunta, ¿está dado?
+ *
+ * `String(v).trim() !== ''` estaba escrito a mano en nueve sitios y con sí/no y
+ * elegir varias deja de valer: una lista vacía se convierte en `''` y una con
+ * dos zonas en «hombroD,lumbares», que pasa el filtro por casualidad.
+ */
+export const hayRespuesta = (valor) => {
+  if (valor === null || valor === undefined) return false;
+  if (Array.isArray(valor)) return valor.length > 0;
+  return String(valor).trim() !== '';
+};
+
+/**
+ * LO QUE SOLO SE PREGUNTA SI ANTES PASÓ ALGO.
+ *
+ * «¿Dónde te ha molestado?» con un cuerpo entero de dos figuras y veinte zonas
+ * estaba SIEMPRE en la hoja, y la semana en la que no te ha dolido nada —que es
+ * la mayoría de las semanas— eso es media pantalla que hay que leer para
+ * concluir que no va contigo. Su propia ayuda lo confesaba: «si no te ha
+ * molestado nada, déjalo en blanco».
+ *
+ * Una pregunta que se contesta dejándola en blanco no es una pregunta: es una
+ * consecuencia de la anterior. Ahora lo declara la pregunta (`depende`) y el
+ * cuerpo aparece al marcar dolor, en el mismo sitio y sin cambiar de pantalla.
+ *
+ * ── Y si la de la que depende no está, se pregunta ────────────────────────
+ * El entrenador puede quitar «Dolor» y dejar la zona. Entonces no hay condición
+ * que cumplir y la zona se pregunta siempre: una pregunta que no se puede
+ * contestar nunca sería peor que una de más.
+ *
+ * @param lista Las preguntas de ESTE formulario, para saber si la de la que
+ *   depende está puesta. Sin ella se da por presente.
+ */
+export const seVe = (q, respuestas = {}, lista = null) => {
+  const dep = q?.depende;
+  if (!dep) return true;
+  if (lista && !lista.some((otra) => otra.id === dep.de)) return true;
+  const valor = Number(respuestas?.[dep.de]);
+  return Number.isFinite(valor) && valor >= (dep.desde ?? 1);
+};
 
 /**
  * Las preguntas propias del entrenador, saneadas.
@@ -889,6 +1458,49 @@ const sanitizeCustom = (raw) => {
     const max = Number(item.max);
     const hint = String(item.hint ?? base?.hint ?? '').trim().slice(0, 140);
 
+    /*
+      Las opciones de una pregunta de elegir, y solo de ésas.
+
+      Sin opciones no hay pregunta: un «elegir una» con la lista vacía le sale al
+      cliente como un renglón con su enunciado y nada debajo, y contestarlo es
+      imposible. Cae a texto, que es lo más parecido a lo que quería preguntar y
+      lo único que se puede contestar.
+
+      Repetidas fuera —dos botones iguales no son dos respuestas— y ocho como
+      mucho, el mismo tope que el formulario libre: lo que no cabe en ocho no es
+      una lista de opciones, es una pregunta abierta.
+    */
+    const ops =
+      kind === 'choice' || kind === 'multi'
+        ? [...new Set((Array.isArray(item.ops) ? item.ops : []).map((o) => String(o).trim()).filter(Boolean))].slice(
+            0,
+            MAX_OPS
+          )
+        : null;
+    const tipo = ops && ops.length === 0 ? 'text' : kind;
+
+    /*
+      LOS EXTREMOS DE LA ESCALA, que son lo que la hace SUYA.
+
+      Sin esto, nueve preguntas seguidas son nueve rampas idénticas de diez
+      barras y lo único que las distingue es el enunciado de arriba. Con ellas,
+      cada una dice en sus dos puntas qué significa contestar poco y qué
+      significa contestar mucho — y el cliente deja de tener que deducirlo.
+
+      Dos textos, los dos con algo escrito: media pareja es peor que ninguna
+      —un extremo rotulado y el otro en blanco se lee como un fallo—. Cortos
+      porque van debajo de la primera y de la última barra, no en una línea de
+      ayuda. Y si el entrenador no escribe los suyos manda el del catálogo,
+      igual que el color.
+    */
+    const escritas = Array.isArray(item.anclas)
+      ? item.anclas.slice(0, 2).map((a) => String(a ?? '').trim().slice(0, 16))
+      : null;
+    const anclas =
+      escritas && escritas.length === 2 && escritas.every(Boolean)
+        ? escritas
+        : base?.anclas || null;
+
     out.push({
       id,
       label,
@@ -896,12 +1508,34 @@ const sanitizeCustom = (raw) => {
          gráfico, y un recorte a doce caracteres del enunciado nuevo suele salir
          peor que el que ya estaba pensado. */
       short: base?.short || label.slice(0, 12),
-      kind,
+      kind: tipo,
       ...(hint ? { hint } : {}),
-      ...(kind === 'scale'
+      ...(ops && ops.length > 0 ? { ops } : {}),
+      /* La condición NO se retoca: es del catálogo y describe una relación
+         entre dos preguntas suyas. Lo que hace falta es no perderla al
+         reescribir el enunciado de la zona — sin esto, cambiarle una palabra
+         dejaba el cuerpo entero otra vez en pantalla todas las semanas. */
+      ...(base?.depende ? { depende: base.depende } : {}),
+      ...(tipo === 'scale'
         ? {
-            min: item.min === 0 ? 0 : 1,
-            max: Number.isFinite(max) && max >= 2 && max <= 10 ? Math.round(max) : 10,
+            /* Con qué se contesta, como la condición: es del catálogo y no se
+               retoca. Sin heredarlo aquí, cambiarle una palabra al enunciado de
+               «Adherencia» le devolvía al cliente una rampa de diez pasos en
+               medio de un cuestionario de estrellas y caras. */
+            ...(base?.instrumento ? { instrumento: base.instrumento } : {}),
+            ...(anclas ? { anclas } : {}),
+            /* EL RANGO LO MANDA EL INSTRUMENTO cuando lo hay. Cinco estrellas
+               son cinco: un protocolo guardado antes de que la adherencia
+               bajara a 1-5 sigue diciendo `max: 10`, y sin esto el cliente se
+               encontraría diez estrellas en fila —y guardaría un 8 en una serie
+               que ya está en escala de 5—. Lo que el entrenador elige en «Hasta
+               dónde llega» es de sus propias preguntas, que no traen ninguno. */
+            ...(base?.instrumento
+              ? { min: base.min ?? 1, max: base.max ?? 5 }
+              : {
+                  min: item.min === 0 ? 0 : 1,
+                  max: Number.isFinite(max) && max >= 2 && max <= 10 ? Math.round(max) : 10,
+                }),
             lowerIsBetter: Boolean(item.lowerIsBetter),
             /* El color de un retoque es EL DEL CATÁLOGO: la serie tiene que
                seguir dibujándose del mismo color que la semana pasada. El de una
@@ -957,6 +1591,32 @@ export const clientProtocol = (preferences) => {
     const modo = raw.checkin?.[id];
     checkin[id] = CHECKIN_MODE_IDS.includes(modo) ? modo : porDefecto[id];
   }
+  /*
+    ══ Y LA LISTA DEJA DE SER FIJA ═══════════════════════════════════════════
+
+    Los pliegues y los perímetros eran los dos únicos bloques que existían, y un
+    estado guardado para cualquier otro id se caía aquí en silencio. Desde que el
+    entrenador tiene un vocabulario de medidas propio (`domain/medidas.js`), un
+    id que este módulo no conoce no es un error: es una glucosa.
+
+    Se conserva cualquier id con un modo válido, con un tope. La lista de qué
+    medidas existen vive en el catálogo del entrenador y no aquí: este módulo
+    sanea la FORMA —tres estados y nada más—, no el vocabulario.
+  */
+  for (const [id, modo] of Object.entries(raw.checkin || {})) {
+    if (checkin[id] !== undefined) continue;
+    if (Object.keys(checkin).length >= MAX_CHECKIN_BLOCKS) break;
+    if (CHECKIN_MODE_IDS.includes(modo)) checkin[id] = modo;
+  }
+
+  /*
+    Las DEFINICIONES de las medidas encendidas viajan con el protocolo, como las
+    preguntas propias y por el mismo motivo: el cliente no puede leer el perfil
+    de su entrenador (`profiles` solo deja ver la fila propia, 0002), así que su
+    portal no tendría de dónde sacar la unidad ni los decimales. Las pone
+    `resolveProtocolo`; aquí solo se acotan.
+  */
+  const medidas = sanitizeMedidasDelProtocolo(raw.medidas);
 
   return {
     services: sanitizeServices(raw.services),
@@ -968,6 +1628,7 @@ export const clientProtocol = (preferences) => {
     checkinQuestions: dedupe(raw.checkinQuestions, deCheckin, []),
     custom,
     checkin,
+    medidas,
     /* Como el cuestionario: «no configurado» y «configurado a cero» significan lo
        mismo —no lo pido—, así que los dos caen en el mismo sitio. */
     weighIns: sanitizeWeighIns(raw.weighIns),
@@ -975,6 +1636,7 @@ export const clientProtocol = (preferences) => {
     alertDays: sanitizeAlertDays(raw.alertDays),
     hidden: sanitizeHidden(raw.hidden),
     schedule: sanitizeSchedule(raw.schedule),
+    ajuste: sanitizeAjuste(raw.ajuste),
   };
 };
 
@@ -1085,21 +1747,24 @@ export const asksCheckinQuestions = (protocol) => checkinQuestions(protocol).len
  *
  * Las de texto se cuentan pero no se citan: una respuesta de cuatro líneas
  * cortada a treinta caracteres no informa, engaña sobre lo que pone.
+ *
+ * ── Y lo contestado a una de elegir, igual ────────────────────────────────
+ * Se cuenta con las notas y no se cita. «Dieta 4 · Sueño 7 · Sí» no dice nada
+ * —¿sí a qué?—, y meter el enunciado entero para que se entienda convierte la
+ * sub-línea de una fila de lista en un párrafo.
  */
 export const answersSummary = (protocol, answers) => {
   if (!answers || typeof answers !== 'object') return '';
 
-  const dadas = checkinQuestions(protocol).filter(
-    (q) => String(answers[q.id] ?? '').trim() !== ''
-  );
+  const dadas = checkinQuestions(protocol).filter((q) => hayRespuesta(answers[q.id]));
   if (dadas.length === 0) return '';
 
-  const escalas = dadas.filter((q) => q.kind === 'scale');
-  const textos = dadas.length - escalas.length;
+  const escalas = dadas.filter(esSerie);
+  const otras = dadas.length - escalas.length;
 
   const partes = escalas.slice(0, 3).map((q) => `${q.short || q.label} ${answers[q.id]}`);
   if (escalas.length > 3) partes.push(`+${escalas.length - 3}`);
-  if (textos > 0) partes.push(textos === 1 ? '1 nota' : `${textos} notas`);
+  if (otras > 0) partes.push(otras === 1 ? '1 respuesta más' : `${otras} respuestas más`);
 
   return partes.join(' · ');
 };
@@ -1109,8 +1774,21 @@ export const answersSummary = (protocol, answers) => {
  * `undefined`: quien pregunta se ahorra el respaldo, que es donde se coló el
  * fallo la última vez que un valor por defecto vivía en cada consumidor.
  */
+/**
+ * En qué estado está un bloque del check-in.
+ *
+ * ── Y por qué el respaldo cambia según el bloque ───────────────────────────
+ * Los dos de siempre —pliegues y perímetros— respaldan a «opcional», que es lo
+ * que la aplicación hacía antes de que esto se pudiera configurar: quien no
+ * toque nada no puede notar el cambio.
+ *
+ * Cualquier otra medida respalda a **apagada**. Es la misma regla vista desde el
+ * otro lado: una glucosa que apareciera encendida en el check-in de todo el
+ * mundo el día que se publica esto sería la aplicación pidiéndole a la gente
+ * algo que su entrenador no le ha pedido.
+ */
 export const checkinMode = (protocol, block) =>
-  protocol?.checkin?.[block] || defaultCheckin()[block] || 'optional';
+  protocol?.checkin?.[block] || defaultCheckin()[block] || 'off';
 
 /** Si el bloque se le enseña al cliente. */
 export const asksBlock = (protocol, block) => checkinMode(protocol, block) !== 'off';
@@ -1148,13 +1826,41 @@ export const asksWeighIns = (protocol) => weighInsTarget(protocol) > 0;
 
 /** Cambia el estado de un bloque del check-in. Un estado que no existe no hace nada. */
 export const setCheckinMode = (protocol, block, mode) => {
-  if (!CHECKIN_BLOCKS.some((b) => b.id === block)) return protocol;
+  if (!block) return protocol;
   if (!CHECKIN_MODE_IDS.includes(mode)) return protocol;
+  /* La lista de qué bloques existen ya no se comprueba aquí: vive en el catálogo
+     de medidas del entrenador y este módulo no lo conoce. Lo que sí se sigue
+     comprobando es la FORMA —tres estados y no otra cosa—, que es lo que este
+     archivo sabe de verdad. */
   return {
     ...protocol,
     checkin: { ...defaultCheckin(), ...protocol.checkin, [block]: mode },
   };
 };
+
+/**
+ * LAS MEDIDAS QUE ESTE PROTOCOLO PIDE, con su definición entera.
+ *
+ * `asksBlock` contesta por id y no sirve para pintar un formulario: hace falta
+ * la unidad, los decimales y el rango. El protocolo de un cliente las lleva
+ * copiadas (`medidas`) porque su portal no puede leer el catálogo de su
+ * entrenador; con el catálogo delante —la pantalla del entrenador— manda el
+ * catálogo, que es donde se acaban de editar.
+ *
+ * @param catalogo Las del entrenador (`coachMedidas`). Sin él, las copiadas.
+ */
+export const medidasDelProtocolo = (protocol, catalogo = null) => {
+  const lista = catalogo && catalogo.length > 0 ? catalogo : protocol?.medidas || [];
+  return lista.filter((m) => asksBlock(protocol, m.id));
+};
+
+/** Y las que se piden EN CADA REVISIÓN, que son un paso del asistente. */
+export const medidasDeRevision = (protocol, catalogo = null) =>
+  medidasDelProtocolo(protocol, catalogo).filter((m) => m.cuando !== 'diaria' && !m.campos);
+
+/** Las de A DIARIO, que son una fila más de la rejilla de la semana. */
+export const medidasDiarias = (protocol, catalogo = null) =>
+  medidasDelProtocolo(protocol, catalogo).filter((m) => m.cuando === 'diaria' && !m.campos);
 
 /** Cuántos pesajes se le piden a la semana. Fuera de 0–7, no hace nada. */
 export const setWeighIns = (protocol, n) => ({ ...protocol, weighIns: sanitizeWeighIns(n) });
@@ -1188,6 +1894,14 @@ export const hidesFromClient = (protocol, id) => protocol?.hidden?.[id] === true
 export const hiddenFor = (protocol) => ({
   weight: hidesFromClient(protocol, 'weight'),
   nutrition: hidesFromClient(protocol, 'nutrition'),
+  /* Y las medidas ocultas, por su id. El contexto del portal pregunta
+     `oculto.medidas[id]` allí donde pinta una: la misma puerta que ya usan el
+     peso y las kcal, sin una lista que haya que ampliar por cada medida nueva. */
+  medidas: Object.fromEntries(
+    Object.entries(protocol?.hidden || {})
+      .filter(([id, v]) => v === true && !HIDDEN_IDS.includes(id))
+      .map(([id]) => [id, true])
+  ),
 });
 
 export const toggleHidden = (protocol, id) => ({

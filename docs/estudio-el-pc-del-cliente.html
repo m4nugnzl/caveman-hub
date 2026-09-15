@@ -1,0 +1,1585 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>El PC del cliente</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,75..125,400..800;1,75..125,400..700&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · El PC del cliente — 13 sep 2026
+
+   ── El plan de tokens, antes de escribir nada ─────────────────────────────
+   COLOR   Los de la app tal y como están hoy (src/styles/tokens.css): papel
+           #f7f6f2, mesa #edebe3, hoja #fff, tinta #191713, señal #3b49df. Un
+           estudio sobre el acabado de este producto que no se vea como este
+           producto no prueba nada: las láminas TIENEN que poder compararse
+           con una captura real sin traducir ningún color.
+   TIPO    Archivo, la de la casa. Ancha (wdth 125) para las cifras y la
+           portada; normal para el texto; monoespaciada para rutas de archivo.
+   LAYOUT  Prosa en columna estrecha (760) y láminas a todo el ancho (1240),
+           porque lo que hay que juzgar aquí son MUEBLES: un antes y un después
+           de 880 px partidos en dos columnas de 380 no se pueden comparar.
+           Alternativa descartada: capturas escaladas. Una captura escalada al
+           60 % miente sobre el tamaño del texto, que es justo lo que se está
+           discutiendo.
+   FIRMA   La lámina R-2: la hoja con su costado vivo. Es el único sitio de
+           este documento donde se ve la idea entera funcionando —el renglón
+           enfocado encendiendo el contexto— y por eso se lleva el ancho, el
+           color y la interacción de verdad (se puede pulsar).
+
+   ── Segunda pasada ────────────────────────────────────────────────────────
+   La primera versión abría con «El diagnóstico» y dejaba la tesis para el §3.
+   Es lo que sale por defecto en cualquier estudio, y aquí era falso: las seis
+   averías que el dueño enumeró NO son seis descuidos sueltos, son la misma
+   decisión pendiente —qué es esta pantalla en un monitor— asomando seis veces.
+   La tesis sube al §2 y cada avería del §1 apunta a ella.
+
+   Y se han quitado los números 01/02/03 de las secciones: esto no es una
+   secuencia, son cuatro cosas distintas (lo que hay, lo que debería ser, cómo
+   se ve, en qué orden se hace). Las averías sí van numeradas, porque son una
+   lista cerrada a la que hay que poder referirse.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  --mesa: #edebe3;
+  --canvas: #f7f6f2;
+  --surface: #ffffff;
+  --sunken: #f2f0e9;
+  --fill-subtle: #f5f3ed;
+  --fill: #eceae1;
+  --fill-strong: #dfdbcd;
+  --text: #191713;
+  --text-2: #514d45;
+  --text-3: #706c62;
+  --hairline: #e7e3d9;
+  --hairline-strong: #cfc9bb;
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, .08);
+  --accent-line: rgba(59, 73, 223, .28);
+  --accent-on: #ffffff;
+  --positive: #10774c;
+  --positive-soft: #e3f1ea;
+  --negative: #b93429;
+  --negative-soft: #fbe9e7;
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --shadow-sm: 0 1px 2px rgba(38, 32, 20, .06), 0 14px 30px -22px rgba(38, 32, 20, .55);
+  --shadow-md: 0 6px 20px -8px rgba(38, 32, 20, .16), 0 1px 3px rgba(38, 32, 20, .06);
+  --r-xs: 6px; --r-sm: 9px; --r-md: 14px; --r-lg: 20px;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.58;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
+p { margin: 0 0 15px; }
+p:last-child { margin-bottom: 0; }
+ul, ol { margin: 0 0 15px; padding-left: 20px; }
+li { margin-bottom: 6px; }
+li:last-child { margin-bottom: 0; }
+strong { font-weight: 650; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .86em;
+  background: var(--fill-subtle);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-xs);
+  padding: 1px 5px;
+}
+
+/* ── El papel del documento ────────────────────────────────────────────── */
+.hoja { max-width: 1240px; margin: 0 auto; padding: 0 24px 120px; }
+.estrecho { max-width: 760px; }
+.rotulo {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--text-3); font-stretch: 112%;
+}
+
+/* ── Portada ──────────────────────────────────────────────────────────── */
+.portada { padding: 80px 0 56px; border-bottom: 1px solid var(--hairline-strong); margin-bottom: 56px; }
+.portada h1 {
+  font-size: clamp(44px, 7vw, 82px); font-weight: 800; font-stretch: 122%;
+  letter-spacing: -.028em; margin: 14px 0 20px;
+}
+.portada .entradilla { font-size: 21px; line-height: 1.5; color: var(--text-2); max-width: 660px; }
+.portada .entradilla strong { color: var(--text); }
+
+/* La regla: la firma de la casa. Aquí, y solo aquí, porque esto sí es una
+   escala — las seis averías son la medida del problema. */
+.regla { display: flex; align-items: flex-end; gap: 3px; height: 22px; margin: 34px 0 0; }
+.regla i { width: 2px; background: var(--hairline-strong); height: 7px; border-radius: 1px; }
+.regla i:nth-child(5n + 1) { height: 15px; background: var(--text-3); }
+
+/* ── Secciones ────────────────────────────────────────────────────────── */
+.seccion { margin: 0 0 76px; }
+.cab-seccion { margin: 0 0 28px; }
+.cab-seccion h2 {
+  font-size: 34px; font-weight: 750; font-stretch: 118%; letter-spacing: -.02em;
+  margin: 6px 0 10px;
+}
+.cab-seccion .sub { color: var(--text-2); font-size: 17px; max-width: 700px; }
+
+h3.apartado {
+  font-size: 21px; font-weight: 700; font-stretch: 108%; letter-spacing: -.012em;
+  margin: 40px 0 12px;
+}
+
+/* ── Las averías ──────────────────────────────────────────────────────── */
+.averia {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 22px 24px; margin: 0 0 14px; box-shadow: var(--shadow-sm); max-width: 900px;
+}
+.averia > header { display: flex; gap: 14px; align-items: baseline; margin-bottom: 12px; }
+.averia .num {
+  font-size: 12px; font-weight: 800; font-stretch: 120%; color: var(--accent);
+  letter-spacing: .04em; flex-shrink: 0; padding-top: 3px;
+}
+.averia h4 { font-size: 18px; font-weight: 680; letter-spacing: -.01em; }
+.averia dl { margin: 0; display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 4px 16px; }
+.averia dt {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-3); padding-top: 5px; font-stretch: 112%;
+}
+.averia dd { margin: 0; font-size: 15px; color: var(--text-2); }
+.averia dd strong { color: var(--text); }
+.suyo { border-left: 2px solid var(--accent-line); padding-left: 12px; font-style: italic; color: var(--text-2); }
+
+/* ── Piezas de prosa ──────────────────────────────────────────────────── */
+.ley {
+  background: var(--surface); border: 1px solid var(--hairline); border-left: 3px solid var(--accent);
+  border-radius: var(--r-sm); padding: 18px 22px; margin: 0 0 18px; max-width: 760px;
+}
+.ley .rotulo { margin-bottom: 6px; display: block; }
+.ley p { font-size: 17px; }
+.nota { font-size: 14px; color: var(--text-3); max-width: 760px; }
+
+.dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; max-width: 900px; }
+.tarjeta {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  padding: 18px 20px; box-shadow: var(--shadow-sm);
+}
+.tarjeta h4 { font-size: 16px; font-weight: 680; margin-bottom: 8px; }
+.tarjeta p, .tarjeta li { font-size: 14.5px; color: var(--text-2); }
+
+/* ── El marco de una lámina ───────────────────────────────────────────── */
+.lamina { margin: 26px 0 34px; }
+.lamina > figcaption {
+  display: flex; gap: 12px; align-items: baseline; margin: 0 0 10px;
+}
+.lamina > figcaption .t { font-size: 15px; font-weight: 680; }
+.lamina > figcaption .d { font-size: 13.5px; color: var(--text-3); }
+.marco {
+  background: var(--canvas); border: 1px solid var(--hairline-strong); border-radius: var(--r-md);
+  overflow-x: auto; box-shadow: var(--shadow-md);
+}
+.lienzo { width: 1180px; padding: 0 0 26px; }
+.etiqueta-mal, .etiqueta-bien {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 999px; font-stretch: 112%;
+}
+.etiqueta-mal { background: var(--negative-soft); color: var(--negative); }
+.etiqueta-bien { background: var(--positive-soft); color: var(--positive); }
+
+/* ══ La app de mentira ═══════════════════════════════════════════════════
+   Las clases `a-*` imitan el chasis real lo justo para poder juzgar el
+   mueble. No son las de la app: un estudio no importa la hoja de estilos del
+   producto, porque entonces cualquier cambio en producción reescribiría el
+   estudio a posteriori. */
+.a-cabecera {
+  display: flex; align-items: center; gap: 26px; padding: 0 22px; height: 52px;
+  background: var(--surface); border-bottom: 1px solid var(--hairline-strong);
+}
+.a-marca { display: flex; align-items: center; gap: 9px; font-weight: 800; font-size: 13px; letter-spacing: .1em; font-stretch: 118%; }
+.a-marca .cuadro { width: 22px; height: 22px; border-radius: var(--r-xs); background: var(--text); }
+.a-rail { display: flex; gap: 20px; font-size: 13.5px; color: var(--text-2); }
+.a-rail span { padding: 0 1px 3px; border-bottom: 2px solid transparent; }
+.a-rail .on { color: var(--text); font-weight: 640; border-bottom-color: var(--accent); }
+.a-avatar { margin-left: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--fill-strong); }
+
+.a-pagina { padding: 26px 22px 0; }
+.a-pagina.es-ancha { padding-left: 30px; padding-right: 30px; }
+
+/* El h1 de la pantalla */
+.a-h1 { font-size: 27px; font-weight: 760; font-stretch: 116%; letter-spacing: -.02em; }
+.a-h1.es-viejo { font-size: 30px; }
+.a-sub { font-size: 13.5px; color: var(--text-3); margin-top: 3px; }
+.a-sub b { color: var(--text-2); font-weight: 620; }
+.a-cab-fila { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--hairline); margin-bottom: 18px; }
+
+.a-caja {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+}
+.a-vacio { background: repeating-linear-gradient(135deg, var(--negative-soft) 0 6px, rgba(185, 52, 41, .17) 6px 12px); }
+
+/* La tira de sesiones */
+.a-tira { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.a-pill {
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-sm); background: var(--surface);
+  padding: 8px 14px; min-width: 108px;
+}
+.a-pill .nm { display: block; font-size: 13.5px; font-weight: 620; }
+.a-pill .pg { display: block; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.a-pill.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.a-pill.nueva { border-style: dashed; color: var(--accent); }
+.a-pill.nueva .nm { color: var(--accent); }
+
+/* Calentamiento */
+.a-calent-viejo { background: var(--fill-subtle); border-radius: var(--r-md); padding: 14px 16px; margin-bottom: 16px; }
+.a-cal-fila-vieja {
+  background: var(--surface); border-radius: var(--r-sm); padding: 10px 12px; margin-top: 8px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.a-cal-fila-vieja .nm { font-size: 14.5px; font-weight: 640; }
+.a-cal-fila-vieja .cue { font-size: 12.5px; color: var(--text-3); }
+
+.a-lista-cal { border-top: 1px solid var(--hairline); }
+.a-cal-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline;
+  padding: 9px 2px; border-bottom: 1px solid var(--hairline);
+}
+.a-cal-fila .nm { font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.a-cal-fila .dosis { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.a-cal-fila .cue { grid-column: 1 / -1; font-size: 12.5px; color: var(--text-3); margin-top: -2px; }
+
+.cadena { color: var(--accent); display: inline-flex; }
+.cadena svg { display: block; }
+
+/* La hoja de series */
+.a-hoja { border-top: 1px solid var(--hairline-strong); }
+.a-ej { padding: 14px 2px 4px; font-size: 15px; font-weight: 660; display: flex; align-items: center; gap: 8px; }
+.a-ej .cuenta { font-size: 12px; color: var(--text-3); font-weight: 500; }
+
+.a-cabtabla, .a-serie {
+  display: grid; align-items: center; gap: 10px; padding: 6px 2px;
+}
+.a-cabtabla { border-bottom: 1px solid var(--hairline); padding-bottom: 7px; }
+.a-cabtabla span { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); font-stretch: 112%; }
+.a-serie { border-bottom: 1px solid var(--hairline); }
+.a-serie .i { font-size: 12.5px; color: var(--text-3); }
+.a-pide {
+  background: var(--fill); border-radius: var(--r-xs); height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-variant-numeric: tabular-nums; color: var(--text-2);
+}
+.a-pide.vacia { background: var(--fill); }
+.a-campo {
+  border: 1px solid var(--hairline-strong); border-radius: var(--r-xs); height: 30px; background: var(--surface);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.a-campo.puesto { border-color: var(--hairline); background: var(--fill-subtle); }
+.a-campo.foco { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.a-campo .fant { color: var(--text-3); font-size: 13px; }
+.a-costura { width: 1px; background: var(--hairline-strong); height: 22px; }
+.a-visto { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--hairline-strong); display: flex; align-items: center; justify-content: center; color: var(--text-3); }
+.a-visto.ok { background: var(--text); border-color: var(--text); color: var(--surface); }
+
+/* Versión A de la hoja: una casilla por dato */
+.a-serie.uno { grid-template-columns: 62px 86px 86px 1fr 26px; }
+.a-serie.uno .a-campo { justify-content: flex-start; padding: 0 9px; }
+.a-serie.uno .pauta { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.a-cabtabla.uno { grid-template-columns: 62px 86px 86px 1fr 26px; }
+
+/* Versión B: dos mitades */
+.a-serie.dos-mitades { grid-template-columns: 62px 78px 78px 12px 78px 78px 26px; }
+.a-cabtabla.dos-mitades { grid-template-columns: 62px 78px 78px 12px 78px 78px 26px; }
+
+/* La comparativa de las tres tablas: las tres a la misma escala y las tres
+   dentro del lienzo. Sin esto, la de hoy —que es la más ancha justamente
+   porque es la que sobra columnas— empuja a las otras dos fuera del papel, y
+   una comparación que hay que hacer con la barra de desplazamiento no es una
+   comparación. Va después de `.a-serie.dos-mitades` a propósito: misma
+   especificidad, gana el orden. */
+.es-comparativa .a-cabtabla,
+.es-comparativa .a-serie { gap: 8px; }
+.es-comparativa .dos-mitades { grid-template-columns: 52px 60px 60px 10px 60px 60px 22px; }
+.es-comparativa .a-pide, .es-comparativa .a-campo { font-size: 13px; }
+
+/* El foco de la sesión (la pieza vieja) */
+.a-foco { display: flex; align-items: flex-end; justify-content: space-between; padding: 16px 18px; margin-bottom: 16px; }
+.a-foco .cifra { font-size: 32px; font-weight: 780; font-stretch: 118%; font-variant-numeric: tabular-nums; }
+.a-barritas { display: flex; gap: 4px; padding: 0 18px 16px; }
+.a-barritas i { height: 5px; flex: 1; background: var(--fill-strong); border-radius: 3px; }
+
+/* El mueble de dos columnas */
+.a-mueble { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 22px; align-items: start; }
+.a-costado { display: flex; flex-direction: column; gap: 12px; }
+.a-costado .a-caja { padding: 14px 16px; }
+.a-costado h5 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); font-stretch: 112%; }
+.a-video { aspect-ratio: 16 / 9; border-radius: var(--r-sm); background: var(--fill-strong); display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 12px; margin-bottom: 10px; }
+.a-pauta { font-size: 13px; color: var(--text-2); border-left: 2px solid var(--hairline-strong); padding-left: 10px; }
+.a-hist { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.a-hist .f { color: var(--text-3); font-size: 12px; }
+
+/* La dieta */
+.a-mosaico { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.a-comida-caja { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 14px; box-shadow: var(--shadow-sm); }
+.a-opciones-caja { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.a-opcion-caja { background: var(--fill-subtle); border-radius: var(--r-sm); padding: 9px 10px; }
+.a-opcion-caja .cab { display: flex; justify-content: space-between; font-size: 12px; font-weight: 640; margin-bottom: 5px; }
+.a-al { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.a-al .g { color: var(--text-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.a-al .fl { color: var(--accent); }
+
+.a-mesa-comida { border-top: 1px solid var(--hairline-strong); padding-top: 12px; margin-top: 18px; }
+.a-mesa-comida > .cab { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+.a-mesa-comida > .cab .nm { font-size: 15px; font-weight: 660; }
+.a-mesa-comida > .cab .kc { font-size: 12.5px; color: var(--text-3); font-variant-numeric: tabular-nums; margin-left: auto; }
+.a-cols { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.a-cols.tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.a-col { padding: 0 14px; border-left: 1px solid var(--hairline); }
+.a-col:first-child { padding-left: 0; border-left: 0; }
+.a-col > .cab { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.a-col > .cab .o { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.a-col > .cab .k { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.a-col.elegida > .cab .o { color: var(--accent); }
+
+.a-kcal-linea { display: flex; align-items: flex-end; gap: 28px; padding: 16px 0 14px; border-bottom: 1px solid var(--hairline); }
+.a-kcal-linea .gran { font-size: 38px; font-weight: 790; font-stretch: 120%; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; }
+.a-kcal-linea .u { font-size: 14px; color: var(--text-3); margin-left: 5px; font-weight: 500; }
+.a-macro .v { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.a-macro .n { font-size: 11px; color: var(--text-3); letter-spacing: .06em; text-transform: uppercase; font-weight: 650; }
+.a-barra { height: 5px; border-radius: 3px; display: flex; overflow: hidden; margin-top: 8px; width: 100%; max-width: 420px; }
+.a-barra i:nth-child(1) { background: #3b6fdf; }
+.a-barra i:nth-child(2) { background: #c9a227; }
+.a-barra i:nth-child(3) { background: #b9563a; }
+
+/* La báscula */
+.a-bascula-vieja { padding: 16px 18px; }
+.a-campo-gris { background: var(--fill); border-radius: var(--r-sm); height: 54px; display: flex; align-items: center; padding: 0 8px 0 16px; gap: 10px; }
+.a-campo-gris .n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.a-campo-gris .u { font-size: 13px; color: var(--text-3); margin-left: auto; }
+.a-btn-azul { background: var(--accent); color: var(--accent-on); border-radius: var(--r-sm); padding: 9px 18px; font-size: 14px; font-weight: 640; }
+.a-btn-quieto { color: var(--accent); font-size: 13.5px; font-weight: 640; }
+.a-dias-viejo { display: flex; gap: 14px; margin-top: 12px; }
+.a-dias-viejo span { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; color: var(--text-3); }
+.a-dias-viejo i { width: 5px; height: 5px; border-radius: 50%; background: var(--fill-strong); }
+.a-dias-viejo .on i { background: var(--accent); }
+
+.a-bascula { padding: 18px 20px; }
+.a-bascula .fila { display: flex; align-items: baseline; gap: 12px; }
+.a-bascula .cifra { font-size: 40px; font-weight: 780; font-stretch: 118%; font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+.a-bascula .u { font-size: 15px; color: var(--text-3); }
+.a-regla-sem { display: flex; align-items: flex-end; gap: 0; margin-top: 16px; height: 26px; }
+.a-regla-sem span { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.a-regla-sem i { width: 2px; height: 8px; background: var(--hairline-strong); border-radius: 1px; }
+.a-regla-sem .puesto i { height: 16px; background: var(--text-2); }
+.a-regla-sem .hoy i { height: 20px; background: var(--accent); }
+.a-regla-sem b { font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.a-regla-sem .hoy b { color: var(--accent); }
+
+.a-paso { display: grid; grid-template-columns: 22px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--hairline); }
+.a-paso:last-child { border-bottom: 0; }
+.a-paso .t { font-size: 14.5px; font-weight: 620; }
+.a-paso .e { font-size: 12.5px; color: var(--text-3); }
+.a-paso .ic { color: var(--text-3); display: flex; }
+
+/* ── Tabla del plan ───────────────────────────────────────────────────── */
+.tabla { width: 100%; border-collapse: collapse; font-size: 14.5px; max-width: 900px; }
+.tabla th {
+  text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+  border-bottom: 1px solid var(--hairline-strong); padding: 0 12px 7px 0; font-stretch: 112%;
+}
+.tabla td { border-bottom: 1px solid var(--hairline); padding: 11px 12px 11px 0; vertical-align: top; color: var(--text-2); }
+.tabla td:first-child { color: var(--text); font-weight: 620; white-space: nowrap; }
+.tabla code { font-size: 12.5px; }
+
+.decidir { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 20px 22px; margin-bottom: 14px; max-width: 900px; box-shadow: var(--shadow-sm); }
+.decidir h4 { font-size: 17px; font-weight: 680; margin-bottom: 8px; }
+.decidir .reco { margin-top: 10px; font-size: 14.5px; color: var(--text-2); border-top: 1px dashed var(--hairline-strong); padding-top: 10px; }
+.decidir .reco b { color: var(--text); }
+
+@media (max-width: 860px) {
+  .averia dl { grid-template-columns: 1fr; }
+  .averia dt { padding-top: 8px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hoja">
+
+  <header class="portada">
+    <span class="rotulo">Estudio · 13 de septiembre de 2026</span>
+    <h1>El PC del cliente</h1>
+    <p class="entradilla">
+      El cliente entrena con el teléfono. Abre el ordenador para <strong>entender lo que le has
+      puesto</strong> y para <strong>entregarte la semana</strong>. Hoy lo que abre es una pantalla
+      de teléfono estirada: ochocientos ochenta píxeles de hoja en mitad de un monitor de mil
+      novecientos, un mosaico de cajas donde está su dieta, y una báscula que son cuatro planos
+      para escribir cuatro caracteres.
+    </p>
+    <div class="regla" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Lo que hay</span>
+      <h2>Seis averías, una sola decisión pendiente</h2>
+      <p class="sub">
+        Las seis están verificadas contra el código, no deducidas de las capturas. Y ninguna es un
+        descuido: cada una es una decisión correcta para el teléfono que nadie volvió a mirar desde
+        un monitor.
+      </p>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-01</span>
+        <h4>La rutina cabe en 880 px porque no tiene nada al lado</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>En un monitor de 1.920, la hoja ocupa 880 y a los lados quedan quinientos píxeles de papel por banda.</dd>
+        <dt>Es</dt>
+        <dd><code>responsive.css:857</code> — <code>.layout-portal:has(.rutina-cuerpo.es-hoja) { max-width: var(--max-w-columna) }</code>. Ochocientos ochenta, el ancho de una columna de trabajo.</dd>
+        <dt>Por qué</dt>
+        <dd>
+          Fue la cura de una avería peor: la tabla estirada a 1.272 px separaba tanto el «120» del «6»
+          que dejaba de leerse como una serie. Con la cura vino la segunda mitad de la decisión —quitar
+          el costado, «enfocar es quitar»—. <strong>Pero lo que se quitó no era un costado: era una caja
+          sin relación con lo que estabas haciendo</strong>, colgada a 370 px de la hoja. La forma correcta no
+          es estirar ni encoger: es darle al monitor <strong>algo que hacer con su ancho</strong>.
+        </dd>
+      </dl>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-02</span>
+        <h4>El calentamiento habla el idioma del entrenador</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>Un ▶ delante del nombre, el renglón entero convertido en botón y un chevron al final.</dd>
+        <dt>Es</dt>
+        <dd><code>Coach/Workout/WarmupBlock.jsx</code> montado tal cual en el portal. Es pieza del panel, de antes de que la casa decidiera el vocabulario.</dd>
+        <dt>Por qué</dt>
+        <dd>
+          El glifo ya está decidido y construido: <code>ui/MarcaFicha</code> —cadena si hay vídeo, comillas si
+          solo hay pautas, ángulo si no hay nada— y su propio comentario recoge que lo pediste tres veces.
+          Se aplicó a la hoja de series y el calentamiento se quedó fuera porque es <em>otro componente</em>.
+          <span class="suyo">«los vídeos con enlace de la rutina creo que deberían tener simplemente un icono
+          de cadena o link al lado del texto y ya»</span>
+        </dd>
+      </dl>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-03</span>
+        <h4>«Te pide / Has hecho», y una columna de kg que nadie pautó</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>Dos rótulos de grupo sobre la tabla y, debajo de «KG», dieciocho casillas grises vacías.</dd>
+        <dt>Es</dt>
+        <dd><code>HojaDelCliente.jsx</code> — <code>CAMPOS</code> es una lista fija de <code>kg · reps · rir</code>. Se dibujan siempre las seis columnas, las pauten o no.</dd>
+        <dt>Por qué</dt>
+        <dd>
+          La hoja ya sabe apagar una columna: lo hace con el RIR cuando el protocolo lo apaga. Lo que no
+          hace es <strong>mirar la sesión y declarar las columnas que su entrenador ha pautado de verdad</strong>.
+          Y los dos rótulos de grupo explican con texto una tabla que ya se explica sola: lo pedido tiene
+          fondo, lo hecho es un renglón en blanco.
+        </dd>
+      </dl>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-04</span>
+        <h4>El título dice dónde estás, justo debajo de la pestaña que lo dice</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>«Mi rutina» en 30 px, con «Mi rutina» encendido en el raíl de arriba. Lo mismo en dieta.</dd>
+        <dt>Es</dt>
+        <dd><code>tipografia.css:318</code> ya lo esconde… <strong>en el teléfono</strong>, y sube el estado a ser la línea de cabecera.</dd>
+        <dt>Por qué</dt>
+        <dd>
+          La regla está puesta en el aparato equivocado. En el teléfono no hay raíl —ahí el título es lo
+          único que dice dónde estás— y en el monitor sí lo hay. O sea: se esconde donde hace falta y se
+          queda donde sobra. La cabecera del PC no tiene que decir dónde estás: tiene que decir
+          <strong>qué te toca</strong>, y llevar los mandos.
+        </dd>
+      </dl>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-05</span>
+        <h4>La dieta es un mosaico de veintiuna cajas y veinte flechas azules</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>Comida 1 y Comida 2 en la misma línea con alturas distintas, y dentro de cada una sus opciones en otra rejilla de tres.</dd>
+        <dt>Es</dt>
+        <dd>
+          Dos rejillas anidadas: <code>.comidas-cliente</code> es <code>repeat(auto-fill, minmax(30rem, 1fr))</code>
+          (<code>revision.css:6371</code>) y dentro cada comida reparte sus opciones. Y <code>.cc-cambio</code>
+          (<code>:6440</code>) pinta el ⇄ <strong>en azul y siempre</strong>.
+        </dd>
+        <dt>Por qué</dt>
+        <dd>
+          Está escrito como decisión, en <code>ComidaDelCliente.jsx</code>: <em>«escritorio — todas las opciones
+          en una fila, que es lo que en 392 px no cabe y en un monitor se mira de un vistazo»</em>. El argumento
+          es bueno; la ejecución lo traiciona, porque «una fila» se resolvió con <strong>una caja beige por
+          opción dentro de una caja blanca por comida</strong>. Y las veinte flechas encendidas en reposo rompen
+          dos leyes escritas de la casa: en reposo una oferta se apaga, y el azul invita a pulsar — veinte
+          invitaciones a la vez no invitan a nada.
+        </dd>
+      </dl>
+    </div>
+
+    <div class="averia">
+      <header>
+        <span class="num">A-06</span>
+        <h4>Apuntar el peso son cuatro planos</h4>
+      </header>
+      <dl>
+        <dt>Se ve</dt>
+        <dd>Tarjeta → campo gris de 54 px → píldora azul <em>dentro</em> del campo → siete letras con punto → la media.</dd>
+        <dt>Es</dt>
+        <dd><code>PesoDeHoy.jsx</code> + <code>.peso-hoy-campo</code>. Cada arreglo anterior añadió un plano sin quitar el de antes.</dd>
+        <dt>Por qué</dt>
+        <dd>
+          La pieza ya ganó dos veces: se cargó el asistente de cuatro pantallas y luego metió el verbo dentro
+          de la casilla para no repetir la cifra. Lo que no se quitó nunca fue <strong>la casilla</strong>: un número
+          que se escribe siete veces por semana no necesita un campo de formulario con un botón saturado
+          dentro. Necesita ser <em>la cifra</em>, y poder escribirse encima.
+        </dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Lo que debería ser</span>
+      <h2>El teléfono hace; el PC entiende</h2>
+      <p class="sub">
+        El portal ya decidió que el teléfono y el monitor son dos aparatos. Lo que nunca se decidió es
+        qué hace el segundo, y por eso el segundo es el primero más ancho.
+      </p>
+    </div>
+
+    <div class="estrecho">
+      <p>
+        Nadie entrena delante de un portátil. El cliente abre el PC el domingo por la noche, o el lunes
+        en el trabajo, y lo que hace ahí son cuatro cosas: <strong>mirar lo que le han puesto esta semana</strong>,
+        <strong>entender un ejercicio que no conoce</strong>, <strong>ver cómo va</strong> y <strong>entregar la revisión</strong>.
+        Las cuatro son de leer. Ninguna es de pulgar.
+      </p>
+      <p>
+        Eso no significa quitarle apuntar —quien entrena en casa con el portátil en la balda lo hace, y
+        quitarlo sería una pérdida—. Significa que <strong>la hoja deja de ser un formulario centrado</strong> y pasa
+        a ser una hoja con su contexto al lado: el vídeo, la pauta, y lo que levantó la vez anterior.
+      </p>
+    </div>
+
+    <div class="ley">
+      <span class="rotulo">La ley del mueble</span>
+      <p>
+        En el monitor, <strong>las cinco pantallas del portal son el mismo mueble</strong>: el trabajo a la izquierda,
+        lo que se consulta a la derecha en un costado pegajoso, y un solo techo de ancho para todas.
+        El ancho de un monitor se gasta en <strong>contexto</strong>, nunca en estirar una tabla.
+      </p>
+    </div>
+
+    <p class="nota estrecho" style="margin-bottom:26px">
+      No es una forma nueva: es la que ya usan Entreno y Resumen del panel, la que la dieta del cliente
+      estrenó el 13 de septiembre (<code>.resumen-pagina</code>) y la que «Tu revisión» tiene desde la misma
+      tanda (<code>.revision-cliente</code>). Faltan <strong>Mi rutina</strong>, <strong>Mi inicio</strong> y <strong>Mi progreso</strong>.
+      Esto no añade un patrón: termina de aplicar el que hay.
+    </p>
+
+    <div class="ley">
+      <span class="rotulo">La ley de la cabecera</span>
+      <p>
+        La cabecera de una pantalla <strong>no dice dónde estás: dice qué te toca</strong>. El titular pasa a ser el
+        dato —«Legs A Cueva», «Domingo 13 · te toca High»— y el nombre de la sección se queda para el
+        lector de pantalla, exactamente como ya se hace en el teléfono.
+      </p>
+    </div>
+
+    <div class="dos" style="margin-top:26px">
+      <div class="tarjeta">
+        <h4>Lo que esto retira</h4>
+        <ul>
+          <li>El h1 que repite la pestaña, en las cinco pantallas.</li>
+          <li>La tarjeta «Hoy te pide», que dice exactamente lo que pasará a decir la cabecera.</li>
+          <li>Los rótulos «Te pide» y «Has hecho».</li>
+          <li>Las columnas que nadie pautó.</li>
+          <li>Las cajas de las opciones de comida y la caja de cada comida.</li>
+          <li>El campo gris de la báscula y la píldora azul de dentro.</li>
+        </ul>
+      </div>
+      <div class="tarjeta">
+        <h4>Lo que esto añade</h4>
+        <ul>
+          <li>Un costado vivo en la hoja: el ejercicio donde estás, con su vídeo y su pauta.</li>
+          <li>El fantasma de la vez anterior debajo de cada casilla.</li>
+          <li>Las comidas a lo ancho, una por fila, sin cajas.</li>
+          <li>La semana de pesajes como regla graduada, que es la firma de la casa.</li>
+          <li>Teclado de verdad en la hoja: <code>Enter</code> baja a la serie siguiente.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Cómo se ve</span>
+      <h2>Mi rutina</h2>
+      <p class="sub">
+        La pantalla grande del portal: es la que más se abre y la que peor está. Primero lo que hay hoy,
+        a tamaño real.
+      </p>
+    </div>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="etiqueta-mal">Hoy</span>
+        <span class="t">Cuatro planos antes de la primera serie, en 880 de 1.180</span>
+        <span class="d">El título repite la pestaña · el calentamiento es del panel · la tabla tiene una columna vacía</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo">
+          <div class="a-cabecera">
+            <span class="a-marca"><i class="cuadro"></i> CAVEMAN HUB</span>
+            <nav class="a-rail"><span>Mi inicio</span><span class="on">Mi rutina</span><span>Mi dieta</span><span>Mi progreso</span><span>Mis revisiones</span><span>Lo tuyo</span></nav>
+            <span class="a-avatar"></span>
+          </div>
+          <div class="a-pagina" style="max-width:880px;margin:0 auto">
+            <h1 class="a-h1 es-viejo" style="margin-bottom:18px">Mi rutina</h1>
+
+            <div style="display:flex;align-items:center;gap:12px;font-size:13.5px;color:var(--text-3);margin-bottom:14px">
+              <b style="color:var(--text);font-size:15px">← Bloque 1</b>
+              <span style="width:1px;height:14px;background:var(--hairline-strong)"></span>
+              <span>Legs A Cueva · microciclo 2 de 2</span>
+            </div>
+
+            <div class="a-tira">
+              <span class="a-pill on"><b class="nm">Legs A Cueva</b><span class="pg">0/18</span></span>
+              <span class="a-pill"><b class="nm">Push A</b><span class="pg">0/19</span></span>
+              <span class="a-pill"><b class="nm">Pull A</b><span class="pg">16/19</span></span>
+              <span class="a-pill"><b class="nm">Legs B</b><span class="pg">0/16</span></span>
+              <span class="a-pill"><b class="nm">Push Cueva</b><span class="pg">16/17</span></span>
+              <span class="a-pill"><b class="nm">Pull Cueva</b><span class="pg">0/20</span></span>
+              <span class="a-pill nueva"><b class="nm">+ Microciclo 3</b><span class="pg">se copia de este</span></span>
+            </div>
+
+            <div class="a-caja" style="margin-bottom:16px">
+              <div class="a-foco">
+                <div>
+                  <span class="rotulo">Hoy te pide</span>
+                  <div style="font-size:20px;font-weight:700;margin-top:2px">Legs A Cueva <span style="font-size:13px;font-weight:400;color:var(--text-3)">· 7 ejercicios, 18 series</span></div>
+                </div>
+                <div style="text-align:right">
+                  <span class="cifra">0</span><span style="font-size:13px;color:var(--text-3)"> de 18</span>
+                  <div style="font-size:11px;color:var(--text-3)">series</div>
+                </div>
+              </div>
+              <div class="a-barritas"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+
+            <div class="a-caja" style="padding:14px 16px;margin-bottom:16px">
+              <div class="a-calent-viejo">
+                <span class="rotulo">≋ Antes de empezar · 3 ejercicios</span>
+                <div class="a-cal-fila-vieja">
+                  <div><div class="nm">▶ Side Breathing</div><div class="cue">LEGS: lado derecho, apoyo cabeza y apoyo cresta ilíaca derecha</div></div>
+                  <span style="color:var(--text-3)">⌄</span>
+                </div>
+                <div class="a-cal-fila-vieja">
+                  <div><div class="nm">▶ Reach</div><div class="cue">PUSH: 90, +90, 60 grados de reach con los brazos</div></div>
+                  <span style="color:var(--text-3)">⌄</span>
+                </div>
+                <div class="a-cal-fila-vieja">
+                  <div><div class="nm">▶ Reach</div><div class="cue">PULL: 30, 60, 90 grados de reach con los brazos</div></div>
+                  <span style="color:var(--text-3)">⌄</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:baseline;justify-content:space-between;padding-bottom:8px">
+                <b style="font-size:14px">Legs A Cueva <span style="font-weight:400;color:var(--text-3);font-size:12.5px">· 18 series</span></b>
+                <div style="display:flex;gap:44px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);font-weight:700">
+                  <span>Te pide</span><span>Has hecho</span>
+                </div>
+              </div>
+              <div class="a-cabtabla dos-mitades">
+                <span></span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span>
+              </div>
+              <div class="a-ej">Abs Colgado <span class="cuenta">3 series</span></div>
+              <div class="a-serie dos-mitades">
+                <span class="i">Serie 1</span>
+                <span class="a-pide vacia a-vacio"></span>
+                <span class="a-pide">8-10</span>
+                <span class="a-costura"></span>
+                <span class="a-campo puesto">8</span>
+                <span class="a-campo puesto">7</span>
+                <span class="a-visto ok">✓</span>
+              </div>
+              <div class="a-serie dos-mitades">
+                <span class="i">Serie 2</span>
+                <span class="a-pide vacia a-vacio"></span>
+                <span class="a-pide">8-10</span>
+                <span class="a-costura"></span>
+                <span class="a-campo"></span>
+                <span class="a-campo"></span>
+                <span class="a-visto">↻</span>
+              </div>
+              <div class="a-serie dos-mitades" style="border-bottom:0">
+                <span class="i">Serie 3</span>
+                <span class="a-pide vacia a-vacio"></span>
+                <span class="a-pide">8-10</span>
+                <span class="a-costura"></span>
+                <span class="a-campo"></span>
+                <span class="a-campo"></span>
+                <span class="a-visto">↻</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <p class="nota estrecho" style="margin:0 0 40px">
+      El rayado rojo marca las dieciocho casillas de «kg pedidos» que esta sesión no pauta. Y los 300 px
+      de papel a cada lado son reales: es lo que deja <code>--max-w-columna</code> dentro de un lienzo de 1.180.
+    </p>
+
+    <h3 class="apartado estrecho">R-1 · La cabecera pasa a ser el dato, y la tarjeta del foco muere con ella</h3>
+    <p class="estrecho">
+      Si el titular dice «Legs A Cueva · 0 de 18 series», la tarjeta «Hoy te pide» —que dice exactamente
+      eso, en 120 px de alto— deja de tener nada que aportar. Un plano menos, y la primera serie sube
+      media pantalla.
+    </p>
+
+    <h3 class="apartado estrecho">R-2 · La hoja tiene costado, y el costado está vivo</h3>
+    <p class="estrecho">
+      A la derecha, <strong>el ejercicio en el que estás</strong>: el vídeo, la pauta que escribió su entrenador y
+      lo que levantó la última vez. No es una caja colgada: cambia al mover el foco por la hoja, así que
+      el ancho del monitor deja de ser papel y pasa a ser la explicación. <strong>Pulsa una casilla o una cadena
+      en la lámina para verlo.</strong>
+    </p>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="etiqueta-bien">Propuesta</span>
+        <span class="t">La hoja y su costado — versión A de la tabla: una casilla por dato</span>
+        <span class="d">Es interactiva: pulsa un renglón o una cadena del calentamiento</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo">
+          <div class="a-cabecera">
+            <span class="a-marca"><i class="cuadro"></i> CAVEMAN HUB</span>
+            <nav class="a-rail"><span>Mi inicio</span><span class="on">Mi rutina</span><span>Mi dieta</span><span>Mi progreso</span><span>Mis revisiones</span><span>Lo tuyo</span></nav>
+            <span class="a-avatar"></span>
+          </div>
+          <div class="a-pagina es-ancha">
+            <div class="a-cab-fila">
+              <div>
+                <h1 class="a-h1">Legs A Cueva</h1>
+                <div class="a-sub"><b>Bloque 1</b> · microciclo 2 de 2 · 7 ejercicios, 18 series</div>
+              </div>
+              <div style="text-align:right;display:flex;align-items:baseline;gap:8px">
+                <span style="font-size:26px;font-weight:780;font-stretch:118%;font-variant-numeric:tabular-nums">0</span>
+                <span style="font-size:13px;color:var(--text-3)">de 18 series</span>
+              </div>
+            </div>
+
+            <div class="a-tira">
+              <span class="a-pill on"><b class="nm">Legs A Cueva</b><span class="pg">0/18</span></span>
+              <span class="a-pill"><b class="nm">Push A</b><span class="pg">0/19</span></span>
+              <span class="a-pill"><b class="nm">Pull A</b><span class="pg">16/19</span></span>
+              <span class="a-pill"><b class="nm">Legs B</b><span class="pg">0/16</span></span>
+              <span class="a-pill"><b class="nm">Push Cueva</b><span class="pg">16/17</span></span>
+              <span class="a-pill"><b class="nm">Pull Cueva</b><span class="pg">0/20</span></span>
+              <span class="a-pill nueva"><b class="nm">+ Microciclo 3</b><span class="pg">se copia de este</span></span>
+            </div>
+
+            <div class="a-mueble">
+              <div>
+                <span class="rotulo">Antes de empezar</span>
+                <div class="a-lista-cal" style="margin:8px 0 22px">
+                  <div class="a-cal-fila">
+                    <span class="nm">Side Breathing
+                      <button class="cadena" data-ej="Side Breathing" aria-label="Ver el vídeo de Side Breathing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg></button>
+                    </span>
+                    <span class="dosis">2 × 10</span>
+                    <span class="cue">LEGS: lado derecho, apoyo cabeza y apoyo cresta ilíaca derecha</span>
+                  </div>
+                  <div class="a-cal-fila">
+                    <span class="nm">Reach
+                      <button class="cadena" data-ej="Reach (push)" aria-label="Ver el vídeo de Reach"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg></button>
+                    </span>
+                    <span class="dosis">3 × 8</span>
+                    <span class="cue">PUSH: 90, +90, 60 grados de reach con los brazos</span>
+                  </div>
+                  <div class="a-cal-fila">
+                    <span class="nm">Reach</span>
+                    <span class="dosis">3 × 8</span>
+                    <span class="cue">PULL: 30, 60, 90 grados de reach con los brazos</span>
+                  </div>
+                </div>
+
+                <div class="a-hoja">
+                  <div class="a-cabtabla uno">
+                    <span></span><span>kg</span><span>reps</span><span></span><span></span>
+                  </div>
+
+                  <div class="a-ej">Abs Colgado <span class="cuenta">3 series</span>
+                    <button class="cadena" data-ej="Abs Colgado" aria-label="Ver el vídeo de Abs Colgado"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg></button>
+                  </div>
+                  <div class="a-serie uno" data-ej="Abs Colgado">
+                    <span class="i">Serie 1</span>
+                    <span class="a-campo puesto">8</span>
+                    <span class="a-campo puesto">7</span>
+                    <span class="pauta">pedía 8-10 reps · la vez anterior 8 × 8</span>
+                    <span class="a-visto ok">✓</span>
+                  </div>
+                  <div class="a-serie uno" data-ej="Abs Colgado">
+                    <span class="i">Serie 2</span>
+                    <span class="a-campo foco"><span class="fant">8</span></span>
+                    <span class="a-campo"><span class="fant">8-10</span></span>
+                    <span class="pauta">la vez anterior 8 × 8</span>
+                    <span class="a-visto">↻</span>
+                  </div>
+                  <div class="a-serie uno" data-ej="Abs Colgado">
+                    <span class="i">Serie 3</span>
+                    <span class="a-campo"><span class="fant">8</span></span>
+                    <span class="a-campo"><span class="fant">8-10</span></span>
+                    <span class="pauta">la vez anterior 8 × 7</span>
+                    <span class="a-visto">↻</span>
+                  </div>
+
+                  <div class="a-ej">Prensa 45° <span class="cuenta">4 series</span>
+                    <button class="cadena" data-ej="Prensa 45°" aria-label="Ver el vídeo de Prensa 45°"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><path d="M8 12h8"/></svg></button>
+                  </div>
+                  <div class="a-serie uno" data-ej="Prensa 45°">
+                    <span class="i">Serie 1</span>
+                    <span class="a-campo"><span class="fant">180</span></span>
+                    <span class="a-campo"><span class="fant">10-12</span></span>
+                    <span class="pauta">la vez anterior 180 × 12</span>
+                    <span class="a-visto">↻</span>
+                  </div>
+                  <div class="a-serie uno" data-ej="Prensa 45°" style="border-bottom:0">
+                    <span class="i">Serie 2</span>
+                    <span class="a-campo"><span class="fant">180</span></span>
+                    <span class="a-campo"><span class="fant">10-12</span></span>
+                    <span class="pauta">la vez anterior 180 × 11</span>
+                    <span class="a-visto">↻</span>
+                  </div>
+                </div>
+              </div>
+
+              <aside class="a-costado">
+                <div class="a-caja">
+                  <h5 id="lado-rotulo">Abs Colgado</h5>
+                  <div class="a-video" id="lado-video">vídeo de tu entrenador</div>
+                  <p class="a-pauta" id="lado-pauta">Cuelga sin balanceo, sube las rodillas hasta el pecho y baja despacio. Que no te tire la lumbar.</p>
+                </div>
+                <div class="a-caja">
+                  <h5>Lo que llevas hecho</h5>
+                  <div class="a-hist" id="lado-hist">
+                    <span class="f">10 sep</span><span>8 kg × 8, 8, 7</span>
+                    <span class="f">3 sep</span><span>6 kg × 8, 8, 8</span>
+                    <span class="f">27 ago</span><span>peso corporal × 10, 9, 8</span>
+                  </div>
+                </div>
+                <div class="a-caja">
+                  <h5>Cómo va el bloque</h5>
+                  <div class="a-hist">
+                    <span class="f">Microciclos</span><span>2 de 2</span>
+                    <span class="f">Sesiones</span><span>7 hechas</span>
+                    <span class="f">Levantado</span><span>48.320 kg</span>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <h3 class="apartado estrecho">R-3 · La tabla, en dos versiones</h3>
+    <p class="estrecho">
+      Las dos quitan la columna que nadie pautó y los dos rótulos de grupo. Se diferencian en algo más
+      de fondo: <strong>si lo pedido y lo hecho comparten casilla o no</strong>.
+    </p>
+
+    <div class="dos" style="max-width:1000px">
+      <div class="tarjeta">
+        <h4>Versión A · Una casilla por dato</h4>
+        <p>
+          Lo pedido vive <em>dentro</em> de la casilla vacía, en gris: «8-10» donde vas a escribir «9».
+          Al escribir encima, la pauta baja al pie del renglón junto a lo de la vez anterior. De seis
+          columnas a tres.
+        </p>
+        <p style="margin-top:10px;color:var(--text-3);font-size:13.5px">
+          <strong>A favor:</strong> la hoja deja de parecer un formulario y la pauta está exactamente donde miras.<br>
+          <strong>En contra:</strong> escrita la cifra, comparar pedido y hecho exige leer el pie del renglón.
+        </p>
+      </div>
+      <div class="tarjeta">
+        <h4>Versión B · Las dos mitades, calladas</h4>
+        <p>
+          Se queda la costura y las dos mitades de hoy, pero sin los rótulos «Te pide / Has hecho» y sin
+          las columnas que la sesión no pauta. El fondo gris de lo pedido ya dice cuál es cuál.
+        </p>
+        <p style="margin-top:10px;color:var(--text-3);font-size:13.5px">
+          <strong>A favor:</strong> el cambio es pequeño y lo pedido nunca desaparece.<br>
+          <strong>En contra:</strong> sigue siendo una tabla de seis columnas, y la mitad izquierda nunca se toca.
+        </p>
+      </div>
+    </div>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="t">Las tres tablas, a la misma escala</span>
+        <span class="d">Hoy · versión A · versión B</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo es-comparativa" style="padding:22px 26px">
+          <div style="display:grid;grid-template-columns:372px 336px 304px;gap:26px">
+
+            <div>
+              <div style="margin-bottom:10px"><span class="etiqueta-mal">Hoy</span></div>
+              <div style="display:flex;gap:30px;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);font-weight:700;padding-left:62px;margin-bottom:4px"><span>Te pide</span><span>Has hecho</span></div>
+              <div class="a-cabtabla dos-mitades"><span></span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span></div>
+              <div class="a-serie dos-mitades"><span class="i">Serie 1</span><span class="a-pide vacia a-vacio"></span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo puesto">8</span><span class="a-campo puesto">7</span><span class="a-visto ok">✓</span></div>
+              <div class="a-serie dos-mitades"><span class="i">Serie 2</span><span class="a-pide vacia a-vacio"></span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo"></span><span class="a-campo"></span><span class="a-visto">↻</span></div>
+              <div class="a-serie dos-mitades" style="border-bottom:0"><span class="i">Serie 3</span><span class="a-pide vacia a-vacio"></span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo"></span><span class="a-campo"></span><span class="a-visto">↻</span></div>
+            </div>
+
+            <div>
+              <div style="margin-bottom:10px"><span class="etiqueta-bien">Versión A</span></div>
+              <div class="a-cabtabla uno" style="grid-template-columns:52px 60px 60px 106px 22px"><span></span><span>kg</span><span>reps</span><span></span><span></span></div>
+              <div class="a-serie uno" style="grid-template-columns:52px 60px 60px 106px 22px"><span class="i">Serie 1</span><span class="a-campo puesto">8</span><span class="a-campo puesto">7</span><span class="pauta">pedía 8-10</span><span class="a-visto ok">✓</span></div>
+              <div class="a-serie uno" style="grid-template-columns:52px 60px 60px 106px 22px"><span class="i">Serie 2</span><span class="a-campo"><span class="fant">8</span></span><span class="a-campo"><span class="fant">8-10</span></span><span class="pauta">antes 8 × 8</span><span class="a-visto">↻</span></div>
+              <div class="a-serie uno" style="grid-template-columns:52px 60px 60px 106px 22px;border-bottom:0"><span class="i">Serie 3</span><span class="a-campo"><span class="fant">8</span></span><span class="a-campo"><span class="fant">8-10</span></span><span class="pauta">antes 8 × 7</span><span class="a-visto">↻</span></div>
+            </div>
+
+            <div>
+              <div style="margin-bottom:10px"><span class="etiqueta-bien">Versión B</span></div>
+              <div class="a-cabtabla" style="grid-template-columns:52px 60px 10px 60px 60px 22px"><span></span><span style="text-align:center">reps</span><span></span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span></div>
+              <div class="a-serie" style="grid-template-columns:52px 60px 10px 60px 60px 22px"><span class="i">Serie 1</span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo puesto">8</span><span class="a-campo puesto">7</span><span class="a-visto ok">✓</span></div>
+              <div class="a-serie" style="grid-template-columns:52px 60px 10px 60px 60px 22px"><span class="i">Serie 2</span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo"></span><span class="a-campo"></span><span class="a-visto">↻</span></div>
+              <div class="a-serie" style="grid-template-columns:52px 60px 10px 60px 60px 22px;border-bottom:0"><span class="i">Serie 3</span><span class="a-pide">8-10</span><span class="a-costura"></span><span class="a-campo"></span><span class="a-campo"></span><span class="a-visto">↻</span></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </figure>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Cómo se ve</span>
+      <h2>Mi dieta</h2>
+      <p class="sub">
+        Aquí no hay que inventar nada: hay que <strong>quitar las cajas</strong>. La información es correcta y la
+        forma la esconde.
+      </p>
+    </div>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="etiqueta-mal">Hoy</span>
+        <span class="t">Dos rejillas anidadas: cajas dentro de cajas</span>
+        <span class="d">Comida 1 y Comida 2 en la misma línea, con alturas distintas · veinte ⇄ azules encendidos</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo" style="padding:22px 26px">
+          <div class="a-mosaico">
+            <div class="a-comida-caja">
+              <div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">Comida 1</b><span style="font-size:12.5px;color:var(--text-3)">4 opciones · elige una</span><span style="margin-left:auto;font-size:12.5px;color:var(--text-3)">900 kcal</span></div>
+              <div class="a-opciones-caja">
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 1</span><span style="color:var(--text-3)">908</span></div>
+                  <div class="a-al"><span>Copos de avena</span><span class="g">100 g</span></div>
+                  <div class="a-al"><span>Plátano <b class="fl">⇄</b></span><span class="g">1 ud</span></div>
+                  <div class="a-al"><span>Leche semi <b class="fl">⇄</b></span><span class="g">500 g</span></div>
+                  <div class="a-al"><span>Cornflakes <b class="fl">⇄</b></span><span class="g">30 g</span></div>
+                  <div class="a-al"><span>Nueces <b class="fl">⇄</b></span><span class="g">10 g</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 2</span><span style="color:var(--text-3)">915</span></div>
+                  <div class="a-al"><span>Pan blanco <b class="fl">⇄</b></span><span class="g">140 g</span></div>
+                  <div class="a-al"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                  <div class="a-al"><span>Miel <b class="fl">⇄</b></span><span class="g">20 g</span></div>
+                  <div class="a-al"><span>Plátano <b class="fl">⇄</b></span><span class="g">1 ud</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 3</span><span style="color:var(--text-3)">917</span></div>
+                  <div class="a-al"><span>Crema de arroz</span><span class="g">80 g</span></div>
+                  <div class="a-al"><span>Crema cacahuete <b class="fl">⇄</b></span><span class="g">20 g</span></div>
+                  <div class="a-al"><span>Miel <b class="fl">⇄</b></span><span class="g">30 g</span></div>
+                </div>
+                <div class="a-opcion-caja" style="grid-column:1">
+                  <div class="cab"><span>Opción 4</span><span style="color:var(--text-3)">903</span></div>
+                  <div class="a-al"><span>Copos de avena <b class="fl">⇄</b></span><span class="g">180 g</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="a-comida-caja">
+              <div style="display:flex;align-items:baseline;gap:8px"><b style="font-size:15px">Comida 2</b><span style="font-size:12.5px;color:var(--text-3)">5 opciones · elige una</span><span style="margin-left:auto;font-size:12.5px;color:var(--text-3)">1.100 kcal</span></div>
+              <div class="a-opciones-caja">
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 1</span><span style="color:var(--text-3)">1094</span></div>
+                  <div class="a-al"><span>Arroz blanco <b class="fl">⇄</b></span><span class="g">200 g</span></div>
+                  <div class="a-al"><span>Sardinas <b class="fl">⇄</b></span><span class="g">90 g</span></div>
+                  <div class="a-al"><span>Aguacate <b class="fl">⇄</b></span><span class="g">50 g</span></div>
+                  <div class="a-al"><span>Arándanos <b class="fl">⇄</b></span><span class="g">100 g</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 2</span><span style="color:var(--text-3)">1079</span></div>
+                  <div class="a-al"><span>Pan blanco <b class="fl">⇄</b></span><span class="g">215 g</span></div>
+                  <div class="a-al"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                  <div class="a-al"><span>Miel <b class="fl">⇄</b></span><span class="g">20 g</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 3</span><span style="color:var(--text-3)">1081</span></div>
+                  <div class="a-al"><span>Patata <b class="fl">⇄</b></span><span class="g">800 g</span></div>
+                  <div class="a-al"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                  <div class="a-al"><span>Queso curado <b class="fl">⇄</b></span><span class="g">20 g</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 4</span><span style="color:var(--text-3)">1104</span></div>
+                  <div class="a-al"><span>Crema de arroz</span><span class="g">160 g</span></div>
+                  <div class="a-al"><span>Whey 80 % <b class="fl">⇄</b></span><span class="g">15 g</span></div>
+                </div>
+                <div class="a-opcion-caja">
+                  <div class="cab"><span>Opción 5</span><span style="color:var(--text-3)">1135</span></div>
+                  <div class="a-al"><span>Garbanzos <b class="fl">⇄</b></span><span class="g">200 g</span></div>
+                  <div class="a-al"><span>Arroz blanco <b class="fl">⇄</b></span><span class="g">150 g</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <h3 class="apartado estrecho">D-1 · La comida es una fila de la mesa; sus opciones, columnas</h3>
+    <p class="estrecho">
+      Una comida por línea, a todo el ancho del trabajo, <strong>sin caja</strong>: un filete arriba, el nombre y las
+      kcal, y las opciones repartidas en columnas separadas por filetes. Desaparecen veintiuna cajas
+      beige y se mantiene lo que la decisión original quería —comparar las opciones de un vistazo, que
+      es lo que el monitor da y el teléfono no—.
+    </p>
+    <p class="estrecho">
+      Y el ⇄ se apaga: aparece al pasar por el alimento. La ley del reposo está escrita desde hace
+      semanas; esta pantalla es la única que no la cumple.
+    </p>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="etiqueta-bien">Propuesta</span>
+        <span class="t">La dieta como mesa — versión D-A</span>
+        <span class="d">Pasa el ratón por un alimento para ver aparecer su ⇄</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo">
+          <div class="a-cabecera">
+            <span class="a-marca"><i class="cuadro"></i> CAVEMAN HUB</span>
+            <nav class="a-rail"><span>Mi inicio</span><span>Mi rutina</span><span class="on">Mi dieta</span><span>Mi progreso</span><span>Mis revisiones</span><span>Lo tuyo</span></nav>
+            <span class="a-avatar"></span>
+          </div>
+          <div class="a-pagina es-ancha">
+            <div class="a-cab-fila">
+              <div>
+                <h1 class="a-h1">Domingo 13 · te toca High</h1>
+                <div class="a-sub">Hoy entrenas <b>Pull A</b> · 3.100 kcal</div>
+              </div>
+              <div style="display:flex;border:1px solid var(--hairline-strong);border-radius:var(--r-sm);overflow:hidden;font-size:13px">
+                <span style="padding:6px 14px;background:var(--surface);font-weight:640">El día</span>
+                <span style="padding:6px 14px;color:var(--text-3);border-left:1px solid var(--hairline-strong)">Tus dietas</span>
+              </div>
+            </div>
+
+            <div class="a-mueble">
+              <div>
+                <div class="a-kcal-linea">
+                  <div>
+                    <div><span class="gran">3.100</span><span class="u">kcal</span></div>
+                    <div class="a-barra"><i style="flex:120"></i><i style="flex:531"></i><i style="flex:55"></i></div>
+                  </div>
+                  <div class="a-macro"><div class="v">120<span style="font-size:12px;color:var(--text-3)">g</span></div><div class="n">Proteína</div></div>
+                  <div class="a-macro"><div class="v">531<span style="font-size:12px;color:var(--text-3)">g</span></div><div class="n">Carbos</div></div>
+                  <div class="a-macro"><div class="v">55<span style="font-size:12px;color:var(--text-3)">g</span></div><div class="n">Grasas</div></div>
+                </div>
+
+                <div class="a-mesa-comida">
+                  <div class="cab"><span class="nm">Comida 1</span><span style="font-size:12.5px;color:var(--text-3)">4 opciones · elige una</span><span class="kc">900 kcal</span></div>
+                  <div class="a-cols">
+                    <div class="a-col elegida">
+                      <div class="cab"><span class="o">Opción 1</span><span class="k">908</span></div>
+                      <div class="a-al reposo"><span>Copos de avena</span><span class="g">100 g</span></div>
+                      <div class="a-al reposo"><span>Plátano</span><span class="g">1 ud</span></div>
+                      <div class="a-al reposo"><span>Leche semi</span><span class="g">500 g</span></div>
+                      <div class="a-al reposo"><span>Cornflakes</span><span class="g">30 g</span></div>
+                      <div class="a-al reposo"><span>Nueces</span><span class="g">10 g</span></div>
+                      <div class="a-al reposo"><span>Cacao desgrasado</span><span class="g">10 g</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 2</span><span class="k">915</span></div>
+                      <div class="a-al reposo"><span>Pan blanco</span><span class="g">140 g</span></div>
+                      <div class="a-al reposo"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                      <div class="a-al reposo"><span>Miel</span><span class="g">20 g</span></div>
+                      <div class="a-al reposo"><span>Plátano</span><span class="g">1 ud</span></div>
+                      <div class="a-al reposo"><span>Naranja</span><span class="g">2 ud</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 3</span><span class="k">917</span></div>
+                      <div class="a-al reposo"><span>Crema de arroz</span><span class="g">80 g</span></div>
+                      <div class="a-al reposo"><span>Crema cacahuete</span><span class="g">20 g</span></div>
+                      <div class="a-al reposo"><span>Miel</span><span class="g">30 g</span></div>
+                      <div class="a-al reposo"><span>Leche semi</span><span class="g">600 g</span></div>
+                      <div class="a-al reposo"><span>Plátano</span><span class="g">1 ud</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 4</span><span class="k">903</span></div>
+                      <div class="a-al reposo"><span>Copos de avena</span><span class="g">180 g</span></div>
+                      <div class="a-al reposo"><span>Clara de huevo</span><span class="g">300 g</span></div>
+                      <div class="a-al reposo"><span>Arándanos</span><span class="g">150 g</span></div>
+                    </div>
+                    <div class="a-col" style="opacity:.35"></div>
+                  </div>
+                </div>
+
+                <div class="a-mesa-comida">
+                  <div class="cab"><span class="nm">Comida 2</span><span style="font-size:12.5px;color:var(--text-3)">5 opciones · elige una</span><span class="kc">1.100 kcal</span></div>
+                  <div class="a-cols">
+                    <div class="a-col elegida">
+                      <div class="cab"><span class="o">Opción 1</span><span class="k">1.094</span></div>
+                      <div class="a-al reposo"><span>Arroz blanco</span><span class="g">200 g</span></div>
+                      <div class="a-al reposo"><span>Sardinas en lata</span><span class="g">90 g</span></div>
+                      <div class="a-al reposo"><span>Aguacate</span><span class="g">50 g</span></div>
+                      <div class="a-al reposo"><span>Arándanos</span><span class="g">100 g</span></div>
+                      <div class="a-al reposo"><span>Manzana</span><span class="g">1 ud</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 2</span><span class="k">1.079</span></div>
+                      <div class="a-al reposo"><span>Pan blanco</span><span class="g">215 g</span></div>
+                      <div class="a-al reposo"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                      <div class="a-al reposo"><span>Miel</span><span class="g">20 g</span></div>
+                      <div class="a-al reposo"><span>Naranja</span><span class="g">2 ud</span></div>
+                      <div class="a-al reposo"><span>Manzana</span><span class="g">1 ud</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 3</span><span class="k">1.081</span></div>
+                      <div class="a-al reposo"><span>Patata</span><span class="g">800 g</span></div>
+                      <div class="a-al reposo"><span>Huevo entero</span><span class="g">3 ud</span></div>
+                      <div class="a-al reposo"><span>Queso curado</span><span class="g">20 g</span></div>
+                      <div class="a-al reposo"><span>Zanahoria</span><span class="g">200 g</span></div>
+                      <div class="a-al reposo"><span>Manzana</span><span class="g">1 ud</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 4</span><span class="k">1.104</span></div>
+                      <div class="a-al reposo"><span>Crema de arroz</span><span class="g">160 g</span></div>
+                      <div class="a-al reposo"><span>Whey 80 %</span><span class="g">15 g</span></div>
+                    </div>
+                    <div class="a-col">
+                      <div class="cab"><span class="o">Opción 5</span><span class="k">1.135</span></div>
+                      <div class="a-al reposo"><span>Garbanzos cocidos</span><span class="g">200 g</span></div>
+                      <div class="a-al reposo"><span>Arroz blanco</span><span class="g">150 g</span></div>
+                      <div class="a-al reposo"><span>Huevo entero</span><span class="g">2 ud</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <aside class="a-costado">
+                <div class="a-caja">
+                  <h5>Tu plan</h5>
+                  <div class="a-hist">
+                    <span class="f">High</span><span>3.100 kcal · 6 días</span>
+                    <span class="f">Low</span><span>2.600 kcal · 3 días</span>
+                    <span class="f">Media del ciclo</span><span>2.933 kcal</span>
+                    <span class="f">Pasos</span><span>10.000</span>
+                  </div>
+                </div>
+                <div class="a-caja">
+                  <h5>Lo que te pidió</h5>
+                  <p class="a-pauta">Bebe 3 L al día. La comida de después de entrenar, dentro de la hora siguiente.</p>
+                </div>
+              </aside>
+            </div>
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <div class="dos" style="max-width:1000px">
+      <div class="tarjeta">
+        <h4>D-A · La mesa <span style="font-size:12px;color:var(--positive)">(la de la lámina)</span></h4>
+        <p>Todas las opciones a la vista, en columnas separadas por filetes. Comparar es el trabajo del monitor.</p>
+      </div>
+      <div class="tarjeta">
+        <h4>D-B · El menú</h4>
+        <p>
+          Una opción a la vista y el segmentado para pasar entre ellas, igual que el teléfono. Menos
+          densidad y una pantalla idéntica en los dos aparatos — pero obliga a pulsar cinco veces para
+          comparar lo que cabía de un vistazo.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Cómo se ve</span>
+      <h2>Apuntar el peso</h2>
+      <p class="sub">
+        La pieza más usada del portal —siete veces por semana— y la que más planos gasta. Aquí el
+        rediseño es una resta.
+      </p>
+    </div>
+
+    <figure class="lamina">
+      <figcaption>
+        <span class="t">La báscula: hoy y la propuesta</span>
+        <span class="d">De cuatro planos a uno · la semana pasa a ser la regla graduada de la casa</span>
+      </figcaption>
+      <div class="marco">
+        <div class="lienzo" style="padding:26px">
+          <div style="display:grid;grid-template-columns:340px 340px;gap:40px">
+
+            <div>
+              <div style="margin-bottom:12px"><span class="etiqueta-mal">Hoy</span></div>
+              <div class="a-caja a-bascula-vieja">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px">
+                  <span class="rotulo">Tu peso de hoy</span>
+                  <span style="font-size:12px;color:var(--text-3)">El viernes 64,7</span>
+                </div>
+                <div class="a-campo-gris">
+                  <span class="n">64.7</span>
+                  <span class="u">kg</span>
+                  <span class="a-btn-azul">Apuntar</span>
+                </div>
+                <div class="a-dias-viejo">
+                  <span class="on">L<i></i></span><span class="on">M<i></i></span><span>X<i></i></span>
+                  <span>J<i></i></span><span class="on">V<i></i></span><span>S<i></i></span><span>D<i></i></span>
+                </div>
+                <p style="font-size:12px;color:var(--text-3);margin:12px 0 0">Media de esta semana <b style="color:var(--text)">63,8 kg</b></p>
+              </div>
+            </div>
+
+            <div>
+              <div style="margin-bottom:12px"><span class="etiqueta-bien">Propuesta</span></div>
+              <div class="a-caja a-bascula">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+                  <span class="rotulo">Tu peso de hoy</span>
+                  <span style="font-size:12px;color:var(--text-3)">el viernes, 64,7</span>
+                </div>
+                <div class="fila">
+                  <span class="cifra">64,7</span>
+                  <span class="u">kg</span>
+                  <span style="margin-left:auto" class="a-btn-quieto">Apuntar</span>
+                </div>
+                <div class="a-regla-sem">
+                  <span class="puesto"><i></i><b>L</b></span>
+                  <span class="puesto"><i></i><b>M</b></span>
+                  <span><i></i><b>X</b></span>
+                  <span><i></i><b>J</b></span>
+                  <span class="puesto"><i></i><b>V</b></span>
+                  <span><i></i><b>S</b></span>
+                  <span class="hoy"><i></i><b>D</b></span>
+                </div>
+                <p style="font-size:12px;color:var(--text-3);margin:14px 0 0">
+                  3 pesajes · media <b style="color:var(--text)">63,8 kg</b> · la semana anterior 64,1
+                </p>
+              </div>
+
+              <div class="a-caja" style="padding:4px 20px;margin-top:14px">
+                <div class="a-paso">
+                  <span class="ic">◷</span>
+                  <span><span class="t">Tus medidas</span><br><span class="e">sin tomar todavía</span></span>
+                  <span class="a-btn-quieto">Tomarlas</span>
+                </div>
+                <div class="a-paso">
+                  <span class="ic">◧</span>
+                  <span><span class="t">Tus fotos</span><br><span class="e">llevas 0 de 3</span></span>
+                  <span class="a-btn-quieto">Hacerlas</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </figure>
+
+    <div class="estrecho">
+      <p>
+        La cifra <em>es</em> el campo: se pulsa encima y se escribe. El verbo solo aparece cuando el número
+        cambia o cuando todavía no hay pesaje de hoy —ley del reposo—, y es texto azul, no una píldora
+        rellena dentro de un campo gris. La semana deja de ser siete puntos y pasa a ser <strong>la regla</strong>,
+        que es la firma de la casa y que aquí significa algo cierto: esto es una escala de siete días.
+      </p>
+      <p>
+        Los pasos que faltan pierden su caja individual: son renglones de una lista, con el verbo en voz
+        baja a la derecha. El único azul relleno de la pantalla se queda donde debe estar, en «Entregar
+        mi semana».
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Cómo se usa</span>
+      <h2>Las cinco interacciones</h2>
+      <p class="sub">
+        «Mejores interacciones» no es más animación: es que el monitor haga cosas que el teléfono no
+        puede hacer.
+      </p>
+    </div>
+
+    <div class="dos" style="max-width:1000px">
+      <div class="tarjeta">
+        <h4>1 · El foco enciende el costado</h4>
+        <p>
+          Al entrar en una casilla —con el ratón o con <code>Tab</code>— el costado pasa a ese ejercicio: vídeo,
+          pauta y lo que levantaste las últimas tres veces. Al salir de la hoja vuelve a «Cómo va el
+          bloque». <strong>Ninguna ventana modal.</strong>
+        </p>
+      </div>
+      <div class="tarjeta">
+        <h4>2 · El teclado recorre la hoja</h4>
+        <p>
+          <code>Tab</code> en orden de lectura, <code>Enter</code> baja a la misma columna de la serie siguiente,
+          <code>Esc</code> devuelve el foco al ejercicio. Quien apunta desde un portátil no debería tocar el ratón.
+        </p>
+      </div>
+      <div class="tarjeta">
+        <h4>3 · El fantasma</h4>
+        <p>
+          Debajo de cada casilla vacía, lo que hiciste la vez anterior en gris. Es la firma que la casa ya
+          tiene escrita para el portal —«la sesión de hoy, con la vez anterior en fantasma»— y que hoy solo
+          existe a medias, en el disco de «repetir».
+        </p>
+      </div>
+      <div class="tarjeta">
+        <h4>4 · En reposo no está</h4>
+        <p>
+          El ⇄ de las equivalencias, el visto y el lápiz aparecen al acercarse a su fila. Hoy la dieta pinta
+          veinte flechas azules a la vez, que es exactamente lo que la ley del reposo prohíbe.
+        </p>
+      </div>
+      <div class="tarjeta">
+        <h4>5 · El vídeo no se despliega</h4>
+        <p>
+          La cadena no abre un acordeón que empuja la página hacia abajo: manda el vídeo al costado, que
+          es donde ya está mirando quien tiene una duda con el ejercicio.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">En qué orden</span>
+      <h2>El plan</h2>
+      <p class="sub">
+        Cuatro tandas. La primera se nota en las cinco pantallas y no toca ninguna pieza de contenido;
+        las otras tres son independientes entre sí y se pueden parar en cualquier punto.
+      </p>
+    </div>
+
+    <table class="tabla">
+      <thead>
+        <tr><th>Tanda</th><th>Qué</th><th>Dónde</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1 · El mueble</td>
+          <td>
+            Un solo techo de ancho para el portal; muere el recorte a 880; el h1 pasa a ser el dato en las
+            cinco pantallas (la regla del teléfono, aplicada al revés); muere la tarjeta «Hoy te pide».
+            <strong>Arregla A-01 y A-04.</strong>
+          </td>
+          <td><code>responsive.css</code> · <code>tipografia.css</code> · <code>ClientRoutineRoute</code> · <code>FocoDeLaSesion</code></td>
+        </tr>
+        <tr>
+          <td>2 · La hoja</td>
+          <td>
+            Columnas declaradas por la sesión y fuera los rótulos de grupo (versión A o B); el fantasma;
+            el calentamiento con <code>MarcaFicha</code>; <code>CostadoDeLaHoja</code> nueva, conectada al foco.
+            <strong>Arregla A-02 y A-03.</strong>
+          </td>
+          <td><code>HojaDelCliente</code> · <code>ClientRoutine</code> · pieza nueva <code>CostadoDeLaHoja</code> · calentamiento propio del portal</td>
+        </tr>
+        <tr>
+          <td>3 · La dieta</td>
+          <td>
+            La comida pasa de caja a fila de mesa y las opciones a columnas; la cifra de kcal en una línea
+            con su barra; el ⇄ al reposo. <strong>Arregla A-05.</strong>
+          </td>
+          <td><code>ComidaDelCliente</code> · <code>ClientDiet</code> · <code>revision.css</code> (<code>.comidas-cliente</code>, <code>.cc-cambio</code>)</td>
+        </tr>
+        <tr>
+          <td>4 · La báscula</td>
+          <td>
+            La cifra es el campo; la semana pasa a regla; los pasos pierden su caja.
+            <strong>Arregla A-06.</strong>
+          </td>
+          <td><code>PesoDeHoy</code> · <code>PasosDeLaEntrega</code> · <code>datos.css</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="nota" style="margin-top:20px">
+      Ninguna tanda toca el dominio, ni las consultas, ni las políticas de la base. Lo que cambia es el
+      <em>mueble</em>: maqueta y cuatro piezas de presentación. Por eso «de cero» aquí significa <strong>forma nueva
+      con las piezas que ya funcionan</strong>, y no una reescritura del portal — que costaría semanas y
+      volvería a traer averías ya resueltas (los permisos del vídeo, el reparto del ciclo, el registro
+      con fecha, las equivalencias podadas por densidad).
+    </p>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="seccion">
+    <div class="cab-seccion estrecho">
+      <span class="rotulo">Antes de construir</span>
+      <h2>Tres cosas que tienes que decidir</h2>
+    </div>
+
+    <div class="decidir">
+      <h4>1 · La tabla de la hoja: ¿versión A o versión B?</h4>
+      <p>
+        A funde lo pedido y lo hecho en una casilla (la pauta, en gris, donde vas a escribir). B mantiene
+        las dos mitades y solo les quita los rótulos y las columnas vacías.
+      </p>
+      <p class="reco">
+        <b>Recomiendo A.</b> Es la que de verdad cambia la sensación de «formulario», y el argumento en contra
+        —comparar pedido y hecho después de escribir— lo cubre el pie del renglón, que además ya trae lo
+        de la vez anterior. B es la opción prudente si prefieres tocar poco.
+      </p>
+    </div>
+
+    <div class="decidir">
+      <h4>2 · La dieta: ¿la mesa (D-A) o el menú (D-B)?</h4>
+      <p>
+        La mesa enseña las cinco opciones en columnas; el menú enseña una y se pasa con el segmentado,
+        igual que el teléfono.
+      </p>
+      <p class="reco">
+        <b>Recomiendo D-A en el PC y D-B en el teléfono</b>, que es lo que ya hace el código —lo único que
+        cambia es que la versión ancha deja de dibujarse con cajas—. Son dos aparatos: no tienen por qué
+        enseñar lo mismo.
+      </p>
+    </div>
+
+    <div class="decidir">
+      <h4>3 · ¿El cliente sigue apuntando series desde el PC?</h4>
+      <p>
+        Todo el estudio asume que sí. Si la respuesta fuera «el PC solo se mira», la hoja perdería las
+        casillas y sería una lectura —más limpia todavía, y más cerca de lo que hacen Efort y Coachway—.
+      </p>
+      <p class="reco">
+        <b>Recomiendo que siga apuntando.</b> Quien entrena en casa con el portátil delante lo usa, y quitarlo
+        sería una pérdida difícil de justificar por estética.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* El costado vivo de la lámina R-2. Es lo único con comportamiento de este
+   documento, y existe porque la idea que hay que juzgar ES el comportamiento:
+   una captura del costado no prueba que el costado siga al foco. */
+(function () {
+  const FICHAS = {
+    'Abs Colgado': {
+      pauta: 'Cuelga sin balanceo, sube las rodillas hasta el pecho y baja despacio. Que no te tire la lumbar.',
+      hist: [['10 sep', '8 kg × 8, 8, 7'], ['3 sep', '6 kg × 8, 8, 8'], ['27 ago', 'peso corporal × 10, 9, 8']],
+    },
+    'Prensa 45°': {
+      pauta: 'Pies a la anchura de los hombros, media altura. Baja hasta 90° sin despegar la cadera.',
+      hist: [['10 sep', '180 kg × 12, 11, 10, 10'], ['3 sep', '170 kg × 12, 12, 11, 10'], ['27 ago', '170 kg × 11, 10, 10, 9']],
+    },
+    'Side Breathing': {
+      pauta: 'LEGS: lado derecho, apoyo cabeza y apoyo cresta ilíaca derecha.',
+      hist: [['—', 'calentamiento, no se registra']],
+    },
+    'Reach (push)': {
+      pauta: 'PUSH: 90, +90, 60 grados de reach con los brazos.',
+      hist: [['—', 'calentamiento, no se registra']],
+    },
+  };
+
+  const rotulo = document.getElementById('lado-rotulo');
+  const pauta = document.getElementById('lado-pauta');
+  const hist = document.getElementById('lado-hist');
+  if (!rotulo) return;
+
+  const pintar = (nombre) => {
+    const ficha = FICHAS[nombre];
+    if (!ficha) return;
+    rotulo.textContent = nombre;
+    pauta.textContent = ficha.pauta;
+    hist.innerHTML = ficha.hist
+      .map(([f, v]) => '<span class="f">' + f + '</span><span>' + v + '</span>')
+      .join('');
+  };
+
+  document.querySelectorAll('[data-ej]').forEach((el) => {
+    const nombre = el.getAttribute('data-ej');
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.a-campo.foco').forEach((c) => c.classList.remove('foco'));
+      const casilla = el.querySelector('.a-campo');
+      if (casilla) casilla.classList.add('foco');
+      pintar(nombre);
+    });
+  });
+})();
+</script>
+
+<style>
+/* La ley del reposo, demostrada: el ⇄ de la lámina D-A no existe hasta que te
+   acercas a su fila. Va aquí abajo y no arriba porque es la única regla del
+   documento que ES el argumento, no la presentación. */
+.a-al.reposo > span:first-child { position: relative; }
+.a-al.reposo > span:first-child::after {
+  content: '⇄';
+  color: var(--accent);
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity .12s var(--ease);
+}
+.a-al.reposo:hover > span:first-child::after { opacity: 1; }
+</style>
+
+</body>
+</html>

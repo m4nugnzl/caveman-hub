@@ -1,0 +1,1304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La cita, la medida y el ajuste</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,75..125,400..800;1,75..125,400..700&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · La cita, la medida y el ajuste — 13 sep 2026
+
+   ── El plan de tokens, antes de escribir nada ─────────────────────────────
+   COLOR   Los de la app, copiados de src/styles/tokens.css tal y como están
+           hoy: papel #f7f6f2, mesa #edebe3, hoja #fff, tinta #191713, azul
+           #3b49df. No se inventa paleta: un documento sobre este producto que
+           no se vea como este producto no prueba nada.
+   TIPO    Archivo, la de la casa, en sus tres papeles — la ancha (wdth 125)
+           para cifras y portada, la normal para el texto, monoespaciada para
+           claves y rutas. Nada de serif de documento: eso es un cuaderno.
+   LAYOUT  Una columna estrecha (760 px) para la prosa y TRES piezas a todo el
+           ancho para lo que hay que comparar. Alternativa descartada: prosa a
+           la izquierda y notas a la derecha — con este contenido las notas SON
+           las piezas, y partirlas en 380 px las hace ilegibles.
+   FIRMA   El plato del §3: un almuerzo real con sus gramos, y las tres reglas
+           aplicadas en columnas. Es lo único de este documento que zanja una
+           discusión en vez de describirla, así que se lleva el ancho, el color
+           y el centro de su sección.
+
+   ── Segunda pasada ────────────────────────────────────────────────────────
+   La primera versión numeraba las secciones 01/02/03 por costumbre de estudio.
+   Se queda, pero solo porque aquí la numeración dice algo cierto: los tres
+   apartados SON una secuencia (cuándo se revisa → qué se apunta → qué se
+   cambia) y la portada la enseña como cadena. Donde no era cierto —los tres
+   niveles del §3, que se pueden construir sueltos— se han quitado los números
+   y llevan letra.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  --mesa: #edebe3;
+  --canvas: #f7f6f2;
+  --surface: #ffffff;
+  --sunken: #f2f0e9;
+  --fill-subtle: #f5f3ed;
+  --fill: #eceae1;
+  --fill-strong: #dfdbcd;
+  --text: #191713;
+  --text-2: #514d45;
+  --text-3: #706c62;
+  --hairline: #e7e3d9;
+  --hairline-strong: #cfc9bb;
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-line: rgba(59, 73, 223, 0.28);
+  --accent-on: #ffffff;
+  --positive: #10774c;
+  --positive-soft: #e3f1ea;
+  --negative: #b93429;
+  --negative-soft: #fbe9e7;
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --shadow-sm: 0 1px 2px rgba(38, 32, 20, .06), 0 14px 30px -22px rgba(38, 32, 20, .55);
+  --shadow-md: 0 6px 20px -8px rgba(38, 32, 20, .16), 0 1px 3px rgba(38, 32, 20, .06);
+  --r-sm: 9px; --r-md: 14px; --r-lg: 20px;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mesa: #090b0e;
+  --canvas: #10131a;
+  --surface: #1c2027;
+  --sunken: #14171c;
+  --fill-subtle: rgba(214, 224, 244, .045);
+  --fill: rgba(214, 224, 244, .085);
+  --fill-strong: rgba(214, 224, 244, .145);
+  --text: #e9ecf2;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --hairline: rgba(214, 224, 244, .10);
+  --hairline-strong: rgba(214, 224, 244, .19);
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, .14);
+  --accent-line: rgba(91, 141, 247, .42);
+  --accent-on: #10131a;
+  --positive: #45c98c;
+  --positive-soft: rgba(69, 201, 140, .15);
+  --negative: #ec6156;
+  --negative-soft: rgba(236, 97, 86, .15);
+  --warning: #f28d4a;
+  --warning-soft: rgba(242, 141, 74, .16);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .45);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, .55);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.58;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; }
+p { margin: 0 0 16px; }
+p:last-child { margin-bottom: 0; }
+ul { margin: 0 0 16px; padding-left: 20px; }
+li { margin-bottom: 7px; }
+li:last-child { margin-bottom: 0; }
+strong { font-weight: 650; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .84em;
+}
+code {
+  color: var(--text-2); background: var(--fill-subtle);
+  padding: .1em .38em; border-radius: 4px;
+}
+
+/* La voz de las cifras: la Archivo estirada al eje de anchura, como en la app. */
+.cifra {
+  font-stretch: 125%;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -.02em;
+  line-height: 1;
+  display: block;
+}
+.num { font-variant-numeric: tabular-nums; }
+.rotulo {
+  display: block;
+  font-size: 11px; font-weight: 650; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-3);
+}
+
+/* ══ El mando del tema ═══════════════════════════════════════════════════ */
+.tema-mando { position: fixed; top: 16px; right: 18px; z-index: 40; }
+.tema-mando .mando {
+  display: inline-flex; gap: 2px; padding: 3px;
+  background: var(--surface); border: 1px solid var(--hairline);
+  border-radius: 999px; box-shadow: var(--shadow-sm);
+}
+.tema-mando button {
+  padding: 5px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  color: var(--text-3); transition: background .2s var(--ease), color .2s var(--ease);
+}
+.tema-mando button[aria-pressed="true"] { background: var(--fill); color: var(--text); }
+
+/* ══ Chasis ══════════════════════════════════════════════════════════════ */
+.doc { max-width: 1180px; margin: 0 auto; padding: 0 24px 130px; }
+.estrecho { max-width: 760px; }
+
+/* ── Portada ─────────────────────────────────────────────────────────── */
+header.portada { padding: 84px 0 8px; }
+.antetitulo {
+  display: inline-flex; align-items: center; height: 27px; padding: 0 12px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+  font-size: 11.5px; font-weight: 650; letter-spacing: .07em; text-transform: uppercase;
+}
+header.portada h1 {
+  font-size: clamp(38px, 6vw, 62px); font-weight: 700; font-stretch: 112%;
+  letter-spacing: -.035em; margin: 22px 0 0; max-width: 16ch;
+}
+header.portada h1 em { font-style: normal; color: var(--text-3); }
+.bajada { font-size: 19px; color: var(--text-2); max-width: 62ch; margin-top: 18px; }
+
+/* LA CADENA: la firma de la portada. Tres eslabones porque el contenido son
+   tres eslabones — cuándo se revisa, qué se apunta, qué se cambia — y el
+   documento entero está ordenado así. */
+.cadena {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+  margin: 46px 0 10px;
+  border-top: 1px solid var(--hairline-strong);
+}
+.cadena > div { padding: 18px 22px 20px 0; position: relative; }
+.cadena > div + div { padding-left: 26px; border-left: 1px solid var(--hairline); }
+.cadena .paso {
+  font-stretch: 125%; font-variant-numeric: tabular-nums; font-weight: 700;
+  font-size: 12px; color: var(--accent); letter-spacing: .04em;
+}
+.cadena h4 {
+  font-size: 22px; font-weight: 700; font-stretch: 108%; letter-spacing: -.02em;
+  margin: 5px 0 6px;
+}
+.cadena p { font-size: 14px; color: var(--text-2); margin: 0; }
+.cadena .estado {
+  display: inline-block; margin-top: 12px; font-size: 11.5px; font-weight: 650;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--negative);
+}
+
+/* ── Cabecera de sección ─────────────────────────────────────────────── */
+section { padding-top: 74px; }
+.cab-seccion { margin-bottom: 26px; }
+.num-seccion {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11.5px; font-weight: 650; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-3); margin-bottom: 12px;
+}
+.num-seccion .n {
+  font-stretch: 125%; font-variant-numeric: tabular-nums;
+  color: var(--accent); font-size: 13px; letter-spacing: .02em;
+}
+.num-seccion .regla {
+  flex: 1; height: 1px; background: var(--hairline-strong); max-width: 84px;
+}
+.cab-seccion h2 {
+  font-size: clamp(28px, 3.6vw, 40px); font-weight: 700; font-stretch: 108%;
+  letter-spacing: -.03em; max-width: 20ch;
+}
+.cab-seccion .sub { font-size: 17px; color: var(--text-2); margin-top: 12px; max-width: 62ch; }
+
+h3.apartado {
+  font-size: 21px; font-weight: 700; letter-spacing: -.015em;
+  margin: 44px 0 14px; scroll-margin-top: 20px;
+}
+h4.sub-apartado {
+  font-size: 16px; font-weight: 650; margin: 26px 0 10px; color: var(--text);
+}
+
+/* ── Aviso: lo que hay que leer antes que la prosa ───────────────────── */
+.aviso {
+  background: var(--surface); border-radius: var(--r-lg);
+  border-left: 3px solid var(--warning);
+  box-shadow: var(--shadow-sm);
+  padding: 22px 26px; margin: 0 0 22px;
+}
+.aviso .rotulo { color: var(--warning); margin-bottom: 10px; }
+.aviso.ok { border-left-color: var(--positive); }
+.aviso.ok .rotulo { color: var(--positive); }
+
+/* ── La ley: una frase que manda ─────────────────────────────────────── */
+.ley {
+  border-left: 3px solid var(--accent);
+  padding: 4px 0 4px 22px; margin: 30px 0;
+  font-size: 20px; font-weight: 600; letter-spacing: -.012em; line-height: 1.42;
+  max-width: 44ch;
+}
+.ley small { display: block; font-size: 14px; font-weight: 400; color: var(--text-2); margin-top: 8px; letter-spacing: 0; }
+
+/* ══ PIEZA · LAS DOS VERDADES ════════════════════════════════════════════
+   No es una tabla comparativa simétrica: la asimetría ES el argumento. La
+   columna que manda va llena y en tinta plena; la que no manda va vacía y
+   apagada, con una sola línea. Una tabla de dos columnas iguales escondería
+   justo lo que hay que ver. */
+.verdades {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  margin: 28px 0 8px;
+}
+.verdad {
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 24px 26px 26px;
+  display: flex; flex-direction: column;
+}
+.verdad.manda { border-top: 3px solid var(--accent); }
+.verdad.no-manda { border-top: 3px solid var(--hairline-strong); background: var(--sunken); }
+.verdad .clave {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px; font-weight: 600; color: var(--text);
+  word-break: break-all; margin-bottom: 4px;
+}
+.verdad.no-manda .clave { color: var(--text-2); }
+.verdad .donde { font-size: 13px; color: var(--text-3); margin-bottom: 18px; }
+.verdad dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 9px 16px; font-size: 14px; }
+.verdad dt { color: var(--text-3); white-space: nowrap; }
+.verdad dd { margin: 0; }
+/* La fila que zanja el asunto se lee antes que las otras dos: es la única
+   diferencia real entre las dos claves y tiene que verse sin leer la tarjeta. */
+.verdad dt.clave-fila { color: var(--text); font-weight: 650; padding-top: 5px; }
+.verdad dd.clave-fila { font-size: 16.5px; font-weight: 600; line-height: 1.35; padding-top: 4px; }
+.verdad.manda dd.clave-fila { color: var(--text); }
+.verdad.no-manda dd.clave-fila { color: var(--negative); }
+.verdad .veredicto {
+  margin-top: auto; padding-top: 20px;
+  font-size: 15px; font-weight: 650; line-height: 1.4;
+}
+.verdad.manda .veredicto { color: var(--accent); }
+.verdad.no-manda .veredicto { color: var(--negative); }
+
+/* ══ PIEZA · EL PLATO. La firma del documento. ═══════════════════════════ */
+.plato {
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md); overflow: hidden; margin: 26px 0 14px;
+}
+.plato-cab {
+  padding: 20px 26px 18px; border-bottom: 1px solid var(--hairline);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+}
+.plato-cab h4 { font-size: 18px; font-weight: 700; letter-spacing: -.015em; }
+.plato-cab p { font-size: 13.5px; color: var(--text-2); margin: 5px 0 0; }
+.segc {
+  display: inline-flex; background: var(--fill); border-radius: 11px;
+  padding: 3px; gap: 2px; flex: none;
+}
+.segc button {
+  padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  color: var(--text-2); white-space: nowrap;
+  transition: background .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease);
+}
+.segc button[aria-pressed="true"] {
+  background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm);
+}
+
+/* La tabla ancha scrollea en SU propio contenedor, no arrastrando la cabecera:
+   el control segmentado tiene que quedarse quieto y a mano mientras se mira. */
+.tabla-wrap { overflow-x: auto; }
+.tabla-plato { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 15px; }
+.tabla-plato th, .tabla-plato td { padding: 13px 16px; text-align: right; }
+.tabla-plato th:first-child, .tabla-plato td:first-child { text-align: left; padding-left: 26px; }
+.tabla-plato th:last-child, .tabla-plato td:last-child { padding-right: 26px; }
+.tabla-plato thead th {
+  font-size: 11.5px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); border-bottom: 1px solid var(--hairline); vertical-align: bottom;
+  padding-top: 18px;
+}
+.tabla-plato thead th .cual { display: block; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.tabla-plato tbody td { border-bottom: 1px solid var(--hairline); }
+.tabla-plato tbody tr:last-child td { border-bottom: 0; }
+.tabla-plato .alimento { font-weight: 550; }
+.tabla-plato .alimento small { display: block; font-size: 12px; font-weight: 400; color: var(--text-3); margin-top: 1px; }
+.tabla-plato .g { font-variant-numeric: tabular-nums; font-stretch: 112%; font-weight: 650; }
+.tabla-plato td.quieto { color: var(--text-3); font-weight: 400; }
+/* EL COLOR SOLO DONDE HAY ARGUMENTO. Que el arroz baje es lo que se pretende,
+   así que va en tinta plena: pintarlo de rojo diría que bajar es malo. El rojo
+   marca lo que la regla mueve y NO debería mover —la manzana, el aceite— y el
+   verde lo que la propuesta protege. Un semáforo en cada celda no distinguiría
+   nada, que es la regla del color de la casa. */
+.tabla-plato td.mal .g { color: var(--negative); }
+.tabla-plato td.salvado .g { color: var(--positive); }
+.tabla-plato tfoot td {
+  border-top: 1px solid var(--hairline-strong); font-size: 13.5px; color: var(--text-2);
+  padding-top: 15px; padding-bottom: 20px;
+}
+/* La columna elegida se enciende; las otras se apagan. Un solo momento de
+   movimiento en toda la pieza, y sirve para comparar. */
+.plato[data-regla="kcal"]  .c-hc, .plato[data-regla="kcal"]  .c-cesta,
+.plato[data-regla="hc"]    .c-kcal, .plato[data-regla="hc"]  .c-cesta,
+.plato[data-regla="cesta"] .c-kcal, .plato[data-regla="cesta"] .c-hc { opacity: .55; }
+.tabla-plato th, .tabla-plato td { transition: opacity .28s var(--ease), background .28s var(--ease); }
+.plato[data-regla="kcal"]  .c-kcal,
+.plato[data-regla="hc"]    .c-hc,
+.plato[data-regla="cesta"] .c-cesta { background: var(--accent-soft); }
+.plato .nota-regla { padding: 0 26px 22px; font-size: 14px; color: var(--text-2); }
+.plato .nota-regla b { color: var(--text); font-weight: 650; }
+
+/* ══ PIEZA · EL MANDO DEL REPARTO ════════════════════════════════════════ */
+.mando-reparto {
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-md);
+  padding: 24px 26px 26px; margin: 26px 0 14px; max-width: 620px;
+}
+.mando-reparto .titulo { font-size: 16px; font-weight: 650; margin-bottom: 3px; }
+.mando-reparto .pie-titulo { font-size: 13.5px; color: var(--text-3); margin-bottom: 18px; }
+.opcion {
+  display: flex; align-items: center; gap: 14px; width: 100%;
+  padding: 13px 16px; border-radius: var(--r-md); text-align: left;
+  border: 1px solid transparent; background: var(--fill-subtle);
+  margin-bottom: 8px;
+  transition: background .2s var(--ease), border-color .2s var(--ease);
+}
+.opcion:hover { background: var(--fill); }
+.opcion[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent-line); }
+.opcion .radio {
+  width: 19px; height: 19px; border-radius: 50%; flex: none;
+  border: 1.5px solid var(--hairline-strong); position: relative;
+}
+.opcion[aria-pressed="true"] .radio { border-color: var(--accent); }
+.opcion[aria-pressed="true"] .radio::after {
+  content: ''; position: absolute; inset: 3.5px; border-radius: 50%; background: var(--accent);
+}
+.opcion .que { flex: 1; font-weight: 550; }
+.opcion .que small { display: block; font-size: 12.5px; font-weight: 400; color: var(--text-3); margin-top: 1px; }
+.opcion .cuenta {
+  font-variant-numeric: tabular-nums; font-stretch: 112%; font-weight: 650;
+  font-size: 14.5px; color: var(--text-2); white-space: nowrap;
+}
+.opcion[aria-pressed="true"] .cuenta { color: var(--accent); }
+.mando-reparto .resto {
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hairline);
+  font-size: 13.5px; color: var(--text-2);
+}
+.mando-reparto .resto b { color: var(--text); font-weight: 650; }
+
+/* ══ Rejilla de tarjetas ═════════════════════════════════════════════════ */
+.rejilla { display: grid; gap: 16px; margin: 24px 0 8px; }
+.rejilla.tres { grid-template-columns: repeat(3, 1fr); }
+.rejilla.dos { grid-template-columns: repeat(2, 1fr); }
+/* Sin esto, una caja de `.forma` —que es `white-space: pre`— fija el ancho
+   mínimo de su columna y la rejilla empuja el cuerpo de la página a hacer
+   scroll horizontal: el `auto` por defecto de un hijo de grid no encoge. */
+.rejilla > *, .verdades > *, .tandas > * { min-width: 0; }
+.tarjeta {
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 22px 24px 24px;
+}
+.tarjeta .rotulo { margin-bottom: 10px; }
+.tarjeta h4 { font-size: 17px; font-weight: 650; letter-spacing: -.012em; margin-bottom: 8px; }
+.tarjeta p { font-size: 14.5px; color: var(--text-2); }
+.tarjeta p b, .tarjeta li b { color: var(--text); font-weight: 650; }
+.tarjeta ul { font-size: 14.5px; color: var(--text-2); }
+.tarjeta .cifra { font-size: 40px; margin: 2px 0 8px; }
+.tarjeta .cifra small { font-size: 17px; font-weight: 650; color: var(--text-3); margin-left: 3px; font-stretch: 100%; }
+
+/* Bloque de código / forma de dato */
+.forma {
+  background: var(--sunken); border: 1px solid var(--hairline);
+  border-radius: var(--r-md); padding: 18px 20px; margin: 20px 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.75; color: var(--text-2);
+  overflow-x: auto; white-space: pre;
+}
+.forma b { color: var(--text); font-weight: 600; }
+.forma i { color: var(--text-3); font-style: normal; }
+
+/* Etiquetas de estado */
+.etiqueta {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 9px;
+  border-radius: 6px; font-size: 11.5px; font-weight: 650;
+  letter-spacing: .04em; text-transform: uppercase;
+}
+.etiqueta.mal { background: var(--negative-soft); color: var(--negative); }
+.etiqueta.bien { background: var(--positive-soft); color: var(--positive); }
+.etiqueta.ojo { background: var(--warning-soft); color: var(--warning); }
+.etiqueta.azul { background: var(--accent-soft); color: var(--accent); }
+
+/* ══ La cinta de las tandas ══════════════════════════════════════════════ */
+.tandas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 26px 0 8px; }
+.tanda {
+  background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
+  padding: 22px 24px 24px; border-top: 3px solid var(--accent);
+}
+.tanda:nth-child(2) { border-top-color: var(--accent-line); }
+.tanda:nth-child(3) { border-top-color: var(--hairline-strong); }
+.tanda .paso { font-stretch: 125%; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 12px; color: var(--text-3); letter-spacing: .05em; }
+.tanda h4 { font-size: 18px; font-weight: 700; letter-spacing: -.018em; margin: 5px 0 9px; }
+.tanda p { font-size: 14px; color: var(--text-2); }
+.tanda ul { font-size: 14px; color: var(--text-2); margin-top: 10px; }
+
+/* ── Lista de archivos ───────────────────────────────────────────────── */
+.archivos { display: grid; gap: 2px; margin: 16px 0 8px; }
+.archivos .fila {
+  display: flex; gap: 14px; align-items: baseline; padding: 10px 0;
+  border-bottom: 1px solid var(--hairline); font-size: 14.5px;
+}
+.archivos .fila:last-child { border-bottom: 0; }
+.archivos .ruta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; color: var(--text); flex: none; min-width: 300px;
+}
+.archivos .ruta .nuevo { color: var(--positive); font-weight: 600; }
+.archivos .que { color: var(--text-2); }
+
+footer.cierre {
+  margin-top: 90px; padding-top: 34px; border-top: 1px solid var(--hairline-strong);
+  font-size: 14px; color: var(--text-3); max-width: 70ch;
+}
+
+/* ══ Responsive. La prosa nunca se toca; lo que se apila son las piezas. ══ */
+@media (max-width: 980px) {
+  .cadena { grid-template-columns: 1fr; }
+  .cadena > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--hairline); }
+  .verdades, .rejilla.tres, .rejilla.dos, .tandas { grid-template-columns: 1fr; }
+  .archivos .fila { flex-direction: column; gap: 3px; }
+  .archivos .ruta { min-width: 0; }
+}
+@media (max-width: 700px) {
+  body { font-size: 15.5px; }
+  .doc { padding: 0 18px 90px; }
+  header.portada { padding-top: 66px; }
+  .tema-mando { top: 10px; right: 12px; }
+  .plato-cab { padding: 18px 20px 16px; }
+  /* Tres pastillas no caben en una línea de 390: se reparten en dos, y el
+     control ocupa el ancho en vez de salirse. */
+  .segc { display: flex; width: 100%; flex-wrap: wrap; }
+  .segc button { flex: 1 1 auto; }
+}
+</style>
+</head>
+<body>
+
+<div class="tema-mando">
+  <div class="mando" role="group" aria-label="Tema del documento">
+    <button type="button" data-tema="light" aria-pressed="true">Papel</button>
+    <button type="button" data-tema="dark" aria-pressed="false">Hierro</button>
+  </div>
+</div>
+
+<div class="doc">
+
+<header class="portada">
+  <span class="antetitulo">Estudio · 13 sep 2026 · sin construir</span>
+  <h1>La cita, la medida y <em>el&nbsp;ajuste</em></h1>
+  <p class="bajada">
+    Tres ideas del dueño, planteadas contra el código que ya existe. Dos de
+    ellas parten de una premisa que el repositorio contradice, y es mejor
+    saberlo antes de construir nada.
+  </p>
+
+  <div class="cadena">
+    <div>
+      <span class="paso">01</span>
+      <h4>La cita</h4>
+      <p>Cuándo se revisa. Quién lo decide y dónde se toca.</p>
+      <span class="estado">Hay una pantalla que miente</span>
+    </div>
+    <div>
+      <span class="paso">02</span>
+      <h4>La medida</h4>
+      <p>Qué se apunta. Peso, pliegues… y todo lo que hoy no cabe.</p>
+      <span class="estado">Capado a enteros del 0 al 10</span>
+    </div>
+    <div>
+      <span class="paso">03</span>
+      <h4>El ajuste</h4>
+      <p>Qué se cambia en la dieta, y de dónde sale.</p>
+      <span class="estado">La cesta la elige la aritmética</span>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">00</span><span class="regla"></span><span>Antes de nada</span></div>
+    <h2>Lo que ya existe</h2>
+    <p class="sub">
+      Tres verificaciones contra el repositorio de hoy. Cambian el planteamiento
+      de las tres ideas, y una de ellas la reduce a la mitad.
+    </p>
+  </div>
+
+  <div class="rejilla tres">
+    <div class="tarjeta">
+      <span class="etiqueta bien">Ya se puede</span>
+      <h4 style="margin-top:12px">El entrenador SÍ fija la revisión</h4>
+      <p>
+        <code>CalendarPanel</code> es el mismo panel para los dos
+        (<code>audience</code>). Desde <code>/clientes/:id/ficha</code> →
+        Calendario el entrenador elige el día, la cadencia y puede
+        <b>mover una fecha suelta</b> tocando ese día del mes.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta bien">Ya se puede</span>
+      <h4 style="margin-top:12px">Bajar solo hidratos ya existe</h4>
+      <p>
+        <code>rescaleMeals</code> reescala por <b>dos</b> medidas: por kcal
+        —bajan hidratos y grasas— y por hidratos —se mueve solo la fuente de
+        hidratos, con la grasa quieta—. Lo que falta es otra cosa. Ver §03.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta ojo">A medias</span>
+      <h4 style="margin-top:12px">El sitio de las medidas está inventado</h4>
+      <p>
+        Una pregunta de escala del protocolo ya produce una serie con su color
+        y su histórico. El saneado la capa a <b>enteros de 0 a 10 sin
+        unidad</b>, y ahí es donde no cabe una glucosa.
+      </p>
+    </div>
+  </div>
+
+  <div class="estrecho" style="margin-top:34px">
+    <p>
+      O sea que la premisa «la revisión solo la puede fijar el cliente» es falsa
+      en el código y <strong>cierta en la práctica</strong>, que es lo que
+      importa: la decisión vive detrás de la sección con menos uso de las seis,
+      y el sitio donde el entrenador sí la busca —el protocolo— enseña una que
+      no hace nada.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">01</span><span class="regla"></span><span>La cita</span></div>
+    <h2>Hay dos verdades y solo una manda</h2>
+    <p class="sub">
+      La misma pregunta —¿cuándo le toca la revisión?— está guardada en dos
+      claves, con dos formas y dos numeraciones del día de la semana.
+    </p>
+  </div>
+
+  <div class="verdades">
+    <div class="verdad manda">
+      <span class="rotulo">La que manda</span>
+      <span class="clave">preferences.checkin</span>
+      <span class="donde">La lee <code>domain/calendar.js</code></span>
+      <dl>
+        <dt>Forma</dt><dd><code>weekday: 0–6</code>, <code>everyWeeks: 1|2|4</code>, <code>dates: []</code></dd>
+        <dt>Se edita</dt><dd>Calendario del cliente y del expediente</dd>
+        <dt class="clave-fila">Decide</dt>
+        <dd class="clave-fila">La cola de revisiones, el calendario, <code>reviewState</code> y lo que se le reclama</dd>
+      </dl>
+      <p class="veredicto">Es la verdad del producto.</p>
+    </div>
+    <div class="verdad no-manda">
+      <span class="rotulo">La que se toca</span>
+      <span class="clave">preferences.protocol.schedule</span>
+      <span class="donde">La lee <code>domain/acciones.js</code></span>
+      <dl>
+        <dt>Forma</dt><dd><code>day: 1–7</code>, <code>every: 1–8</code>, <code>remindAfter: 0–6</code></dd>
+        <dt>Se edita</dt><dd>Taller → Protocolos, donde el entrenador la busca</dd>
+        <dt class="clave-fila">Decide</dt>
+        <dd class="clave-fila"><code style="font-size:14px">remindAfter</code>, y nada más</dd>
+      </dl>
+      <p class="veredicto">Viaja al cliente y no la lee el motor de la revisión.</p>
+    </div>
+  </div>
+
+  <div class="estrecho">
+    <p style="margin-top:26px">
+      El resultado es la peor clase de avería. El entrenador entra en el
+      protocolo, lee «le pides el check-in los jueves, cada 2 semanas», lo
+      cambia, y la aplicación sigue reclamando el lunes de todas las semanas —o
+      no reclama nada—. <strong>La pantalla que más se parece a la decisión es
+      la única que no la toma.</strong>
+    </p>
+
+    <div class="aviso">
+      <span class="rotulo">Y la segunda, más callada</span>
+      <p>
+        Un cliente nuevo nace con <code>weekday: null</code>, o sea sin
+        revisión. Sin día no se reclama nada y no aparece en ninguna cola
+        —<code>currentCheckInPeriod</code> devuelve <code>null</code> a
+        propósito—. <strong>El bucle del producto está apagado por defecto para
+        todo el mundo</strong> hasta que alguien, normalmente el cliente desde
+        su portal, elige un día.
+      </p>
+    </div>
+
+    <h3 class="apartado">a · El protocolo propone, la ficha decide</h3>
+    <p>
+      Se unifican las dos claves en una: la del calendario, que es la que tiene
+      datos y la que ya sostiene las tres preguntas. <code>protocol.schedule</code>
+      deja de ser una segunda forma y pasa a ser <strong>el valor por
+      defecto</strong>: al aplicar un protocolo a un cliente que no tiene día,
+      se le siembra el del protocolo.
+    </p>
+    <p>
+      Nunca pisa un día ya elegido en silencio. Cuando el protocolo cambia y hay
+      clientes con día propio, se dice y se ofrece —«8 de tus 14 clientes tienen
+      otro día; ¿se lo cambio?»— con la misma gramática de consecuencias que ya
+      usa el reparto: no se escribe en la semana de nadie sin enseñar antes qué
+      le pasa a cada uno.
+    </p>
+    <ul>
+      <li><b>Una sola numeración.</b> Hoy hay dos (0–6 y 1–7) y es un desfase de
+        uno esperando a que alguien las cruce.</li>
+      <li><b>Cada 3 semanas.</b> La cadencia ofrece 1, 2 y 4; falta la que todo
+        el mundo pide.</li>
+      <li><b><code>remindAfter</code> se queda donde está.</b> Es del protocolo
+        y no de la cita.</li>
+    </ul>
+
+    <h3 class="apartado">b · La fecha suelta, desde donde se ve</h3>
+    <p>
+      Mover una revisión ya funciona. Le faltan dos cosas, y las dos son puntos
+      de entrada, no motor:
+    </p>
+    <ul>
+      <li><b>Aplazar desde la cola.</b> El gesto real no es «abro el calendario
+        de Javier y busco el martes»: es «hoy, en la cola de revisiones, Javier
+        me dice que está de viaje». Es el mismo <code>moveCheckIn</code> con
+        otro sitio desde donde llamarlo.</li>
+      <li><b>El porqué, opcional.</b> Una fecha movida sin motivo, tres semanas
+        después, es un día raro en el calendario.</li>
+    </ul>
+
+    <h3 class="apartado">c · La estacionalidad: dos caminos</h3>
+  </div>
+
+  <div class="rejilla dos">
+    <div class="tarjeta">
+      <span class="etiqueta azul">Recomendado</span>
+      <h4 style="margin-top:12px">Que la cambie el bloque</h4>
+      <p>
+        La cadencia se queda en un solo valor y lo que se añade es que
+        <b>el bloque pueda cambiarla</b>. Cuando se abre un bloque con otra
+        intención el entrenador ya está en esa pantalla: ofrecer ahí «y a partir
+        de ahora, revisión cada 4 semanas» es una casilla, no un modelo nuevo.
+      </p>
+      <p style="margin-top:12px">
+        La estacionalidad la lleva lo que <b>ya es estacional</b> en este
+        producto.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta ojo">Una ronda entera</span>
+      <h4 style="margin-top:12px">La pauta como línea de tramos</h4>
+      <div class="forma" style="margin:12px 0 14px"><b>checkin.tramos</b> = [
+  { desde: <i>'2026-09-01'</i>, weekday: 1, everyWeeks: 1 },
+  { desde: <i>'2026-12-01'</i>, weekday: 1, everyWeeks: 4 },
+]</div>
+      <p>
+        Es lo que la palabra pide de verdad, y cuesta:
+        <code>periodStartOf</code> deja de anclar en el alta y ancla en el
+        tramo, <code>dueOnOf</code> tiene que elegir tramo antes de nada, y las
+        fechas movidas tienen que saber a cuál pertenecen.
+      </p>
+    </div>
+  </div>
+
+  <div class="estrecho">
+    <p style="margin-top:22px">
+      <strong>Recomendación:</strong> el corto ahora, con el modelo escrito de
+      forma que el largo quepa después. Un tramo es una pauta con fecha; una
+      pauta sin fecha es el tramo único.
+    </p>
+
+    <h3 class="apartado">Lo que NO se hace</h3>
+    <ul>
+      <li><b>No se le quita el día al cliente.</b> Que él elija cuándo se pesa
+        en ayunas y se hace las fotos es correcto. Lo que se arregla es que el
+        entrenador pueda ponérselo de entrada, no que el cliente deje de
+        poder.</li>
+      <li><b>No se materializan las revisiones como filas.</b> Ya está decidido
+        en <code>calendar.js</code>: se derivan de la pauta.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">02</span><span class="regla"></span><span>La medida</span></div>
+    <h2>Una glucosa no es una escala del 1 al 10</h2>
+    <p class="sub">
+      El mecanismo para apuntar un número y verlo como serie ya existe. Lo que
+      no existe es la distinción entre opinar y medir.
+    </p>
+  </div>
+
+  <div class="estrecho">
+    <p>
+      El registro de antropometría tiene <strong>seis pliegues y nueve
+      perímetros escritos a mano</strong> (<code>FOLDS_LABELS</code>,
+      <code>PERIMETER_LABELS</code>). Fuera de esa lista no hay nada que medir.
+      El otro sitio donde se apuntan números es el cuestionario, y ahí el
+      saneado dice:
+    </p>
+    <div class="forma">min: item.min === 0 ? <b>0</b> : <b>1</b>,
+max: Number.isFinite(max) && max >= <b>2</b> && max &lt;= <b>10</b> ? … : 10,
+<i>// protocol.js:902-905 — enteros, de 0 a 10, sin unidad</i></div>
+    <p>
+      Una temperatura basal (36,4 °C) no tiene decimales dónde caer; una glucosa
+      en ayunas (95 mg/dL) se sale del rango; una tensión sistólica no tiene
+      dónde decir que es mmHg. Y ninguna de las tres es una escala subjetiva.
+    </p>
+
+    <div class="ley">
+      Una <b>pregunta</b> es una opinión con forma de número. Una
+      <b>medida</b> es un número con unidad que alguien ha tomado con un
+      aparato.
+      <small>Es la distinción que el producto todavía no ha hecho, y es toda la
+      idea.</small>
+    </div>
+
+    <h3 class="apartado">La propuesta: un vocabulario del entrenador</h3>
+    <p>
+      El mismo movimiento que el producto ya ha hecho dos veces —las preguntas
+      propias, los grupos de equivalencia—: una lista corta, con nombre, que el
+      entrenador escribe una vez y usa en todos sus clientes.
+    </p>
+    <div class="forma">{
+  id, name,       <i>// «Glucosa en ayunas»</i>
+  <b>unit</b>,           <i>// «mg/dL»          ← lo que hoy no existe</i>
+  <b>decimals</b>,       <i>// 0 | 1 | 2        ← lo que hoy no existe</i>
+  min, max,       <i>// rango de cordura, para no guardar un 950 de dedazo</i>
+  cuando,         <i>// 'revision' | 'diaria' | 'libre'</i>
+  sentido,        <i>// 'neutral' | 'lowerIsBetter' | 'higherIsBetter'</i>
+  color           <i>// de la paleta de datos, como las preguntas</i>
+}</div>
+    <p>
+      <b>De fábrica vienen las que ya existen.</b> <code>perimeters</code> y
+      <code>folds</code> dejan de ser dos constantes y pasan a ser las dos
+      primeras entradas de esta lista. Eso es lo que hace la idea barata en vez
+      de un módulo nuevo: <code>CHECKIN_BLOCKS</code> ya tiene la gramática
+      correcta —cada bloque con su obligatorio / opcional / apagado— y solo hay
+      que dejar de que la lista sea fija.
+    </p>
+  </div>
+
+  <div class="rejilla tres">
+    <div class="tarjeta">
+      <span class="rotulo">Dónde vive</span>
+      <h4><code style="font-size:14px">preferences.medidas</code></h4>
+      <p>
+        El sitio y el patrón de los grupos de equivalencia: criterio del
+        entrenador, columna abierta, <b>sin migración</b>. Una definición son
+        unos 80 bytes y con doce basta — nadie lleva cuarenta instrumentos.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="rotulo">Dónde se apunta</span>
+      <h4>Dos sitios, los dos ya existen</h4>
+      <ul>
+        <li>Las de revisión, <b>un paso más</b> del asistente. Lo que el
+          protocolo apaga no existe: no aparece vacío ni deshabilitado.</li>
+        <li>Las diarias, <b>una fila más</b> de la rejilla semanal. Esa rejilla
+          ya es siete casillas por siete días para el peso.</li>
+      </ul>
+    </div>
+    <div class="tarjeta">
+      <span class="rotulo">Dónde se ve</span>
+      <h4>Su gráfica, su color, su delta</h4>
+      <ul>
+        <li><code>weightSeries</code> se generaliza a
+          <code>serieDe(history, id)</code>: son ocho líneas escritas contra la
+          clave <code>weight</code>.</li>
+        <li>Su color, en <code>metrics.js</code>, que ya es el único sitio donde
+          se decide el color de un dato.</li>
+        <li>Su variación desde la revisión anterior, junto al peso.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="estrecho">
+    <h4 class="sub-apartado">Y se guarda donde ya se guardan los pliegues</h4>
+    <div class="forma">{ id, date, weight?, skinFolds?, perimeters?, <b>medidas?: { [id]: valor }</b> }
+<i>// history es jsonb → sin migración</i></div>
+    <p>
+      <code>compact()</code> ya deja fuera lo que no se rellenó, y
+      <code>null</code> sigue significando «no medido» y no cero — que en una
+      glucosa no es un matiz, es la diferencia entre un hueco y una
+      hipoglucemia.
+    </p>
+
+    <h3 class="apartado">Tres avisos</h3>
+  </div>
+
+  <div class="rejilla tres">
+    <div class="tarjeta">
+      <span class="etiqueta azul">Privacidad</span>
+      <h4 style="margin-top:12px">Ya hay sitio, y hay que usarlo</h4>
+      <p>
+        El protocolo sabe ocultarle cifras a una persona (<code>hidden</code>:
+        el peso, las kcal). Una medida nueva tiene que poder entrar en esa lista
+        el primer día: hay gente a la que un número de glucosa en su portal le
+        hace el mismo daño que la báscula.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta azul">La ley de la casa</span>
+      <h4 style="margin-top:12px">No interpreta</h4>
+      <p>
+        Una medida es un número con unidad y su serie. No lleva rango «normal»,
+        no se pinta en rojo por salirse de nada y no dice una palabra sobre lo
+        que significa. El <code>min/max</code> es un filtro de dedazos al
+        teclear, <b>no un diagnóstico</b>.
+      </p>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta ojo">Fuera de este estudio</span>
+      <h4 style="margin-top:12px">Es dato de salud</h4>
+      <p>
+        El peso y los pliegues ya lo son, pero una glucemia está más cerca de lo
+        clínico y un entrenador no es un sanitario. No bloquea nada —ya se
+        apunta hoy en una hoja de cálculo— pero la parte legal hay que mirarla
+        antes de sacarlo.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">03</span><span class="regla"></span><span>El ajuste</span></div>
+    <h2>La cesta la elige la aritmética, no el criterio</h2>
+    <p class="sub">
+      Bajar 200 kcal ya se puede. Decir de dónde salen sin hacer la división a
+      mano, y qué alimentos las absorben, no.
+    </p>
+  </div>
+
+  <div class="estrecho">
+    <h4 class="sub-apartado">Avería 1 · la medida se adivina</h4>
+    <p>
+      Para bajar 200 kcal de hidratos el entrenador tiene que hacer la división
+      él: 200 ÷ 4 = 50 g, y teclear los hidratos en vez de las kcal. La
+      aplicación <strong>deduce de qué campo has tecleado qué querías
+      hacer</strong>: si cambian los hidratos manda hidratos, si no manda kcal.
+      Con lo cual, tocar los dos campos en el mismo guardado aplica el de
+      hidratos <strong>en silencio</strong>, y el de kcal que acabas de escribir
+      no hace nada.
+    </p>
+
+    <h4 class="sub-apartado">Avería 2 · la manzana baja igual que la pasta</h4>
+    <p>
+      La regla «es fuente de hidratos si más de la mitad de su energía son
+      hidratos» mete en el mismo saco la manzana (≈95 %) y la pasta (≈85 %). En
+      una bajada, las dos pierden exactamente la misma proporción. Y eso no lo
+      hace nadie: la fruta y la verdura se sostienen, y el recorte sale del
+      arroz, la patata, la pasta y el pan.
+    </p>
+  </div>
+
+  <!-- ══ LA FIRMA: el plato ══════════════════════════════════════════════ -->
+  <div class="plato" id="plato" data-regla="cesta">
+    <div class="plato-cab">
+      <div>
+        <h4>Almuerzo · el día pasa de 3.100 a 2.900 kcal</h4>
+        <p>
+          Gramos reales, calculados con las reglas escritas hoy en
+          <code>rescaleMeals</code>, redondeo de cocina incluido. En
+          <b style="color:var(--negative)">rojo</b>, lo que la regla mueve y no
+          debería; en <b style="color:var(--positive)">verde</b>, lo que la
+          propuesta protege.
+        </p>
+      </div>
+      <div class="segc" role="group" aria-label="Qué regla se aplica">
+        <button type="button" data-regla="kcal" aria-pressed="false">Hoy · por kcal</button>
+        <button type="button" data-regla="hc" aria-pressed="false">Hoy · por hidratos</button>
+        <button type="button" data-regla="cesta" aria-pressed="true">Propuesta · la cesta</button>
+      </div>
+    </div>
+
+    <div class="tabla-wrap">
+    <table class="tabla-plato">
+      <thead>
+        <tr>
+          <th scope="col">Alimento</th>
+          <th scope="col">Ahora</th>
+          <th scope="col" class="c-kcal"><span class="cual">Hoy · por kcal</span>−200 kcal</th>
+          <th scope="col" class="c-hc"><span class="cual">Hoy · por hidratos</span>−50 g HC</th>
+          <th scope="col" class="c-cesta"><span class="cual">Propuesta · la cesta</span>−50 g HC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="alimento">Arroz blanco<small>Cereales · 78 g HC / 100 g</small></td>
+          <td class="g">100 g</td>
+          <td class="c-kcal"><span class="g">90 g</span></td>
+          <td class="c-hc"><span class="g">85 g</span></td>
+          <td class="c-cesta"><span class="g">80 g</span></td>
+        </tr>
+        <tr>
+          <td class="alimento">Pechuga de pollo<small>Carne · fuente de proteína</small></td>
+          <td class="g">200 g</td>
+          <td class="c-kcal quieto">200 g</td>
+          <td class="c-hc quieto">200 g</td>
+          <td class="c-cesta quieto">200 g</td>
+        </tr>
+        <tr>
+          <td class="alimento">Aceite de oliva<small>Grasas</small></td>
+          <td class="g">10 g</td>
+          <td class="c-kcal mal"><span class="g">9 g</span></td>
+          <td class="c-hc quieto">10 g</td>
+          <td class="c-cesta quieto">10 g</td>
+        </tr>
+        <tr>
+          <td class="alimento">Manzana<small>Fruta · 13 g HC / 100 g</small></td>
+          <td class="g">150 g</td>
+          <td class="c-kcal mal"><span class="g">135 g</span></td>
+          <td class="c-hc mal"><span class="g">125 g</span></td>
+          <td class="c-cesta salvado"><span class="g">150 g</span></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td>El plato queda en</td>
+          <td class="num">724 kcal</td>
+          <td class="c-kcal num">673 kcal</td>
+          <td class="c-hc num">659 kcal</td>
+          <td class="c-cesta num">655 kcal</td>
+        </tr>
+      </tfoot>
+    </table>
+    </div>
+
+    <p class="nota-regla" data-nota="kcal" hidden>
+      <b>Por kcal.</b> Se mueve todo lo que no sea fuente de proteína ni se
+      cuente por unidades, en la misma proporción. Baja el arroz, baja el
+      aceite y baja la manzana. Es correcto en la hoja de cálculo y raro en la
+      consulta: nadie recorta 15 g de manzana.
+    </p>
+    <p class="nota-regla" data-nota="hc" hidden>
+      <b>Por hidratos.</b> El aceite se salva —la grasa se queda quieta— pero
+      la manzana no: pasa el filtro del 50 % de energía en hidratos igual que el
+      arroz, así que <b>pierde 25 g</b>. Ésta es la avería 2 en una fila.
+    </p>
+    <p class="nota-regla" data-nota="cesta">
+      <b>La cesta.</b> Los mismos 50 g de hidratos, pero solo los absorbe lo que
+      está en la cesta —Cereales, Tubérculos, Legumbres, Dulces—. El arroz baja
+      20 g y <b>la manzana no se toca</b>. Las kcal quedan donde tienen que
+      quedar; lo que cambia es el plato.
+    </p>
+  </div>
+
+  <div class="estrecho">
+    <h3 class="apartado">La propuesta, en tres niveles</h3>
+    <p>
+      Se pueden construir por separado y en este orden. El primero es media
+      tarde y ya resuelve el caso normal.
+    </p>
+
+    <h4 class="sub-apartado">Nivel A · el mando: «¿de dónde salen las 200?»</h4>
+    <p>
+      En la misma ventana del reescalado, una fila arriba —antes de la lista de
+      gramos, que es la respuesta—. La aritmética la hace la aplicación en las
+      dos direcciones, y el resto se enseña mientras se teclea con el mismo
+      lenguaje que ya usa el reparto por comidas.
+    </p>
+  </div>
+
+  <div class="mando-reparto" id="mando">
+    <p class="titulo">De dónde sale la bajada de 200 kcal</p>
+    <p class="pie-titulo">Llega contestado con lo que tengas puesto en el protocolo.</p>
+
+    <button type="button" class="opcion" data-op="hc" aria-pressed="true">
+      <span class="radio" aria-hidden="true"></span>
+      <span class="que">Todo de hidratos<small>Lo normal en una bajada</small></span>
+      <span class="cuenta">−50 g HC</span>
+    </button>
+    <button type="button" class="opcion" data-op="mixto" aria-pressed="false">
+      <span class="radio" aria-hidden="true"></span>
+      <span class="que">Hidratos y grasas<small>Lo que hace la aplicación hoy</small></span>
+      <span class="cuenta">−33 g HC · −7 g GR</span>
+    </button>
+    <button type="button" class="opcion" data-op="mano" aria-pressed="false">
+      <span class="radio" aria-hidden="true"></span>
+      <span class="que">A mano<small>P 0 g · HC 40 g · GR 4 g</small></span>
+      <span class="cuenta">faltan 24 kcal</span>
+    </button>
+
+    <p class="resto" data-resto="hc"><b>Cuadra.</b> 50 g × 4 kcal = 200 kcal.</p>
+    <p class="resto" data-resto="mixto" hidden><b>Cuadra.</b> 33 × 4 + 7 × 9 = 195 kcal, dentro del margen de cocina.</p>
+    <p class="resto" data-resto="mano" hidden><b>Faltan 24 kcal por repartir.</b> 40 × 4 + 4 × 9 = 196 de 220. El botón de aplicar espera.</p>
+  </div>
+
+  <div class="estrecho">
+    <p style="margin-top:22px">
+      Esto <strong>mata la heurística</strong> de la avería 1: la medida deja de
+      adivinarse porque está contestada en la pantalla. Y el reparto por defecto
+      es <strong>del entrenador, no del ajuste</strong> — «en su mayor parte
+      siempre voy a querer bajar hidratos» es una forma de trabajar, así que
+      vive en el protocolo. Un clic en el caso normal; tres campos en la
+      excepción.
+    </p>
+
+    <h4 class="sub-apartado">Nivel B · la cesta: qué alimentos lo absorben</h4>
+  </div>
+
+  <div class="rejilla dos">
+    <div class="tarjeta">
+      <span class="etiqueta bien">Sale gratis</span>
+      <h4 style="margin-top:12px">B.1 · por categoría del catálogo</h4>
+      <p>
+        Las categorías ya existen y una entrada de dieta se resuelve a la suya
+        por nombre con <code>matchFood</code>, que es lo que ya hacen las
+        equivalencias. Sin ningún dato nuevo, la fuente de hidratos deja de ser
+        un porcentaje y pasa a ser una lista con orden:
+      </p>
+      <div class="forma" style="margin-bottom:0"><b>Recorte de hidratos</b>   Cereales · Tubérculos · Legumbres · Dulces
+<b>Solo si no queda otra</b>   Fruta · Verdura
+<b>Recorte de grasas</b>     Grasas · Frutos secos</div>
+    </div>
+    <div class="tarjeta">
+      <span class="etiqueta bien">Sin migración</span>
+      <h4 style="margin-top:12px">B.2 · la marca por alimento</h4>
+      <p>
+        Lo que la categoría no acierte lo dice el entrenador en la fila: el
+        plátano de después de entrenar, el aceite de la ensalada, los 30 g de
+        avena que son el desayuno entero de esa persona.
+      </p>
+      <p style="margin-top:12px">
+        Un <code>fijo: true</code> en la entrada, hermano de
+        <code>showAs</code>, desde el mismo menú donde ya se cambia
+        gramos/unidades. <b>Con precedente probado</b>: lo que se cuenta por
+        unidades ya es un alimento fijo, solo que hoy lo decide la aplicación.
+      </p>
+    </div>
+  </div>
+
+  <div class="estrecho">
+    <p style="margin-top:22px">
+      Con A y B, <code>rescaleMeals</code> cambia poco: donde hoy pregunta
+      <code>medida.quieta(…)</code> pregunta <code>elegible(alimento, cesta)</code>.
+      Todos los invariantes actuales sobreviven —misma proporción dentro de la
+      comida, opciones intercambiables entre sí, redondeo de cocina, se rinde y
+      lo dice—.
+    </p>
+
+    <h4 class="sub-apartado">Nivel C · el orden: vaciar en cascada</h4>
+    <p>
+      Lo que un entrenador hace a mano no es bajar todo lo elegible en
+      proporción: es <strong>vaciar por orden</strong>. Le quita al arroz hasta
+      donde tenga sentido, y si no llega, entonces toca la patata. Se modela con
+      una prioridad y un suelo por alimento.
+    </p>
+    <div class="aviso">
+      <span class="rotulo">Por qué va en un nivel aparte</span>
+      <p>
+        <strong>Rompe un invariante vivo.</strong> Hoy todas las opciones de una
+        comida bajan en la misma proporción, y ésa es la razón por la que
+        después del ajuste siguen siendo alternativas equivalentes. Una cascada
+        las mueve de forma distinta a cada una. Tiene arreglo —el déficit se
+        reparte por comida en valor absoluto y cada opción drena el suyo— pero
+        es un cambio de fondo, con sus tests, y no hace falta para que A+B sea
+        útil.
+      </p>
+    </div>
+    <p><strong>Recomendación:</strong> A y B ahora, C cuando lleven un mes puestos.</p>
+
+    <h3 class="apartado">La ley que esto no puede romper</h3>
+    <div class="ley">
+      La aplicación no receta.
+      <small>La cifra la pone el entrenador. Lo que este estudio añade es más
+      aritmética a sus órdenes, no un criterio propio.</small>
+    </div>
+    <ul>
+      <li>La aplicación <b>no propone</b> bajar 200 kcal porque el peso lleve
+        dos semanas plano. Enseña que lleva dos semanas plano.</li>
+      <li>La aplicación <b>no elige</b> el macro. Trae puesto el que el
+        entrenador dejó configurado, y se puede cambiar en el sitio.</li>
+      <li>La aplicación <b>sí</b> enseña cada gramo que va a cambiar antes de
+        escribir nada, y sigue teniendo su «Deshacer». Eso no se toca.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">04</span><span class="regla"></span><span>Orden de trabajo</span></div>
+    <h2>Tres tandas, y la primera arregla una avería</h2>
+  </div>
+
+  <div class="tandas">
+    <div class="tanda">
+      <span class="paso">TANDA 1</span>
+      <h4>Una sola cita</h4>
+      <p>
+        Es la única de las tres que arregla algo roto: hoy hay una pantalla que
+        dice que programa las revisiones y no las programa.
+      </p>
+      <ul>
+        <li>Unificar las dos claves y la numeración</li>
+        <li>Que el protocolo siembre el día</li>
+        <li>Cadencia de 3 semanas</li>
+        <li>«Aplazar» desde la cola</li>
+      </ul>
+    </div>
+    <div class="tanda">
+      <span class="paso">TANDA 2</span>
+      <h4>El ajuste, niveles A y B</h4>
+      <p>
+        La que más cambia el día a día del entrenador por línea de código
+        escrita. Sin migración.
+      </p>
+      <ul>
+        <li>El mando del reparto, y muere la heurística</li>
+        <li>La cesta por categoría</li>
+        <li><code>fijo</code> por alimento</li>
+      </ul>
+    </div>
+    <div class="tanda">
+      <span class="paso">TANDA 3</span>
+      <h4>Las medidas</h4>
+      <p>
+        La más grande de las tres y la que menos urge: nadie tiene hoy una
+        glucosa esperando a entrar.
+      </p>
+      <ul>
+        <li>El catálogo, con pliegues y perímetros dentro</li>
+        <li>El paso de la revisión y la fila de la rejilla</li>
+        <li>La gráfica y el color</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="estrecho">
+    <p style="margin-top:22px">
+      <b>Después:</b> la estacionalidad por tramos y la cascada del nivel C, si
+      al usarlo se siguen echando de menos.
+    </p>
+
+    <h3 class="apartado">Qué se toca, por archivo</h3>
+  </div>
+
+  <div class="rejilla tres">
+    <div class="tarjeta">
+      <span class="rotulo">La cita</span>
+      <div class="archivos" style="margin-top:12px">
+        <div class="fila"><span class="ruta" style="min-width:0">domain/calendar.js</span><span class="que">la pauta y el periodo</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/protocol · protocolos</span><span class="que">deja de ser 2.ª forma</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/acciones.js</span><span class="que">lee la clave buena</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">calendar/CalendarPanel.jsx</span><span class="que">de dónde sale la pauta</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">Taller/ProtocolosPanel.jsx</span><span class="que">el horario es el defecto</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/portfolio.js</span><span class="que">«Aplazar» en la cola</span></div>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <span class="rotulo">La medida · sin migración</span>
+      <div class="archivos" style="margin-top:12px">
+        <div class="fila"><span class="ruta" style="min-width:0">domain/medidas.js <span class="nuevo">nuevo</span></span><span class="que">el catálogo</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/anthropometry.js</span><span class="que">acepta <code>medidas</code></span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/protocol.js</span><span class="que">bloques no fijos</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/metrics.js</span><span class="que">su color</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">anthropometry/*.jsx</span><span class="que">paso, rejilla y gráfica</span></div>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <span class="rotulo">El ajuste · sin migración</span>
+      <div class="archivos" style="margin-top:12px">
+        <div class="fila"><span class="ruta" style="min-width:0">domain/nutrition.js</span><span class="que"><code>quieta</code> → <code>elegible</code></span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">domain/foodEquiv · catalog</span><span class="que">de ahí sale la categoría</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">nutrition/ReescalarMenu.jsx</span><span class="que">la fila del reparto</span></div>
+        <div class="fila"><span class="ruta" style="min-width:0">Coach/NutritionModule.jsx</span><span class="que">muere la heurística</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion estrecho">
+    <div class="num-seccion"><span class="n">05</span><span class="regla"></span><span>Sin decidir</span></div>
+    <h2>Lo que este documento no decide</h2>
+  </div>
+  <div class="estrecho">
+    <ul>
+      <li><b>Si las medidas son del entrenador o del equipo.</b> Se propone
+        <code>preferences</code> por barato y por coherencia con los grupos de
+        equivalencia; si tienen que compartirse entre los entrenadores de un
+        equipo, el sitio es <code>coach_templates</code> y el coste es una
+        migración.</li>
+      <li><b>Qué medidas vienen de fábrica</b> más allá de pliegues y
+        perímetros. Tensión, glucosa, temperatura y frecuencia cardíaca en
+        reposo son las candidatas obvias, pero eso lo decide quien lleva
+        clientes.</li>
+      <li><b>Si el cliente puede crear una medida suya.</b> Se propone que no:
+        el vocabulario es del entrenador, como todo lo demás del protocolo.</li>
+      <li><b>El tratamiento legal del dato de salud.</b></li>
+    </ul>
+  </div>
+
+  <footer class="cierre">
+    Todo lo que este documento afirma sobre el estado actual sale de leer
+    <code>calendar.js</code>, <code>protocol.js</code>, <code>protocolos.js</code>,
+    <code>acciones.js</code>, <code>nutrition.js</code>, <code>foodEquiv.js</code>,
+    <code>anthropometry.js</code> y sus pantallas, en el árbol de trabajo del 13
+    de septiembre de 2026. Los gramos del §03 están calculados con las reglas
+    escritas hoy en <code>rescaleMeals</code>, incluido su redondeo de cocina.
+    La versión en texto está en <code>docs/estudio-cita-medida-ajuste.md</code>.
+  </footer>
+</section>
+
+</div>
+
+<script>
+(() => {
+  /* ── El tema. Se recuerda, porque quien lo cambia lo cambia por algo. ── */
+  const raiz = document.documentElement;
+  const mandos = document.querySelectorAll('.tema-mando button');
+  const ponerTema = (tema) => {
+    raiz.setAttribute('data-theme', tema);
+    mandos.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tema === tema)));
+    try { localStorage.setItem('estudio-tema', tema); } catch { /* sin almacenamiento, el tema no se recuerda y ya está */ }
+  };
+  mandos.forEach((b) => b.addEventListener('click', () => ponerTema(b.dataset.tema)));
+
+  let guardado = null;
+  try { guardado = localStorage.getItem('estudio-tema'); } catch { guardado = null; }
+  const prefiereNoche = window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  ponerTema(guardado || (prefiereNoche ? 'dark' : 'light'));
+
+  /* ── El plato: encender una columna y apagar las otras dos. ─────────── */
+  const plato = document.getElementById('plato');
+  if (plato) {
+    const botones = plato.querySelectorAll('.segc button');
+    const notas = plato.querySelectorAll('.nota-regla');
+    botones.forEach((b) => b.addEventListener('click', () => {
+      const regla = b.dataset.regla;
+      plato.dataset.regla = regla;
+      botones.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      notas.forEach((n) => { n.hidden = n.dataset.nota !== regla; });
+    }));
+  }
+
+  /* ── El mando del reparto: el resto se cuenta al elegir. ────────────── */
+  const mando = document.getElementById('mando');
+  if (mando) {
+    const opciones = mando.querySelectorAll('.opcion');
+    const restos = mando.querySelectorAll('.resto');
+    opciones.forEach((o) => o.addEventListener('click', () => {
+      opciones.forEach((x) => x.setAttribute('aria-pressed', String(x === o)));
+      restos.forEach((r) => { r.hidden = r.dataset.resto !== o.dataset.op; });
+    }));
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -97,3 +97,18 @@ export const METRIC_COLORS = {
  * cosa que no existe.
  */
 export const metricColor = (id) => METRIC_COLORS[id] || null;
+
+/**
+ * El color de una MEDIDA del entrenador.
+ *
+ * Va aquí y no en `domain/medidas.js` por la regla de la cabecera: el color de
+ * un dato se decide en un solo sitio. Lo que la definición de la medida trae es
+ * el color ya elegido —de fábrica el suyo, y el de una inventada rota por la
+ * paleta— y esto es la puerta por la que las pantallas lo piden, para que
+ * pedirle el color a una medida y a una métrica sea el mismo gesto.
+ *
+ * `null` cuando la medida no lo dice, que es lo mismo que contesta
+ * `metricColor`: quien pinta tiene que poder distinguir «va en su color» de «va
+ * en tinta plena».
+ */
+export const medidaColor = (medida) => medida?.color || null;

@@ -9,6 +9,7 @@ import {
   clientProtocoloId,
   coachProtocolos,
   cuentaClientes,
+  checkinDesdeHorario,
   defaultSchedule,
   diaDe,
   protocoloById,
@@ -108,22 +109,62 @@ describe('protocolos · quién lleva cuál', () => {
 
 describe('protocolos · el cuándo', () => {
   it('lo de siempre: lunes, cada semana, sin recordatorio', () => {
-    expect(defaultSchedule()).toEqual({ day: 1, every: 1, remindAfter: 0 });
+    expect(defaultSchedule()).toEqual({ weekday: 0, everyWeeks: 1, remindAfter: 0 });
   });
 
   it('se acota lo que venga escrito a mano', () => {
-    expect(sanitizeSchedule({ day: 99, every: 0, remindAfter: -3 })).toEqual({
-      day: 7,
-      every: 1,
+    expect(sanitizeSchedule({ weekday: 99, everyWeeks: 0, remindAfter: -3 })).toEqual({
+      weekday: 6,
+      everyWeeks: 1,
       remindAfter: 0,
     });
     expect(sanitizeSchedule(undefined)).toEqual(defaultSchedule());
   });
 
+  /* ══ La forma vieja se lee, y no se vuelve a escribir ═══════════════════
+     `day` iba de 1 a 7 y `every` se llamaba así: un protocolo guardado antes
+     de que la cita se unificara tiene que seguir diciendo lo mismo, sin
+     migración. Y en cuanto está la clave nueva, la vieja no puede ganarle:
+     ahí es donde un residuo devolvería el día al lunes. */
+  it('traduce el horario escrito con la forma vieja', () => {
+    expect(sanitizeSchedule({ day: 4, every: 2, remindAfter: 1 })).toEqual({
+      weekday: 3,
+      everyWeeks: 2,
+      remindAfter: 1,
+    });
+    expect(sanitizeSchedule({ day: 1, every: 1, weekday: 5, everyWeeks: 3 })).toEqual({
+      weekday: 5,
+      everyWeeks: 3,
+      remindAfter: 0,
+    });
+  });
+
   it('se dice como se lee', () => {
+    expect(diaDe({ weekday: 2 })).toBe('miércoles');
     expect(diaDe({ day: 3 })).toBe('miércoles');
-    expect(cadaCuanto({ every: 1 })).toBe('');
-    expect(cadaCuanto({ every: 4 })).toBe('cada 4 semanas');
+    expect(cadaCuanto({ everyWeeks: 1 })).toBe('');
+    expect(cadaCuanto({ everyWeeks: 4 })).toBe('cada 4 semanas');
+  });
+
+  /* ══ El protocolo propone, la ficha decide ═════════════════════════════
+     Siembra al que no tiene día —que nacía sin revisión y sin cola— y no
+     toca al que ya eligió el suyo. */
+  it('siembra la cita solo a quien no tiene día', () => {
+    expect(checkinDesdeHorario({ weekday: 3, everyWeeks: 2 }, null)).toEqual({
+      weekday: 3,
+      everyWeeks: 2,
+    });
+    expect(checkinDesdeHorario({ weekday: 3, everyWeeks: 2 }, { checkin: {} })).toEqual({
+      weekday: 3,
+      everyWeeks: 2,
+    });
+    expect(
+      checkinDesdeHorario({ weekday: 3, everyWeeks: 2 }, { checkin: { weekday: 5, everyWeeks: 1 } })
+    ).toBeNull();
+    /* El lunes es 0, y 0 no puede leerse como «no tiene». */
+    expect(
+      checkinDesdeHorario({ weekday: 3, everyWeeks: 2 }, { checkin: { weekday: 0 } })
+    ).toBeNull();
   });
 });
 

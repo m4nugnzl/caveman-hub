@@ -196,6 +196,20 @@ const racionEquilibrada = (macroPor100, kcalPor100, macroObjetivo, kcalObjetivo)
   return mejor ?? round5(exacta);
 };
 
+/**
+ * Si un alimento lleva bastante de un macro como para calcularle una ración.
+ *
+ * Es el mismo suelo que aplica `raciones` a cada candidato, dicho de antemano:
+ * lo pregunta quien mete un alimento A MANO en un grupo, que puede elegir
+ * cualquiera de la biblioteca —también el arroz para un grupo de proteína— y
+ * merece enterarse al elegirlo, no ver que el alimento no aparece en la lista.
+ */
+export const aportaElMacro = (food, macro) =>
+  Boolean(PER100[macro]) && toNum0(food?.[PER100[macro]]) >= MIN_PER100;
+
+/** Los gramos por 100 g de un macro, tal cual los guarda el alimento. */
+export const macroPor100 = (food, macro) => toNum0(food?.[PER100[macro]]);
+
 /** El grupo de un nombre, resuelto contra el catálogo. `null` si no cae. */
 export const foodCategory = (name, catalog = []) =>
   matchFood(name, catalog).food?.category ?? null;

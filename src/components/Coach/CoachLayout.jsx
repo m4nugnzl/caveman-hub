@@ -1205,9 +1205,16 @@ export const CoachLayout = () => {
                 icon={UserPlus}
                 title="Todavía no tienes clientes"
                 message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
+                /* El mismo nombre que en la cartera —«Nuevo cliente»—, y llega
+                   con el formulario abierto: dos palabras para el mismo gesto
+                   eran dos gestos hasta que se pulsaban. Ver `producto.md` §5.8. */
                 action={
-                  <button type="button" className="btn btn-primary btn-lg" onClick={() => navigate('/clientes')}>
-                    <UserPlus size={15} /> Dar de alta un cliente
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-lg"
+                    onClick={() => navigate('/clientes', { state: { alta: true } })}
+                  >
+                    <UserPlus size={15} /> Nuevo cliente
                   </button>
                 }
               />

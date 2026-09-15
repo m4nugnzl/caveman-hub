@@ -1,9 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 
 import { parseVideoUrl } from '@/domain/video';
+import { marcasDeEjercicio } from '@/domain/sessions';
+import { metricColor } from '@/domain/metrics';
+import { localeNumber, shortDate, todayISO } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { VideoEmbed } from '@/components/ui/VideoEmbed';
+import { Sparkline } from '@/components/ui/charts';
+import { SegmentedControl } from '@/components/ui/primitives';
 
 /**
  * LA FICHA DEL EJERCICIO, COMO LA VE QUIEN LO HACE.
@@ -206,8 +211,239 @@ export const CuerpoFichaEjercicio = ({ nombre, ficha, vivo = false, edicion = nu
   );
 };
 
-export const FichaEjercicioCliente = ({ nombre, ficha, onClose }) => (
-  <Modal title={nombre} onClose={onClose} size="side">
-    <CuerpoFichaEjercicio nombre={nombre} ficha={ficha} />
-  </Modal>
-);
+/**
+ * LA FICHA, CON SUS CUATRO TRAMOS. (`M-03`)
+ *
+ * ══ El orden es el de quien está delante de la máquina ═════════════════════
+ *
+ *   1. **Cómo** — el vídeo de su entrenador y sus pautas. Es a lo que se entra.
+ *   2. **Lo que hiciste** — sesión a sesión, fechado. Cruza bloques: el de
+ *      agosto sigue ahí.
+ *   3. **Tu nota** — la de hoy y las anteriores.
+ *   4. **Tu marca** — peso máximo, repeticiones máximas y tonelaje.
+ *
+ * ══ Dos de los cuatro no son un cálculo: son una PUERTA ════════════════════
+ *
+ * `previousSetsBefore` y `bestSetsBefore` ya recorren todos los microciclos del
+ * programa indexando por nombre de ejercicio, y ya corren mientras se entrena.
+ * Ese histórico completo se estaba enseñando solo como el número gris de dentro
+ * del campo. Lo que faltaba era poder mirarlo.
+ *
+ * ══ Y ninguno de los cuatro propone nada ═══════════════════════════════════
+ *
+ * No hay «te toca subir a 35», ni un 1RM estimado que perseguir. La aplicación
+ * resalta información; el criterio es del entrenador. Ver `la app no receta`.
+ *
+ * ══ Por qué los tramos son un `SegmentedControl` ═══════════════════════════
+ *
+ * Porque es el conmutador de la casa y ya está en once sitios. Cuatro pestañas
+ * dibujadas a mano dentro de una hoja serían una gramática nueva para el mismo
+ * gesto — que es justo el «tiene dos de todo» del que se viene.
+ *
+ * @param ejercicio  El ejercicio YA FUSIONADO con la sesión (`mergePlanWithSession`):
+ *   su id, su nombre, sus series de hoy y su `clientNote`. Hace falta el id y no
+ *   solo el nombre porque la nota cuelga de esta entrada de la sesión.
+ * @param historial  `historialDeEjercicio(...)`, de hoy hacia atrás. Lo calcula
+ *   la hoja: aquí no se busca nada, como en el resto del portal.
+ * @param puedeAnotar  Si esta sesión admite escritura (existe y no es heredada).
+ *   Sin ella, «Tu nota» enseña las anteriores y no ofrece campo: un campo que no
+ *   guarda es peor que no tenerlo.
+ * @param onNota  `(texto)` — guarda la nota de ESTE ejercicio.
+ */
+export const FichaEjercicioCliente = ({
+  ejercicio,
+  ficha,
+  historial = [],
+  puedeAnotar = false,
+  onNota = null,
+  onClose,
+}) => {
+  const [tramo, setTramo] = useState('como');
+  const nombre = ejercicio?.name || '';
+
+  /* Lo de su entrenador: solo hay tramo «Cómo» si hay algo que enseñar. Y si no
+     lo hay, tampoco se abre ahí — se abre en lo que sí tiene contenido. */
+  const hayComo = Boolean(ficha?.videoUrl || String(ficha?.cue || '').trim() || ficha?.description);
+  const marcas = useMemo(() => marcasDeEjercicio(historial), [historial]);
+
+  /*
+    ── La progresión: la serie más pesada de cada día, en orden ──────────────
+    `historial` llega de hoy hacia atrás (lo pide la lista de «Lo que hiciste»,
+    que se lee empezando por lo último), así que aquí se le da la vuelta: una
+    curva que va del presente al pasado sube cuando se baja.
+
+    Los días sin ningún kilo anotado —un ejercicio a peso corporal, o una serie
+    apuntada solo con repeticiones— se caen. Pintarlos como cero sería dibujar
+    un desplome que no ocurrió.
+  */
+  const progresion = useMemo(
+    () =>
+      [...historial]
+        .reverse()
+        .map((dia) => {
+          const kgs = dia.sets.map((s) => Number(s.kg)).filter((n) => Number.isFinite(n) && n > 0);
+          return kgs.length > 0 && dia.date ? { date: dia.date, value: Math.max(...kgs) } : null;
+        })
+        .filter(Boolean),
+    [historial]
+  );
+  /* Las notas anteriores son las del histórico, sin la de hoy: la de hoy está
+     en el campo, y decirla dos veces haría dudar de si son dos. */
+  const notasAntes = historial.filter((d, i) => d.nota && !(i === 0 && esDeHoy(d)));
+
+  const tramos = [
+    hayComo ? { id: 'como', label: 'Cómo' } : null,
+    { id: 'hiciste', label: 'Lo que hiciste' },
+    { id: 'nota', label: 'Tu nota' },
+    { id: 'marca', label: 'Tu marca' },
+  ].filter(Boolean);
+
+  const abierto = tramos.some((t) => t.id === tramo) ? tramo : tramos[0].id;
+
+  return (
+    <Modal title={nombre} onClose={onClose} size="side">
+      <div className="col gap-4">
+        <SegmentedControl
+          ancho
+          label="Tramos del ejercicio"
+          value={abierto}
+          onChange={setTramo}
+          options={tramos}
+        />
+
+        {abierto === 'como' && <CuerpoFichaEjercicio nombre={nombre} ficha={ficha} />}
+
+        {abierto === 'hiciste' && (
+          historial.length === 0 ? (
+            <p className="t-sm t-tertiary">
+              Todavía no has anotado ninguna serie de este ejercicio. En cuanto lo hagas, aquí
+              tendrás todas las veces que lo has hecho.
+            </p>
+          ) : (
+            <div className="col gap-3">
+              {historial.map((dia, i) => (
+                <div className="ficha-dia" key={`${dia.weekNumber}:${dia.date}:${i}`}>
+                  <span className="f">
+                    {[dia.date ? shortDate(dia.date) : null, `semana ${dia.weekNumber}`]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </span>
+                  <span className="sets">
+                    {dia.sets.map((set, j) => (
+                      <span className="set" key={j}>
+                        {set.kg ? `${set.kg} × ${set.reps}` : `${set.reps} reps`}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
+        )}
+
+        {abierto === 'nota' && (
+          <div className="col gap-3">
+            {puedeAnotar && onNota ? (
+              <label className="col gap-2">
+                <span className="section-label">Lo que quieras recordar</span>
+                <textarea
+                  className="textarea"
+                  rows={3}
+                  placeholder="Ej: bajé el peso en la última, el hombro derecho iba justo."
+                  value={ejercicio?.clientNote ?? ''}
+                  onChange={(e) => onNota(e.target.value)}
+                />
+                {/* Dónde acaba, dicho aquí: una nota que no se sabe quién lee se
+                    escribe distinta. */}
+                <span className="t-xs t-tertiary">
+                  La lee tu entrenador, encima de tus series de este ejercicio.
+                </span>
+              </label>
+            ) : (
+              <p className="t-sm t-tertiary">
+                Podrás escribir aquí en cuanto anotes tu primera serie de este ejercicio.
+              </p>
+            )}
+
+            {notasAntes.map((dia, i) => (
+              <div className="ficha-dia es-nota" key={`${dia.date}:${i}`}>
+                <span className="f">{dia.date ? shortDate(dia.date) : `semana ${dia.weekNumber}`}</span>
+                <p>{dia.nota}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {abierto === 'marca' && (
+          marcas.maxKg === null && marcas.maxReps === null ? (
+            <p className="t-sm t-tertiary">
+              Tu marca aparecerá aquí cuando tengas series anotadas de este ejercicio.
+            </p>
+          ) : (
+            <div className="col gap-3">
+              <div className="sesion-resumen">
+                <div className="sesion-kpi">
+                  <span className="v">
+                    {marcas.maxKg === null ? '—' : localeNumber(marcas.maxKg)}
+                    {marcas.maxKg !== null && <small> kg</small>}
+                  </span>
+                  <span className="k">máximo</span>
+                </div>
+                <div className="sesion-kpi">
+                  <span className="v">{marcas.maxReps === null ? '—' : marcas.maxReps}</span>
+                  <span className="k">reps</span>
+                </div>
+                <div className="sesion-kpi">
+                  <span className="v">
+                    {localeNumber(Math.round(marcas.tonelaje))}
+                    <small> kg</small>
+                  </span>
+                  {/*
+                    Decía «tonelaje». Es una palabra del oficio —está en la
+                    tabla de traducción del §2.4 del replanteamiento— y aquí la
+                    lee quien acaba de terminar una serie. Lo que la cifra dice,
+                    dicho como se dice: los kilos que ha movido en total en este
+                    ejercicio.
+                  */}
+                  <span className="k">kilos movidos</span>
+                </div>
+              </div>
+
+              {/*
+                ══ Y LA CURVA, que es lo que faltaba de esta pestaña ══════════
+
+                Tres cifras sin eje contestan «cuánto es lo más que he hecho» y
+                dejan sin contestar la única pregunta por la que alguien abre
+                esto entre serie y serie: **¿voy a más?**. Coachway y Efort la
+                contestan igual —su pestaña «Charts» es una carga por fecha— y
+                es información del cliente sobre el cliente, que es lo que el
+                dueño autorizó el 14 de septiembre.
+
+                Se dibuja la SERIE TOPE de cada día y no la media: es la que
+                marca la progresión de un ejercicio, y es la misma serie y el
+                mismo color (`topKg`) con la que esto ya se dibuja en la ficha
+                del entrenador. Dos sitios, una lectura.
+
+                Y no propone nada: ni un 1RM estimado que perseguir, ni «te toca
+                subir a 35». Ver `la app no receta`.
+              */}
+              {progresion.length > 1 && (
+                <div className="col gap-1">
+                  <span className="section-label">Lo más que levantaste cada día</span>
+                  <Sparkline points={progresion} color={metricColor('topKg')} height={40} />
+                  <span className="t-xs t-tertiary">
+                    De {shortDate(progresion[0].date)} a {shortDate(progresion[progresion.length - 1].date)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        )}
+      </div>
+    </Modal>
+  );
+};
+
+/** ¿Es de hoy este día del histórico? Para no repetir la nota que ya está en
+    el campo. Se compara la fecha y no el sello: el día es lo que importa. */
+const esDeHoy = (dia) => dia?.date === todayISO();

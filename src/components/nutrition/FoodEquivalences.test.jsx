@@ -72,4 +72,27 @@ describe('FoodEquivalences', () => {
     expect(delCliente).not.toContain('Guardar estos como grupo');
     expect(delCliente).not.toContain('Tu cliente ve esta lista');
   });
+
+  /* Meter una equivalencia a mano es montar un grupo, así que sigue la misma regla:
+     solo quien puede guardarlo, y solo si hay de dónde buscar. */
+  it('«+ equivalencia» es del entrenador y necesita la biblioteca', () => {
+    const atun = { id: 'l1', name: 'Atún al natural', proteinPer100: 24 };
+
+    const conBiblioteca = pinta({
+      equivalences: equivalencias(),
+      onSaveGrupo: () => {},
+      libraryFoods: [atun],
+    });
+    expect(conBiblioteca).toContain('equiv-alta');
+
+    expect(pinta({ equivalences: equivalencias(), onSaveGrupo: () => {} })).not.toContain('equiv-alta');
+    expect(pinta({ equivalences: equivalencias(), libraryFoods: [atun] })).not.toContain('equiv-alta');
+  });
+
+  it('el alimento de partida encabeza la ventana con su cuenta', () => {
+    const html = pinta({ equivalences: equivalencias() });
+    expect(html).toContain('equiv-fuente');
+    expect(html).toContain('150 g');
+    expect(html).toContain('Aportan los mismos 19 g de proteína');
+  });
 });

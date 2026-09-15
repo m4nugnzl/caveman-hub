@@ -74,71 +74,16 @@
   padding-top: var(--s4);
 }
 
-/* ── UN VACÍO QUE SUSTITUYE A UNA LISTA MIDE LO QUE MEDIRÍA LA LISTA ───────
-   `controles.css` le pone tope de 660 px a la tarjeta de un vacío, y por un
-   motivo bueno: una losa de 1218 × 290 px con cuatro líneas centradas en el
-   medio era la pantalla más vacía del producto. Pero ese tope se pensó para el
-   vacío que ES la pantalla entera.
+/* ══ AQUÍ VIVIÓ LA BANDA DEL TALLER, Y AHORA ES LA DE TODOS ════════════════
+   Este bloque convertía el vacío del taller en una banda —azulejo, frase y
+   verbo en una línea— porque el de serie era una columna centrada dentro de
+   una tarjeta con tope de 660 px, y eso al lado de una tabla a todo lo ancho
+   colgaba a la izquierda y medía la mitad.
 
-   En Protocolos no lo es. «Siempre» es una tabla a todo lo ancho y «Una vez» es
-   un vacío: con el tope puesto, la segunda banda medía la mitad que la primera
-   y colgaba a la izquierda. Dos secciones hermanas con dos anchos distintos es
-   lo que hacía que la página se leyera descuadrada, no el vacío en sí.
-
-   Pero ensancharlo a secas no basta: con el contenido centrado, una caja de
-   1390 px es la losa contra la que avisaba ese comentario, solo que más ancha.
-   Lo que hace falta es CAMBIAR EL EJE. Aquí el vacío es una BANDA —azulejo,
-   frase y verbo en una línea, de izquierda a derecha— y entonces la anchura no
-   sobra: se usa. Se lee como el renglón que todavía no existe, que es
-   exactamente lo que es.
-
-   El azulejo y el verbo abarcan las dos filas; el título y el párrafo caen en la
-   columna del medio por colocación automática, así que un vacío sin párrafo o
-   sin acción sigue cuadrando sin una regla más. */
-/* ── Y la banda es del TALLER, no de una posición en el árbol ──────────────
-   La regla colgaba de `.cartera-cuerpo > .card`, o sea de que el vacío fuera
-   hijo directo del cuerpo de la página. El carril de automatizaciones vive dos
-   cajas más adentro (`.plano-lista > .carril-autos > .card`) y por eso se caía
-   al vacío de serie: una losa de 340 px con tres renglones centrados, en medio
-   de una hoja que se lee de izquierda a derecha.
-
-   Con `.taller .card:has(> .empty)` la banda es de todos los vacíos del taller,
-   que es lo que siempre quiso decir. */
-.taller .card:has(> .empty) { max-width: none; }
-.taller .card:has(> .empty) > .empty {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center; text-align: left;
-  gap: var(--s1) var(--s4);
-  /* Sin relleno propio: la tarjeta ya tiene el suyo, y el vacío de serie lo
-     lleva porque nace suelto en medio de una pantalla. Los dos juntos eran 44 px
-     por lado para 67 px de contenido — la banda medía 194 px de alto con dos
-     renglones dentro. */
-  padding: 0;
-}
-.taller .card:has(> .empty) > .empty > .empty-icon { grid-row: 1 / -1; }
-.taller .card:has(> .empty) > .empty > h3,
-.taller .card:has(> .empty) > .empty > p { grid-column: 2; }
-/* El margen de serie del `<h3>` no se ve en la columna —ahí el `gap` lo tapa—
-   pero en la rejilla se suma al hueco de la fila y abre 22 px entre el título y
-   su frase, que es justo lo que hace que una banda de dos renglones mida como
-   una caja de cuatro. */
-.taller .card:has(> .empty) > .empty > h3 { margin: 0; }
-.taller .card:has(> .empty) > .empty > p { max-width: 68ch; }
-.taller .card:has(> .empty) > .empty > .btn {
-  grid-column: 3; grid-row: 1 / -1; justify-self: end;
-}
-
-@media (max-width: 700px) {
-  /* En un teléfono la banda vuelve a ser una columna: tres cosas en fila dejan
-     la frase en dos palabras por renglón. */
-  .taller .card:has(> .empty) > .empty {
-    grid-template-columns: 1fr; justify-items: start; gap: var(--s3);
-  }
-  .taller .card:has(> .empty) > .empty > .empty-icon,
-  .taller .card:has(> .empty) > .empty > .btn {
-    grid-column: 1; grid-row: auto; justify-self: start;
-  }
-}
+   La corrección era buena y no era del taller: era del vacío. Así que la banda
+   subió a `controles.css` y es ahora la única gramática de vacío del producto.
+   Lo que quedaba aquí —el `max-width: none`, la rejilla, la columna en móvil—
+   sobra entero: allí no hay tope que cancelar. */
 
 /* ── La flecha de volver, dentro de una cinta ──────────────────────────────
    Misma idea que la del perfil de un cliente: una pantalla a la que se SALTA
@@ -258,7 +203,7 @@
    diálogo, y sin esto la ficha empezaba por «Pectoral · Barra» sin decir de
    quién. */
 .plano-ficha-tit {
-  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.01em;
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.01em;
   margin: 0;
 }
 
@@ -279,23 +224,81 @@
 .proto-plano > section:first-child { padding-top: 0; }
 .proto-plano > section + section { border-top: 1px solid var(--hairline); }
 .proto-plano .plano-ficha-tit {
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
+
+/* ══ EL CAMINO DEL PROTOCOLO: un raíl de tramos, numerado ══════════════════
+   Montar un protocolo son tres paradas en orden —qué lleva, las acciones, a
+   quién— y vivían en tres muebles distintos: una ventana, esta pantalla y otra
+   ventana. Ahora son tramos del mismo raíl que ya usan la cartera y el resto
+   del Taller; lo único propio es el número.
+
+   El número se gana el sitio porque esto SÍ es una secuencia (§25.4), y se
+   enciende en acento en el tramo donde estás — la misma decisión que la hoja
+   numerada del cliente: numera y dice por dónde vas con una sola pieza de
+   color. */
+.camino .tab { gap: var(--s2); }
+.camino-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 17px; height: 17px; flex-shrink: 0;
+  border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-tertiary);
+  font-size: 10px; font-weight: 700; line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--fast), color var(--fast);
+}
+.camino .tab[aria-selected='true'] .camino-n { background: var(--accent); color: var(--accent-on); }
+/* Los pasos que todavía no existen —los de un protocolo sin guardar— se ven y
+   no se pulsan: enseñan lo que queda por delante sin dejar entrar a una
+   pantalla que habla de algo que aún no está escrito. */
+.camino .tab:disabled { cursor: default; opacity: 0.45; }
+.camino .tab:disabled:hover { color: var(--text-secondary); }
+
+/* La columna del paso ③ y del acuse: una medida de lectura, no el ancho de la
+   ventana. Una lista de nombres estirada a 1.900 px deja la casilla y su
+   persona a metro y medio la una de la otra. */
+.proto-paso { width: 100%; max-width: 620px; }
+
+/* ══ EL PASO ①, A LA MEDIDA DE SU MESA ══════════════════════════════════════
+   Este paso también era una `.proto-paso`, y medido salían 620 px de contenido
+   dentro de una mesa de 1.306: media pantalla en blanco a la derecha del primer
+   paso del camino. Es el hallazgo #6 del estudio de los mandos, y el argumento
+   de arriba —que estirar una lista de interruptores separa el rótulo del
+   mando— seguía siendo verdad; lo que estaba mal era la conclusión. La cura de
+   una columna demasiado larga no es acortar la mesa: es poner DOS.
+
+   Y salen solas, porque el paso ya eran dos preguntas distintas: qué le llevas
+   —entrenamiento, nutrición— y con qué piezas se lo llevas. La segunda depende
+   de la primera (las piezas que se ofrecen son las de los servicios puestos),
+   así que enseñarlas a la vez y no una debajo de otra es lo que deja ver el
+   efecto: apagas «Nutrición» a la izquierda y la lista de la derecha encoge.
+
+   El nombre va DENTRO de la columna izquierda, no cruzando las dos. Puesto
+   arriba a lo ancho dejaba la izquierda con dos filas y la derecha con seis, y
+   el hueco de debajo era el mismo vacío de antes, solo que más pequeño. */
+.proto-rejilla {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5); align-items: start;
+}
+.proto-rejilla > .col { min-width: 0; }
+/* Un nombre de protocolo son dos palabras —«Pérdida de grasa»—, y un campo de
+   media pantalla para dos palabras pide una frase. */
+.proto-rejilla .proto-nombre { max-width: 380px; }
+@media (max-width: 1023.98px) {
+  .proto-rejilla { grid-template-columns: minmax(0, 1fr); }
+}
 /* El desplegable mide lo que mide su valor (`select-sm`) y el campo deja de
-   estirarlo: un `.field` es una columna y estira a sus hijos. */
-.proto-plano .field > .select-sm { align-self: start; }
+   estirarlo: un `.field` es una columna y estira a sus hijos. Vale para el
+   carril de la acción y para las tres preguntas del primer día, que preguntan
+   lo mismo con los mismos mandos. */
+.proto-plano .field > .select-sm,
+.guiada .field > .select-sm { align-self: start; }
 /* Y los enlaces del panel bajan a la voz de la columna. «14 preguntas ·
    editarlo →» en cuerpo de texto corrido y subrayado era lo que más pesaba de
    los tres tramos: una puerta gritando por encima del dato que la justifica. */
 .proto-plano .link { font-size: var(--fs-sm); }
-/* La puerta a la cola: enlace, no botón a todo lo ancho. Ver el porqué en el
-   JSX — esta pantalla se usa para montar el protocolo, no para mirar la cola. */
-.proto-plano-link {
-  display: inline-flex; align-items: center; gap: 6px;
-  align-self: start; font-size: var(--fs-sm);
-}
 
 /* La fila elegida, con la marca de siempre: relleno tenue y el nombre en tinta
    plena. La misma señal que «estás aquí» en la barra y en la cartera — no una
@@ -342,7 +345,7 @@
 .libreria .plantilla .fila-grupo > th {
   padding: var(--s5) var(--s3) var(--s2);
   border-bottom: 0;
-  font-size: var(--fs-sm); font-weight: 650; letter-spacing: -0.01em;
+  font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em;
   text-transform: none; color: var(--text);
 }
 /* El primero va pegado a la cabecera de columnas y no necesita separarse de
@@ -448,12 +451,12 @@
 .libreria .plantilla td { padding-top: var(--s2); padding-bottom: var(--s2); }
 /* Lo que LLEVA el alimento. Hechos, no permisos: a quién se le puede dar lo
    decide el cruce con sus condicionantes, en la dieta. */
-.al-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.al-tags { display: flex; flex-wrap: wrap; gap: var(--s1); }
 
 /* Con la ficha al lado, la lista puede decir menos: la unidad y las etiquetas se
    leen enteras en la ficha del alimento, y aquí robaban el ancho que necesitan el
    nombre y las cifras. Misma regla que `.ej-material` en los ejercicios. */
-@media (min-width: 1560px) {
+@media (min-width: 1440px) {
   .es-banco .plantilla .al-oculta { display: none; }
 }
 
@@ -534,7 +537,7 @@
 .ficha-id-nom {
   grid-column: 1; margin: 0; min-width: 0;
   font-family: var(--font-ancha);
-  font-size: 1.5rem; font-weight: 650; line-height: 1.15; letter-spacing: -0.02em;
+  font-size: 1.5rem; font-weight: 600; line-height: 1.15; letter-spacing: -0.02em;
   color: var(--text);
 }
 /* El titular que además se escribe. Lleva la misma tipografía que el titular
@@ -559,7 +562,7 @@ input.ficha-id-nom:focus {
 }
 input.ficha-id-nom[aria-invalid='true'] { border-color: var(--negative); }
 .ficha-id-clase { grid-column: 1; display: flex; align-items: center; gap: var(--s2); }
-.ficha-id-error { grid-column: 1; font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+.ficha-id-error { grid-column: 1; font-size: var(--fs-xs); color: var(--negative); font-weight: 500; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    LA HOJA DE LA FICHA: DOS COLUMNAS
@@ -664,7 +667,7 @@ input.ficha-id-nom[aria-invalid='true'] { border-color: var(--negative); }
 .espejo-hueco > .espejo-enlace:focus {
   border-color: transparent; background: none; box-shadow: none;
 }
-.espejo-mal { font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+.espejo-mal { font-size: var(--fs-xs); color: var(--negative); font-weight: 500; }
 
 /* ── LA PAUTA SE ESCRIBE DONDE SE LEE ──────────────────────────────────────
    Hereda la cita entera de `.ficha-cli-pauta` —cursiva, cuerpo base, filete
@@ -732,7 +735,7 @@ textarea.espejo-pauta:focus {
   gap: var(--s4);
 }
 .ficha-capa-rot {
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -762,7 +765,7 @@ textarea.espejo-pauta:focus {
 .apartado { display: flex; flex-direction: column; gap: var(--s2); }
 .apartado-cab { display: flex; align-items: baseline; gap: var(--s2); }
 .apartado-tit {
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -822,11 +825,12 @@ textarea.espejo-pauta:focus {
 .q-card.is-tocada .q-quitar,
 .q-quitar:focus-visible { opacity: 1; }
 
-.anadir-pregunta {
-  width: 100%; justify-content: center;
-  padding: var(--s3);
-  border-style: dashed; color: var(--text-secondary);
-}
+/* Aquí vivía `.anadir-pregunta`: una caja discontinua a todo el ancho que
+   ofrecía «Añadir pregunta», «Añadir acción» y «Añadir algo que pase solo». Era
+   el cuarto dibujo del verbo de añadir y el que hacía que el Taller se leyera
+   como un formulario al lado de Entreno, que añade con `BotonMas`. Los cuatro
+   sitios usan ya esa pieza; la regla se retira para que no vuelva a entrar por
+   la puerta de atrás. Ver `docs/producto.md` §5.8. */
 
 /* ── El panel de la pregunta tocada ────────────────────────────────────────
    Pegajoso: se toca una tarjeta de abajo del todo y sus ajustes tienen que
@@ -849,7 +853,7 @@ textarea.espejo-pauta:focus {
   border-left: 1px solid var(--hairline);
 }
 .ajustes-rot {
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -965,14 +969,14 @@ textarea.espejo-pauta:focus {
 }
 .propia-anadir { flex-shrink: 0; }
 
-@media (max-width: 700px) {
+@media (max-width: 1023.98px) {
   /* Tres columnas no caben en un teléfono, y el segmentado a lo ancho es más
      fácil de acertar con el pulgar que apretado en su columna. */
   .propia-linea { grid-template-columns: 1fr; align-items: stretch; }
   .propia-anadir { justify-self: start; }
 }
 .selector-rot {
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -993,78 +997,12 @@ textarea.espejo-pauta:focus {
 .pieza-nom { font-size: var(--fs-sm); font-weight: 600; }
 .pieza-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
-/* ══ Las otras dos tandas de preguntas, con su puerta ═════════════════════ */
-.taller-otros {
-  display: flex; flex-direction: column; gap: var(--s2);
-  padding: var(--s5) 0 var(--s6);
-  max-width: var(--max-w-columna);
-}
-.taller-otros-rot {
-  font-size: var(--fs-2xs); font-weight: 650;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-tertiary);
-  padding-bottom: var(--s1);
-}
-.taller-otro {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s3); border-radius: var(--r-md);
-  color: inherit; text-decoration: none;
-  transition: background-color var(--fast);
-}
-.taller-otro:hover { background: var(--fill-subtle); }
-.taller-otro > svg { color: var(--text-tertiary); flex-shrink: 0; }
-.taller-otro-texto { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.taller-otro-nom { font-size: var(--fs-sm); font-weight: 600; }
-.taller-otro-dice { font-size: var(--fs-xs); color: var(--text-tertiary); }
-
 /* ══════════════════════════════════════════════════════════════════════════
    EL PROCEDIMIENTO — el protocolo leído como lo que es
    --------------------------------------------------------------------------
    Seis momentos en el tiempo, y no cinco cajones de configuración. El dato es
    exactamente el mismo de `protocol.js`: lo que cambia es la lectura.
    ══════════════════════════════════════════════════════════════════════════ */
-
-/* Con la medida de una columna de decisiones: cada momento es un rótulo, un
-   dato y una frase, y a todo lo ancho de la ventana eran cinco bandas con
-   965 px de nada a la derecha. Ver `--max-w-columna`. */
-.linea-tiempo { display: flex; flex-direction: column; max-width: var(--max-w-columna); }
-/* Cada momento es un enlace a su apartado, pero NO se viste de enlace: es una
-   fila de lectura, y quince palabras subrayadas en azul convierten el resumen
-   del procedimiento en un índice de ayuda. Que se puede pulsar lo dice el
-   relleno al pasar, como todo lo demás del producto. */
-.paso-proto {
-  display: grid; grid-template-columns: 26px 132px minmax(0, 1fr);
-  gap: var(--s3) var(--s4); align-items: start;
-  padding: var(--s3);
-  margin: 0 calc(var(--s3) * -1);
-  border-bottom: 1px solid var(--hairline);
-  color: inherit; text-decoration: none;
-  border-radius: var(--r-md);
-  transition: background-color var(--fast);
-}
-.paso-proto:hover { background: var(--fill-subtle); }
-.paso-proto:hover .paso-tit { color: var(--accent); }
-.paso-proto:last-child { border-bottom: 0; }
-/* El número no numera por adorno: son pasos en el TIEMPO y el orden es lo que
-   se está contando. Es la única numeración del producto que se gana el sitio. */
-.paso-n {
-  display: grid; place-items: center;
-  width: 22px; height: 22px; margin-top: 2px;
-  border: 1px solid var(--hairline-strong); border-radius: var(--r-pill);
-  font-size: var(--fs-2xs); color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-.paso-cuando {
-  padding-top: 4px;
-  font-size: var(--fs-2xs); font-weight: 650;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.paso-que { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
-.paso-tit { font-size: var(--fs-sm); font-weight: 600; }
-.paso-dice { font-size: var(--fs-sm); color: var(--text-secondary); }
-.paso-abrir { margin-left: auto; flex-shrink: 0; }
-.paso-linea { display: flex; align-items: center; gap: var(--s3); }
 
 /* ══════════════════════════════════════════════════════════════════════════
    Y PROTOCOLOS ES EL SEGUNDO BANCO DE DOS PLANOS
@@ -1092,11 +1030,10 @@ textarea.espejo-pauta:focus {
    propio índice. Un banco que no cabe es peor que una hoja de un plano.
    ══════════════════════════════════════════════════════════════════════════ */
 
-/* Lo que el protocolo LLEVA, arriba del carril y separado de la acción por un
-   filete: son dos cosas distintas —el alcance y lo que le pasa a una persona— y
-   pegadas se leen como una lista sola. El filete es el mismo recurso que separa
-   el carril de la lista, sin meter una tarjeta dentro de otra. */
-.proto-lleva { padding-bottom: var(--s4); border-bottom: 1px solid var(--hairline); }
+/* Aquí hubo un `.proto-lleva`: lo que el protocolo LLEVA, encabezando el
+   carril y separado de la acción por un filete. Ya no encabeza nada — el
+   alcance y las piezas se abren en su capa desde la cabecera, porque no ocurren
+   en ningún momento y el carril es de lo que sí. Ver `ProtocolosPanel`. */
 
 /* ── Lo que lleva dentro el check-in, en el carril ─────────────────────────
    Nombre, lo que lleva puesto y —en las de medida— la puerta a su lámina. Es
@@ -1113,7 +1050,7 @@ textarea.espejo-pauta:focus {
 /* Lo que lleva puesto va en el acento, que es la tinta de lo que la aplicación
    hace con el dato — la misma que `.q-donde` en la fila de al lado. */
 .carril-pieza-lleva { margin-left: auto; font-size: var(--fs-xs); color: var(--accent); }
-.carril-piezas .link { font-size: var(--fs-2xs); font-weight: 550; text-align: left; }
+.carril-piezas .link { font-size: var(--fs-2xs); font-weight: 500; text-align: left; }
 /* El «lleva» se queda a la derecha aunque la línea se parta: es la columna que
    se recorre de arriba abajo para ver qué pide este protocolo. */
 .carril-pieza-lleva { order: 3; }
@@ -1138,18 +1075,6 @@ textarea.espejo-pauta:focus {
   .proto-banco > .plano-lista { grid-column: 1; grid-row: 2; }
   .proto-banco > .plano-ficha { grid-column: 2; grid-row: 2; }
 
-  /* En el carril, el procedimiento se APILA. Con 378 px útiles, la rejilla de
-     tres columnas (26 + 132 + texto) dejaba 175 px para «Entrenamiento ·
-     Nutrición» y partía casi todas las frases. Es la misma forma que ya toma en
-     el móvil, y por el mismo motivo: cuando falta ancho, el rótulo se sube
-     encima del dato en vez de robarle sitio. */
-  .plano-ficha .linea-tiempo { max-width: none; }
-  .plano-ficha .paso-proto {
-    grid-template-columns: 22px minmax(0, 1fr);
-    gap: var(--s1) var(--s3);
-  }
-  .plano-ficha .paso-cuando { grid-column: 2; padding-top: 0; }
-  .plano-ficha .paso-que { grid-column: 2; }
 }
 
 /* Sin sitio para el segundo plano, el procedimiento deja de ser carril y vuelve
@@ -1186,9 +1111,6 @@ textarea.espejo-pauta:focus {
     padding-left: 0; padding-top: var(--s4);
     border-left: 0; border-top: 1px solid var(--hairline);
   }
-  .paso-proto { grid-template-columns: 22px minmax(0, 1fr); }
-  .paso-cuando { grid-column: 2; padding-top: 0; }
-  .paso-que { grid-column: 2; }
   .taller-pie { padding-bottom: var(--s4); }
 }
 
@@ -1318,7 +1240,7 @@ textarea.espejo-pauta:focus {
    con las marcas cambiadas de lado — que es justo el error que provoca. */
 .guia-vista {
   fill: var(--text-tertiary); font-family: var(--font);
-  font-size: 10px; font-weight: 650; letter-spacing: 0.04em;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
 }
 /* El número, en disco de PAPEL y no de acento. El acento es de las marcas: dos
    cosas del mismo color en la misma lámina compiten, y la que tiene que ganar
@@ -1353,11 +1275,64 @@ textarea.espejo-pauta:focus {
 
 .guia-enlace { align-self: flex-start; }
 
-@media (max-width: 719.98px) {
+@media (max-width: 1023.98px) {
   .guia { grid-template-columns: minmax(0, 1fr); }
   .guia-lamina { max-width: 172px; }
   /* En columna, la doble puede ocupar lo que quiera: es ancha y baja. */
   .guia.es-doble .guia-lamina { max-width: 320px; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA INVITACIÓN: una línea que se pulsa, no un aviso
+   --------------------------------------------------------------------------
+   Era un `Notice` de tono informativo, o sea una losa teñida a todo el ancho
+   con dos botones dentro. Un aviso dice «hay algo que saber»; esto no informa
+   de nada, es una PUERTA — y una puerta se abre, no se lee.
+
+   Así que la fila ENTERA es el botón: glifo, frase, punta. Y la salida es una
+   equis, no un segundo verbo enfrentado al primero. El acento se queda en el
+   glifo y en la punta, que son los dos sitios donde dice «por aquí»; el fondo
+   es papel, como el resto de la hoja.
+   ══════════════════════════════════════════════════════════════════════════ */
+.invita {
+  display: flex; align-items: stretch; gap: var(--s1);
+  margin-bottom: var(--s4);
+  border: 1px solid var(--hairline); border-radius: var(--r-md);
+  background: var(--surface);
+  padding-right: var(--s2);
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.invita:hover { border-color: var(--accent); }
+.invita-entrar {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border: 0; border-radius: var(--r-md); background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.invita-glifo { flex-shrink: 0; color: var(--accent); }
+.invita-dice { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.invita-dice > b { color: var(--text); font-weight: 600; }
+/* La punta se corre un pelo al pasar por encima: es el único movimiento de la
+   pieza y dice hacia dónde lleva sin escribir «entrar» en ningún sitio. */
+.invita-punta {
+  flex-shrink: 0; color: var(--text-tertiary);
+  transition: transform var(--fast), color var(--fast);
+}
+.invita:hover .invita-punta { color: var(--accent); transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  .invita:hover .invita-punta { transform: none; }
+}
+/* A media voz: está para cuando la busques, no para competir con la frase. Es
+   la misma gramática que la equis del aviso que se puede quitar. */
+.invita-cerrar { align-self: center; opacity: 0.55; }
+.invita-cerrar:hover:not(:disabled) { opacity: 1; }
+
+@media (max-width: 639.98px) {
+  /* En un teléfono la frase manda y la punta sobra: la fila entera se pulsa
+     igual y el ancho es lo que escasea. */
+  .invita-punta { display: none; }
+  .invita-entrar { padding: var(--s3); }
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1379,6 +1354,23 @@ textarea.espejo-pauta:focus {
   text-transform: uppercase; color: var(--text); white-space: nowrap;
 }
 .premisa-dia { width: auto; flex-shrink: 0; }
+/* La consecuencia del mando de arriba: quién de este protocolo tiene otro día
+   de revisión. Colgada del rótulo —sangrada como las filas que vienen debajo—
+   para que se lea como una nota de la premisa y no como un aviso suelto. */
+.premisa-cita { margin: calc(var(--s3) * -1) 0 var(--s3); }
+/* El horario del check-in, dicho como se diría en voz alta y con las dos
+   palabras editables dentro de la frase. Vivía en el rótulo —dos cajas desnudas
+   a tres píxeles de «CADA SEMANA»— y el porqué del cambio está en el JSX.
+
+   `line-height` holgado porque los dos desplegables miden más que el renglón:
+   sin él, la frase se monta sobre la de arriba en cuanto rompe a dos líneas. */
+.premisa-frase {
+  margin: calc(var(--s3) * -1) 0 var(--s3);
+  font-size: var(--fs-sm); color: var(--text-secondary); line-height: 2.1;
+}
+/* Y si además hay excepciones de cita, la nota cuelga de la frase y no vuelve a
+   tirar hacia arriba: su sangrado ya lo puso ésta. */
+.premisa-frase + .premisa-cita { margin-top: 0; }
 .premisa-regla {
   flex: 1; height: 9px; align-self: center;
   background-image:
@@ -1437,12 +1429,12 @@ textarea.espejo-pauta:focus {
   padding-bottom: var(--s2);
   border-bottom: 1px solid var(--hairline);
 }
-.etq-kcal { display: flex; align-items: baseline; gap: 5px; margin: 0; }
+.etq-kcal { display: flex; align-items: baseline; gap: var(--s1); margin: 0; }
 /* La ancha, que el token declara como «la voz de las cifras». Es el único sitio
    de esta ficha donde algo levanta la voz, y por eso funciona. */
 .etq-kcal-v {
   font-family: var(--font-ancha);
-  font-size: 1.75rem; font-weight: 650; line-height: 1;
+  font-size: 1.75rem; font-weight: 600; line-height: 1;
   letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
 }
 .etq-kcal-u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); }
@@ -1455,7 +1447,7 @@ textarea.espejo-pauta:focus {
 .etq-linea {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--s4);
-  padding: 5px 0;
+  padding: var(--s1) 0;
   font-size: var(--fs-sm); color: var(--text-secondary);
 }
 .etq-linea + .etq-linea { border-top: 1px solid var(--hairline); }
@@ -1473,7 +1465,7 @@ textarea.espejo-pauta:focus {
    guion en terciario. Nunca un cero — ver `micros.js`. */
 .etq-nodice { color: var(--text-tertiary); font-weight: 500; }
 .etq-pie {
-  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px;
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s1);
   margin: var(--s2) 0 0; font-size: var(--fs-xs); color: var(--text-tertiary);
 }
 
@@ -1497,7 +1489,7 @@ textarea.espejo-pauta:focus {
   font-family: inherit; font-size: inherit; font-weight: 600;
   font-variant-numeric: tabular-nums; color: var(--text);
   background: none; border: 1px solid transparent; border-radius: var(--r-sm);
-  padding: 1px 5px; margin: -1px 0;
+  padding: 1px var(--s1); margin: -1px 0;
   transition: border-color var(--fast), background-color var(--fast);
 }
 .etq-campo:hover { border-color: var(--edge); background: var(--fill-subtle); }
@@ -1514,14 +1506,14 @@ textarea.espejo-pauta:focus {
 .etq-cuanto > .etq-u { color: var(--text-tertiary); font-weight: 500; }
 /* Lo que no cuadra, dicho debajo de la tabla y no dentro de cada renglón: siete
    mensajes posibles en línea harían saltar la etiqueta entera al teclear. */
-.etq-mal { margin: var(--s2) 0 0; font-size: var(--fs-xs); color: var(--negative); font-weight: 550; }
+.etq-mal { margin: var(--s2) 0 0; font-size: var(--fs-xs); color: var(--negative); font-weight: 500; }
 /* La unidad natural, escrita en el pie donde ya se leía. Dos casillas mínimas y
    la frase alrededor: «1 [rebanada] = [27] g» se lee como una frase, no como un
    formulario de dos campos con dos rótulos. */
 .etq-pie-campo {
   font-family: inherit; font-size: inherit; font-weight: 600; color: var(--text);
   background: none; border: 1px solid transparent; border-radius: var(--r-sm);
-  padding: 1px 5px; min-width: 0;
+  padding: 1px var(--s1); min-width: 0;
   transition: border-color var(--fast), background-color var(--fast);
 }
 .etq-pie-campo:hover { border-color: var(--edge); background: var(--fill-subtle); }
@@ -1648,18 +1640,22 @@ textarea.espejo-pauta:focus {
 /* En reposo no está. El de en medio aparece al acercarte; el del final, siempre,
    porque es donde se añade y no una decoración. En táctil los dos, que ahí no
    hay «acercarse». */
+/* El «⊕» del hilo. Era una caja discontinua gris —el sexto dibujo del mismo
+   verbo— y ahora es el verbo de la casa: sin caja y en acento, como «+ paso» o
+   «+ acción» a dos centímetros. Lo único suyo es que en medio del hilo aparece
+   al acercarse (la ley del reposo), y eso se queda. Ver `producto.md` §5.8. */
 .auto-mas {
   display: inline-flex; align-items: center; gap: var(--s1);
   padding: 2px var(--s2);
-  border: 1px dashed var(--hairline-strong); border-radius: var(--r-sm);
-  background: none; color: var(--text-tertiary);
-  font: inherit; font-size: var(--fs-xs); cursor: pointer;
-  opacity: 0; transition: opacity var(--fast), color var(--fast), border-color var(--fast);
+  border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--accent);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+  opacity: 0; transition: opacity var(--fast), background var(--fast);
 }
 .auto-hilo:hover .auto-mas,
 .auto-mas:focus-visible,
 .auto-hilo.es-final .auto-mas { opacity: 1; }
-.auto-mas:hover { color: var(--accent); border-color: var(--accent); }
+.auto-mas:hover, .auto-mas[aria-expanded='true'] { background: var(--accent-soft); }
 @media (hover: none) {
   .auto-mas { opacity: 1; }
 }

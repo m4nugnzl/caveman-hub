@@ -24,7 +24,7 @@
  */
 
 import {
-  CHECKIN_BLOCKS,
+  checkinDesdeHorario,
   checkinMode,
   clientProtocol,
   defaultProtocol,
@@ -113,7 +113,16 @@ const LISTAS = ['modules', 'questions', 'checkinQuestions'];
 export const matchesTemplate = (template, protocol) =>
   LISTAS.every((k) => (template[k] || []).join() === (protocol[k] || []).join()) &&
   JSON.stringify(template.custom) === JSON.stringify(protocol.custom) &&
-  CHECKIN_BLOCKS.every((b) => checkinMode(template, b.id) === checkinMode(protocol, b.id)) &&
+  /* TODOS los bloques con estado en cualquiera de los dos, y no solo los dos de
+     siempre: desde que la lista no es fija, comparar `CHECKIN_BLOCKS` dejaba
+     fuera las medidas del entrenador — y con ellas el fallo de siempre, que
+     encender una glucosa no llegara a nadie. */
+  [...new Set([...Object.keys(template.checkin || {}), ...Object.keys(protocol.checkin || {})])]
+    .every((id) => checkinMode(template, id) === checkinMode(protocol, id)) &&
+  /* Y sus definiciones: cambiarle los decimales a una medida tiene que poder
+     llegar a quien ya la tiene puesta, o su portal seguiría redondeando la
+     temperatura a enteros. */
+  JSON.stringify(template.medidas || []) === JSON.stringify(protocol.medidas || []) &&
   weighInsTarget(template) === weighInsTarget(protocol) &&
   /* Las fotos, como los bloques: es una pieza del check-in que decides tú, así
      que cambiarla tiene que poder llegar a quien ya tienes. */
@@ -122,11 +131,22 @@ export const matchesTemplate = (template, protocol) =>
      se le recuerda es tu forma de trabajar, no algo de una persona. Dejarlo
      fuera repetiría el fallo de los bloques y del cuestionario —cambiarlo y que
      no llegara a nadie— que es justo lo que esta lista existe para evitar. */
+  /* Y `ajuste` NO se compara, al revés que el horario: el horario es tu forma de
+     trabajar, y eso es lo que contestaste la última vez dentro de una ventana con
+     una persona delante. Ver `NOT_COMPARED_KEYS`. */
   JSON.stringify(sanitizeSchedule(template.schedule)) ===
     JSON.stringify(sanitizeSchedule(protocol.schedule));
 
 /** Lo que compara `matchesTemplate`. Lo usa la prueba que vigila que no falte nada. */
-export const COMPARED_KEYS = [...LISTAS, 'custom', 'checkin', 'weighIns', 'askPhotos', 'schedule'];
+export const COMPARED_KEYS = [
+  ...LISTAS,
+  'custom',
+  'checkin',
+  'weighIns',
+  'askPhotos',
+  'schedule',
+  'medidas',
+];
 
 /**
  * Lo que está en el protocolo y NO se compara con la plantilla, con su motivo.
@@ -163,6 +183,11 @@ export const NOT_COMPARED_KEYS = {
     'La vara de ESTA persona: cuántos días sin entrenar o sin pesarse antes de avisarte (0093). ' +
     'Se afina para quien entrena dos días o está medio de vuelta, así que «poner al día» no ' +
     'puede resetearla a la general — sería devolverle el ruido que se acababa de quitar.',
+  ajuste:
+    'De dónde salieron las calorías la última vez que ajustaste SU dieta. No es una preferencia ' +
+    'que se configure: la escribe la ventana del reajuste al aplicar. Si «poner al día» la ' +
+    'pisara, cada cliente afinado volvería a la general — y peor, elegir un reparto dentro de ' +
+    'una ventana marcaría a esa persona como excepción a la plantilla.',
   hidden:
     'Qué cifras NO le vuelven a ESTA persona en su portal: el peso, las kcal. Se decide por ' +
     'quien tiene mala relación con la báscula o con la comida, y una plantilla no puede saber ' +
@@ -184,6 +209,7 @@ export const templateForClient = (template, clientPreferences) => ({
   services: clientProtocol(clientPreferences).services,
   alertDays: clientProtocol(clientPreferences).alertDays,
   hidden: clientProtocol(clientPreferences).hidden,
+  ajuste: clientProtocol(clientPreferences).ajuste,
 });
 
 /**
@@ -328,7 +354,9 @@ export const planDe = (coachPrefs, protocoloId = null) => {
   return {
     protocolo,
     formularios,
-    template: resolveProtocolo(protocolo, formularios),
+    /* Con las preferencias del entrenador delante: de ahí salen las
+       definiciones de sus medidas, que viajan copiadas al cliente. */
+    template: resolveProtocolo(protocolo, formularios, coachPrefs),
     intake: protocolo.intake,
   };
 };
@@ -336,6 +364,47 @@ export const planDe = (coachPrefs, protocoloId = null) => {
 /** El plan que le toca a un cliente: el protocolo que lleva puesto. */
 export const planDeCliente = (coachPrefs, client) =>
   planDe(coachPrefs, protocoloDeCliente(coachPrefs, client)?.id);
+
+/**
+ * QUIÉN DE ESTE PROTOCOLO TIENE OTRO DÍA, para poder decirlo antes de tocarlo.
+ *
+ * ══ Por qué el horario no se empuja como el resto del protocolo ════════════
+ *
+ * Porque no es una pieza más de tu forma de trabajar: es la cita de una persona
+ * concreta, y la puede haber elegido ella —él es quien sabe cuándo se puede
+ * pesar en ayunas y hacerse las fotos—. «Poner al día» le pasa por encima al
+ * cuestionario y a los bloques sin preguntar, y está bien; hacerlo con el día de
+ * la revisión le movería a alguien la mañana del sábado sin avisarle.
+ *
+ * Así que se cuenta y se enseña: «8 de tus 14 clientes tienen otro día; ¿se lo
+ * cambio?». La misma gramática de consecuencias que ya usa el reparto de la
+ * dieta — no se escribe en la semana de nadie sin enseñar antes qué le pasa a
+ * cada uno.
+ *
+ * @returns `{ sembrar, distintos }` — a quién le FALTA día (se le pone sin
+ *   preguntar al aplicar el protocolo) y quién tiene uno distinto del tuyo.
+ */
+export const citasDelProtocolo = (coachPrefs, protocolo, clients = []) => {
+  const horario = sanitizeSchedule(protocolo?.schedule);
+  const suyos = clients.filter((c) => protocoloDeCliente(coachPrefs, c)?.id === protocolo?.id);
+
+  const sembrar = [];
+  const distintos = [];
+
+  for (const c of suyos) {
+    const pauta = c?.preferences?.checkin;
+    const tiene = Number.isInteger(pauta?.weekday) && pauta.weekday >= 0 && pauta.weekday <= 6;
+    if (!tiene) {
+      sembrar.push(c);
+      continue;
+    }
+    if (pauta.weekday !== horario.weekday || (pauta.everyWeeks || 1) !== horario.everyWeeks) {
+      distintos.push(c);
+    }
+  }
+
+  return { sembrar, distintos };
+};
 
 /**
  * Las tres preguntas de siempre, contestadas contra el protocolo de ESTE
@@ -372,7 +441,18 @@ export const igualASuPlan = (coachPrefs, client) => {
  */
 export const parchePara = (coachPrefs, client) => {
   const { protocolo, template, intake } = planDeCliente(coachPrefs, client);
+  /*
+    ══ Y la cita, SOLO si no tiene ═══════════════════════════════════════════
+
+    El horario del protocolo es el valor por defecto de la revisión, no una
+    segunda verdad sobre ella: siembra al que no tiene día —que hasta ahora nacía
+    sin revisión, o sea con el bucle del producto apagado— y no toca al que ya
+    eligió el suyo. Cambiárselo a quien ya lo tiene es otra operación, con su
+    nombre y sus consecuencias a la vista. Ver `checkinDesdeHorario`.
+  */
+  const cita = checkinDesdeHorario(protocolo.schedule, client?.preferences);
   return {
+    ...(cita ? { checkin: cita } : {}),
     protocol: templateForClient(template, client?.preferences),
     /* El alta se APLICA, no se copia: el protocolo decide qué pasos hay y el
        cliente conserva por cuáles va y qué tiene enlazado. Copiarla entera
@@ -436,6 +516,11 @@ export const newClientPreferences = (coachPrefs, { intakeFormId = null, protocol
       : alta;
 
     return {
+      /* La cita de serie: el día y la cadencia del horario del protocolo. Un
+         cliente nuevo nacía con `weekday: null` —sin revisión, sin cola y sin
+         nada que reclamarle— hasta que él eligiera un día desde su portal. Ahora
+         nace con el que trabaja su entrenador, y puede cambiarlo. */
+      checkin: checkinDesdeHorario(plan.protocolo.schedule, null),
       protocol: plan.template,
       intake: intakeTemplateToPreferences(plan.protocolo.intake),
       protocolId: plan.protocolo.id,
@@ -465,6 +550,10 @@ export const newClientPreferences = (coachPrefs, { intakeFormId = null, protocol
   if (!protocolo && !alta && !formulario) return null;
 
   return {
+    /* Su cita, como en el camino de los protocolos con nombre: la plantilla
+       heredada también lleva horario, y sin sembrarlo el cliente nacería sin
+       día. Ver `checkinDesdeHorario`. */
+    ...(protocolo ? { checkin: checkinDesdeHorario(protocolo.schedule, null) } : {}),
     ...(protocolo ? { protocol: protocolo } : {}),
     ...(alta ? { intake: intakeTemplateToPreferences(alta) } : {}),
     ...(formulario ? { intakeForm: formulario } : {}),

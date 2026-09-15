@@ -687,6 +687,41 @@ export const varianteDeTexto = (texto) => {
   return { variant: null, label: null };
 };
 
+/* ══ El dibujo de una comida ═══════════════════════════════════════════════ */
+
+/*
+  El nombre de una comida es texto libre —lo escribe el entrenador—, así que el
+  dibujo se deduce igual que la variante del día: por la palabra entera, no por
+  un tipo que nadie declara. Cinco palabras conocidas y un cubierto para lo
+  demás; el orden importa, porque «Batido post-entreno» es un batido antes que
+  un entreno y «Media mañana» es fruta antes que nada.
+*/
+const DIBUJOS = [
+  ['batido', /\b(batidos?|shakes?|prote[íi]nas?|whey|casein[ao]?)\b/i],
+  ['taza', /\b(desayunos?|breakfast|caf[ée]s?)\b/i],
+  ['manzana', /\b(snacks?|meriendas?|tentempi[ée]s?|frutas?|media\s*(?:ma[ñn]ana|tarde))\b/i],
+  ['cuenco', /\b(comidas?|almuerzos?|lunch)\b/i],
+  ['plato', /\b(cenas?|dinner)\b/i],
+];
+
+/**
+ * Qué se dibuja en la casilla de una comida, a partir de su nombre.
+ *
+ * Es la pieza que deja encontrar la cena sin leerse las cuatro tarjetas, y por
+ * eso sale del nombre y no de una lista de tipos: en el producto una comida no
+ * tiene tipo, tiene nombre. Lo que no se reconoce lleva el cubierto, que es
+ * decir «una comida» sin fingir que se sabe cuál.
+ *
+ * No lleva color: el fondo de la casilla es el mismo para todas y quien
+ * distingue es el dibujo. Ver `la ley del color` — el color compara o juzga, y
+ * una categoría no es ni lo uno ni lo otro.
+ */
+export const iconoDeComida = (nombre) => {
+  const t = String(nombre || '');
+  for (const [clave, re] of DIBUJOS) if (re.test(t)) return clave;
+  return 'cubierto';
+};
+
 /* ══ Modo texto: la dieta escrita, no tabulada ════════════════════════════ */
 
 /** «- 100g Copos de avena» → la línea sin su viñeta. */

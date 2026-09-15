@@ -1,8 +1,8 @@
 import { Search } from 'lucide-react';
 import { paletteShortcut } from '@/lib/platform';
+import { useApp } from '@/context/AppContext';
 import { Logo } from '@/components/ui/Logo';
 import { AccountMenu } from '@/components/AccountMenu';
-import { ClientBell } from '@/components/Client/ClientBell';
 import { useCommandPalette } from '@/components/ui/CommandPalette';
 
 /**
@@ -63,9 +63,18 @@ export const Omnibox = () => {
 
 export const HeaderActions = ({ variante = 'avatar' }) => (
   <div className={`row gap-2 shrink-0${variante === 'fila' ? ' is-fila' : ''}`}>
-    {/* Los avisos del cliente, donde se miran en un móvil: no en una pantalla
-        a la que hay que acordarse de entrar. Ver `Client/ClientBell`. */}
-    <ClientBell />
+    {/*
+      ── Y aquí vivió LA CAMPANA DEL CLIENTE ─────────────────────────────
+      La lista de avisos del portal, colgada de esta esquina. Se ha ido con su
+      montura: desde el 14 de septiembre esta franja no se pinta en el portal en
+      ningún ancho (ver abajo), así que la campana no se montaba en ninguna
+      pantalla y su lista no se leía en ninguna parte — que es justo la avería
+      que dejó el rediseño.
+
+      Esa lista tiene ahora pantalla, y es la que le corresponde: «Hoy», en la
+      caja «De tu entrenador», en los dos aparatos. Ver `Client/ClientStart` y
+      `Client/useAvisos`.
+    */}
     {/*
       ── Aquí vivió LA NUBE ──────────────────────────────────────────────
       El estado de la red, montado aquí para salir a la vez en la cabecera del
@@ -92,10 +101,47 @@ export const HeaderActions = ({ variante = 'avatar' }) => (
   </div>
 );
 
-export const Header = () => (
-  <header className="app-header">
-    <Logo subtitle={null} />
-    <Omnibox />
-    <HeaderActions />
-  </header>
-);
+/**
+ * LA FRANJA, y hoy es de UN solo sitio: el teléfono del entrenador.
+ *
+ * ── Los tres sitios donde vivió, y por qué quedan cero portales ────────────
+ * Navegó el móvil, el portal del cliente y el modo preview. En el portal llegó
+ * a llevar dentro el raíl de sus secciones, que fue la respuesta correcta
+ * mientras el portal usaba el chasis de la casa; desde el
+ * rediseño del 14 de septiembre de 2026 el portal tiene el suyo en cada aparato
+ * y esta franja no se monta allí en ningún ancho (ver abajo).
+ *
+ * En el escritorio del entrenador tampoco hay franja: sus dos piezas útiles van
+ * dentro de la barra lateral (`CoachLayout`).
+ */
+export const Header = () => {
+  const { view } = useApp();
+
+  /*
+    ══ EN EL PORTAL DEL CLIENTE NO HAY FRANJA (14 sep 2026) ══════════════════
+
+    Ni una oculta. El portal rediseñado trae su propio chasis en los dos
+    aparatos —el carril lateral en el monitor (`pc/CarrilDelPortal`, que desde el
+    15 sep sustituye a la cinta oscura de arriba) y ninguna cabecera en el
+    teléfono, donde navega la barra del pulgar— así que esta franja no tiene nada
+    que hacer ahí: lo que de sus piezas significa algo en el portal (tu nombre y
+    tu cuenta) vive ya dentro del carril.
+
+    Hasta ahora se montaba igual y se tapaba con CSS. Tapada seguía costando lo
+    mismo: un segundo `<nav>` con el mismo rótulo —«Secciones de mi portal»— en
+    el árbol, y el carril midiéndose a sí mismo en cada render para colocar una
+    marca que nadie ve. Ver `Client/ClientLayout`.
+
+    La salida del modo preview no depende de esto: la lleva `PreviewBar`, que se
+    monta aparte en `App.jsx` justo por eso.
+  */
+  if (view === 'client') return null;
+
+  return (
+    <header className="app-header">
+      <Logo subtitle={null} />
+      <Omnibox />
+      <HeaderActions />
+    </header>
+  );
+};

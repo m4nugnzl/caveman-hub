@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
 
-import { useDismissable } from '@/lib/useDismissable';
+import { Hoja } from '@/components/ui/Hoja';
 
 /**
  * Barra de navegación inferior. Solo en móvil.
@@ -45,21 +45,19 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
     El cierre NO usa `useClickOutside`, aunque sea el gancho que hay para esto.
     Con él, pulsar «Más» estando abierta contaba como clic fuera de la hoja Y como
     pulsación del botón: se cerraba y se volvía a abrir en el mismo gesto, así que
-    el botón no cerraba nunca. Aquí el fondo cierra al pulsarlo y el botón alterna,
-    que son dos caminos que no se pisan.
+    el botón no cerraba nunca. En `Hoja`, el fondo cierra al pulsarlo y el botón
+    alterna, que son dos caminos que no se pisan.
+
+    Escape, el foco atrapado, el fondo quieto, la salida animada y el arrastre
+    para cerrar los lleva ya la propia `Hoja`: aquí vivió una versión a medias
+    de los dos primeros —un `keydown` suelto y ningún foco—, que es lo que pasa
+    cuando la única superficie para el pulgar es propiedad de una barra.
   */
-  useEffect(() => {
-    if (!more) return undefined;
-    const onKeyDown = (event) => event.key === 'Escape' && setMore(false);
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [more]);
 
   /* Cambiar de sección cierra la hoja. Sin esto, volver atrás con el gesto del
      navegador deja la hoja abierta sobre una pantalla que ya no es la suya.
      Con el cierre animado, además, la hoja se despide en vez de esfumarse. */
   useEffect(() => setMore(false), [location.pathname]);
-  const hoja = useDismissable(more);
 
   const overflows = items.length > 5;
   const primary = overflows ? items.slice(0, 4) : items;
@@ -74,30 +72,21 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
 
   return (
     <>
-      {hoja.mounted && (
-        <div
-          ref={hoja.ref}
-          className="sheet-backdrop"
-          data-state={hoja.closing ? 'closing' : 'open'}
-          onMouseDown={(e) => e.target === e.currentTarget && setMore(false)}
-        >
-          <div className="sheet" role="menu" aria-label="Más secciones">
-            <span className="sheet-grip" aria-hidden="true" />
-            {rest.map(({ to, label: text, icon: Icon }) => (
-              <NavLink
-                key={to}
-                to={to}
-                role="menuitem"
-                className="sheet-item"
-                onClick={() => setMore(false)}
-              >
-                <Icon size={20} />
-                {text}
-              </NavLink>
-            ))}
-          </div>
-        </div>
-      )}
+      {/*
+        Los destinos van como ENLACES y no con `role="menuitem"`, que es lo que
+        llevaban. Un `menu` de ARIA es un menú de aplicación —comandos que se
+        recorren con las flechas—, y esto es una lista de sitios a los que ir:
+        anunciados como enlaces, el lector de pantalla dice cuántos hay y cuál
+        es el activo, que es exactamente lo que se quiere saber.
+      */}
+      <Hoja abierta={more} onCerrar={() => setMore(false)} etiqueta="Más secciones">
+        {rest.map(({ to, label: text, icon: Icon }) => (
+          <NavLink key={to} to={to} className="sheet-item" onClick={() => setMore(false)}>
+            <Icon size={20} />
+            {text}
+          </NavLink>
+        ))}
+      </Hoja>
 
       {/*
         La marca de activo puede venir dada (`isActive`) en vez de deducirse de la
@@ -118,7 +107,20 @@ export const BottomNav = ({ items, label = 'Navegación principal' }) => {
               end={to.split('/').length <= 2}
               aria-current={esActivo ? 'page' : undefined}
             >
-              <Icon size={20} />
+              {/*
+                ── El punto: «ahí dentro hay algo esperándote» ────────────────
+                Vive en el ICONO y no en la etiqueta porque el icono es lo que
+                se mira de reojo, y porque en la etiqueta empujaría la palabra
+                fuera de sus 78 px.
+
+                Existe desde que la cabecera no baja al teléfono (`piezas.css`,
+                A-01): la campana vivía ahí, así que sin esto el aviso no tenía
+                dónde verse antes de entrar. No dice CUÁNTOS —eso es la lista,
+                y está a un toque—: dice que hay.
+              */}
+              <span className={`bottombar-ic${item.avisa ? ' avisa' : ''}`}>
+                <Icon size={20} />
+              </span>
               <span>{text}</span>
             </NavLink>
           );

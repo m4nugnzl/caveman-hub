@@ -231,7 +231,9 @@ export const SelectorEtiquetas = ({
                 cerrar();
               }}
             >
-              <Plus size={15} aria-hidden="true" /> Crear «{termino}»
+              {/* «Nueva etiqueta», no «Crear»: dar de alta una pieza se dice
+                  igual en toda la casa. Ver `docs/producto.md` §5.8. */}
+              <Plus size={15} aria-hidden="true" /> Nueva etiqueta «{termino}»
             </button>
           )}
 

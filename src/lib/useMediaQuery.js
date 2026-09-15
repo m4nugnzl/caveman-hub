@@ -33,9 +33,13 @@ export const useMediaQuery = (query) => {
 };
 
 /**
- * El corte del TELÉFONO (≤640), el mismo valor que usa la hoja de estilos para
- * la hoja inferior del modal y el repliegue de las tablas. No confundir con el
- * corte del chasis (1024): una tableta lleva barra del pulgar pero le cabe la
- * geometría ancha del editor.
+ * El corte del TELÉFONO, el primero de los cuatro anchos de la casa (la tabla
+ * está en `styles/tokens.css`, «LOS CUATRO ANCHOS»). Es el mismo valor que usa
+ * la hoja de estilos para la hoja inferior del modal y el repliegue de las
+ * tablas, y por eso se escribe igual: 639,98 y no 640, que se solapa con el
+ * `min-width: 640px` complementario.
+ *
+ * No confundir con el corte del CHASIS (1024): una tableta lleva barra del
+ * pulgar pero le cabe la geometría ancha del editor.
  */
-export const useEsTelefono = () => useMediaQuery('(max-width: 640px)');
+export const useEsTelefono = () => useMediaQuery('(max-width: 639.98px)');

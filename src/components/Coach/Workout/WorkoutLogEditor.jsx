@@ -759,7 +759,7 @@ export const WorkoutLogEditor = () => {
   /*
     ══ El vacío ofrece las DOS rutas ══════════════════════════════════════════
 
-    Enseñaba un solo botón, «Crear primer microciclo», y ese es justo el momento
+    Enseñaba un solo botón, «Nuevo microciclo», y ese es justo el momento
     en el que copiar vale más que en ningún otro: das de alta a alguien y lo
     normal es montarlo como a otro que ya funciona. La otra ruta existía —dentro
     del menú ⋯ de una barra de microciclos que aquí ni siquiera se pinta—, así
@@ -796,7 +796,7 @@ export const WorkoutLogEditor = () => {
                 className={`btn btn-lg ${bloquesCopiados.length > 0 ? 'btn-secondary' : 'btn-primary'}`}
                 onClick={() => irA(startProgram(activeClient.id))}
               >
-                <Plus size={15} /> Crear primer microciclo
+                <Plus size={15} /> Nuevo microciclo
               </button>
               {/*
                 El momento exacto de la mudanza: alguien que acaba de dar de alta

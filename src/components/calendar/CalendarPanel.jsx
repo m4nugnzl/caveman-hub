@@ -350,15 +350,17 @@ export const CalendarPanel = ({ audience = 'client' }) => {
 
   /** Mover la revisión de un periodo a otro día, o devolverla al suyo. */
   const moverRevision = (date) => {
-    const dates = moveCheckIn(activeClient.preferences, activeClient.startDate, date, today);
-    if (!dates) {
+    /* Las dos listas juntas: el motivo de una fecha movida se cae con ella, y
+       podarlo es de `moveCheckIn` y no de esta pantalla. */
+    const siguiente = moveCheckIn(activeClient.preferences, activeClient.startDate, date, { today });
+    if (!siguiente) {
       setError(
         `No se puede mover ahí: hace falta un día de pauta, y solo se guardan ${MAX_CHECKIN_DATES} fechas movidas a la vez. Devuelve alguna a su día antes de mover otra.`
       );
       return;
     }
     setError(null);
-    updateClientPreferences(clientId, 'checkin', { dates });
+    updateClientPreferences(clientId, 'checkin', siguiente);
     setOpenDay(null);
   };
 
@@ -503,9 +505,16 @@ export const CalendarPanel = ({ audience = 'client' }) => {
                 }Para mover una fecha suelta sin cambiar la pauta, toca ese día en el mes.`}
           </span>
 
+          {/* Cada fecha movida con su porqué, si lo tiene. «17 oct» a secas, tres
+              semanas después, es un día raro en el calendario: nadie se acuerda
+              de que era por un viaje. */}
           {movidas.length > 0 && (
             <span className="t-xs t-tertiary">
-              Movidas: {movidas.map((d) => shortDate(d)).join(' · ')}.
+              Movidas:{' '}
+              {movidas
+                .map((d) => (pauta.notes[d] ? `${shortDate(d)} (${pauta.notes[d]})` : shortDate(d)))
+                .join(' · ')}
+              .
             </span>
           )}
         </div>

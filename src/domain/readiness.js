@@ -29,6 +29,7 @@
 import { round, toNum } from '@/lib/num';
 import { shortDate, weekStart } from '@/lib/dates';
 import { allSessions, sessionTonnage } from './sessions';
+import { hayRespuesta } from './protocol';
 
 const avg = (values) =>
   values.length === 0 ? null : round(values.reduce((a, v) => a + v, 0) / values.length, 1);
@@ -192,7 +193,7 @@ export const feedbackLog = (microcycles, questions) =>
            reaparece en el histórico aunque su respuesta siga en el jsonb. */
         values: questions
           .map((question) => ({ question, value: answers[question.id] }))
-          .filter((row) => String(row.value ?? '').trim() !== ''),
+          .filter((row) => hayRespuesta(row.value)),
       };
     })
     .reverse();

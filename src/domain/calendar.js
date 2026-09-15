@@ -145,8 +145,23 @@ export const shiftMonth = (year, month, delta) => {
 export const CHECKIN_CADENCES = [
   { weeks: 1, label: 'Cada semana' },
   { weeks: 2, label: 'Cada 2 semanas' },
+  /* La de tres la pide todo el mundo y no estaba: quien revisa cada tres semanas
+     tenía que elegir entre reclamar de más o de menos. */
+  { weeks: 3, label: 'Cada 3 semanas' },
   { weeks: 4, label: 'Cada 4 semanas' },
 ];
+
+/**
+ * Tope de la cadencia. Es el mismo del horario del protocolo
+ * (`EVERY_MAX`), y es a propósito: el horario SIEMBRA esta pauta, así que si
+ * aceptara valores que aquí no caben, sembrar «cada 6 semanas» se convertiría en
+ * silencio en «cada semana» — la clase de desacuerdo que la unificación de la
+ * cita vino a cerrar.
+ *
+ * `CHECKIN_CADENCES` es lo que la pantalla OFRECE; esto es lo que el modelo
+ * acepta. Un valor guardado fuera de la lista se respeta y se dice tal cual.
+ */
+export const MAX_EVERY_WEEKS = 8;
 
 /* ==========================================================================
    Las fechas movidas
@@ -182,11 +197,17 @@ export const CHECKIN_CADENCES = [
 /** Tope de fechas movidas que se guardan. Las preferencias enteras caben en 8 KB. */
 export const MAX_CHECKIN_DATES = 12;
 
+/** Y el tope del porqué. Es una nota al margen, no un parte. */
+export const MAX_CHECKIN_NOTE = 80;
+
 /** La pauta de revisión de un cliente, con los valores por defecto puestos. */
 export const checkInSchedule = (preferences) => {
   const raw = preferences?.checkin;
   const weekday = Number.isInteger(raw?.weekday) && raw.weekday >= 0 && raw.weekday <= 6 ? raw.weekday : null;
-  const weeks = CHECKIN_CADENCES.some((c) => c.weeks === raw?.everyWeeks) ? raw.everyWeeks : 1;
+  const weeks =
+    Number.isInteger(raw?.everyWeeks) && raw.everyWeeks >= 1 && raw.everyWeeks <= MAX_EVERY_WEEKS
+      ? raw.everyWeeks
+      : 1;
 
   /* Ordenadas y sin repetidos, aquí y no en quien las escriba: `dueOnOf` se
      queda con la PRIMERA que cae dentro del periodo, así que el orden es parte
@@ -195,7 +216,22 @@ export const checkInSchedule = (preferences) => {
     .sort()
     .slice(0, MAX_CHECKIN_DATES);
 
-  return { weekday, everyWeeks: weeks, dates };
+  /*
+    ══ Y el porqué de cada fecha movida ═══════════════════════════════════════
+
+    Una fecha movida sin motivo, tres semanas después, es un día raro en el
+    calendario: nadie se acuerda de que Javier estaba de viaje. El motivo es
+    opcional —aplazar tiene que seguir costando un gesto— y se guarda apuntado a
+    su fecha, no como una lista paralela: así una fecha que se devuelve a su día
+    de pauta se lleva su nota consigo y no queda huérfana.
+  */
+  const notas = {};
+  for (const fecha of dates) {
+    const texto = String(raw?.notes?.[fecha] ?? '').trim().slice(0, MAX_CHECKIN_NOTE);
+    if (texto) notas[fecha] = texto;
+  }
+
+  return { weekday, everyWeeks: weeks, dates, notes: notas };
 };
 
 /**
@@ -223,6 +259,29 @@ const dueOnOf = (periodStart, { weekday, everyWeeks, dates }) => {
   const fin = addDays(periodStart, everyWeeks * 7); // exclusivo: el lunes siguiente
   const movida = dates.find((d) => d >= periodStart && d < fin);
   return movida || addDays(periodStart, weekday);
+};
+
+/**
+ * La forma de UN periodo, el que sea.
+ *
+ * Se extrajo de `currentCheckInPeriod` cuando apareció la ventana de gracia
+ * (`periodoAEntregar`): hacían falta dos periodos con la misma forma —el de hoy
+ * y el anterior— y escribir el segundo a mano habría sido una segunda verdad
+ * sobre `dueOn`, que es justo lo que este archivo lleva tres rondas evitando.
+ */
+const periodoDe = (start, pauta, today) => {
+  const porPauta = addDays(start, pauta.weekday);
+  const dueOn = dueOnOf(start, pauta);
+
+  return {
+    start,
+    dueOn,
+    everyWeeks: pauta.everyWeeks,
+    isDue: today >= dueOn,
+    /* Si esta entrega se ha movido de su día. Lo usa la pantalla para decirlo en
+       vez de dejar al cliente comparándolo con la pauta él solo. */
+    moved: dueOn !== porPauta,
+  };
 };
 
 /**
@@ -296,18 +355,113 @@ export const currentCheckInPeriod = (preferences, startDate, today = todayISO())
   const start = periodStartOf(semanaDeHoy, ancla, pauta.everyWeeks);
   if (!start) return null;
 
-  const porPauta = addDays(start, pauta.weekday);
-  const dueOn = dueOnOf(start, pauta);
+  return periodoDe(start, pauta, today);
+};
 
-  return {
-    start,
-    dueOn,
-    everyWeeks: pauta.everyWeeks,
-    isDue: today >= dueOn,
-    /* Si esta entrega se ha movido de su día. Lo usa la pantalla para decirlo en
-       vez de dejar al cliente comparándolo con la pauta él solo. */
-    moved: dueOn !== porPauta,
-  };
+/**
+ * EL PERIODO QUE ESTÁ ENTREGANDO AHORA MISMO, que no siempre es el de hoy.
+ *
+ * ══ La avería que arregla ══════════════════════════════════════════════════
+ *
+ * Una revisión se archiva en `(cliente, lunes de su semana)`, y hasta ahora se
+ * archivaba en **el periodo en el que estás hoy**, no en el que debías. Con la
+ * revisión el domingo, eso hacía esto:
+ *
+ *     dom 13  le tocaba          → no entrega
+ *     lun 14  empieza periodo nuevo
+ *     mar 15  entrega            → se guardaba en la semana del 14
+ *
+ * Mandó una y se le contaron dos: la del 14 quedaba consumida sin haberla
+ * vivido, y la del 7 seguía ahí sin entregar. «Le ha saltado una», que es como
+ * lo contó el entrenador que lo reportó.
+ *
+ * ── La regla: de tu día al siguiente ───────────────────────────────────────
+ * Mientras no te haya llegado tu **próximo** día, lo que entregas es la que
+ * debías. Nadie manda un martes la revisión del domingo que viene; manda la que
+ * debe. Llegado el día nuevo, la ventana se cierra y la vieja cae a «semanas
+ * atrasadas» (`deliverableWeeks`), que es donde ya vivía.
+ *
+ * Sale gratis en todas las cadencias y en todos los días de la semana: la
+ * ventana es exactamente «`isDue` del periodo en curso», sin ningún plazo
+ * inventado. Con la revisión el lunes no cambia nada —el periodo en curso YA es
+ * el que se debe toda la semana—, y con cadencia quincenal la ventana dura dos
+ * semanas sola.
+ *
+ * ── Y no toca nada del lado del entrenador ─────────────────────────────────
+ * La entrega tardía se archiva en la semana del 7 y le llega igual: `buildPortfolio`
+ * deja pasar cualquier entrega sin contestar sea de la semana que sea, y
+ * `weekToReview` abre la que el cliente entregó de verdad.
+ *
+ * @param entrega La última entrega que se tenga cargada de esta persona — es la
+ *   única que hace falta: si hubiera entregado el periodo anterior, sería esa o
+ *   una más nueva.
+ * @returns El mismo objeto que `currentCheckInPeriod`, con `tarde` en cierto
+ *   cuando lo abierto es el periodo anterior. `null` sin día elegido.
+ */
+export const periodoAEntregar = ({
+  preferences,
+  startDate,
+  entrega = null,
+  today = todayISO(),
+} = {}) => {
+  const actual = currentCheckInPeriod(preferences, startDate, today);
+  if (!actual) return null;
+
+  /* Llegado su día, lo abierto es el de hoy: la ventana del anterior se acabó
+     justo aquí. Es la única condición de toda la regla. */
+  if (actual.isDue) return actual;
+
+  const pauta = checkInSchedule(preferences);
+  const anterior = addDays(actual.start, -pauta.everyWeeks * 7);
+
+  /* Antes del alta no hay periodo anterior que deber. La misma guarda que
+     `periodStartOf`, y por el mismo motivo: quien empezó este lunes no arrastra
+     nada de la semana pasada. */
+  const ancla = startDate ? weekStart(startDate) : weekStart(today);
+  if (anterior < ancla) return actual;
+
+  /* Ya entregado el anterior no hay nada que recuperar. Vale la fila de
+     cualquier semana desde ese lunes: el periodo siguiente es el de hoy, y ese
+     no está entregado o no estaríamos aquí. */
+  if (entrega?.weekStart >= anterior && (entrega.submittedAt || entrega.reviewedAt)) return actual;
+
+  return { ...periodoDe(anterior, pauta, today), tarde: true };
+};
+
+/**
+ * SU REVISIÓN, AHORA MISMO: el periodo vigente y si la ha entregado.
+ *
+ * ══ Por qué las dos cosas juntas ═══════════════════════════════════════════
+ *
+ * Porque por separado no contestan nada. El periodo dice cuándo le toca; la
+ * fila de `check_ins` dice qué hay entregado; y la pregunta que hacen las
+ * pantallas —«¿esta persona me debe algo?»— necesita las dos y el mismo
+ * emparejamiento en todas: la entrega cuenta si es de este PERIODO, no de esta
+ * semana natural. Con cadencia quincenal son dos ventanas distintas, y quien
+ * comparaba contra el lunes de hoy volvía a pedirle la revisión dos días
+ * después de haberla mandado.
+ *
+ * La escribían a mano la portada y la barra del pulgar. Ahora es una cuenta.
+ *
+ * @param entrega La fila de check-in que se tenga cargada de esta persona.
+ * @returns `{ periodo, desde, sinEntregar, espera }` — `espera` es la única que
+ *   enciende un punto: le toca YA y no la ha mandado. Antes del día no se le
+ *   reclama nada.
+ */
+export const estadoDeLaEntrega = ({
+  preferences,
+  startDate,
+  entrega = null,
+  today = todayISO(),
+} = {}) => {
+  /* El periodo ABIERTO y no el de hoy: entregarse con dos días de retraso no
+     puede saltarse una revisión. Ver `periodoAEntregar`. */
+  const periodo = periodoAEntregar({ preferences, startDate, entrega, today });
+  const desde = periodo?.start || weekStart(today);
+  const deEste = entrega?.weekStart >= desde ? entrega : null;
+  const sinEntregar = !deEste?.submittedAt && !deEste?.reviewedAt;
+
+  return { periodo, desde, sinEntregar, espera: sinEntregar && Boolean(periodo?.isDue) };
 };
 
 /** Eventos indexados por fecha, para pintar la rejilla sin recorrer la lista N veces. */
@@ -366,12 +520,20 @@ export const nextCheckIn = (preferences, startDate, from = todayISO()) => {
 /**
  * Mover la entrega de un periodo a otra fecha, o devolverla a su día de pauta.
  *
- * Devuelve la lista de fechas movidas que hay que guardar, o `null` si el cambio
- * no se puede hacer. Vive aquí y no en la pantalla porque la regla —**una fecha
- * movida por periodo**— es la que sostiene que `dueOnOf` no pueda ser ambigua, y
- * una pantalla no es sitio para guardar un invariante.
+ * Devuelve `{ dates, notes }` —la sección `checkin` que hay que guardar— o
+ * `null` si el cambio no se puede hacer. Vive aquí y no en la pantalla porque la
+ * regla —**una fecha movida por periodo**— es la que sostiene que `dueOnOf` no
+ * pueda ser ambigua, y una pantalla no es sitio para guardar un invariante.
+ *
+ * ── Devuelve las DOS listas, siempre ───────────────────────────────────────
+ * Aunque no se pase motivo. Las notas se podan aquí —se quedan solo las de
+ * fechas que siguen movidas— porque quien llama no tiene forma de saber cuál se
+ * acaba de caer, y una nota huérfana reaparecería el día que esa fecha se
+ * volviera a mover por otro motivo distinto.
+ *
+ * @param motivo  El porqué, opcional. Ver `MAX_CHECKIN_NOTE`.
  */
-export const moveCheckIn = (preferences, startDate, date, today = todayISO()) => {
+export const moveCheckIn = (preferences, startDate, date, { today = todayISO(), motivo = '' } = {}) => {
   const pauta = checkInSchedule(preferences);
   if (pauta.weekday === null) return null;
 
@@ -387,15 +549,25 @@ export const moveCheckIn = (preferences, startDate, date, today = todayISO()) =>
      misma quincena y `dueOnOf` se quedaría con la primera sin decirlo. */
   const resto = pauta.dates.filter((d) => d < periodo || d >= fin);
 
+  /** Las notas que sobreviven a una lista de fechas, más la que se acaba de dar. */
+  const conNotas = (fechas, nueva = null) => {
+    const notes = {};
+    for (const f of fechas) if (pauta.notes[f]) notes[f] = pauta.notes[f];
+    const texto = String(motivo ?? '').trim().slice(0, MAX_CHECKIN_NOTE);
+    if (nueva && texto) notes[nueva] = texto;
+    else if (nueva) delete notes[nueva];
+    return { dates: fechas, notes };
+  };
+
   /* Volver a pulsar la fecha que ya estaba la quita: es el mismo gesto de ida y
      de vuelta, y devuelve el periodo a su día de pauta. */
-  if (pauta.dates.includes(iso)) return resto;
+  if (pauta.dates.includes(iso)) return conNotas(resto);
 
   /* Poner la fecha del propio día de pauta no es mover nada. Se guarda igual
      como «sin mover» para que la lista no acumule fechas que no significan
      nada. */
-  if (iso === addDays(periodo, pauta.weekday)) return resto;
+  if (iso === addDays(periodo, pauta.weekday)) return conNotas(resto);
 
   if (resto.length >= MAX_CHECKIN_DATES) return null;
-  return [...resto, iso].sort();
+  return conNotas([...resto, iso].sort(), iso);
 };

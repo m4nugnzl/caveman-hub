@@ -52,10 +52,26 @@ const emptyDrill = () => ({ id: newId('drill'), name: '', prescription: '', vide
  * YouTube. Para diez segundos de una movilidad, eso es un cartel; y con cinco
  * ejercicios, cinco carteles.
  *
- * Un vídeo de un ejercicio no es un destino: es una propiedad del ejercicio.
- * Así que se dice como se dice en cualquier lista de reproducción —una
- * miniatura con su triángulo a la izquierda del nombre— y al pulsar la fila el
- * reproductor se abre debajo, dentro del propio ejercicio.
+ * Un vídeo de un ejercicio no es un destino: es una propiedad del ejercicio, y
+ * al pulsar la fila el reproductor se abre debajo, dentro del propio ejercicio.
+ *
+ * ══ Y AQUÍ VIVÍA LA MINIATURA (13 sep 2026) ════════════════════════════════
+ *
+ * Un rectángulo de 44 × 30 con un disco claro y su triángulo encima, a la
+ * izquierda del nombre: «el hueco donde iría el fotograma», que es como lo dice
+ * iOS. La idea era buena y el resultado no: no hay fotograma que enseñar —lo
+ * único que se dibujaba era el hueco—, así que eran cuarenta y cuatro píxeles de
+ * caja vacía por fila, y con tres movilidades el calentamiento empezaba a pesar
+ * más que el primer ejercicio de verdad.
+ *
+ * El dueño lo señaló por su nombre: *«reduce elementos que se ven demasiado,
+ * como las miniaturas de los enlaces, que no me gustan nada y hacen que el
+ * calentamiento ocupe demasiado»*.
+ *
+ * Lo que hay que decir es «aquí hay un vídeo», y para eso basta el triángulo al
+ * lado del nombre, del tamaño del texto. El chevron de la derecha sigue diciendo
+ * que se abre. Dos marcas de trece píxeles en vez de una caja de cuarenta y
+ * cuatro, y la fila baja de 46 px de alto a la altura de su renglón.
  */
 const WarmupDrill = ({ drill }) => {
   const [abierto, setAbierto] = useState(false);
@@ -63,16 +79,11 @@ const WarmupDrill = ({ drill }) => {
 
   const cuerpo = (
     <>
-      {/* La miniatura solo si se puede reproducir aquí: prometer un play que
-          acaba abriendo otra pestaña es prometer lo que no es. */}
-      {video && (
-        <span className="warmup-thumb" aria-hidden="true">
-          <Play size={13} fill="currentColor" />
-        </span>
-      )}
-
       <span className="warmup-say">
         <span className="nm">
+          {/* El triángulo solo si se puede reproducir aquí: prometer un play que
+              acaba abriendo otra pestaña es prometer lo que no es. */}
+          {video && <Play className="warmup-play" size={13} fill="currentColor" aria-hidden="true" />}
           {drill.name}
           {drill.prescription && <span className="dose">{drill.prescription}</span>}
         </span>

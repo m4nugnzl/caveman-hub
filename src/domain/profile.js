@@ -73,11 +73,15 @@ export const PROFILE_GROUPS = [
   {
     id: 'training',
     label: 'Cómo entrena',
+    /* Y dicho a quien lo contesta, que es la misma regla que `labelTu`: en su
+       hoja de alta esta tanda encabeza su tramo. Ver `formSections`. */
+    labelTu: 'Cómo entrenas',
     sub: 'Con qué cuentas al montarle el programa. Sale de su cuestionario.',
   },
   {
     id: 'nutrition',
     label: 'Cómo come',
+    labelTu: 'Cómo comes',
     sub: 'Su día a día con la comida, antes de tocarle nada. Sale de su cuestionario.',
   },
 ];
@@ -112,16 +116,59 @@ const ACTIVITY = [
  *   choice → una de las opciones declaradas, y ninguna otra.
  *   yesno  → sí, no, o sin contestar. Los tres son estados distintos.
  *   link   → una dirección que se abre. Se guarda solo si es `https://`.
+ *
+ * ── Y una cifra dice DE QUÉ TAMAÑO ES ─────────────────────────────────────
+ * Dos apuntes que solo usa el formulario del cliente (`ControlDelAlta`), y que
+ * están aquí porque son del dato y no del control:
+ *
+ *   `cuenta`  → su respuesta es una cuenta pequeña que alguien hace con los
+ *     dedos: días a la semana, comidas al día. Se contesta con «−» y «+» y no
+ *     con una casilla, que es la misma regla que ya sigue el formulario suelto
+ *     (ver `ui/Contador`). Sin esto no se puede saber: en este catálogo «días»
+ *     y «comidas» van declarados como unidad, así que la regla del suelto —lo
+ *     que no lleva unidad se cuenta— aquí no distingue nada.
+ *   `digitos` → cuántas cifras tiene como mucho la respuesta, para que la
+ *     casilla mida lo que va a llevar dentro. Los pasos del día son cinco y la
+ *     duración de una sesión, tres; con una medida para todas, la de los pasos
+ *     dejaba a las demás con una caja vacía al lado de la cifra.
  */
+/*
+  ══ `labelTu` y `hintTu`: la misma pregunta, dicha a quien la contesta ═══════
+
+  De esta lista salen tres pantallas y NO tienen el mismo lector. La ficha y el
+  constructor los lee el entrenador —habla de una tercera persona: «Le gusta»,
+  «Días que puede entrenar»— y el formulario de alta lo lee el cliente, que es
+  esa tercera persona.
+
+  Se enseñaba el mismo rótulo en los dos sitios, así que el alta le preguntaba a
+  alguien «Le gusta» y le explicaba un campo con «Lo que él dice que tiene. Lo
+  que le programas va en su rutina» — una frase escrita para su entrenador,
+  dentro de su pantalla, hablando de él en tercera persona. Las cinco preguntas
+  del cribado sí estaban en segunda persona desde el principio, o sea que la
+  regla ya existía y este catálogo era la excepción.
+
+  Quien reparte es `formSections`, que es la única puerta por la que este
+  catálogo llega al cliente. Sin `labelTu`, manda `label`: los que ya valen para
+  los dos —«Comidas al día», «Alcohol y tabaco»— no repiten nada.
+*/
 export const PROFILE_FIELDS = [
   // ── Cómo entrena ────────────────────────────────────────────────────────
-  { id: 'experience', group: 'training', label: 'Experiencia', kind: 'choice', options: EXPERIENCE },
+  {
+    id: 'experience',
+    group: 'training',
+    label: 'Experiencia',
+    labelTu: 'Tu experiencia entrenando',
+    kind: 'choice',
+    options: EXPERIENCE,
+  },
   {
     id: 'coachedBefore',
     group: 'training',
     label: '¿Ha tenido entrenador?',
+    labelTu: '¿Has tenido entrenador antes?',
     kind: 'yesno',
     hint: 'Cambia cuánto hay que explicarle, no lo que se le pone.',
+    hintTu: 'Cambia cuánto hay que explicarte por el camino, no lo que te toca hacer.',
   },
   {
     /*
@@ -132,23 +179,30 @@ export const PROFILE_FIELDS = [
     id: 'daysAvailable',
     group: 'training',
     label: 'Días que puede entrenar',
+    labelTu: 'Días que puedes entrenar',
     kind: 'number',
     unit: 'días',
     decimals: 1,
+    /* Del 1 al 7: se cuenta, no se teclea. */
+    cuenta: true,
     hint: 'Lo que él dice que tiene. Lo que le programas va en su rutina.',
+    hintTu: 'Los que de verdad te cuadran. Con eso se te monta la rutina.',
   },
   {
     id: 'sessionMinutes',
     group: 'training',
     label: 'Duración de la sesión',
+    labelTu: 'Cuánto tiempo tienes por sesión',
     kind: 'number',
     unit: 'min',
     decimals: 0,
+    digitos: 3,
   },
   {
     id: 'trainingWindow',
     group: 'training',
     label: 'A qué hora puede',
+    labelTu: 'A qué hora puedes entrenar',
     kind: 'text',
     placeholder: '6:00–7:45, o después de las 20:00',
   },
@@ -156,6 +210,7 @@ export const PROFILE_FIELDS = [
     id: 'equipment',
     group: 'training',
     label: 'Material propio',
+    labelTu: 'Material que tienes tú',
     kind: 'text',
     placeholder: 'Straps, cincha, tobilleras',
   },
@@ -163,9 +218,11 @@ export const PROFILE_FIELDS = [
     id: 'otherSport',
     group: 'training',
     label: 'Otro deporte',
+    labelTu: 'Otro deporte que practiques',
     kind: 'text',
     placeholder: 'Tenis, domingos por la mañana, 90 min',
     hint: 'Ocupa un día y se cobra en la recuperación, aunque no lo programes tú.',
+    hintTu: 'Cuenta para tu recuperación aunque no entre en la rutina.',
   },
   {
     /* Va con el entrenamiento y no con la comida porque lo que decide es CUÁNDO
@@ -174,6 +231,7 @@ export const PROFILE_FIELDS = [
     id: 'occupation',
     group: 'training',
     label: 'Estudia o trabaja',
+    labelTu: 'Estudias o trabajas',
     kind: 'text',
     placeholder: 'Universidad, 9:30 a 14:30',
   },
@@ -183,10 +241,13 @@ export const PROFILE_FIELDS = [
     id: 'sleepHours',
     group: 'training',
     label: 'Duerme',
+    labelTu: 'Cuánto duermes',
     kind: 'number',
     unit: 'h',
     decimals: 1,
+    digitos: 3,
     hint: 'El techo de lo que puede recuperar. Se mira antes de subirle el volumen.',
+    hintTu: 'Es el techo de lo que puedes recuperar.',
   },
 
   // ── Cómo come ───────────────────────────────────────────────────────────
@@ -197,11 +258,14 @@ export const PROFILE_FIELDS = [
     kind: 'number',
     unit: 'comidas',
     decimals: 0,
+    /* Lo mismo que los días de entreno: son dos, cuatro o seis. */
+    cuenta: true,
   },
   {
     id: 'mealTimes',
     group: 'nutrition',
     label: 'A qué horas come',
+    labelTu: 'A qué horas comes',
     kind: 'text',
     placeholder: '7:30 · 14:45 · 23:15',
   },
@@ -209,21 +273,32 @@ export const PROFILE_FIELDS = [
     id: 'eatsOut',
     group: 'nutrition',
     label: 'Come fuera',
+    labelTu: 'Cuánto comes fuera',
     kind: 'text',
     placeholder: 'Una o dos veces al mes; en vacaciones a diario',
   },
-  { id: 'likes', group: 'nutrition', label: 'Le gusta', kind: 'text', placeholder: 'Toda la fruta' },
+  {
+    id: 'likes',
+    group: 'nutrition',
+    label: 'Le gusta',
+    labelTu: 'Lo que te gusta',
+    kind: 'text',
+    placeholder: 'Toda la fruta',
+  },
   {
     id: 'dislikes',
     group: 'nutrition',
     label: 'No le gusta',
+    labelTu: 'Lo que no te gusta',
     kind: 'text',
     hint: 'Distinto de una intolerancia: eso va en Condicionantes.',
+    hintTu: 'Gustos, no alergias: las alergias se preguntan aparte.',
   },
   {
     id: 'supplements',
     group: 'nutrition',
     label: 'Suplementación',
+    labelTu: 'Qué suplementos tomas',
     kind: 'text',
     placeholder: 'Creatina 5 g, vitamina D',
   },
@@ -234,6 +309,7 @@ export const PROFILE_FIELDS = [
     id: 'activityLevel',
     group: 'nutrition',
     label: 'Cómo pasa el día',
+    labelTu: 'Cómo pasas el día',
     kind: 'choice',
     options: ACTIVITY,
     hint: 'Ocho horas de pie y ocho sentado no gastan lo mismo.',
@@ -247,10 +323,13 @@ export const PROFILE_FIELDS = [
     id: 'dailySteps',
     group: 'nutrition',
     label: 'Pasos al día',
+    labelTu: 'Pasos que das al día',
     kind: 'number',
     unit: 'pasos',
     decimals: 0,
+    digitos: 5,
     hint: 'Los que da ahora. Su objetivo se pone en la nutrición.',
+    hintTu: 'Los que das ahora, no los que quieres llegar a dar.',
   },
 ];
 

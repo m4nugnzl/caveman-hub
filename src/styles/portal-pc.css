@@ -1,0 +1,1132 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PORTAL DEL CLIENTE EN EL MONITOR — «Cajas»
+
+   Es el lenguaje del estudio `docs/estudio-cajas.html` (14 sep 2026, segunda
+   vuelta), construido. Una pantalla deja de ser una hoja con cosas escritas
+   encima y pasa a ser una REJILLA DE CAJAS: cada una con su canto, su rótulo
+   y un solo trabajo.
+
+   ── Por qué va todo prefijado `pc-` y con paleta propia ───────────────────
+   El estudio pedía cambiar los tokens de la casa (`--edge-card` de transparente
+   a un canto, el lienzo de cálido a frío, las sombras sin sepia). Eso se ve
+   TAMBIÉN en el panel del entrenador, que no es lo que se ha pedido aquí. Así
+   que el lenguaje entero vive bajo `.pc-portal` y redefine su paleta ahí
+   dentro: el portal del cliente estrena chasis y el taller del entrenador se
+   queda exactamente como estaba.
+
+   El día que el entrenador quiera el mismo lenguaje, lo que hay que mover son
+   los cinco valores de `.pc-portal` a `:root` y borrar el prefijo. No hay dos
+   sistemas: hay uno, acotado.
+
+   ── Las cinco decisiones del estudio ──────────────────────────────────────
+   1. La caja tiene CANTO (`--pc-canto`), radio 18 y una sombra de 1 px.
+   2. El lienzo pierde la temperatura, no la claridad: #f1f2f5, escalón 1,12.
+      Las sombras dejan el sepia — `rgba(16,24,40)` en vez de `rgba(38,32,20)`.
+   3. La cinta es el ancla: #10151d, el único trozo oscuro de la pantalla.
+   4. Escala de PANEL (13-14 px), no de lectura, y las cifras en la ancha.
+   5. La tira de teselas —rótulo · cifra · delta— abre todas las pantallas.
+
+   El acento no se toca: sigue siendo `--accent` (#3b49df). Ver `ley-del-color`.
+
+   ── El radio, de la segunda vuelta ────────────────────────────────────────
+   La primera versión usaba radio 12 y el dueño la vio «demasiado cuadrada,
+   poco amistosa», señalando el prototipo del teléfono del 13 de septiembre
+   —radio 20 en la tarjeta, 14 dentro, botón de 50 px con radio 25— como el que
+   sí le gustaba. De ahí salen estos: caja 18, pieza interior 12, píldoras y
+   primario redondos del todo. El canto y el lienzo no se tocaron: lo cuadrado
+   era el radio, no el sistema.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── La paleta ya no es suya: es la de la casa ─────────────────────────────
+   Hasta el 14 sep por la tarde esto eran veinte hexadecimales escritos a mano
+   —#f1f2f5 de lienzo, #12151a de tinta, #0e7a4e de verde…—. El argumento era
+   acotar el lenguaje nuevo al portal para no tocar el panel del entrenador, y
+   funcionó para eso; pero traía una consecuencia que el dueño encontró a la
+   primera: **el portal no tenía modo noche**. No es que estuviera sin hacer, es
+   que no podía tenerlo — un hexadecimal no escucha a `[data-theme]`.
+
+   Y traía una segunda, menos visible y peor: las pantallas que el rediseño NO
+   tocó (el alta, el calendario, la báscula, las fotos) sí siguen el tema, así
+   que en cuanto alguien ponía la noche el portal salía a cachos — media
+   aplicación en hierro y media en papel.
+
+   Ahora los `--pc-*` son ALIAS de los tokens de la casa. Los nombres se quedan
+   mientras queden pantallas por migrar: cambiar mil doscientas líneas de CSS y
+   siete pantallas en el mismo movimiento es como se rompen las cosas. Cada
+   pantalla que pasa a las piezas de la casa se lleva por delante su trozo de
+   esta hoja; el día que no quede ninguna, esta hoja entera se borra.
+
+   Lo único que este bloque conserva de propio es la ESCALA: 14 px de panel en
+   vez de los 16 de lectura de la casa. Eso no es color, es densidad, y es lo
+   que hace que un panel quepa. */
+.pc-portal {
+  --pc-lienzo: var(--canvas);
+  --pc-caja: var(--surface);
+  --pc-canto: var(--edge);
+  --pc-canto-2: var(--edge-control);
+  --pc-hundido: var(--surface-sunken);
+  --pc-tinta: var(--text);
+  --pc-tinta-2: var(--text-secondary);
+  --pc-tinta-3: var(--text-tertiary);
+  --pc-tinta-4: var(--text-tertiary);
+  --pc-senal-suave: var(--accent-soft);
+  --pc-senal-canto: var(--accent-wash);
+  --pc-verde: var(--positive);
+  --pc-verde-suave: var(--positive-soft);
+  --pc-rojo: var(--negative);
+  --pc-rojo-suave: var(--negative-soft);
+  --pc-ambar: var(--warning);
+  --pc-ambar-suave: var(--warning-soft);
+  --pc-trazo: var(--data-blue);
+  --pc-trazo-flojo: var(--data-slate);
+  --pc-sombra: var(--shadow-xs);
+
+  background: var(--pc-lienzo);
+  color: var(--pc-tinta);
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* ── La hoja: UNA sola medida para las siete pantallas ─────────────────────
+   La avería E-01 era tener tres anchos (1.560 / 1.320 / 880) para seis
+   pantallas, dos de ellos por excepciones escritas con `:has()`.
+
+   ── Y la medida es la de la casa, desde el 14 sep por la tarde ────────────
+   Los 1.360 de aquí arreglaban el reparto DENTRO de este lenguaje, pero el
+   portal dejó de ser solo este lenguaje: «Hoy» y «Tú» siguen en `.pc-hoja` y
+   Entreno, Dieta, Revisión y Progreso ya montan piezas del taller dentro de
+   `.layout`, que pide `--max-w-trabajo`. Medido en un monitor de 1.920:
+
+       Hoy    1.360 px (x = 280)      Entreno   1.560 px (x = 180)
+       Tú     1.360 px (x = 280)      Dieta     1.560 px (x = 180)
+
+   O sea, dos anchos otra vez, y el salto se ve: cada vez que se cambia de
+   pestaña arriba, la página entera se encoge 200 px. Es literalmente lo que
+   `--ancho-trabajo` tiene escrito en `tokens.css` —«tienen que pedir todas lo
+   MISMO: se salta entre ellas con las pestañas»— aplicado al otro lado.
+
+   El `--hueco-hoja` viene de `.layout` por el mismo motivo: quien sangre —la
+   tira de teselas, la cinta— tiene que acertar el margen sin adivinarlo. */
+.pc-hoja {
+  --hueco-hoja: var(--s5);
+  max-width: var(--max-w-trabajo);
+  margin: 0 auto;
+  padding: 24px var(--hueco-hoja) 46px;
+  /* La escala de PANEL —14 px, no los 16 de lectura de la casa— vivía en
+     `.pc-portal` y ha bajado aquí. Motivo: el portal empezó a montar piezas de
+     la casa (el panel del Resumen, las gráficas de `ui/charts`), y esas están
+     medidas contra `--fs-base`. Con los 14 px puestos en el marco, todo lo que
+     entrara heredaba una escala que no es la suya. En el marco la densidad no
+     es de nadie; en la hoja es de las pantallas que aún son de este lenguaje. */
+  font-size: 14px;
+  line-height: 1.5;
+}
+.pc-titulo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+.pc-titulo h2 {
+  font-family: var(--font-ancha);
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--pc-tinta);
+}
+.pc-fecha {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  color: var(--pc-tinta-3);
+  margin: 0 0 7px;
+  letter-spacing: 0.01em;
+}
+/* El saludo y el verbo de Revisión: los dos únicos titulares grandes, y los dos
+   por el mismo motivo — esas pantallas no se titulan, se abren. */
+.pc-saludo {
+  font-family: var(--font-ancha);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.026em;
+  margin: 0;
+}
+
+/* ── La rejilla de 12 ──────────────────────────────────────────────────────
+   Regla que la acota: ninguna caja pasa de 8 de las 12 columnas salvo una tabla
+   de verdad, y solo igualan altura las cajas de la MISMA fila. */
+.pc-rejilla {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: var(--s4);
+  align-items: start;
+}
+.pc-c4 { grid-column: span 4; }
+.pc-c5 { grid-column: span 5; }
+.pc-c8 { grid-column: span 8; }
+/* Una columna de la rejilla que apila varias cajas. */
+.pc-columna-caja {
+  display: grid;
+  gap: var(--s4);
+  align-content: start;
+}
+
+/* ── LA CAJA. Canto, radio, sombra de 1 px. La pieza del estudio ─────────── */
+.pc-caja {
+  background: var(--pc-caja);
+  border: 1px solid var(--pc-canto);
+  border-radius: 18px;
+  box-shadow: var(--pc-sombra);
+  overflow: hidden;
+}
+.pc-caja-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--pc-canto);
+}
+.pc-caja-cab h3 {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+  letter-spacing: -0.005em;
+  color: var(--pc-tinta);
+}
+.pc-enlace {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pc-enlace:hover {
+  text-decoration: underline;
+}
+.pc-enlace.pc-callado {
+  color: var(--pc-tinta-3);
+}
+.pc-meta {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1;
+  color: var(--pc-tinta-3);
+  white-space: nowrap;
+}
+.pc-caja-cuerpo {
+  padding: 18px;
+}
+.pc-caja-pie {
+  padding: 13px 18px;
+  border-top: 1px solid var(--pc-canto);
+  background: var(--pc-hundido);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pc-tinta-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+/* ── LA TESELA. La firma: la cifra sube antes que nada ─────────────────────
+   Es lo único del rediseño que es información nueva y no maquetación. La
+   avería E-05 era que ninguna de las seis pantallas abría con una cifra: las
+   seis abrían con titular y párrafo. */
+.pc-teselas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+  margin: 0 0 var(--s4);
+}
+/* Una tesela de 430 px para un número es la misma avería que este lenguaje le
+   reprocha al portal de ayer (E-04). La tira de tres se ciñe. */
+.pc-teselas.pc-de-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  max-width: 1020px;
+}
+.pc-tesela {
+  background: var(--pc-caja);
+  border: 1px solid var(--pc-canto);
+  border-radius: 18px;
+  box-shadow: var(--pc-sombra);
+  padding: 15px 17px var(--s4);
+  display: grid;
+  gap: var(--s1);
+  align-content: start;
+}
+.pc-tesela .pc-rot {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pc-tinta-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pc-tesela .pc-val {
+  font-family: var(--font-ancha);
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.024em;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.pc-tesela .pc-val small {
+  font-family: var(--font);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pc-tinta-3);
+  letter-spacing: 0;
+}
+.pc-tesela .pc-pie {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--pc-tinta-3);
+}
+
+.pc-delta {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: 0.01em;
+  margin-left: auto;
+}
+.pc-delta.pc-baja { background: var(--pc-verde-suave); color: var(--pc-verde); }
+.pc-delta.pc-sube { background: var(--pc-rojo-suave); color: var(--pc-rojo); }
+.pc-delta.pc-quieta { background: var(--pc-hundido); color: var(--pc-tinta-3); }
+
+/* ── Píldoras de estado ────────────────────────────────────────────────────
+   La avería E-12: el estado del portal era texto gris —«a medias», «anotada»,
+   «sin anotar»—. Una píldora es una píldora: a radio 6 era una etiqueta de
+   archivador. */
+.pc-pildora {
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: var(--r-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.pc-pildora.pc-ok { background: var(--pc-verde-suave); color: var(--pc-verde); }
+.pc-pildora.pc-espera { background: var(--pc-ambar-suave); color: var(--pc-ambar); }
+.pc-pildora.pc-nada { background: var(--pc-hundido); color: var(--pc-tinta-3); }
+
+/* ── Filas dentro de la caja ─────────────────────────────────────────────── */
+.pc-filas { display: grid; }
+.pc-fila {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--pc-canto);
+  transition: background 0.12s var(--ease);
+  text-align: left;
+  width: 100%;
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+.pc-fila:last-child { border-bottom: 0; }
+.pc-fila.pc-tocable { cursor: pointer; }
+.pc-fila.pc-tocable:hover { background: var(--pc-hundido); }
+.pc-fila .pc-icono {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--s3);
+  background: var(--pc-hundido);
+  border: 1px solid var(--pc-canto);
+  display: grid;
+  place-items: center;
+  color: var(--pc-tinta-2);
+  flex: none;
+}
+.pc-fila .pc-cuerpo { min-width: 0; flex: 1; }
+
+/* ── La fila con aspa: la NOVEDAD, lo único que se descarta ────────────────
+   El aspa es hermana de la fila y no va dentro: la fila entera es el enlace, y
+   un botón dentro de un enlace no es HTML válido ni se deja pulsar sin abrir lo
+   de detrás. El marco que las junta cuesta devolverle el filete a la fila: al
+   envolverla pasa a ser hija única, así que `:last-child` se lo quitaba. */
+.pc-descartable { position: relative; }
+.pc-descartable > .pc-fila { padding-right: 46px; }
+.pc-descartable:not(:last-child) > .pc-fila { border-bottom: 1px solid var(--pc-canto); }
+.pc-aspa {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--r-control);
+  background: none;
+  color: var(--pc-tinta-3);
+  cursor: pointer;
+}
+.pc-aspa:hover { background: var(--pc-hundido); color: var(--pc-tinta); }
+
+/* ── LAS TRES FILAS DE «TÚ» QUE NO LLEVAN A NINGÚN SITIO ───────────────────
+   La fila normal de esta caja es una puerta: icono, rótulo y galón. Estas tres
+   no lo son —un mando, una identidad y una salida— y por eso se dicen aquí en
+   vez de doblar `Fila` con tres banderas.
+
+   · `pc-ajuste`  el mando vive al final del renglón, que es donde lo busca la
+     mano en cualquier lista de preferencias, y no crece con la fila.
+   · `pc-quien`   la cara en vez del icono cuadrado: es una persona, no una
+     sección.
+   · `pc-salir`   la única de las tres que hace algo, y lo único de la pantalla
+     que no se deshace. Va en su tinta y solo al acercarse: en reposo es una
+     fila más, porque anunciarla en rojo desde lejos es pedirle atención a lo
+     que menos se usa. Ver la ley del color. */
+.pc-fila.pc-ajuste > .segmented { flex: none; }
+.pc-fila.pc-quien { gap: 13px; }
+.pc-fila.pc-quien .avatar { flex: none; }
+.pc-fila.pc-salir .pc-rotulo,
+.pc-fila.pc-salir .pc-icono { color: var(--pc-tinta-2); }
+.pc-fila.pc-salir:hover .pc-rotulo,
+.pc-fila.pc-salir:hover .pc-icono { color: var(--pc-rojo); }
+.pc-fila.pc-salir:hover { background: var(--pc-rojo-suave); }
+.pc-fila .pc-rotulo {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--pc-tinta);
+}
+.pc-fila .pc-frase {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--pc-tinta-3);
+}
+.pc-fila .pc-fin {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+.pc-fila .pc-cifra {
+  font-family: var(--font-ancha);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--pc-tinta);
+}
+.pc-chevron { color: var(--pc-tinta-4); flex: none; display: grid; }
+
+/* ── Tablas dentro de la caja ───────────────────────────────────────────── */
+.pc-tabla {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.pc-tabla th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--pc-tinta-3);
+  padding: 10px var(--s4);
+  background: var(--pc-hundido);
+  border-bottom: 1px solid var(--pc-canto);
+  white-space: nowrap;
+}
+.pc-tabla td {
+  padding: 11px var(--s4);
+  border-bottom: 1px solid var(--pc-canto);
+  color: var(--pc-tinta-2);
+  white-space: nowrap;
+}
+.pc-tabla tr:last-child td { border-bottom: 0; }
+.pc-tabla td.pc-nom {
+  color: var(--pc-tinta);
+  font-weight: 500;
+  width: 99%;
+  white-space: normal;
+}
+.pc-tabla td.pc-num {
+  text-align: right;
+  font-family: var(--font-ancha);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--pc-tinta);
+}
+.pc-tabla th.pc-num { text-align: right; }
+
+/* ── Botones ───────────────────────────────────────────────────────────────
+   El primario es una PASTILLA, como el del prototipo del teléfono que le gustó
+   al dueño (50 px de alto, radio 25). El secundario se queda en rectángulo
+   redondeado para que los dos no pesen lo mismo. */
+.pc-btn {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  height: 36px;
+  padding: 0 var(--s4);
+  border-radius: var(--s3);
+  border: 1px solid var(--pc-canto-2);
+  background: var(--pc-caja);
+  color: var(--pc-tinta);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: 0.14s var(--ease);
+  white-space: nowrap;
+  text-decoration: none;
+}
+.pc-btn:hover { background: var(--pc-hundido); }
+.pc-btn.pc-pri {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+  border-radius: var(--r-pill);
+  height: 40px;
+  padding: 0 20px;
+}
+.pc-btn.pc-pri:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.pc-btn.pc-grande {
+  height: 48px;
+  padding: 0 24px;
+  font-size: 14.5px;
+  border-radius: var(--r-pill);
+}
+.pc-btn.pc-ancho { width: 100%; }
+.pc-btn.pc-menudo {
+  height: 30px;
+  padding: 0 var(--s3);
+  font-size: 12.5px;
+}
+
+/* Aquí vivió el segmentado «El día / Tus dietas» de la dieta del monitor. Se
+   va con ella: la cinta de días del taller (`TiraDeLaDieta`) hace lo mismo con
+   los nombres de sus dietas en vez de con dos palabras genéricas, y de paso
+   sirve para elegir cuál se mira. Ver `DietaEnMonitor`. */
+
+/* ── La barra de aviso ──────────────────────────────────────────────────── */
+.pc-aviso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--pc-senal-canto);
+  background: var(--pc-senal-suave);
+  border-radius: 18px;
+  margin: 0 0 var(--s4);
+}
+.pc-aviso .pc-icono {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--s3);
+  background: var(--accent);
+  color: var(--accent-on);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.pc-aviso .pc-cuerpo { flex: 1; min-width: 0; }
+.pc-aviso .pc-rotulo {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: block;
+}
+.pc-aviso .pc-frase {
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--pc-tinta-2);
+  display: block;
+}
+
+/* Aquí vivían `.pc-pie-frase` y `.pc-renglon` —la nota al pie del botón de
+   entregar y el aviso de las semanas atrasadas—. Se van con la Revisión del
+   monitor (14 sep): la nota la escribe ahora `PasosDeLaEntrega`, que es la
+   pieza de la casa, y el aviso de atrasadas sobra porque debajo está la lista
+   entera con su fecha y su estado. Contar lo que se ve es ruido. */
+
+/* Y aquí las MIGAS del monitor, que se van con «Entreno»: eran «‹ Bloque 2 ·
+   microciclo 3 de 4» escrito a mano encima de la hoja. Lo dice ahora la tira
+   del taller, que además se puede pulsar. Ver `EntrenoEnMonitor`. */
+
+/* ── Aquí vivían LA TIRA DE SESIONES y EL HERO de «Entreno» ────────────────
+   Las pastillas de las hojas del microciclo, con su barra de progreso, y la
+   caja grande de «Hoy te toca · Pull A» con su botón.
+
+   Se van con `pc/PantallaEntreno` (14 sep): la tira del taller dibuja los
+   bloques y los microciclos, las hojas son un grupo de filas de la casa y el
+   verbo de entrar a la sesión sube a la cabecera de la página, que es donde
+   la casa pone la acción de una pantalla. Ver `EntrenoEnMonitor`. */
+
+/* ── LA CUENTA ATRÁS DEL DESCANSO ──────────────────────────────────────────
+   En la cabecera, junto a la cuenta de series: las dos dicen «por dónde va
+   esto». El porqué de que esté aquí y no sobre los campos —y el de que su
+   barrita no sea azul— está en el componente. */
+.pc-sesion-descanso {
+  display: grid;
+  gap: var(--s1);
+  background: var(--fill);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  padding: var(--s2) var(--s3);
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pc-sesion-descanso:hover { background: var(--fill-strong); }
+.pc-sesion-descanso .pc-rot {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pc-sesion-descanso b {
+  font-family: var(--font-ancha);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--s2);
+}
+.pc-sesion-descanso-barra {
+  display: block;
+  height: 2px;
+  border-radius: var(--r-pill);
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+.pc-sesion-descanso-barra i {
+  display: block;
+  height: 100%;
+  background: var(--text);
+}
+
+/* ── TU NOTA DEL EJERCICIO, al pie de la caja ──────────────────────────────
+   En reposo es un verbo de una palabra; abierta, un campo con su rótulo y su
+   pie. Ver `pc/PantallaSesion`. */
+.pc-ej-nota {
+  padding: 10px 14px var(--s3);
+  border-top: 1px solid var(--pc-canto);
+  background: var(--pc-hundido);
+}
+.pc-nota-mas {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.pc-nota-mas:hover { text-decoration: underline; }
+.pc-nota-campo { display: grid; gap: 6px; }
+.pc-nota-campo .pc-rot {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--pc-tinta-3);
+}
+.pc-nota-campo textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--pc-canto-2);
+  border-radius: 10px;
+  background: var(--pc-caja);
+  padding: var(--s2) 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--pc-tinta);
+}
+.pc-nota-campo textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+.pc-nota-pie {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--pc-tinta-3);
+  margin: 0;
+}
+
+/* ── Aquí vivían las gráficas del portal, y se fueron el 14 sep ────────────
+   Nueve clases —el lienzo, el eje escrito en HTML fuera del SVG, la leyenda,
+   la curva escrita cuando hay menos de tres puntos, las barras de volumen por
+   grupo— para dibujar a mano lo que `ui/charts` ya dibuja para el entrenador.
+
+   Se van con `pc/PantallaProgreso`, que era la única que las pintaba: el
+   monitor monta ahora el panel del entrenador con sus `BandChart` y sus
+   `BarBandChart`. Un dato dibujado de dos maneras acaba contando dos cosas —el
+   peso del entrenador llevaba banda y media móvil, y el del cliente una
+   polilínea cruda del mismo historial—. Ver `ClientProgresoRoute`.
+
+   Lo que NO se va con ellas es la regla que las justificaba, porque no era
+   suya: una curva de menos de tres puntos se escribe, no se dibuja (avería
+   E-08). Eso vive en `ui/charts` y vale para los dos.
+
+   Sobrevive una línea: la chispa del peso de la portada, que sigue siendo de
+   este lenguaje mientras «Hoy» no se migre. */
+.pc-grafica { width: 100%; display: block; }
+
+/* ── La cifra grande dentro de una caja ──────────────────────────────────── */
+.pc-cifra-grande {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+.pc-cifra-grande .pc-n {
+  font-family: var(--font-ancha);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.pc-cifra-grande .pc-u { color: var(--pc-tinta-3); font-size: 13px; }
+.pc-chispa { margin: var(--s3) -4px 0; }
+
+/* ── La regla de series de una sesión a medias ───────────────────────────── */
+.pc-tramos { display: flex; gap: 3px; margin-top: var(--s3); }
+.pc-tramos i {
+  flex: 1;
+  height: var(--s1);
+  border-radius: 2px;
+  background: var(--pc-canto);
+}
+.pc-tramos i.pc-hecha { background: var(--accent); }
+.pc-nombre-sesion {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pc-nombre-sesion .pc-n {
+  font-family: var(--font-ancha);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.pc-nombre-sesion .pc-c { color: var(--pc-tinta-3); font-size: 13px; }
+
+/* ── Aquí vivió la báscula del monitor, y era la TERCERA ───────────────────
+   Doce clases para un campo de cuatro caracteres: `.pc-bascula`, su lectura,
+   las siete casillas de la semana y la nota de cómo pesarse. Copiada de
+   `PesoDeHoy`, que ya existía y ya servía a los dos aparatos, y con el
+   teléfono teniendo además la suya.
+
+   Tres básculas no son tres estilos: son tres sitios donde arreglar el día que
+   la ventana de gracia o la media ponderada cambien. El monitor monta desde el
+   14 sep la de la casa. Ver `RevisionEnMonitor`. */
+
+/* Y aquí los tres macros en cajitas, también de la dieta vieja. Los pinta el
+   costado del taller, contra lo que suma el menú abierto. */
+
+/* Y el vacío de una caja de este lenguaje, que tampoco lo escribe ya nadie: lo
+   que quedaba del portal en el monitor usa `EmptyState`, que es el vacío del
+   producto —con su dibujo, su titular y su verbo—. */
+
+/* ── Estrechando ──────────────────────────────────────────────────────────
+   Por debajo de 1.200 el monitor sigue siendo monitor —la barra del pulgar
+   aparece a 1.024— pero las cuatro teselas y las cajas de 8 columnas dejan de
+   caber con holgura. */
+@media (max-width: 1199.98px) {
+  .pc-teselas,
+  .pc-teselas.pc-de-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pc-rejilla > .pc-c8 { grid-column: span 12; }
+  .pc-rejilla > .pc-c4,
+  .pc-rejilla > .pc-c5 { grid-column: span 6; }
+}
+
+/* ── Y la cabecera de la casa se retira ────────────────────────────────────
+   Puesta la cinta, `.app-header` haría lo que el dueño llamó «dos chasis
+   apilados»: una franja con la marca, un buscador sobre seis pantallas y un
+   avatar, y cuarenta píxeles más abajo la navegación de verdad. Las tres cosas
+   están ya dentro de la cinta, reducidas a lo que en el portal significan.
+
+   El mecanismo es el mismo `body:has(...)` con el que el teléfono ya se
+   quitaba la cabecera (ver `jornada.css`), y no una prop: la cabecera se monta
+   en `App.jsx`, por encima del portal, y no sabe qué ruta hay debajo. */
+body:has(.pc-portal) .app-header { display: none; }
+
+/* ── El campo de la serie ──────────────────────────────────────────────────
+   El número se escribe DENTRO de la caja gris, sin marco propio: el marco es la
+   caja. Un `<input>` con su borde dentro de otro borde es la avería que este
+   lenguaje le reprocha a la báscula del portal de ayer. */
+.pc-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   «EL PUESTO» — el carril y la sesión en tres columnas
+   (15 sep 2026, `docs/la-sesion-manda.md`, el escritorio tal cual el prototipo)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── El marco: carril a la izquierda, página al lado ───────────────────────
+   El carril es el mismo mueble que la barra lateral del entrenador (chasis.css
+   `.sidebar`): cristal en hierro, radio grande, pegado arriba y de la altura de
+   la pantalla. Las filas son `.side-link`, las mismas. */
+.pc-portal {
+  display: flex;
+  align-items: flex-start;
+}
+.pc-principal { flex: 1; min-width: 0; }
+
+/* Entreno sin título de página: el verbo de hoy se queda solo, a la derecha,
+   encima de la mesa. Ver `EntrenoEnMonitor`. */
+.entreno-verbo { justify-content: flex-end; }
+
+.pc-carril {
+  position: sticky;
+  top: var(--s3);
+  z-index: 30;
+  flex: none;
+  width: 252px;
+  height: calc(100vh - var(--s3) * 2);
+  height: calc(100svh - var(--s3) * 2);
+  margin: var(--s3) 0 var(--s3) var(--s3);
+  padding: var(--s4) var(--s2) var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--surface-glass);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-secondary);
+  overflow-y: auto;
+}
+.pc-carril-quien {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--s1) 6px;
+  border-radius: var(--r-md);
+  color: var(--text);
+  text-decoration: none;
+}
+.pc-carril-quien:hover { background: var(--fill-subtle); }
+.pc-carril-avatar {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--fill-strong);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.pc-carril-nombre { display: flex; flex-direction: column; min-width: 0; }
+.pc-carril-nombre b {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pc-carril-nombre span { font-size: 11px; color: var(--text-tertiary); }
+.pc-carril-nav { display: flex; flex-direction: column; gap: 2px; }
+.pc-carril-donde {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px 6px 0;
+  border-top: 1px solid var(--hairline);
+}
+.pc-carril-k {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pc-carril-v { font-size: 13px; color: var(--text-secondary); }
+.pc-carril-v b { color: var(--text); font-weight: 600; }
+.pc-carril-v + .pc-carril-k { margin-top: var(--s2); }
+.pc-carril-riel {
+  height: var(--s1);
+  border-radius: 2px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+.pc-carril-riel i { display: block; height: 100%; background: var(--accent); }
+
+/* ── La sesión: centro y costado ───────────────────────────────────────────
+   El centro en su medida legible; el costado, 360 px. Por debajo de 1.200 px
+   el costado baja debajo de la sesión: con el carril al lado no caben las tres
+   columnas sin apretar los campos. */
+.pc-puesto {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  align-items: start;
+  max-width: var(--max-w-trabajo);
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+@media (max-width: 1199.98px) {
+  .pc-puesto { grid-template-columns: minmax(0, 1fr); }
+}
+.pc-puesto-centro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 26px 30px var(--s6);
+  min-width: 0;
+}
+.pc-puesto-cab { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.pc-puesto-tit {
+  margin: 0;
+  font-family: var(--font-ancha);
+  font-size: var(--fs-xl);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.pc-puesto-fecha { font-size: var(--fs-sm); color: var(--text-tertiary); margin-top: var(--s1); }
+.pc-puesto-dcha { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.pc-puesto-cuenta { font-size: var(--fs-sm); color: var(--text-secondary); white-space: nowrap; }
+.pc-puesto-cuenta b { color: var(--text); font-family: var(--font-ancha); font-size: 15px; }
+.pc-puesto-riel {
+  height: var(--s1);
+  border-radius: 2px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+.pc-puesto-riel i { display: block; height: 100%; background: var(--accent); transition: width 0.4s var(--ease); }
+.pc-puesto-guardado { margin: -6px 0 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.pc-puesto-guardado.pc-si { color: var(--positive); }
+.pc-puesto-guardado.pc-no { color: var(--negative); }
+.pc-puesto-guardado button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pc-puesto-ej {
+  border: 1px solid var(--edge);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+.pc-puesto-ej.pc-en-foco { border-color: var(--accent-wash); box-shadow: var(--shadow-sm); }
+.pc-puesto-ej-cab {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: 13px var(--s4);
+  border-bottom: 1px solid var(--hairline);
+}
+.pc-puesto-num {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--fill);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+.pc-puesto-num.pc-aqui { background: var(--accent-soft); color: var(--accent); }
+.pc-puesto-num.pc-ok { background: var(--positive-soft); color: var(--positive); }
+.pc-puesto-nom {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.pc-puesto-nom:hover { color: var(--accent); }
+.pc-puesto-gr { font-size: 13px; color: var(--text-tertiary); }
+.pc-puesto-des { margin-left: auto; font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; }
+
+.pc-puesto-filas { display: flex; flex-direction: column; gap: 6px; padding: 10px var(--s4) 14px; }
+.pc-puesto-fila {
+  display: grid;
+  grid-template-columns: 56px 72px 96px 96px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  font-size: 15px;
+}
+.pc-puesto-filas.pc-con-rir .pc-puesto-fila { grid-template-columns: 56px 72px 96px 96px 80px minmax(0, 1fr); }
+.pc-puesto-fila.pc-cab span {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pc-puesto-s { font-size: 13px; font-weight: 600; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.pc-puesto-fila.pc-hecha .pc-puesto-s { color: var(--positive); }
+.pc-puesto-obj { font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.pc-puesto-dato {
+  height: 38px;
+  width: 100%;
+  border-radius: 9px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-sunken);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.pc-puesto-dato::-webkit-outer-spin-button,
+.pc-puesto-dato::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.pc-puesto-dato::placeholder { color: var(--text-tertiary); font-weight: 500; }
+.pc-puesto-dato:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.pc-puesto-fila.pc-viva .pc-puesto-dato { background: var(--surface-raised); border-color: var(--hairline-strong); }
+/* Lo pendiente se atenúa y se enciende al tocarlo: se ve qué falta sin que
+   parezca deshabilitado. */
+.pc-puesto-fila.pc-pendiente { opacity: 0.55; transition: opacity var(--fast); }
+.pc-puesto-fila.pc-pendiente:focus-within,
+.pc-puesto-fila.pc-pendiente:hover { opacity: 1; }
+.pc-puesto-ant {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: var(--s1) 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  color: var(--text-tertiary);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+button.pc-puesto-ant:hover { color: var(--accent); background: var(--accent-soft); }
+.pc-puesto-ant.pc-nada { cursor: default; }
+.pc-puesto-ej .pc-ej-nota { padding: 0 var(--s4) 14px; }
+
+/* ── El costado: contra qué te mides ─────────────────────────────────────── */
+.pc-puesto-lado {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: 26px var(--s5);
+  border-left: 1px solid var(--hairline);
+  min-height: 100vh;
+  min-height: 100svh;
+}
+@media (max-width: 1199.98px) {
+  .pc-puesto-lado { position: static; border-left: 0; border-top: 1px solid var(--hairline); min-height: 0; }
+}
+.pc-puesto-k {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pc-puesto-lado-tit {
+  margin: var(--s1) 0 0;
+  font-family: var(--font-ancha);
+  font-size: 18px;
+  font-weight: 700;
+}
+.pc-puesto-prog { display: grid; gap: 7px 9px; font-size: 13px; }
+.pc-puesto-prog-fila { display: contents; }
+.pc-puesto-hd {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pc-puesto-sem { color: var(--text-tertiary); font-weight: 600; }
+.pc-puesto-prog [role='cell'] { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pc-puesto-prog .pc-pico { color: var(--text); font-weight: 700; }
+.pc-puesto-vacio { margin: 0; font-size: 13px; color: var(--text-secondary); }
+
+.pc-puesto-grafica {
+  margin: 0;
+  padding: var(--s3);
+  border-radius: 11px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--hairline);
+}
+.pc-puesto-grafica svg { display: block; width: 100%; height: 94px; }
+.pc-puesto-area { fill: var(--accent-soft); }
+.pc-puesto-linea { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.pc-puesto-punto { fill: var(--accent); }
+.pc-puesto-grafica figcaption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pc-puesto-sens { display: flex; flex-direction: column; gap: var(--s2); margin-top: 10px; }
+.pc-puesto-sens-fila { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-secondary); }
+.pc-puesto-sens-rot { width: 92px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-puesto-barra { flex: 1; height: 5px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+.pc-puesto-barra i { display: block; height: 100%; background: var(--accent); }
+.pc-puesto-sens-v { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-puesto-riel i,
+  .pc-puesto-fila.pc-pendiente { transition: none; }
+}

@@ -25,6 +25,7 @@
 import { clientCycleSlots } from './blocks';
 import { cycleFoto, optionMacros } from './nutrition';
 import { weekFromStart } from './photos';
+import { esSerie } from './protocol';
 import { round, toNum } from '@/lib/num';
 
 /**
@@ -636,7 +637,11 @@ export const answerTrend = ({ checkIns = [], questions = [], weekStart = null, w
     .slice(-weeks);
 
   return questions
-    .filter((q) => q.kind !== 'text')
+    /* Solo lo que se puede DIBUJAR. Era `kind !== 'text'`, que daba por hecho
+       que todo lo que no son palabras es una cifra: con sí/no y elegir una eso
+       metía «Sí» en una tabla de antes/ahora y `toNum` lo dejaba en un hueco
+       permanente. Ver `esSerie`. */
+    .filter(esSerie)
     .map((q) => {
       const puntos = previas
         .map((c) => ({ label: c.weekStart, value: toNum(c.answers?.[q.id]) }))

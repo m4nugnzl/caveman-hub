@@ -224,7 +224,7 @@ export const ClientCalendarFeed = ({ client }) => {
           ) : (
             <div className="col gap-2" style={{ alignItems: 'flex-start' }}>
               <BotonAccion className="btn btn-primary btn-sm" icon={CalendarPlus} onClick={crear}>
-                Crear mi enlace
+                Generar mi enlace
               </BotonAccion>
               <span className="t-xs t-tertiary">
                 Es un enlace privado y solo tuyo. Puedes anularlo cuando quieras.

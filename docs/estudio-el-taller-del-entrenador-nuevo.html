@@ -1,0 +1,1149 @@
+<title>Un entrenador nuevo abre Protocolos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..800;1,62..125,400..600&display=swap">
+<style>
+/* ─────────────────────────────────────────────────────────────────────────
+   Tokens: los del producto («Papel y señal», src/styles/tokens.css).
+   Esta página enseña la app, así que habla su idioma y no inventa paleta.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light dark;
+  --canvas: #f7f6f2;
+  --canvas-2: #efede5;
+  --surface: #ffffff;
+  --sunken: #f2f0e9;
+  --fill: #eceae1;
+  --hairline: #e7e3d9;
+  --hairline-2: #cfc9bb;
+  --text: #191713;
+  --text-2: #514d45;
+  --text-3: #7a756a;
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, .09);
+  --accent-line: rgba(59, 73, 223, .28);
+  --on-accent: #ffffff;
+  --ok: #10774c;
+  --warn: #a4530e;
+  --bad: #b93429;
+  --bad-soft: rgba(185, 52, 41, .08);
+  --d-blue: #1b6ea6;
+  --d-violet: #7a34ad;
+  --d-amber: #96690a;
+  --d-teal: #0e7f73;
+  --sh-1: 0 1px 2px rgba(38, 32, 20, .05);
+  --sh-2: 0 1px 2px rgba(38, 32, 20, .05), 0 10px 26px -18px rgba(38, 32, 20, .35);
+  --sh-3: 0 2px 6px rgba(38, 32, 20, .06), 0 26px 60px -28px rgba(38, 32, 20, .45);
+  --r-1: 8px;
+  --r-2: 12px;
+  --r-3: 18px;
+  --sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #0b0d11;
+    --canvas-2: #12151a;
+    --surface: #1b1f26;
+    --sunken: #14171d;
+    --fill: rgba(214, 224, 244, .08);
+    --hairline: rgba(214, 224, 244, .11);
+    --hairline-2: rgba(214, 224, 244, .22);
+    --text: #e9ecf2;
+    --text-2: #a7aebb;
+    --text-3: #838b99;
+    --accent: #5b8df7;
+    --accent-soft: rgba(91, 141, 247, .15);
+    --accent-line: rgba(91, 141, 247, .42);
+    --on-accent: #0b0d11;
+    --ok: #45c98c;
+    --warn: #f0a35c;
+    --bad: #ec6156;
+    --bad-soft: rgba(236, 97, 86, .13);
+    --d-blue: #6cb2e0;
+    --d-violet: #bd8ee0;
+    --d-amber: #dfae4c;
+    --d-teal: #4fc3b3;
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .45);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 26px -18px rgba(0, 0, 0, .8);
+    --sh-3: 0 2px 6px rgba(0, 0, 0, .5), 0 26px 60px -28px rgba(0, 0, 0, .9);
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #0b0d11;
+  --canvas-2: #12151a;
+  --surface: #1b1f26;
+  --sunken: #14171d;
+  --fill: rgba(214, 224, 244, .08);
+  --hairline: rgba(214, 224, 244, .11);
+  --hairline-2: rgba(214, 224, 244, .22);
+  --text: #e9ecf2;
+  --text-2: #a7aebb;
+  --text-3: #838b99;
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, .15);
+  --accent-line: rgba(91, 141, 247, .42);
+  --on-accent: #0b0d11;
+  --ok: #45c98c;
+  --warn: #f0a35c;
+  --bad: #ec6156;
+  --bad-soft: rgba(236, 97, 86, .13);
+  --d-blue: #6cb2e0;
+  --d-violet: #bd8ee0;
+  --d-amber: #dfae4c;
+  --d-teal: #4fc3b3;
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .45);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 26px -18px rgba(0, 0, 0, .8);
+  --sh-3: 0 2px 6px rgba(0, 0, 0, .5), 0 26px 60px -28px rgba(0, 0, 0, .9);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+p { margin: 0; }
+
+/* ── Tipografía: Archivo con su eje de ancho, que es la voz del producto ── */
+.t-display {
+  font-variation-settings: 'wdth' 116;
+  font-weight: 700;
+  letter-spacing: -.028em;
+  line-height: 1.02;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+code {
+  font-family: var(--mono);
+  font-size: .85em;
+  background: var(--fill);
+  padding: 1.5px 5px;
+  border-radius: 5px;
+  color: var(--text-2);
+}
+.ico { width: 1em; height: 1em; flex: none; display: inline-block; vertical-align: -.125em; }
+
+/* ── Rejilla ──────────────────────────────────────────────────────────── */
+.spine { max-width: 1060px; margin: 0 auto; padding: 0 28px; }
+
+/* ── Barra fija ───────────────────────────────────────────────────────── */
+.rail {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--canvas) 86%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px);
+  border-bottom: 1px solid transparent;
+  transition: border-color .2s var(--ease);
+}
+.rail.is-pegado { border-bottom-color: var(--hairline); }
+.rail-in {
+  max-width: 1060px; margin: 0 auto; padding: 0 28px;
+  height: 48px; display: flex; align-items: center; gap: 22px; overflow-x: auto;
+  scrollbar-width: none;
+}
+.rail-in::-webkit-scrollbar { display: none; }
+.rail-marca { font-weight: 650; font-size: 14px; letter-spacing: -.01em; white-space: nowrap; }
+.rail-marca span { color: var(--text-3); font-weight: 400; }
+.rail a {
+  color: var(--text-3); text-decoration: none; font-size: 13.5px; white-space: nowrap;
+  transition: color .15s var(--ease);
+}
+.rail a:hover { color: var(--text); }
+.rail nav { display: flex; gap: 18px; margin-left: auto; }
+
+/* ── Portada ──────────────────────────────────────────────────────────── */
+.portada { padding: 66px 0 56px; }
+.portada h1 {
+  font-size: clamp(40px, 6.4vw, 68px);
+  margin: 18px 0 0;
+  max-width: 16ch;
+  text-wrap: balance;
+}
+.encargo {
+  margin: 34px 0 0;
+  max-width: 58ch;
+  font-size: clamp(19px, 2.1vw, 23px);
+  line-height: 1.42;
+  color: var(--text-2);
+  font-variation-settings: 'wdth' 104;
+  letter-spacing: -.012em;
+}
+.encargo b { color: var(--text); font-weight: 600; }
+.firma-encargo { margin-top: 12px; font-size: 13px; color: var(--text-3); font-family: var(--mono); }
+.sellos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 34px; }
+.sello {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--hairline-2); border-radius: 999px;
+  padding: 5px 13px; font-size: 13px; color: var(--text-2);
+}
+.sello b { color: var(--text); font-weight: 600; }
+.sello .punto { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex: none; }
+.sello.hecho .punto { background: var(--ok); }
+
+/* ── Secciones ────────────────────────────────────────────────────────── */
+.sec { border-top: 1px solid var(--hairline); padding: 62px 0; }
+.sec-cab { max-width: 62ch; }
+.sec-cab h2 {
+  font-size: clamp(27px, 3.2vw, 34px);
+  margin: 10px 0 0;
+  font-variation-settings: 'wdth' 110;
+  font-weight: 700;
+  letter-spacing: -.022em;
+  line-height: 1.1;
+}
+.sec-cab .entradilla { margin-top: 14px; color: var(--text-2); font-size: 17px; }
+.sec-cab .entradilla b { color: var(--text); font-weight: 600; }
+
+/* ── §Diagnóstico: la planta ──────────────────────────────────────────── */
+.planta-marco { margin-top: 34px; }
+.mando {
+  display: inline-flex; background: var(--fill); border-radius: 999px; padding: 3px; gap: 2px;
+}
+.mando button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 550; color: var(--text-2);
+  padding: 6px 15px; border-radius: 999px;
+  transition: background .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.mando button[aria-selected="true"] {
+  background: var(--surface); color: var(--text); box-shadow: var(--sh-1);
+}
+.planta-fila { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.planta-pie { font-size: 14px; color: var(--text-2); }
+.planta-pie b { color: var(--text); font-weight: 600; }
+
+.planta {
+  margin-top: 16px; background: var(--canvas-2); border: 1px solid var(--hairline);
+  border-radius: var(--r-3); padding: 14px; display: grid; gap: 12px;
+}
+.planta-cuerpo { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+.planta-lado { display: grid; gap: 12px; }
+.zona {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2);
+  padding: 11px 13px; display: grid; gap: 8px; align-content: start;
+  transition: opacity .38s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s var(--ease);
+}
+.zona-rot { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); }
+.zona-li { font-size: 13px; color: var(--text-2); display: flex; align-items: center; gap: 9px; }
+.zona-li .disco {
+  width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center;
+  font-size: 13px; flex: none;
+}
+.zona--eje { border-color: var(--accent-line); box-shadow: 0 0 0 3px var(--accent-soft); }
+.zona.is-mirada { background: var(--sunken); border-color: var(--hairline-2); }
+.zona--eje.is-mirada { background: var(--surface); box-shadow: 0 0 0 5px var(--accent-soft); }
+.destino {
+  display: none; align-items: center; gap: 7px; font-size: 12px; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 3px 10px; justify-self: start;
+}
+.planta[data-modo="limpio"] .zona--fuera { opacity: .42; border-style: dashed; }
+.planta[data-modo="limpio"] .zona--fuera .destino { display: inline-flex; }
+.planta[data-modo="limpio"] .zona--eje { box-shadow: 0 0 0 5px var(--accent-soft); }
+
+/* ── §Diagnóstico: las cuatro clases ──────────────────────────────────── */
+.clases { width: 100%; border-collapse: collapse; margin-top: 34px; font-size: 15px; }
+.clases th {
+  text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-3); font-weight: 400;
+  padding: 0 12px 10px 0; border-bottom: 1px solid var(--hairline);
+}
+.clases td { padding: 13px 12px 13px 0; border-bottom: 1px solid var(--hairline); vertical-align: baseline; color: var(--text-2); }
+.clases tbody tr { transition: background .18s var(--ease); }
+.clases tbody tr:hover, .clases tbody tr.is-mirada { background: var(--sunken); }
+.clases td:first-child { color: var(--text); font-weight: 600; padding-left: 10px; }
+.clases th:first-child { padding-left: 10px; }
+.clases .apunte { display: block; font-weight: 400; color: var(--text-3); font-size: 13.5px; }
+.veredicto { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text-3); }
+.veredicto.si { color: var(--accent); }
+.remate {
+  margin-top: 38px; font-size: clamp(20px, 2.4vw, 26px); line-height: 1.35;
+  font-variation-settings: 'wdth' 106; letter-spacing: -.018em; max-width: 26ch;
+  color: var(--text);
+}
+.remate b { font-weight: 700; }
+
+/* ── §Averías ─────────────────────────────────────────────────────────── */
+.averias { display: grid; gap: 0; margin-top: 30px; }
+.averia { padding: 34px 0; border-top: 1px dashed var(--hairline); }
+.averia:first-child { border-top: 0; padding-top: 6px; }
+.av-cab { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.av-id {
+  font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .04em;
+  color: var(--text-3); border: 1px solid var(--hairline-2); border-radius: 5px; padding: 2px 6px;
+}
+.av-cab h3 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -.018em; line-height: 1.25; }
+.av-txt { margin-top: 10px; max-width: 66ch; color: var(--text-2); font-size: 15.5px; }
+.av-txt b { color: var(--text); font-weight: 600; }
+.par { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 22px; }
+.lado { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lado-rot { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: var(--text-3); }
+.lado-rot .punto { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--hairline-2); }
+.lado.prop .lado-rot { color: var(--accent); }
+.lado.prop .punto { background: var(--accent); border-color: var(--accent); }
+.lienzo {
+  background: var(--sunken); border: 1px solid var(--hairline); border-radius: var(--r-3);
+  padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 11px; min-width: 0;
+}
+.lado.prop .lienzo { background: var(--canvas-2); }
+.apostilla { font-size: 13px; color: var(--text-3); margin-top: auto; padding-top: 2px; }
+
+/* ── El kit de interfaz falsa: fiel a la app, dibujado, sin glifos ─────── */
+.ui-rot { font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-3); }
+.ui-premisa { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ui-select {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--surface);
+  border: 1px solid var(--hairline-2); border-radius: var(--r-1); padding: 5px 9px;
+  font-size: 13.5px; color: var(--text); box-shadow: var(--sh-1); justify-self: start;
+}
+.ui-select .ico { color: var(--text-3); font-size: 14px; }
+.ui-frase { font-size: 16.5px; line-height: 1.75; color: var(--text); }
+.ui-dato {
+  color: var(--accent); font-weight: 600;
+  border-bottom: 1.5px dashed var(--accent-line); padding-bottom: 1px;
+}
+.ui-card {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2);
+  padding: 11px 13px; display: grid; grid-template-columns: auto 1fr auto; gap: 2px 12px;
+  box-shadow: var(--sh-1);
+}
+.ui-card.elegida { border-color: var(--accent-line); box-shadow: 0 0 0 2px var(--accent-soft); }
+.ui-card .disco {
+  grid-row: 1 / 4; align-self: center; width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center; font-size: 17px;
+}
+.ui-verbo { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); }
+.ui-card.elegida .ui-verbo { color: var(--accent); }
+.ui-nom { font-size: 16px; font-weight: 600; line-height: 1.3; }
+.ui-sub { font-size: 13.5px; color: var(--text-2); }
+.ui-meta { grid-column: 3; grid-row: 2; align-self: center; font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ui-panel {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2);
+  padding: 13px 15px; display: grid; gap: 9px; box-shadow: var(--sh-1);
+}
+.ui-linea { font-size: 14px; color: var(--text-2); }
+.ui-cifra { font-size: 20px; font-weight: 650; color: var(--text); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.ui-link { font-size: 13.5px; color: var(--accent); font-weight: 550; justify-self: start; }
+.ui-link.con-ico { display: inline-flex; align-items: center; gap: 6px; }
+.tachado {
+  background: var(--bad-soft); border-radius: 5px; padding: 1px 5px; margin: 0 -5px;
+  text-decoration: line-through; text-decoration-color: var(--bad); text-decoration-thickness: 1.5px;
+}
+.ui-nota { font-size: 13.5px; color: var(--text-2); background: var(--fill); border-radius: var(--r-1); padding: 9px 11px; }
+.ui-nota.mala { color: var(--bad); background: var(--bad-soft); }
+.ui-plegado { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; }
+.ui-plegado .ico { color: var(--text-3); font-size: 16px; }
+.ui-plegado .cuenta { margin-left: auto; font-size: 13px; font-weight: 500; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ui-piezas { display: grid; gap: 7px; }
+.ui-pieza { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--text-2); }
+.ui-pieza .sw {
+  width: 26px; height: 15px; border-radius: 999px; background: var(--hairline-2); flex: none; position: relative;
+}
+.ui-pieza .sw::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--surface); box-shadow: var(--sh-1);
+}
+.ui-pieza.on .sw { background: var(--accent); }
+.ui-pieza.on .sw::after { left: 13px; }
+.ui-pieza.on { color: var(--text); }
+.ui-bar {
+  display: flex; align-items: center; gap: 12px; background: var(--surface);
+  border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 10px 13px; box-shadow: var(--sh-1);
+}
+.ui-bar .tit { font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.ui-bar .sep { width: 1px; height: 16px; background: var(--hairline); flex: none; }
+.ui-bar .meta { font-size: 13px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ui-btn {
+  display: inline-flex; align-items: center; gap: 7px; background: var(--accent); color: var(--on-accent);
+  border-radius: var(--r-1); padding: 7px 13px; font-size: 13.5px; font-weight: 600;
+}
+.ui-btn.callado { background: var(--surface); color: var(--text); border: 1px solid var(--hairline-2); box-shadow: var(--sh-1); }
+.ui-puerta {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2);
+  padding: 12px 14px; box-shadow: var(--sh-1); display: grid; gap: 3px; min-width: 0;
+}
+.ui-puerta .tit { font-size: 15px; font-weight: 650; }
+.ui-puerta .pie { font-size: 13px; color: var(--text-3); }
+.ui-capa {
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2);
+  box-shadow: var(--sh-3); padding: 13px 15px; display: grid; gap: 9px;
+  margin: -26px 0 0 30px; position: relative;
+}
+.dos-puertas { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; }
+.lazo { display: grid; gap: 4px; justify-items: center; min-width: 78px; }
+.lazo .hilo { width: 100%; height: 0; border-top: 1.5px dotted var(--bad); }
+.lazo .nota { font-family: var(--mono); font-size: 10px; color: var(--bad); text-align: center; }
+.mudanzas { display: grid; gap: 11px; }
+.mudanza { display: flex; align-items: baseline; gap: 10px; font-size: 14.5px; }
+.mudanza .de { font-weight: 600; color: var(--text); white-space: nowrap; }
+.mudanza .guia { flex: 1; border-bottom: 1px dotted var(--hairline-2); transform: translateY(-4px); min-width: 14px; }
+.mudanza .a { color: var(--accent); white-space: nowrap; }
+.cadencia { display: grid; gap: 7px; }
+.cadencia .paso-q { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-2); }
+.cadencia .n { font-family: var(--mono); font-size: 11px; color: var(--text-3); width: 16px; flex: none; }
+.cadencia .ui-link { margin-left: auto; }
+
+/* ── §Arreglos ────────────────────────────────────────────────────────── */
+.arreglos { display: grid; gap: 0; margin-top: 26px; }
+.arreglo { padding: 34px 0; border-top: 1px solid var(--hairline); }
+.arreglo:first-child { border-top: 0; padding-top: 8px; }
+.ar-cab { display: flex; align-items: center; gap: 12px; }
+.ar-letra {
+  width: 30px; height: 30px; border-radius: 9px; background: var(--text); color: var(--canvas);
+  display: grid; place-items: center; font-size: 15px; font-weight: 700; flex: none;
+}
+.ar-cab h3 { margin: 0; font-size: 21px; font-weight: 650; letter-spacing: -.018em; }
+.ar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; margin-top: 18px; align-items: start; }
+.ar-txt { color: var(--text-2); font-size: 15.5px; max-width: 56ch; }
+.ar-txt b { color: var(--text); font-weight: 600; }
+.balanza { display: grid; gap: 12px; margin-top: 20px; }
+.balanza div { font-size: 14.5px; color: var(--text-2); padding-left: 14px; border-left: 2px solid var(--hairline-2); }
+.balanza b { color: var(--text); font-weight: 600; }
+.balanza .riesgo { border-left-color: var(--warn); }
+
+/* ── §Orden ───────────────────────────────────────────────────────────── */
+.orden { display: grid; gap: 0; margin-top: 26px; }
+.paso { display: grid; grid-template-columns: 30px 1fr; gap: 20px; padding: 18px 0; border-top: 1px solid var(--hairline); align-items: baseline; }
+.paso:last-child { border-bottom: 1px solid var(--hairline); }
+.paso .n { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+.paso h3 { margin: 0 0 3px; font-size: 16.5px; font-weight: 650; letter-spacing: -.01em; }
+.paso p { color: var(--text-2); font-size: 15px; max-width: 62ch; }
+
+/* ── §Intacto ─────────────────────────────────────────────────────────── */
+.intactos { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 26px; margin-top: 30px; }
+.intacto { display: grid; gap: 8px; align-content: start; padding-top: 14px; border-top: 2px solid var(--text); }
+.intacto h3 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.01em; }
+.intacto p { font-size: 14.5px; color: var(--text-2); }
+
+/* ── §Evidencia ───────────────────────────────────────────────────────── */
+.pruebas { display: grid; gap: 30px; margin-top: 30px; }
+figure { margin: 0; display: grid; gap: 11px; }
+figure img {
+  width: 100%; height: auto; display: block; border-radius: var(--r-3);
+  border: 1px solid var(--hairline); box-shadow: var(--sh-2);
+}
+figcaption { font-size: 13.5px; color: var(--text-3); max-width: 72ch; }
+figcaption b { color: var(--text-2); font-weight: 600; }
+
+footer { border-top: 1px solid var(--hairline); padding: 26px 0 70px; font-size: 13px; color: var(--text-3); }
+
+@media (max-width: 880px) {
+  .planta-cuerpo, .par, .ar-grid { grid-template-columns: 1fr; }
+  .dos-puertas { grid-template-columns: 1fr; }
+  .lazo { min-width: 0; padding: 4px 0; }
+  .lazo .hilo { width: 60%; }
+}
+@media (max-width: 620px) {
+  .portada { padding: 40px 0 44px; }
+  .rail nav { gap: 14px; }
+  .clases thead { display: none; }
+  .clases tbody tr { display: block; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+  .clases td { display: block; border: 0; padding: 1px 0; }
+  .clases td:first-child { padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 9.5 12 15l5.5-5.5"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4.8 12.6 4.6 4.6L19.2 6.8"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 1.9"/></symbol>
+    <symbol id="i-form" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.6h6a1.6 1.6 0 0 1 1.6 1.6v13A1.6 1.6 0 0 1 15 20.8H9a1.6 1.6 0 0 1-1.6-1.6v-13A1.6 1.6 0 0 1 9 4.6Z"/><path d="M10.2 8.9h3.6M10.2 12.2h3.6M10.2 15.5h2.2"/></symbol>
+    <symbol id="i-give" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.6 19.4 8v8L12 20.4 4.6 16V8Z"/><path d="M4.6 8 12 12.2 19.4 8M12 12.2v8.2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 9.2a5.8 5.8 0 1 0-11.6 0c0 4.6-2 5.8-2 5.8h15.6s-2-1.2-2-5.8Z"/><path d="M13.6 18.6a1.9 1.9 0 0 1-3.2 0"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m4.4 19.6 4.2-1.1L19 8.1a1.9 1.9 0 0 0 0-2.7l-.4-.4a1.9 1.9 0 0 0-2.7 0L5.5 15.4Z"/><path d="m14.6 6.6 2.8 2.8"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.4" r="3.6"/><path d="M5.2 19.6c1.6-3 4-4.5 6.8-4.5s5.2 1.5 6.8 4.5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 7.5h15M4.5 16.5h15"/><circle cx="9.5" cy="7.5" r="2.2"/><circle cx="15" cy="16.5" r="2.2"/></symbol>
+  </defs>
+</svg>
+
+<div class="rail" id="rail">
+  <div class="rail-in">
+    <div class="rail-marca">Caveman Hub <span>· Estudio</span></div>
+    <nav aria-label="Secciones">
+      <a href="#diagnostico">Diagnóstico</a>
+      <a href="#averias">Averías</a>
+      <a href="#arreglos">Arreglos</a>
+      <a href="#orden">Orden</a>
+      <a href="#evidencia">Evidencia</a>
+    </nav>
+  </div>
+</div>
+
+<header class="spine portada">
+  <div class="eyebrow">Taller · Protocolos · 13 sep 2026</div>
+  <h1 class="t-display">Un entrenador nuevo abre Protocolos</h1>
+  <p class="encargo">
+    «El protocolo, como se hace ahora, lo veo un poco lío. Está bien meter los formularios dentro,
+    pero <b>lo siento muy confuso, incómodo para un entrenador nuevo</b>.»
+  </p>
+  <div class="firma-encargo">El encargo, literal.</div>
+  <div class="sellos">
+    <span class="sello"><span class="punto"></span> Sin construir</span>
+    <span class="sello hecho"><span class="punto"></span> Medido contra la app en local</span>
+    <span class="sello"><b>6</b>&nbsp;clientes · <b>2</b>&nbsp;protocolos</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ══ Diagnóstico ═══════════════════════════════════════════════════════ -->
+<section class="sec spine" id="diagnostico">
+  <div class="sec-cab">
+    <div class="eyebrow">Diagnóstico</div>
+    <h2>Cuatro cosas bajo un techo</h2>
+    <p class="entradilla">
+      El dibujo no es el problema: la rejilla respira y los verbos —<b>pídele, dale, haz tú,
+      avísame</b>— son de lo mejor escrito de la app. El problema es que la pantalla hace cuatro
+      trabajos y solo uno se llama protocolo.
+    </p>
+  </div>
+
+  <div class="planta-marco">
+    <div class="planta-fila">
+      <div class="mando" role="tablist" aria-label="Estado de la pantalla">
+        <button type="button" role="tab" aria-selected="true" data-modo="hoy">Como está</button>
+        <button type="button" role="tab" aria-selected="false" data-modo="limpio">Solo el protocolo</button>
+      </div>
+      <p class="planta-pie" id="planta-pie"><b>Cuatro clases de cosa</b> en una pantalla.</p>
+    </div>
+
+    <div class="planta" id="planta" data-modo="hoy">
+      <div class="zona zona--fuera" data-clase="admin">
+        <div class="zona-rot">Cabecera</div>
+        <div class="zona-li">Mi protocolo · 6 clientes · 6 excepciones · Poner al día</div>
+        <span class="destino"><svg class="ico"><use href="#i-user"/></svg> Cartera</span>
+      </div>
+      <div class="planta-cuerpo">
+        <div class="zona zona--eje" data-clase="acciones">
+          <div class="zona-rot">La columna del medio</div>
+          <div class="zona-li"><span class="disco" style="background:color-mix(in srgb,var(--d-blue) 16%,transparent);color:var(--d-blue)"><svg class="ico"><use href="#i-form"/></svg></span> Al entrar · pídele el alta</div>
+          <div class="zona-li"><span class="disco" style="background:color-mix(in srgb,var(--d-violet) 16%,transparent);color:var(--d-violet)"><svg class="ico"><use href="#i-give"/></svg></span> Al entrar · dale la guía de medida</div>
+          <div class="zona-li"><span class="disco" style="background:color-mix(in srgb,var(--d-amber) 16%,transparent);color:var(--d-amber)"><svg class="ico"><use href="#i-pencil"/></svg></span> Al terminar · pídele el parte</div>
+          <div class="zona-li"><span class="disco" style="background:color-mix(in srgb,var(--d-teal) 16%,transparent);color:var(--d-teal)"><svg class="ico"><use href="#i-bell"/></svg></span> Cada semana · pídele el check-in</div>
+        </div>
+        <div class="planta-lado">
+          <div class="zona zona--fuera" data-clase="alcance">
+            <div class="zona-rot">Panel · Qué lleva</div>
+            <div class="zona-li">Entrenamiento · Nutrición</div>
+            <span class="destino"><svg class="ico"><use href="#i-user"/></svg> Ficha del cliente</span>
+          </div>
+          <div class="zona zona--fuera" data-clase="piezas">
+            <div class="zona-rot">Panel · Las piezas</div>
+            <div class="zona-li">3 de 6 módulos</div>
+            <span class="destino"><svg class="ico"><use href="#i-sliders"/></svg> Tus ajustes</span>
+          </div>
+          <div class="zona zona--fuera" data-clase="admin">
+            <div class="zona-rot">Panel · Quién lo lleva</div>
+            <div class="zona-li">Clientes, excepciones, la cola</div>
+            <span class="destino"><svg class="ico"><use href="#i-user"/></svg> Cartera</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <table class="clases">
+    <thead>
+      <tr><th scope="col">Qué es</th><th scope="col">Dónde vive hoy</th><th scope="col">¿Es el protocolo?</th></tr>
+    </thead>
+    <tbody>
+      <tr data-clase="alcance" tabindex="0">
+        <td>Alcance<span class="apunte">Qué le has vendido a esa persona</span></td>
+        <td>Panel · Qué lleva</td>
+        <td><span class="veredicto">No</span><span class="apunte">Es la relación comercial</span></td>
+      </tr>
+      <tr data-clase="piezas" tabindex="0">
+        <td>Comportamiento<span class="apunte">Cómo se porta la app contigo</span></td>
+        <td>Panel · Las piezas</td>
+        <td><span class="veredicto">No</span><span class="apunte">Ni siquiera le llega al cliente</span></td>
+      </tr>
+      <tr data-clase="acciones" tabindex="0">
+        <td>Acciones<span class="apunte">Pídele, dale, avísame, y cuándo</span></td>
+        <td>La columna del medio</td>
+        <td><span class="veredicto si"><svg class="ico"><use href="#i-check"/></svg> Sí</span><span class="apunte">La mejor parte de la pantalla</span></td>
+      </tr>
+      <tr data-clase="admin" tabindex="0">
+        <td>Administración<span class="apunte">Clientes, excepciones, poner al día</span></td>
+        <td>Cabecera y panel</td>
+        <td><span class="veredicto">No</span><span class="apunte">Es la cartera</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p class="remate t-display">El problema no es lo que la pantalla hace. Es lo que <b>además</b> hace.</p>
+</section>
+
+<!-- ══ Averías ═══════════════════════════════════════════════════════════ -->
+<section class="sec spine" id="averias">
+  <div class="sec-cab">
+    <div class="eyebrow">Averías · siete</div>
+    <h2>Baratas, y ninguna discute el diseño</h2>
+    <p class="entradilla">A la izquierda, lo que se lee hoy en la app. A la derecha, cómo debería leerse.</p>
+  </div>
+
+  <div class="averias">
+
+    <!-- A-1 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-1</span><h3>«Cada semana» y «todas las semanas», a tres píxeles</h3></div>
+      <p class="av-txt">
+        El rótulo de la premisa dice una cadencia (<code>acciones.js:77</code>) y el desplegable de
+        al lado dice otra. Con cadencia de dos, la línea se contradice sola. Y los dos desplegables
+        van sin etiqueta: hay que adivinar qué gobierna «lunes».
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-premisa">
+              <span class="ui-rot">Cada semana</span>
+              <span class="ui-select">lunes <svg class="ico"><use href="#i-chev"/></svg></span>
+              <span class="ui-select">cada 2 semanas <svg class="ico"><use href="#i-chev"/></svg></span>
+            </div>
+            <p class="apostilla">Se lee: cada semana · lunes · cada 2 semanas.</p>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <span class="ui-rot">Cada semana</span>
+            <p class="ui-frase">Le pides el check-in los <span class="ui-dato">lunes</span>, <span class="ui-dato">cada 2 semanas</span>.</p>
+            <p class="apostilla">Una frase, con las dos palabras editables dentro.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-2 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-2</span><h3>El panel repite la tarjeta</h3></div>
+      <p class="av-txt">
+        Con «Alta» elegida, el panel de la derecha calca la tarjeta de la izquierda. Lo único nuevo
+        es con qué formulario se cumple la acción. <b>El panel no añade: repite</b>, y quien llega da
+        por hecho que se le escapa una diferencia.
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-card elegida">
+              <span class="disco" style="background:color-mix(in srgb,var(--d-blue) 16%,transparent);color:var(--d-blue)"><svg class="ico"><use href="#i-form"/></svg></span>
+              <div class="ui-verbo">Pídele</div>
+              <div class="ui-nom">Alta</div>
+              <div class="ui-sub">El cuestionario que contesta en su portal</div>
+              <div class="ui-meta">14 preguntas</div>
+            </div>
+            <div class="ui-panel">
+              <div class="ui-rot">La acción</div>
+              <div class="ui-cifra"><span class="tachado">Alta</span></div>
+              <div class="ui-linea"><span class="tachado">Pídele · el cuestionario que contesta en su portal</span></div>
+              <div class="ui-linea">Qué formulario</div>
+              <span class="ui-select">Alta <svg class="ico"><use href="#i-chev"/></svg></span>
+              <div class="ui-linea"><span class="tachado">14 preguntas</span></div>
+            </div>
+            <p class="apostilla">Tachado: lo que ya estaba tres centímetros a la izquierda.</p>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <div class="ui-card elegida">
+              <span class="disco" style="background:color-mix(in srgb,var(--d-blue) 16%,transparent);color:var(--d-blue)"><svg class="ico"><use href="#i-form"/></svg></span>
+              <div class="ui-verbo">Pídele</div>
+              <div class="ui-nom">Alta</div>
+              <div class="ui-sub">El cuestionario que contesta en su portal</div>
+              <div class="ui-meta">14 preguntas</div>
+            </div>
+            <div class="ui-panel">
+              <div class="ui-rot">Se cumple con</div>
+              <span class="ui-select">Alta · 14 preguntas <svg class="ico"><use href="#i-chev"/></svg></span>
+              <span class="ui-link con-ico"><svg class="ico"><use href="#i-pencil"/></svg> Editar las preguntas</span>
+            </div>
+            <p class="apostilla">El panel dice lo que la tarjeta no puede decir. Nada más.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-3 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-3</span><h3>«Las piezas» se cuenta por lo que está apagado</h3></div>
+      <p class="av-txt">
+        Un bloque plegado cuyo resumen es la lista de lo que <b>no</b> lleva: para saber qué lleva
+        hay que restar. El producto ya corrigió esto en otras pantallas.
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-panel">
+              <div class="ui-plegado"><svg class="ico"><use href="#i-chev-r"/></svg> Las piezas <span class="cuenta">3 de 6</span></div>
+              <div class="ui-linea">Apagado: calentamiento y movilidad, RIR objetivo por serie, equivalencias en la dieta.</div>
+            </div>
+            <p class="apostilla">Para saber qué lleva, réstalo tú.</p>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <div class="ui-panel">
+              <div class="ui-plegado"><svg class="ico"><use href="#i-chev"/></svg> Las piezas <span class="cuenta">3 puestas</span></div>
+              <div class="ui-piezas">
+                <div class="ui-pieza on"><span class="sw"></span> Tu nota en cada sesión</div>
+                <div class="ui-pieza on"><span class="sw"></span> Logbook del cliente</div>
+                <div class="ui-pieza on"><span class="sw"></span> Parte al terminar de entrenar</div>
+                <div class="ui-pieza"><span class="sw"></span> Otras tres sin poner</div>
+              </div>
+            </div>
+            <p class="apostilla">Los seis módulos son los de <code>protocol.js</code>. Lo puesto primero, y el interruptor donde se lee.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-4 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-4</span><h3>«Lo que sale · 1» no es de este protocolo</h3></div>
+      <p class="av-txt">
+        Esa cifra cuenta los envíos pendientes de <b>toda la cartera</b>
+        (<code>ProtocolosPanel.jsx:211</code>) y se pinta dentro de «Quién lo lleva», debajo de
+        «0 clientes». Un protocolo sin nadie anuncia, en su propio panel, que hay algo a punto de
+        salir.
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-panel">
+              <div class="ui-rot">Quién lo lleva</div>
+              <div class="ui-cifra">0 clientes</div>
+              <div class="ui-linea">No le pasa nada solo.</div>
+              <span class="ui-link con-ico"><svg class="ico"><use href="#i-clock"/></svg> Ver lo que sale · 1</span>
+            </div>
+            <p class="apostilla">Dos frases de este protocolo y una de la casa entera, en la misma caja.</p>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <div class="ui-bar">
+              <span class="tit">Taller</span>
+              <span class="sep"></span>
+              <span class="meta">Protocolos</span>
+              <span class="ui-btn callado" style="margin-left:auto"><svg class="ico"><use href="#i-clock"/></svg> Lo que sale · 1</span>
+            </div>
+            <div class="ui-panel">
+              <div class="ui-rot">Quién lo lleva</div>
+              <div class="ui-cifra">0 clientes</div>
+              <div class="ui-linea">No le pasa nada solo.</div>
+            </div>
+            <p class="apostilla">La cifra de la casa sube a la cabecera de la casa.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-5 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-5</span><h3>La primera línea de la pantalla es un reproche</h3></div>
+      <p class="av-txt">
+        Antes de la primera acción: seis clientes, seis excepciones. <b>Cuando todos son la
+        excepción, la excepción no informa</b>, y encima ocupa el primer renglón escrito en negativo.
+        La proporción es de la demo; el sitio no depende de los datos.
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-nota mala">Marta Ruiz, Javier Ortega, Nerea Sanz, Álvaro Pino y 2 más tienen excepciones y «Poner al día» no les toca nada.</div>
+            <span class="ui-rot">Al entrar</span>
+            <div class="ui-card">
+              <span class="disco" style="background:color-mix(in srgb,var(--d-blue) 16%,transparent);color:var(--d-blue)"><svg class="ico"><use href="#i-form"/></svg></span>
+              <div class="ui-verbo">Pídele</div>
+              <div class="ui-nom">Alta</div>
+              <div class="ui-sub">El cuestionario que contesta en su portal</div>
+            </div>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <span class="ui-rot">Al entrar</span>
+            <div class="ui-card">
+              <span class="disco" style="background:color-mix(in srgb,var(--d-blue) 16%,transparent);color:var(--d-blue)"><svg class="ico"><use href="#i-form"/></svg></span>
+              <div class="ui-verbo">Pídele</div>
+              <div class="ui-nom">Alta</div>
+              <div class="ui-sub">El cuestionario que contesta en su portal</div>
+            </div>
+            <div class="ui-panel">
+              <div class="ui-rot">Quién lo lleva</div>
+              <div class="ui-cifra">6 clientes</div>
+              <span class="ui-link">6 lo llevan a su manera</span>
+            </div>
+            <p class="apostilla">El trabajo primero. La excepción baja al panel, en positivo y con su puerta.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-6 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-6</span><h3>Dos puertas para una sola partida</h3></div>
+      <p class="av-txt">
+        Al pie de Formularios hay una nota explicando qué mitad del trabajo le toca a esa pantalla.
+        Y editar el formulario de una acción navega a <code>/formularios</code> con un
+        <code>state.volver</code> escrito a propósito para que el entrenador no se pierda.
+        <b>Cuando hay que programar el camino de vuelta, el viaje sobraba.</b>
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="dos-puertas">
+              <div class="ui-puerta"><div class="tit">Protocolos</div><div class="pie">Dice cuándo</div></div>
+              <div class="lazo">
+                <span class="nota">editar</span>
+                <span class="hilo"></span>
+                <span class="nota">lo piden</span>
+              </div>
+              <div class="ui-puerta"><div class="tit">Formularios</div><div class="pie">Dice qué</div></div>
+            </div>
+            <p class="apostilla">Dos puertas que se pasan el trabajo la una a la otra.</p>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <div class="ui-puerta"><div class="tit">Protocolos</div><div class="pie">Cuándo y qué, en el mismo sitio</div></div>
+            <div class="ui-capa">
+              <div class="ui-rot">Alta · 14 preguntas</div>
+              <div class="ui-linea">Peso · Altura · Lesiones · Alergias · Días que entrena</div>
+              <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> pregunta</span>
+            </div>
+            <p class="apostilla">El mismo movimiento que juntó Ejercicios y Alimentos en la Librería.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- A-7 -->
+    <article class="averia">
+      <div class="av-cab"><span class="av-id">A-7</span><h3>Seis sustantivos antes de tocar nada</h3></div>
+      <p class="av-txt">
+        Protocolo, acción, premisa, enchufe, formulario, plantilla. Todos significan algo distinto y
+        el código los usa con precisión, pero son <b>seis palabras nuevas entre abrir la puerta y
+        montar la primera cosa</b>. La cura no es un párrafo que explique qué es un protocolo —la ley
+        de la voz lo prohíbe—: <b>es que el protocolo vacío venga ya con sus cuatro momentos
+        dibujados</b>.
+      </p>
+      <div class="par">
+        <div class="lado">
+          <div class="lado-rot"><span class="punto"></span> Ahora</div>
+          <div class="lienzo">
+            <div class="ui-bar">
+              <span class="tit">Protocolo 2</span>
+              <span class="sep"></span>
+              <span class="meta">0 clientes</span>
+            </div>
+            <div class="ui-nota">Una pantalla en blanco y seis palabras que no ha visto nunca.</div>
+          </div>
+        </div>
+        <div class="lado prop">
+          <div class="lado-rot"><span class="punto"></span> Propuesta</div>
+          <div class="lienzo">
+            <div class="ui-bar">
+              <span class="tit">Protocolo 2</span>
+              <span class="sep"></span>
+              <span class="meta">0 clientes · 0 acciones</span>
+            </div>
+            <div class="cadencia">
+              <div class="paso-q"><span class="n">01</span> Al entrar <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> acción</span></div>
+              <div class="paso-q"><span class="n">02</span> Al terminar de entrenar <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> acción</span></div>
+              <div class="paso-q"><span class="n">03</span> Cada semana <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> acción</span></div>
+              <div class="paso-q"><span class="n">04</span> Si pasa demasiado tiempo <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> acción</span></div>
+            </div>
+            <p class="apostilla">La estructura enseña qué es. Sin una línea de definición.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ══ Arreglos ══════════════════════════════════════════════════════════ -->
+<section class="sec spine" id="arreglos">
+  <div class="sec-cab">
+    <div class="eyebrow">Arreglos · tres</div>
+    <h2>Tres formas, y no compiten</h2>
+    <p class="entradilla"><b>A + B</b> es el rediseño. <b>C</b> es el colchón para quien llega.</p>
+  </div>
+
+  <div class="arreglos">
+
+    <article class="arreglo">
+      <div class="ar-cab"><span class="ar-letra">A</span><h3>El protocolo es solo la línea de tiempo</h3></div>
+      <div class="ar-grid">
+        <div>
+          <p class="ar-txt">
+            Sale de la pantalla todo lo que no ocurre en un momento. Queda una columna limpia: un
+            verbo y un sujeto por renglón.
+          </p>
+          <p class="ar-txt" style="margin-top:12px">
+            Con un agravante: <code>services</code> ya es del cliente y no de la plantilla —está en
+            <code>NOT_COMPARED_KEYS</code>—, así que el interruptor del alcance está en la pantalla
+            equivocada <b>por partida doble</b>.
+          </p>
+          <div class="balanza">
+            <div><b>Cuesta:</b> mover tres bloques y decidir dónde aterriza cada uno. Ninguno cambia de modelo: todos viven ya en <code>clientProtocol</code>.</div>
+            <div class="riesgo"><b>Riesgo:</b> el alcance es lo que más se toca al dar de alta. Si baja a la ficha, el alta tiene que seguir siendo un solo recorrido.</div>
+          </div>
+        </div>
+        <div class="lienzo">
+          <div class="ui-rot">La mudanza</div>
+          <div class="mudanzas">
+            <div class="mudanza"><span class="de">Qué lleva</span><span class="guia"></span><span class="a">Ficha del cliente</span></div>
+            <div class="mudanza"><span class="de">Las piezas</span><span class="guia"></span><span class="a">Tus ajustes</span></div>
+            <div class="mudanza"><span class="de">Quién lo lleva</span><span class="guia"></span><span class="a">Cabecera y cartera</span></div>
+          </div>
+          <div class="ui-panel" style="margin-top:6px">
+            <div class="ui-rot">Lo que queda</div>
+            <div class="cadencia">
+              <div class="paso-q"><span class="n">01</span> Al entrar</div>
+              <div class="paso-q"><span class="n">02</span> Al terminar de entrenar</div>
+              <div class="paso-q"><span class="n">03</span> Cada semana</div>
+              <div class="paso-q"><span class="n">04</span> Si pasa demasiado tiempo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="arreglo">
+      <div class="ar-cab"><span class="ar-letra">B</span><h3>Una sola puerta</h3></div>
+      <div class="ar-grid">
+        <div>
+          <p class="ar-txt">
+            Formularios deja de ser puerta. Un formulario se edita <b>desde la acción que lo usa</b>,
+            en capa, sin cambiar de pantalla. Es el movimiento que ya funcionó con Ejercicios y
+            Alimentos.
+          </p>
+          <div class="balanza">
+            <div><b>Cuesta:</b> poco, y está medio hecho. <code>ConstructorLibre</code> es un componente completo; montarlo en una capa es cambiar quién lo renderiza. El <code>state.volver</code> desaparece en vez de crecer.</div>
+            <div><b>A decidir:</b> si los formularios sueltos siguen necesitando lista propia. Probablemente sí, pero como tramo de «Lo que sale», no como puerta del taller.</div>
+            <div class="riesgo"><b>Riesgo:</b> con veinte formularios se pierde la vista de conjunto. Se compensa con la lista dentro de la capa.</div>
+          </div>
+        </div>
+        <div class="lienzo">
+          <div class="ui-card">
+            <span class="disco" style="background:color-mix(in srgb,var(--d-teal) 16%,transparent);color:var(--d-teal)"><svg class="ico"><use href="#i-bell"/></svg></span>
+            <div class="ui-verbo">Pídele</div>
+            <div class="ui-nom">El check-in</div>
+            <div class="ui-sub">Peso, perímetros, pliegues y fotos</div>
+            <div class="ui-meta">lunes</div>
+          </div>
+          <div class="ui-capa" style="margin-left:26px">
+            <div class="ui-rot">El check-in · 5 preguntas</div>
+            <div class="ui-piezas">
+              <div class="ui-pieza on"><span class="sw"></span> Peso</div>
+              <div class="ui-pieza on"><span class="sw"></span> Perímetros</div>
+              <div class="ui-pieza on"><span class="sw"></span> Pliegues</div>
+              <div class="ui-pieza on"><span class="sw"></span> Fotos</div>
+            </div>
+            <span class="ui-link con-ico"><svg class="ico"><use href="#i-plus"/></svg> pregunta</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="arreglo">
+      <div class="ar-cab"><span class="ar-letra">C</span><h3>Un alta guiada, la primera vez</h3></div>
+      <div class="ar-grid">
+        <div>
+          <p class="ar-txt">
+            Tres preguntas en vez de una pantalla, y solo la primera vez. Después, la pantalla de
+            siempre: resuelve al que llega sin quitarle nada al que ya tiene quince protocolos
+            montados.
+          </p>
+          <div class="balanza">
+            <div><b>Cuesta:</b> pantalla nueva, modelo ninguno. Las tres preguntas escriben claves que ya existen.</div>
+            <div class="riesgo"><b>Riesgo:</b> un asistente que se salta es un paso muerto. Tiene que poder cerrarse y no volver.</div>
+          </div>
+        </div>
+        <div class="lienzo">
+          <div class="ui-panel">
+            <div class="ui-rot">1 de 3</div>
+            <div class="ui-cifra">¿Qué le das?</div>
+            <div class="ui-piezas">
+              <div class="ui-pieza on"><span class="sw"></span> Entrenamiento</div>
+              <div class="ui-pieza on"><span class="sw"></span> Dieta</div>
+            </div>
+          </div>
+          <div class="ui-panel">
+            <div class="ui-rot">2 de 3</div>
+            <div class="ui-cifra">¿Qué le pides?</div>
+            <div class="ui-linea">El alta al entrar, el check-in los <span class="ui-dato">lunes</span>.</div>
+          </div>
+          <div class="ui-panel">
+            <div class="ui-rot">3 de 3</div>
+            <div class="ui-cifra">¿De qué te aviso?</div>
+            <div class="ui-linea">Si no aparece en <span class="ui-dato">7 días</span>. Si se pesa fuera de rango.</div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ══ Orden ═════════════════════════════════════════════════════════════ -->
+<section class="sec spine" id="orden">
+  <div class="sec-cab">
+    <div class="eyebrow">Orden</div>
+    <h2>Cada paso deja el terreno listo para el siguiente</h2>
+  </div>
+  <div class="orden">
+    <div class="paso">
+      <div class="n">01</div>
+      <div>
+        <h3>Las siete averías</h3>
+        <p>Baratas y sin discusión: la frase de la cadencia, el panel que repite, las piezas en positivo, la cifra global fuera del panel y la excepción donde no estorbe.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">02</div>
+      <div>
+        <h3>B · La puerta única</h3>
+        <p>La que más lío quita por lo que cuesta.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">03</div>
+      <div>
+        <h3>A · La línea de tiempo</h3>
+        <p>El rediseño de verdad. Mover bloques de sitio se decide mejor cuando la pantalla ya tiene su forma final.</p>
+      </div>
+    </div>
+    <div class="paso">
+      <div class="n">04</div>
+      <div>
+        <h3>C · El alta guiada</h3>
+        <p>Al final: guiar hacia una pantalla que aún va a cambiar es escribir dos veces el mismo texto.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Intacto ═══════════════════════════════════════════════════════════ -->
+<section class="sec spine" id="intacto">
+  <div class="sec-cab">
+    <div class="eyebrow">Intacto</div>
+    <h2>Lo que no se toca</h2>
+  </div>
+  <div class="intactos">
+    <div class="intacto">
+      <h3>Los verbos y las premisas</h3>
+      <p>Pídele, dale, haz tú, avísame, bajo «al entrar», «al terminar de entrenar», «cada semana». Se lee lo que le pasa a una persona, en orden. Todo lo demás debería organizarse alrededor.</p>
+    </div>
+    <div class="intacto">
+      <h3>Los formularios dentro del protocolo</h3>
+      <p>El protocolo dice cuándo y el formulario dice qué. Separarlos fue el error: la idea es buena, se ejecutó con dos puertas.</p>
+    </div>
+    <div class="intacto">
+      <h3>Los discos de color por familia</h3>
+      <p>Distinguen sin gritar y no gastan el acento, que sigue queriendo decir «esto se toca».</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══ Evidencia ═════════════════════════════════════════════════════════ -->
+<section class="sec spine" id="evidencia">
+  <div class="sec-cab">
+    <div class="eyebrow">Evidencia</div>
+    <h2>La app corriendo, no un recuerdo</h2>
+    <p class="entradilla">Supabase local, <code>npm run demo</code>, seis clientes y dos protocolos.</p>
+  </div>
+  <div class="pruebas">
+    <figure>
+      <img src="taller-protocolo-con-excepciones.png" alt="Protocolos con seis clientes: la línea de excepciones arriba, la columna de acciones en el medio y el panel de la derecha.">
+      <figcaption>El protocolo con clientes. Arriba del todo, la línea de excepciones (<b>A-5</b>). A la derecha, «Qué lleva», «Las piezas» (<b>A-3</b>), «La acción» (<b>A-2</b>) y «Ver lo que sale · 1» (<b>A-4</b>). Abajo, la cadencia que se contradice (<b>A-1</b>).</figcaption>
+    </figure>
+    <figure>
+      <img src="taller-protocolo-abierto.png" alt="Un protocolo recién duplicado, sin clientes asignados.">
+      <figcaption>«Protocolo 2», recién duplicado y sin nadie: lo más parecido a lo que ve quien entra el primer día (<b>A-7</b>).</figcaption>
+    </figure>
+    <figure>
+      <img src="taller-formularios.png" alt="La pantalla de Formularios, con la columna «Lo piden» y la nota al pie.">
+      <figcaption>La otra puerta (<b>A-6</b>). Al pie: «Aquí se escriben; qué protocolo usa cada uno —y a quién se le manda— se decide en Protocolos».</figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer class="spine">
+  Caveman Hub · 13 de septiembre de 2026 · Nada de lo propuesto está construido.
+  Fuente: <code>docs/estudio-el-taller-del-entrenador-nuevo.md</code>.
+</footer>
+
+</main>
+
+<script>
+(function () {
+  // La planta y la tabla son la misma información: mirar en una enciende la otra.
+  var planta = document.getElementById('planta');
+  var pie = document.getElementById('planta-pie');
+  var zonas = planta.querySelectorAll('.zona[data-clase]');
+  var filas = document.querySelectorAll('.clases tr[data-clase]');
+
+  function marcar(clase, on) {
+    zonas.forEach(function (z) {
+      if (z.dataset.clase === clase) z.classList.toggle('is-mirada', on);
+    });
+  }
+  filas.forEach(function (f) {
+    var clase = f.dataset.clase;
+    ['mouseenter', 'focusin'].forEach(function (e) {
+      f.addEventListener(e, function () { marcar(clase, true); });
+    });
+    ['mouseleave', 'focusout'].forEach(function (e) {
+      f.addEventListener(e, function () { marcar(clase, false); });
+    });
+  });
+
+  // El mando: la pantalla se queda con lo suyo.
+  var textos = {
+    hoy: '<b>Cuatro clases de cosa</b> en una pantalla.',
+    limpio: '<b>Una:</b> qué le pasa a un cliente, y cuándo.'
+  };
+  var botones = document.querySelectorAll('.mando button');
+  botones.forEach(function (b) {
+    b.addEventListener('click', function () {
+      var modo = b.dataset.modo;
+      planta.dataset.modo = modo;
+      pie.innerHTML = textos[modo];
+      botones.forEach(function (o) { o.setAttribute('aria-selected', String(o === b)); });
+    });
+  });
+
+  // La barra se separa del papel al despegar.
+  var rail = document.getElementById('rail');
+  var alRodar = function () { rail.classList.toggle('is-pegado', window.scrollY > 8); };
+  alRodar();
+  window.addEventListener('scroll', alRodar, { passive: true });
+})();
+</script>

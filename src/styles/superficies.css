@@ -12,24 +12,27 @@
    Superficies
    ========================================================================== */
 
-/* ── El canto ──────────────────────────────────────────────────────────────
-   Toda superficie lleva borde, en los dos temas. Antes la tarjeta se separaba
-   del fondo SOLO por la sombra, y sobre hierro eso no separa nada: una sombra
-   sobre grafito es invisible, así que las tarjetas se fundían con el lienzo y la
-   rejilla de la pantalla desaparecía justo en el tema en el que más falta hace.
+/* ── El canto, que es de UN tema y no de los dos ───────────────────────────
+   Aquí ponía «toda superficie lleva borde, en los dos temas», y esa regla
+   nació de un fallo real del hierro: la tarjeta se separaba del fondo SOLO por
+   la sombra, y una sombra sobre grafito es invisible, así que las tarjetas se
+   fundían con el lienzo y la rejilla de la pantalla desaparecía justo en el
+   tema en el que más falta hace. Para el hierro sigue siendo cierta.
 
-   Sobre papel la sombra sigue estando, pero ahora acompaña al canto en vez de
-   sustituirlo, y por eso es más corta que antes. */
+   Lo que no era cierto es el «en los dos». Sobre papel la sombra SÍ se ve, así
+   que el filete no estaba separando nada: solo estaba dibujando un rectángulo
+   de 1 px con radio de campo alrededor de cada bloque, que es lo que hace que
+   una pantalla se lea como un formulario. `--edge-card` es transparente sobre
+   papel y el canto de siempre sobre hierro; el píxel se sigue reservando, así
+   que ninguna caja se mueve de sitio. */
 .card {
   background: var(--surface);
-  border: 1px solid var(--edge);
+  border: 1px solid var(--edge-card);
   border-radius: var(--r-lg);
   padding: var(--s5);
   box-shadow: var(--shadow-sm);
 }
 .card-tight { padding: var(--s4); }
-.card-flush { padding: 0; overflow: hidden; }
-.card-float { box-shadow: var(--shadow-float); }
 
 /* ── LA LUMBRE, dentro del producto ────────────────────────────────────────
    La luz cálida de la portada, aplicada a UNA tarjeta por pantalla como mucho:
@@ -78,7 +81,8 @@
    que no llegan al borde, encabezados en mayúsculas diminutas. */
 .list {
   background: var(--surface);
-  border: 1px solid var(--edge);
+  /* La lista es una tarjeta con filas dentro: mismo canto que `.card`. */
+  border: 1px solid var(--edge-card);
   border-radius: var(--r-lg);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
@@ -104,8 +108,19 @@
    peldaños del plan—, que son tres sitios con la misma lista dentro. Es un solo
    dibujo, y quien lo cambie tiene que cambiarlo en los tres a la vez o no lo
    ha cambiado. */
+/* ⚠ ESTE BLOQUE SE PERDIÓ, y con él el filete de TODAS las listas del producto.
+   Al añadirle `.step` al selector el 1 de septiembre se le comió el cuerpo, y
+   lo que quedó fue el selector del filete pegado a la llave de `.is-active`:
+   `.list-row + .list-row::before` heredó `background: var(--accent-soft)`, y sin
+   `content` un pseudo no se pinta. Desde entonces las listas agrupadas eran
+   filas sueltas sin separar. Un comentario que explica un dibujo no garantiza
+   que el dibujo exista; esto se vio al montar `.es-puerta`, que es una lista de
+   filas y nada más. */
 .list-row + .list-row::before,
-.step + .step::before,
+.step + .step::before {
+  content: ''; position: absolute; top: 0; left: var(--s4); right: var(--s4);
+  height: 1px; background: var(--hairline);
+}
 .list-row.is-active { background: var(--accent-soft); }
 .list-row.is-active .row-value { color: var(--accent); }
 button.list-row { cursor: pointer; transition: background-color var(--fast); }
@@ -117,7 +132,7 @@ button.list-row:hover { background: var(--fill-subtle); }
    Cobros se leía «Rafael SendraPago vencido hace 21 días» y en Equipo el correo
    iba pegado al nombre. */
 .list-row-label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.list-row-label > .title { font-size: var(--fs-base); font-weight: 550; }
+.list-row-label > .title { font-size: var(--fs-base); font-weight: 500; }
 .list-row-label > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* ── En estrecho, la fila envuelve en vez de recortarse ─────────────────────
@@ -127,14 +142,226 @@ button.list-row:hover { background: var(--fill-subtle); }
    mismo motivo; esta es la misma decisión para la lista agrupada. La base
    porcentual de la etiqueta —el idioma de `.exercise-name`— hace que el nombre
    reclame la primera línea y las acciones bajen juntas a la segunda. */
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .list-row { flex-wrap: wrap; row-gap: var(--s2); }
   .list-row-label { flex: 1 1 55%; }
+  /* ── Salvo cuando la cola son MUESCAS ────────────────────────────────────
+     Envolver está pensado para un botón que no encoge. Las muescas sí encogen
+     —son cuatro tramos de 16 px— pero con la etiqueta reclamando el 55 % y el
+     chevron detrás, la suma pasaba de la línea y **el chevron se caía solo a un
+     segundo renglón**, debajo del icono y sin nada al lado. Una fila con cuenta
+     no se parte: lo que hay a la derecha mide lo que mide. */
+  .list-row:has(.marcas) { flex-wrap: nowrap; }
+  .list-row:has(.marcas) > .list-row-label { flex: 1 1 auto; }
+  /* ── Y cuando la cola es una CIFRA con su chevron ────────────────────────
+     El mismo fallo y por la misma cuenta, visto en `/mi/dieta` a 392 px con el
+     margen del prototipo puesto: «Lo que suman tus opciones» reclama el 55 %,
+     `.row-meta` trae 84 px de mínimo y detrás va un chevron de 15 — la suma se
+     pasa por cuatro píxeles y **el chevron se cae solo al segundo renglón**,
+     debajo de la tesela y sin nada al lado.
+
+     Una fila-puerta tampoco se parte: lo que lleva a la derecha son quince
+     píxeles de dibujo, no un botón con su texto, así que lo que tiene que ceder
+     es el rótulo. Es la misma decisión que la de las muescas, escrita para el
+     otro caso de la misma familia. */
+  .list-row.es-puerta { flex-wrap: nowrap; }
+  .list-row.es-puerta > .list-row-label { flex: 1 1 auto; }
 }
 .row-value { font-size: var(--fs-base); font-weight: 600; white-space: nowrap; }
 .row-meta { font-size: var(--fs-xs); color: var(--text-tertiary); white-space: nowrap; min-width: 84px; text-align: right; }
 
-.list-icon { width: 30px; height: 30px; border-radius: var(--r-sm); display: grid; place-items: center; flex-shrink: 0; }
+/* ── LA TESELA DE UNA FILA ─────────────────────────────────────────────────
+   Estaba escrita sin fondo, así que donde nadie le ponía uno —los pasos del
+   alta, las renovaciones de Cobros— era un icono suelto con una caja invisible
+   alrededor. El fondo viene con la tesela del portal y es el mismo para todas:
+   **sin color por categoría**. Las pastillas de colores de Ajustes de iOS son
+   exactamente eso, y la ley del color de la casa lo prohíbe —si el color no
+   compara ni juzga, es adorno—; aquí quien distingue es el dibujo, y el azul se
+   queda para lo que invita a tocar. Ver `la ley del color`.
+
+   Quien necesite teñirla lo sigue haciendo en su sitio (`ui/metrics`, la tabla
+   de métricas, que colorea por serie porque ahí el color SÍ compara). */
+.list-icon {
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--fill); color: var(--text-secondary);
+}
+/* El filete entre dos filas entra a la altura del RÓTULO, no del icono: 16 de
+   sangría + 30 de tesela + 12 de hueco. Es lo que hace que una lista con
+   dibujos se lea como una lista y no como una rejilla. Va con `:has` y no con
+   una clase en el grupo porque la condición es exactamente esa —que las filas
+   lleven tesela—, y una clase que hay que acordarse de poner se olvida en la
+   cuarta lista. */
+.list:has(.list-icon) .list-row + .list-row::before { left: 58px; }
+
+/* ── LA FILA-PUERTA: lo secundario del teléfono ────────────────────────────
+   El porqué está en `ui/Grupo.jsx`. Aquí, lo que hay que saber: es `.list-row`
+   con tres cosas más —altura de dedo, chevron y cursor— y por eso NO es una
+   lista aparte. Un grupo de puertas y una lista de datos son la misma
+   superficie con distinto contenido; si divergen, la pantalla tiene dos listas
+   que se parecen y ninguna explica por qué.
+
+   50 px es el mínimo de `.list-row` y sirve para leer; una fila que se PULSA
+   quiere los 56 del objetivo táctil cómodo, que es lo que mide el pulgar sin
+   apuntar. */
+.list-row.es-puerta {
+  min-height: 56px;
+  text-decoration: none; color: inherit; cursor: pointer;
+  transition: background-color var(--fast);
+}
+.list-row.es-puerta:hover { background: var(--fill-subtle); }
+.list-row.es-puerta:active { background: var(--fill); }
+/* El chevron se acerca al pasar, igual que en `.task-row`: es el mismo dibujo
+   haciendo el mismo trabajo, y dos velocidades distintas para el mismo gesto es
+   lo que hace que un producto se vea a cachos. */
+.list-row.es-puerta > .chevron {
+  flex-shrink: 0; color: var(--hairline-strong);
+  transition: transform var(--fast), color var(--fast);
+}
+.list-row.es-puerta:hover > .chevron { transform: translateX(2px); color: var(--text-tertiary); }
+/* ── LA FILA QUE ES UN VERBO ───────────────────────────────────────────────
+   En una lista de estados —«Sesiones», «Pesajes»— hay una que no dice cómo vas
+   sino qué tienes que hacer: «Entregar tu revisión». Va en el azul de la casa,
+   nombre y tesela, que es la ley de los gestos escrita tal cual: *la caja se
+   enciende y el verbo va en azul*. Sin ella, la única acción de la lista se lee
+   igual que los dos datos de encima y deja de pedir nada. */
+.list-row.es-verbo > .list-row-label > .title { color: var(--accent); font-weight: 600; }
+.list-row.es-verbo > .list-icon { background: var(--accent-soft); color: var(--accent); }
+/* La cifra de la derecha lleva cuerpo de secundario y no de etiqueta: en una
+   puerta es media respuesta —«Tu peso · 76,9 kg»— y a 12 px se leía como un
+   pie. Sin ancho mínimo: aquí no hay columna que cuadrar. */
+.list-row.es-puerta > .row-meta {
+  min-width: 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+}
+/* «Aquí hay algo esperándote». El mismo punto de la cola del entrenador y por
+   el mismo motivo: es estructural, no un estado de color — qué espera lo dice
+   el texto de al lado. Ver `la ley del color`.
+
+   ── Y VA EN EL CANTO, FUERA DE LA FILA ────────────────────────────────────
+   Iba en el flujo, delante del rótulo, y con eso la fila que avisaba empujaba
+   su contenido 19 px a la derecha: en un grupo de tres, la de en medio tenía la
+   tesela y el título descuadrados de las otras dos. Se vio en cuanto las filas
+   llevaron dibujo —hasta entonces el desajuste era de un texto contra otro—.
+   Sacado del flujo, vive en la sangría de la tarjeta, que es donde una marca de
+   «esto te espera» tiene que estar: al margen de lo que dice la fila. */
+.fila-punto {
+  position: absolute; left: var(--s1); top: 50%; transform: translateY(-50%);
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+}
+
+/* ── La cuenta, como fila del grupo ────────────────────────────────────────
+   «Tu cuenta» no es una puerta a otra pantalla: es el menú que ya existe
+   (`AccountMenu variante="fila"`, el mismo del pie de la barra del entrenador)
+   metido en la última fila de «Tú». Copiarle las tres opciones habría sido una
+   cuarta versión del mismo menú.
+
+   La fila solo le cede el sitio: sin relleno propio —lo pone el botón de
+   dentro, que tiene que ser el objetivo táctil entero— y sin `min-height`,
+   porque la altura la decide el avatar.
+
+   ── Y desde el 14 de septiembre de 2026 no la cede `.list-row` ──────────
+   La cede la caja del portal rediseñado, que es otro mueble: el traje está en
+   `portal-pc.css` (`.pc-fila.pc-cuenta`) y en
+   `portal-telefono.css` (`.tel-fila-menu.tel-cuenta`). El menú es el mismo. */
+
+/* ── LOS PAPELES: lo que te ha mandado, en cuadrícula ──────────────────────
+   La otra manera de enseñar un conjunto, y la hermana de `.list`: misma
+   superficie, mismo canto, misma tesela. Lo que cambia es el trabajo.
+
+   ⚠ SE LLAMA `.papel` Y NO `.carpeta` porque `.carpeta` YA EXISTE: es la
+   carpeta de una copia de seguridad en Ajustes (`ajustes.css`), con
+   `display: flex` y radio `--r-lg`. Escrito aquí primero con ese nombre, la
+   rejilla salía en UNA columna y con otro radio —`ajustes.css` se importa
+   después y ganaba—, sin un solo aviso: `verify-styles` comprueba que toda
+   clase escrita exista, no que dos hojas declaren la misma. Familia de
+   `.pide` / `.g` y de `.comida .ch span`. Antes de bautizar una pieza, buscar
+   el nombre en el CSS entero.
+
+   Una lista se LEE de arriba abajo, y eso vale para puertas que dicen algo
+   («Tu peso · 76,9 kg»). Un documento no se lee: se BUSCA, por el dibujo y por
+   el sitio donde estaba la última vez. Puestos en filas, el PDF de la guía y el
+   contrato firmado son dos renglones idénticos que hay que leerse; en
+   cuadrícula, cada uno tiene su esquina.
+
+   `auto-fill` y no dos columnas fijas: la misma pieza sale en la capa del
+   teléfono (dos) y en una ventana de escritorio (cuatro), y un `@media` aquí
+   sería declarar a mano lo que la rejilla ya sabe. */
+.papeles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s3); }
+.papel {
+  /* El nombre y su pie van pegados (`--s1`) y el dibujo se separa de los dos
+     con su propio margen: son dos cosas, no tres sueltas. */
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1);
+  padding: var(--s3) var(--s4) var(--s4);
+  background: var(--surface); border: 1px solid var(--edge-card); border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
+  color: inherit; text-decoration: none; text-align: left; cursor: pointer;
+  transition: box-shadow var(--fast);
+}
+.papel:hover { box-shadow: var(--shadow-md); }
+.papel > .list-icon { margin-bottom: var(--s1); }
+/* `anywhere` y no `break-word`: lo que va debajo del nombre es muchas veces el
+   nombre de un archivo —«anamnesis-marta-lopez-2026.pdf»—, una sola palabra de
+   treinta caracteres que en una tesela de 150 px se sale por el canto sin
+   partirse. */
+.papel > b,
+.papel > span { max-width: 100%; overflow-wrap: anywhere; }
+.papel > b { font-size: var(--fs-sm); font-weight: 600; }
+.papel > span { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+/* Lo que existe y no se puede abrir ahora mismo se queda PUESTO y apagado: quien
+   lo espera —porque su entrenador le dijo «te he dejado la anamnesis»— tiene que
+   ver que existe y que algo falla, no un hueco donde no había nada. Sin sombra y
+   sin cursor, que es lo que dice que no se pulsa.
+
+   Y ocupa la fila entera: en una rejilla todas las teselas de una fila miden lo
+   que la más alta, así que una frase de tres renglones dentro de una tesela de
+   150 px estiraba también a las de al lado. Lo que no funciona se dice a lo
+   ancho. */
+.papel.is-roto {
+  grid-column: 1 / -1;
+  box-shadow: none; background: var(--fill-subtle); cursor: default;
+}
+.papel.is-roto > .list-icon { color: var(--text-tertiary); }
+
+/* El grupo: el rótulo fuera de la superficie y la lista debajo. */
+.grupo-filas { display: flex; flex-direction: column; gap: var(--s2); }
+/* ── EL RÓTULO DE UN GRUPO, en caja normal y con su contexto a la derecha ──
+   Iba en versalitas espaciadas —«TU MICROCICLO»— que es la troquelada con la
+   que la casa rotula un bloque DENTRO de una pantalla de escritorio. En el
+   teléfono el rótulo de una lista agrupada no es un troquel: es el renglón que
+   nombra lo que viene debajo, y se lee mejor en caja normal y con su peso.
+
+   Es la gramática del prototipo (`docs/portal-dos-aparatos.html`, `.rot`), y
+   con ella el contexto —«Bloque 1 · microciclo 2 de 2»— se va al OTRO extremo
+   del renglón en vez de colgar del rótulo: así el rótulo se lee solo y el
+   contexto se lee solo, que es lo que hace que ninguno de los dos estorbe. */
+.grupo-filas-rotulo {
+  padding: 0 var(--s1);
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0; text-transform: none;
+  color: var(--text-tertiary);
+}
+
+/* ── LAS MUESCAS DE UNA CUENTA CORTA ───────────────────────────────────────
+   Cuatro sesiones, tres pesajes. No es una barra de progreso: una barra al 75 %
+   obliga a saber el total para traducirla, y el total —cuántas faltan— es justo
+   la mitad de la respuesta.
+
+   ── Guiones y no puntos, y en ACENTO ──────────────────────────────────────
+   Se escribieron como discos grises: una fila de seis puntitos de 6 px que a
+   un brazo de distancia no se cuentan. El prototipo los dibuja como tramos de
+   16×5 en el azul de la casa, y entonces sí se leen de un vistazo — que es lo
+   único que esta pieza tiene que conseguir.
+
+   El azul aquí no juzga nada: distingue LO HECHO de lo que falta dentro de una
+   misma cuenta, que es el tercer uso que la ley del color le reserva. Ver
+   `la ley del color` y `docs/portal-dos-aparatos.html`, `.marcas`. */
+.marcas { display: inline-flex; align-items: center; gap: var(--s1); }
+.marcas > i {
+  width: var(--s4); height: 5px; border-radius: 3px;
+  background: var(--hairline-strong);
+}
+.marcas > i.es-hecha { background: var(--accent); }
 
 /* ==========================================================================
    Panel personalizable
@@ -144,21 +371,7 @@ button.list-row:hover { background: var(--fill-subtle); }
    para no quedar en una tira ilegible— y sus controles cuando se está editando.
    ========================================================================== */
 
-/* Dos columnas EXACTAS, no `auto-fit`.
-   Con `auto-fit` el número de columnas depende del ancho de la ventana, así que
-   «media fila» significaba un tercio en pantallas grandes y una tarjeta a fila
-   completa dejaba un hueco vacío al lado de las otras. Fijando dos columnas,
-   media es media siempre; que ninguna se quede sola lo garantiza `layoutCards`
-   en el dominio. */
-.grid-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); }
-
-.slot { position: relative; display: flex; flex-direction: column; min-width: 0; }
-.slot > * { flex: 1 1 auto; min-width: 0; }
-.slot.is-wide { grid-column: 1 / -1; }
-
 /* Al editar, la pieza se separa del fondo y deja sitio a sus controles. */
-.slot.is-editing { outline: 1.5px dashed var(--hairline-strong); outline-offset: 3px; border-radius: var(--r-lg); }
-.slot.is-editing > *:last-child { opacity: 0.92; }
 
 .slot-tools {
   position: absolute; top: -13px; right: 6px; z-index: 3;
@@ -175,16 +388,6 @@ button.list-row:hover { background: var(--fill-subtle); }
 .slot-btn:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
 .slot-btn:disabled { opacity: 0.35; cursor: default; }
 .slot-btn.is-danger:hover { background: var(--negative-soft); color: var(--negative); }
-
-/* Barra de edición: perfiles y extras. Se distingue del panel para que quede
-   claro que es un modo, no una tarjeta más. */
-.editbar {
-  display: flex; flex-direction: column; gap: var(--s4);
-  background: var(--accent-soft); border-radius: var(--r-lg); padding: var(--s4);
-}
-.editbar-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
-
-.tray { display: flex; flex-direction: column; gap: var(--s2); }
 
 /* ── Cartera ───────────────────────────────────────────────────────────────
    Una TARJETA por cliente, no una fila de tabla. Con cuatro fechas, un puñado
@@ -273,7 +476,7 @@ button.task-head:hover > .chevron { color: var(--text); }
    al FINAL de un día de cuatro pantallas. Flota sobre la barra del pulgar,
    donde el dedo ya está, y abre el alta como hoja. */
 .fab { display: none; }
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .fab {
     position: fixed; right: var(--s4); z-index: 60;
     bottom: calc(var(--bottombar-h) + var(--safe-b) + var(--s4));
@@ -285,19 +488,6 @@ button.task-head:hover > .chevron { color: var(--text); }
   }
   .fab:active { transform: scale(0.94); }
 }
-
-/* La semana como UNA línea en el teléfono (ver MicrocycleBar): el nombre y la
-   fecha son el botón que abre su hoja de gestión; las flechas siguen al lado. */
-.week-line {
-  flex: 1; min-width: 0; min-height: 44px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
-  background: none; border: 0; padding: var(--s1); color: inherit; font: inherit;
-  cursor: pointer; border-radius: var(--r-md);
-  -webkit-tap-highlight-color: transparent;
-}
-.week-line:active { background: var(--fill-subtle); }
-.week-line > strong { font-size: var(--fs-base); font-weight: 800; }
-.week-line > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* ── El pliegue ─────────────────────────────────────────────────────────────
    Una fila que se abre EN SU SITIO. El mismo idioma que `.task-head`, y el
@@ -316,7 +506,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 .fold-head {
   display: flex; align-items: center; gap: var(--s3); width: 100%;
   background: none; border: 0; padding: 0; color: var(--text);
-  font: inherit; font-size: var(--fs-sm); font-weight: 650;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600;
   text-align: left; cursor: pointer; min-height: 34px;
 }
 .fold-head > svg { flex-shrink: 0; color: var(--text-tertiary); }
@@ -539,7 +729,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 /* El rótulo que separa lo suyo de lo que se le ofrece, dentro del
    desplegable de etiquetas. */
 .selector-etiquetas-rotulo {
-  display: block; padding: 8px 10px 4px;
+  display: block; padding: var(--s2) 10px var(--s1);
   font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.06em;
   text-transform: uppercase; color: var(--text-tertiary);
 }
@@ -642,7 +832,6 @@ button.task-head:hover > .chevron { color: var(--text); }
 .plantilla th.al-num, .plantilla td.al-num,
 /* El perfil es una barra de medida fija: si aceptara sobrante, en 1920 sería
    una franja de colores de trescientos píxeles compitiendo con el nombre. */
-.plantilla th.al-perfil, .plantilla td.al-perfil,
 .plantilla th:last-child, .plantilla td:last-child {
   width: 1%; white-space: nowrap;
 }
@@ -710,7 +899,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 .plantilla th {
   padding: var(--s2) var(--s3) var(--s3);
   text-align: left; white-space: nowrap;
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--text-tertiary);
   border-bottom: 1px solid var(--hairline);
@@ -747,10 +936,10 @@ button.task-head:hover > .chevron { color: var(--text); }
    sobrante que repartir: la tabla mide su contenido (ver `.plantilla > table`,
    arriba). Los sangrados de abajo siguen valiendo igual — no dependen del
    ancho, sino del adorno que lleve cada celda delante del dato. */
-.plantilla th.p-quien > .th-orden { padding-left: calc(32px + var(--s3)); }   /* cara + hueco */
-.plantilla th.p-estado > .th-orden { padding-left: calc(7px + var(--s2)); }   /* punto + hueco */
-.plantilla th.p-etiq { padding-left: calc(var(--s3) + 8px); }                 /* canto de la caja */
-.plantilla th.p-lleva { padding-left: calc(var(--s3) + 7px); }               /* hueco del glifo */
+.plantilla th.p-quien > .th-orden { padding-left: calc(var(--s6) + var(--s3)); }   /* cara + hueco */
+.plantilla th.p-estado > .th-orden { padding-left: calc(var(--s2) + var(--s2)); }   /* punto + hueco */
+.plantilla th.p-etiq { padding-left: calc(var(--s3) + var(--s2)); }                 /* canto de la caja */
+.plantilla th.p-lleva { padding-left: calc(var(--s3) + var(--s2)); }               /* hueco del glifo */
 .plantilla tbody tr + tr > td { border-top: 1px solid var(--hairline); }
 /* La fila entera es la puerta (el teclado entra por el nombre, que es botón). */
 .plantilla tbody tr { cursor: pointer; transition: background-color var(--fast); }
@@ -863,11 +1052,22 @@ button.task-head:hover > .chevron { color: var(--text); }
   display: block; max-width: 260px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* ── EL NOMBRE SUBE UN ESCALÓN, Y SOLO EN LA CARTERA ───────────────────────
+   La firma de Clientes es la fila —cara, nombre y una señal de vida—, y el
+   nombre iba al mismo cuerpo que el nombre de un ejercicio o de un alimento en
+   las otras cuatro listas que comparten `.plantilla`. En una lista de cosas
+   está bien; en la de personas, no: es la única de las cinco donde lo que se
+   busca es a QUIÉN, y a 16 había que leer la columna en vez de reconocerla.
+
+   Va colgado de `.cartera` a propósito. Subir `.p-abrir` en las cinco tablas
+   convertiría «Press banca» y «Pechuga de pollo» en titulares, que es
+   justamente lo que esta hoja lleva tres vueltas quitando. */
 .plantilla .p-abrir {
   display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
   background: none; border: 0; padding: 0; font: inherit; color: var(--text);
   font-size: var(--fs-base); font-weight: 600; cursor: pointer; text-align: left;
 }
+.cartera .plantilla .p-abrir { font-size: var(--fs-md); letter-spacing: -0.012em; }
 /* Debajo del nombre solo queda quien lleva a esa persona, y solo si hay equipo.
    El veredicto y las carencias se mudaron a su columna. */
 .plantilla .p-sub {
@@ -910,7 +1110,7 @@ button.task-head:hover > .chevron { color: var(--text); }
    un dato. La del tramo abierto se enciende en acento. */
 .tabs.tramos .chip-count {
   opacity: 1;
-  min-width: 21px; padding: 1px 7px; border-radius: var(--r-pill);
+  min-width: 21px; padding: 1px var(--s2); border-radius: var(--r-pill);
   background: var(--fill); color: var(--text-secondary);
   font-size: var(--fs-2xs); line-height: 1.5; text-align: center;
   transition: background-color var(--fast), color var(--fast);
@@ -949,8 +1149,8 @@ button.task-head:hover > .chevron { color: var(--text); }
    hay nada que dibujar: las cápsulas ya dicen que ahí hay algo. */
 .plantilla .p-etiq { min-width: 150px; }
 .plantilla .p-etiq-boton {
-  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
-  width: 100%; min-height: var(--h-control); padding: 3px 8px;
+  display: flex; align-items: center; gap: var(--s1); flex-wrap: wrap;
+  width: 100%; min-height: var(--h-control); padding: 3px var(--s2);
   border: 0; border-radius: var(--r-sm); background: transparent;
   font: inherit; color: inherit; text-align: left; cursor: pointer;
   box-shadow: inset 0 0 0 1px transparent;
@@ -962,7 +1162,7 @@ button.task-head:hover > .chevron { color: var(--text); }
   background: var(--surface); box-shadow: inset 0 0 0 1px var(--hairline-strong);
 }
 .plantilla .p-etiq-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.plantilla .p-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.plantilla .p-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1); }
 /* El hueco que invita: la palabra que dice qué pasa al pulsar, en voz baja —y
    más baja todavía hasta que se pasa por la fila, para que doce «Etiquetar»
    seguidos no compitan con los nombres. Un «Sin etiquetas» habría descrito el
@@ -1007,7 +1207,7 @@ button.task-head:hover > .chevron { color: var(--text); }
   display: inline-flex; align-items: center; gap: 6px;
   font-size: var(--fs-xs); font-weight: 600; line-height: 1.5;
   color: var(--text-secondary); background: var(--fill);
-  border-radius: var(--r-sm); padding: 2px 9px 2px 7px;
+  border-radius: var(--r-sm); padding: 2px 9px 2px var(--s2);
 }
 .plantilla .p-tag::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
@@ -1040,7 +1240,7 @@ button.task-head:hover > .chevron { color: var(--text); }
    se ve sin desplazar— para que un vocabulario largo no tape la fila que se
    está etiquetando. */
 .selector-etiquetas { position: relative; display: inline-flex; max-width: 100%; }
-.selector-etiquetas-panel { top: calc(100% + 4px); min-width: 232px; }
+.selector-etiquetas-panel { top: calc(100% + var(--s1)); min-width: 232px; }
 .selector-etiquetas-busca { padding: 3px 3px 6px; }
 .selector-etiquetas-busca > .input { width: 100%; }
 .selector-etiquetas-lista { display: flex; flex-direction: column; max-height: 232px; overflow-y: auto; }
@@ -1058,7 +1258,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 }
 .selector-etiquetas-crear { border-top: 1px solid var(--hairline); border-radius: 0; font-size: var(--fs-sm); }
 .selector-etiquetas-crear:disabled { opacity: 0.45; cursor: default; }
-.selector-etiquetas-vacio { display: block; padding: 6px 10px 8px; }
+.selector-etiquetas-vacio { display: block; padding: 6px 10px var(--s2); }
 
 /* La barra del lote: un mostrador FLOTANTE al pie de la vista, no una fila más.
    Al pie de la tabla no servía: con quince clientes, quien marca una casilla
@@ -1075,7 +1275,7 @@ button.task-head:hover > .chevron { color: var(--text); }
   background: var(--surface); border: 1px solid var(--edge);
   border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
 }
-.p-lote > .n { font-size: var(--fs-sm); font-weight: 650; white-space: nowrap; }
+.p-lote > .n { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
 
 /* ══ LO QUE SE RETIRA AL ESTRECHARSE ═══════════════════════════════════════
    Por orden inverso de urgencia: primero el peso, luego la semana, la señal y
@@ -1147,7 +1347,7 @@ button.task-head:hover > .chevron { color: var(--text); }
     max-width: none; white-space: normal;
   }
 }
-@media (max-width: 599.98px) {
+@media (max-width: 639.98px) {
   /* Las celdas ya bajaron a `s2` (el contenedor estrecho), así que el tirón de
      la tabla hacia fuera baja con ellas: es la misma cuenta, no un ajuste. */
   .plantilla { margin-inline: calc(var(--s2) * -1); }
@@ -1218,10 +1418,6 @@ button.task-head:hover > .chevron { color: var(--text); }
 /* El punto de brasa: «esta persona espera algo de ti». Estructural, no estado:
    qué espera lo dice el texto de al lado. Va pegado al nombre y separado por su
    margen, no por un espacio, para que la elipsis del nombre no se lo lleve. */
-.task-wait {
-  display: inline-block; width: 6px; height: 6px; margin-left: 7px;
-  border-radius: 50%; background: var(--warning); vertical-align: 2px;
-}
 .task-row > .btn { position: relative; flex-shrink: 0; }
 .task-row > .chevron { position: relative; color: var(--text-tertiary); flex-shrink: 0; pointer-events: none; }
 
@@ -1231,81 +1427,6 @@ button.task-head:hover > .chevron { color: var(--text); }
    resolver aquello por la otra punta — las columnas existen solo si la cartera
    las llena. */
 
-/* ── El tablero cuando no caben cuatro columnas ────────────────────────────
-   Era un carril horizontal: cuatro columnas de 270 px que sumaban 1.100 y se
-   arrastraban. En una tableta en vertical eso significa ver dos columnas y
-   adivinar las otras dos, y un tablero que no se ve entero deja de contestar la
-   pregunta que justifica que sea un tablero —dónde está el cuello de botella—.
-
-   Dos columnas de verdad en la tableta y una sola en el móvil. Se pierde la
-   lectura de un vistazo, pero se gana que todo esté ahí. */
-@media (max-width: 1100px) {
-  .board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-.folio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(310px, 100%), 1fr)); gap: var(--s4); }
-
-.folio {
-  position: relative; isolation: isolate;
-  display: flex; flex-direction: column; gap: var(--s3);
-  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-lg);
-  padding: var(--s4) var(--s4) var(--s4) calc(var(--s4) + 3px);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  transition: box-shadow var(--fast), transform var(--fast);
-}
-.folio:hover { box-shadow: var(--shadow-md); }
-.folio:focus-within { box-shadow: 0 0 0 2px var(--accent), var(--shadow-sm); }
-
-/* Franja de gravedad en el canto: da el estado de la tarjeta antes de leerla. */
-.folio::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
-  background: var(--fill);
-}
-.folio.is-alta::before { background: var(--negative); }
-.folio.is-media::before { background: var(--warning); }
-.folio.is-baja::before { background: var(--info); }
-.folio.is-clean::before { background: var(--positive); }
-
-/* Capa de clic: cubre la tarjeta por debajo de todo lo interactivo. */
-.folio-hit {
-  position: absolute; inset: 0; z-index: 0;
-  border: 0; background: transparent; padding: 0;
-  cursor: pointer; font: inherit; color: transparent;
-}
-.folio-hit:focus-visible { outline: none; }
-.folio > *:not(.folio-hit) { position: relative; z-index: 1; }
-/* Lo que NO es interactivo deja pasar el clic a la capa de abajo. */
-.folio-head, .folio-facts, .folio-tags > .badge { pointer-events: none; }
-
-.folio-head { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-/* ── `display: block` no es cosmética aquí ─────────────────────────────────
-   `.who`, `.name` y `.sub` son tres `<span>`, o sea elementos EN LÍNEA, y sobre
-   un elemento en línea no reemplazado `overflow` y `text-overflow` no hacen
-   absolutamente nada. Es decir: la regla de puntos suspensivos que llevaba
-   `.name` nunca se aplicó.
-
-   Consecuencia real, visible en cualquier ficha: el nombre no se recortaba y el
-   subtítulo se pegaba DETRÁS de él en la misma línea, en vez de debajo, así que
-   «Marta Rodríguez» y «Fuerza · 12 sem.» se solapaban y desbordaban la tarjeta.
-   En el escritorio sobraba sitio y pasaba desapercibido; en el móvil es lo
-   primero que se ve.
-
-   El resto del archivo ya resuelve este mismo patrón con `display: block`
-   (`.settings-link`, `.provider-head`, `.match-row`); esta era la copia que se
-   había quedado sin él. */
-.folio-head > .who { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 1px; }
-.folio-head > .who > .name {
-  display: block; min-width: 0;
-  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.folio-head > .who > .sub {
-  display: block; min-width: 0;
-  font-size: var(--fs-xs); color: var(--text-tertiary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
 /* Inicial del cliente teñida por la gravedad. */
 .folio-mark {
   width: 38px; height: 38px; border-radius: var(--r-md); flex-shrink: 0;
@@ -1313,30 +1434,6 @@ button.task-head:hover > .chevron { color: var(--text); }
   font-size: var(--fs-sm); font-weight: 700; letter-spacing: 0.02em;
   background: var(--fill); color: var(--text-secondary);
 }
-.folio.is-alta > .folio-head > .folio-mark { background: var(--negative-soft); color: var(--negative); }
-.folio.is-media > .folio-head > .folio-mark { background: var(--warning-soft); color: var(--warning); }
-.folio.is-baja > .folio-head > .folio-mark { background: var(--info-soft); color: var(--info); }
-.folio.is-clean > .folio-head > .folio-mark { background: var(--positive-soft); color: var(--positive); }
-
-.folio-facts {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: var(--s2) var(--s3);
-  background: var(--surface-sunken); border-radius: var(--r-md);
-  padding: var(--s3);
-}
-.folio-fact { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.folio-fact > .k {
-  font-size: var(--fs-xs); font-weight: 700;
-  letter-spacing: 0; color: var(--text-tertiary);
-}
-.folio-fact > .v {
-  font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis;
-}
-.folio-fact > .v.is-stale { color: var(--warning); }
-
-.folio-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.folio-foot { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; margin-top: auto; }
 
 /* Cifra de cabecera pulsable: la métrica ES el filtro, así que ver "4 sin
    entrenar" y filtrar por ellos es el mismo gesto.
@@ -1364,8 +1461,8 @@ button.task-head:hover > .chevron { color: var(--text); }
 .tile > .v { line-height: 1.15; font-variant-numeric: tabular-nums; }
 .tile > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
-@media (max-width: 900px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1023.98px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 639.98px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* Campo de búsqueda con icono dentro. Estaba montado con cuatro propiedades
    `style` en línea repetidas en dos pantallas. */
@@ -1374,21 +1471,7 @@ button.task-head:hover > .chevron { color: var(--text); }
   position: absolute; left: 11px; color: var(--text-tertiary); pointer-events: none;
 }
 .searchbox > .input { padding-left: 34px; width: 230px; }
-@media (max-width: 560px) { .searchbox, .searchbox > .input { width: 100%; } }
-
-
-/* ══ EL BOTÓN DE LA FILA SE CALLA ══════════════════════════════════════════
-   Ocho «Invitar» idénticos en columna convertían la cartera en un impreso: el
-   botón repetido era el nuevo muro, como antes lo fueron las frases. La
-   carencia ya está dicha una vez arriba; el remedio aparece al acercarse a la
-   fila (o al llegar con el teclado), y donde no hay cursor —el móvil— se queda
-   siempre a la vista. El que está trabajando o confirmando no se esconde. */
-.roster .task-row > .btn { opacity: 0; transition: opacity var(--fast); }
-.roster .task-row:hover > .btn,
-.roster .task-row:focus-within > .btn,
-.roster .task-row > .btn:not([data-estado='reposo']) { opacity: 1; }
-@media (hover: none) { .roster .task-row > .btn { opacity: 1; } }
-
+@media (max-width: 639.98px) { .searchbox, .searchbox > .input { width: 100%; } }
 
 /* ══ LA TAREA DE COBROS ════════════════════════════════════════════════════
    La cabecera de la pantalla cuando aún no puede contar dinero: la cifra de
@@ -1396,12 +1479,12 @@ button.task-head:hover > .chevron { color: var(--text); }
    de Inicio —cifra grande, matiz en voz baja—, no como una métrica a cero. */
 .cobros-tarea { display: flex; align-items: center; gap: var(--s4); }
 .cobros-tarea > .cifra { line-height: 1; font-variant-numeric: tabular-nums; }
-.cobros-tarea > p { margin: 0; font-weight: 650; max-width: 52ch; }
+.cobros-tarea > p { margin: 0; font-weight: 600; max-width: 52ch; }
 .cobros-tarea > p > span {
   display: block; font-weight: 400; font-size: var(--fs-sm); color: var(--text-secondary);
 }
 .cobros-tarea > .btn { margin-left: auto; flex-shrink: 0; }
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .cobros-tarea { flex-wrap: wrap; }
   .cobros-tarea > .btn { margin-left: 0; }
 }
@@ -1477,7 +1560,7 @@ button.task-head:hover > .chevron { color: var(--text); }
    regla que manda. */
 .pp-mano > button,
 .pp-mano > .pp-mano-peso {
-  display: inline-flex; align-items: center; gap: 7px; min-width: 0;
+  display: inline-flex; align-items: center; gap: var(--s2); min-width: 0;
   height: 38px; padding: 0 14px; border: 0; background: none;
   font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary);
   transition: background var(--fast), color var(--fast),
@@ -1487,7 +1570,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 .pp-mano > button:hover { background: var(--fill-subtle); color: var(--text); }
 .pp-mano-peso > svg { flex-shrink: 0; opacity: 0.6; }
 .pp-mano-n {
-  display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px;
+  display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 var(--s1);
   border-radius: var(--r-pill); background: var(--fill); color: var(--text-secondary);
   font-size: var(--fs-2xs); font-weight: 700; font-variant-numeric: tabular-nums;
 }
@@ -1523,7 +1606,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 
 /* LEY II · el momento de la copia. Manda sobre todo lo demás: es lo que acabas
    de hacer, y por eso puede hablar sin que te hayas acercado. */
-.pp-mano-recien { color: var(--text); font-weight: 650; }
+.pp-mano-recien { color: var(--text); font-weight: 600; }
 .pp-mano.is-dice .pp-mano-recien { max-width: 260px; opacity: 1; }
 .pp-mano.is-dice .pp-mano-quieta { max-width: 0 !important; opacity: 0 !important; }
 
@@ -1556,7 +1639,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 .pp-mano.is-viva:focus-within .pp-mano-n,
 .pp-mano.is-viva.is-ofrece .pp-mano-n { background: var(--accent-wash); }
 .pp-mano.is-viva .pp-mano-verbo,
-.pp-mano.is-viva .pp-mano-elegir { color: var(--accent); font-weight: 650; }
+.pp-mano.is-viva .pp-mano-elegir { color: var(--accent); font-weight: 600; }
 .pp-mano.is-viva .pp-mano-verbo:hover { background: var(--accent-wash); color: var(--accent); }
 /* El canto solo separa DOS tramos. Con varias piezas no hay verbo a la
    izquierda del peso, así que ese canto se quedaba pegado al borde de la
@@ -1661,7 +1744,7 @@ button.task-head:hover > .chevron { color: var(--text); }
 }
 .pp-cajon-vaciar:hover { background: var(--fill-subtle); color: var(--text); }
 
-.pp-lista { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.pp-lista { list-style: none; margin: 0; padding: 0; max-height: 46vh; max-height: 46svh; overflow-y: auto; }
 .pp-pieza {
   display: flex; align-items: center; gap: var(--s2);
   padding: var(--s2) var(--s2) var(--s2) var(--s3); min-width: 0;
@@ -1702,8 +1785,8 @@ button.pp-pieza-texto { cursor: pointer; }
    acepta. Las que no caben aquí no lo llevan — y así se ve cuáles son. */
 .pp-pieza-verbo {
   flex-shrink: 0; border: 0; background: none; cursor: pointer;
-  padding: 5px 9px; border-radius: var(--r-sm); white-space: nowrap;
-  font: inherit; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
+  padding: var(--s1) 9px; border-radius: var(--r-sm); white-space: nowrap;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
   transition: background var(--fast);
 }
 .pp-pieza-verbo:hover { background: var(--accent-soft); }
@@ -1730,10 +1813,10 @@ button.pp-pieza-texto { cursor: pointer; }
 }
 .pp-dentro > li { padding: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-dentro > li.mas { color: var(--text-tertiary); }
-.pp-verbos { display: flex; flex-wrap: wrap; gap: 4px; }
+.pp-verbos { display: flex; flex-wrap: wrap; gap: var(--s1); }
 .pp-verbo {
   border: 1px solid var(--edge); background: var(--surface); cursor: pointer;
-  padding: 4px 9px; border-radius: var(--r-sm); white-space: nowrap;
+  padding: var(--s1) 9px; border-radius: var(--r-sm); white-space: nowrap;
   font: inherit; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-secondary);
   transition: background var(--fast), color var(--fast), border-color var(--fast);
 }
@@ -1751,7 +1834,7 @@ button.pp-pieza-texto { cursor: pointer; }
 
    Y como en el teléfono el entrenador no monta bloques —el móvil ejecuta, el PC
    planifica—, casi nunca hay dónde pegar: lo correcto ahí es no estar. */
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .pp-pie:not(.is-viva) { display: none; }
   .pp-pie {
     right: var(--s3); left: var(--s3); align-items: stretch;
@@ -1762,7 +1845,7 @@ button.pp-pieza-texto { cursor: pointer; }
      más peso y menos mueble que en el escritorio. */
   .pp-mano { max-width: none; align-self: flex-end; }
   .pp-cajon { width: auto; }
-  .pp-lista { max-height: 38vh; }
+  .pp-lista { max-height: 38vh; max-height: 38svh; }
 }
 
 /* ==========================================================================
@@ -1801,7 +1884,7 @@ button.pp-pieza-texto { cursor: pointer; }
 
 .vflota-tit {
   font-family: var(--font-display);
-  font-size: var(--fs-sm); font-weight: 680; letter-spacing: -0.01em;
+  font-size: var(--fs-sm); font-weight: 700; letter-spacing: -0.01em;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .vflota-sub {
@@ -1828,10 +1911,10 @@ button.pp-pieza-texto { cursor: pointer; }
 /* En el teléfono no hay ventanas: quien programa está en un escritorio (ver
    `movil-ejecuta-pc-planifica`). Ahí esto se abre a pantalla completa, que es lo
    que un móvil sabe hacer. */
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .vflota {
     inset: auto 0 0 0 !important;
-    width: auto !important; height: 76vh !important;
+    width: auto !important; height: 76vh !important; height: 76svh !important;
     border-radius: var(--r-lg) var(--r-lg) 0 0;
   }
   .vflota-esquina { display: none; }

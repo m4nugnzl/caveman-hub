@@ -43,6 +43,7 @@ import {
   DIAS,
   EVERY_MAX,
   REMIND_MAX,
+  checkinDesdeHorario,
   clientProtocol,
   defaultProtocol,
   defaultSchedule,
@@ -51,6 +52,7 @@ import {
 } from './protocol';
 import { clientIntake, defaultIntake } from './intake';
 import { coachFormularios } from './formularios';
+import { coachMedidas } from './medidas';
 import { newId } from '@/lib/ids';
 
 export const MAX_PROTOCOLOS = 6;
@@ -69,8 +71,9 @@ export const PROTOCOLO_GENERAL = 'proto_general';
  * había ni día, ni frecuencia, ni recordatorio. O sea que la aplicación decidía
  * por el entrenador algo que es suyo, y encima no lo decía en ninguna parte.
  *
- *   · `day` — qué día se le pide (1 lunes … 7 domingo).
- *   · `every` — cada cuántas semanas. `1` es todas.
+ *   · `weekday` — qué día se le pide (0 lunes … 6 domingo), la misma numeración
+ *     que `WEEKDAYS` en `domain/calendar.js`.
+ *   · `everyWeeks` — cada cuántas semanas. `1` es todas.
  *   · `remindAfter` — a los cuántos días se le recuerda si no lo ha entregado.
  *     **`0` es «no se lo recuerdes»**, no «cero días»: la misma gramática que los
  *     pesajes y las varas de aviso. Nace en 0 porque un recordatorio que nadie
@@ -87,12 +90,12 @@ export const PROTOCOLO_GENERAL = 'proto_general';
   todo lo que viaja en `preferences.protocol` pasa por `clientProtocol`. Una
   clave que se sanee en otro módulo desaparece en el primer guardado.
 */
-export { DIAS, EVERY_MAX, REMIND_MAX, defaultSchedule, sanitizeSchedule, diaDe };
+export { DIAS, EVERY_MAX, REMIND_MAX, defaultSchedule, sanitizeSchedule, diaDe, checkinDesdeHorario };
 
 /** Cada cuánto, en una frase. `1` no dice nada: semanal es lo que se espera. */
 export const cadaCuanto = (schedule) => {
-  const { every } = sanitizeSchedule(schedule);
-  return every === 1 ? '' : `cada ${every} semanas`;
+  const { everyWeeks } = sanitizeSchedule(schedule);
+  return everyWeeks === 1 ? '' : `cada ${everyWeeks} semanas`;
 };
 
 // ── La forma ───────────────────────────────────────────────────────────────
@@ -178,6 +181,22 @@ export const protocolosToPreferences = (lista) => ({
 });
 
 /**
+ * ¿Ya se resolvió el alta guiada?
+ *
+ * Las tres preguntas del primer día se ofrecen una vez: o se contestan o se
+ * apartan, y en los dos casos no vuelven. Un asistente que reaparece se
+ * convierte en un paso muerto que hay que esquivar cada vez.
+ *
+ * Vive en la MISMA sección que los protocolos y no en una suya, y no es un
+ * capricho de sitio: `updateCoachPreferences` fusiona por sección, así que dos
+ * llamadas seguidas —una por sección— se pisan la una a la otra (la segunda se
+ * construye sobre las preferencias de antes de la primera). Montar la guía
+ * escribe el protocolo Y apaga la oferta, y compartiendo sección eso es una
+ * sola escritura en vez de dos que se anulan.
+ */
+export const guiaResuelta = (preferences) => preferences?.protocolos?.guiada === true;
+
+/**
  * Uno nuevo, con los cuestionarios que ya existen apuntados.
  *
  * No nace en blanco: un protocolo sin ningún formulario no le pide nada a nadie,
@@ -250,7 +269,7 @@ export const cuentaClientes = (coachPrefs, clients = []) => {
  * ids que existan— y eso es preferible a escribirle al cliente una pregunta que
  * nadie sabe pintar.
  */
-export const resolveProtocolo = (protocolo, formularios) => {
+export const resolveProtocolo = (protocolo, formularios, coachPrefs = null) => {
   const sesion = formularios.find((f) => f.id === protocolo?.forms?.sesion && f.momento === 'sesion');
   const semana = formularios.find((f) => f.id === protocolo?.forms?.semana && f.momento === 'semana');
 
@@ -264,6 +283,20 @@ export const resolveProtocolo = (protocolo, formularios) => {
       checkinQuestions: semana ? semana.questions : protocolo?.checkinQuestions,
       custom: custom.length > 0 ? custom : protocolo?.custom,
       checkin: semana ? semana.checkin : protocolo?.checkin,
+      /*
+        Y las DEFINICIONES de las medidas encendidas, copiadas.
+
+        Es lo mismo que ya se hace con las preguntas propias y por el mismo
+        motivo: el cliente no puede leer el perfil de su entrenador (0002), así
+        que su portal no tendría de dónde sacar la unidad ni los decimales de una
+        glucosa. Se copian TODAS las del catálogo y el saneado del protocolo las
+        acota; cuáles se le enseñan lo decide `checkin`, que es el estado.
+
+        Sin preferencias del entrenador delante —el portal releyendo su propia
+        fila— se conservan las que ya lleva: volver a resolver no puede vaciarle
+        el vocabulario a nadie.
+      */
+      medidas: coachPrefs ? coachMedidas(coachPrefs) : protocolo?.medidas,
       weighIns: semana ? semana.weighIns : protocolo?.weighIns,
       /* Las fotos son una pieza del check-in como las medidas: si su formulario
          no las pide, el asistente no enseña su paso. */
@@ -279,7 +312,7 @@ export const resolveProtocolo = (protocolo, formularios) => {
 
 /** El de un entrenador, resuelto con sus propios formularios. */
 export const resolveConPrefs = (coachPrefs, protocolo) =>
-  resolveProtocolo(protocolo, coachFormularios(coachPrefs));
+  resolveProtocolo(protocolo, coachFormularios(coachPrefs), coachPrefs);
 
 /**
  * El formulario de alta que le toca a un cliente de este protocolo.

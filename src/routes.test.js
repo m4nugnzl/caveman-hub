@@ -37,8 +37,13 @@ describe('el inicio del portal', () => {
     }
   });
 
-  it('con entreno es su rutina, que es la decisión escrita en CLIENT_SECTIONS', () => {
-    expect(clientHomeFor(todo)).toBe('/mi/rutina');
+  /* Desde el 12 de septiembre el inicio es LA PORTADA y va primera: el saludo,
+     lo que espera una decisión suya y el progreso debajo. Antes era la rutina,
+     que es la decisión que esta prueba fijaba. Ver `CLIENT_SECTIONS`. */
+  it('es su portada, la lleves como la lleves', () => {
+    for (const protocol of [todo, soloDieta, soloEntreno]) {
+      expect(clientHomeFor(protocol)).toBe('/mi/inicio');
+    }
   });
 
   it('sin entreno no manda a la rutina', () => {

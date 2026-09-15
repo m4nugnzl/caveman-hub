@@ -24,16 +24,25 @@ import { Notice, Panel } from '@/components/ui/primitives';
  * destructivo e irreversible, y para eso sí tiene sentido que haya una persona al
  * otro lado — el texto le dice cómo pedirlo.
  *
- * ── Por qué va plegado y al final ───────────────────────────────────────────
- * Porque no es lo que viene a hacer. Un cliente abre esto para ver su rutina; la
- * privacidad tiene que estar disponible y no estorbando, que es exactamente el
- * sitio del pie de página.
+ * ── Dónde vive, y por qué ya no es un pliegue al pie ───────────────────────
+ * Estuvo plegado al final del inicio del portal, con el argumento de que «tiene
+ * que estar disponible y no estorbando». El argumento seguía siendo bueno y el
+ * sitio dejó de serlo: quien bajaba del todo en su portada se encontraba el
+ * ejercicio de sus derechos justo debajo de su peso.
+ *
+ * Ahora es una FILA en «Tú» que abre esta pieza en una capa, que es exactamente
+ * «disponible y no estorbando» dicho con la mecánica del producto. Ver
+ * `ClientTu` y el §4.4 del replanteamiento del móvil.
+ *
+ * @param desnudo Dentro de una capa, sin `Panel` ni pliegue: la ventana ya tiene
+ *   su título y su cierre, y un pliegue dentro de algo que se ha abierto a
+ *   propósito es una segunda puerta para lo mismo.
  */
-export const ClientPrivacy = ({ client }) => {
+export const ClientPrivacy = ({ client, desnudo = false }) => {
   const { exportClientData } = useActions();
   const confirm = useConfirm();
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(desnudo);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -121,14 +130,21 @@ export const ClientPrivacy = ({ client }) => {
     });
   };
 
+  const Marco = desnudo ? 'div' : Panel;
+  const marcoProps = desnudo
+    ? { className: 'col gap-3' }
+    : { tight: true, className: 'col gap-3', style: { marginTop: 'var(--s5)' } };
+
   return (
-    <Panel tight className="col gap-3" style={{ marginTop: 'var(--s5)' }}>
-      <button type="button" className="proto-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-        <ShieldCheck size={15} />
-        <span className="grow">Mis datos y privacidad</span>
-        {!active && !estadoRoto && <span className="badge badge-warn">sin consentimiento</span>}
-      </button>
+    <Marco {...marcoProps}>
+      {!desnudo && (
+        <button type="button" className="proto-toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          <ShieldCheck size={15} />
+          <span className="grow">Mis datos y privacidad</span>
+          {!active && !estadoRoto && <span className="badge badge-warn">sin consentimiento</span>}
+        </button>
+      )}
 
       {open && (
         <div className="col gap-3">
@@ -207,6 +223,6 @@ export const ClientPrivacy = ({ client }) => {
           </p>
         </div>
       )}
-    </Panel>
+    </Marco>
   );
 };

@@ -160,7 +160,7 @@ export const useCajon = ({ session, team, coachPrefs, isCoach }) => {
     return error ? { ok: false, error: error.message } : { ok: true };
   }, []);
 
-  const tirarDelCajon = useCallback(async (id) => {
+  const borrarDelCajon = useCallback(async (id) => {
     const antes = cajon;
     setCajon(antes.filter((x) => x.id !== id));
 
@@ -184,5 +184,5 @@ export const useCajon = ({ session, team, coachPrefs, isCoach }) => {
     [cajon]
   );
 
-  return { cajon, hayTabla, guardarEnCajon, renombrarEnCajon, tirarDelCajon, cabeEnCajon };
+  return { cajon, hayTabla, guardarEnCajon, renombrarEnCajon, borrarDelCajon, cabeEnCajon };
 };

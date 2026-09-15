@@ -68,7 +68,7 @@ export const EjerciciosPanel = ({ banda }) => {
      1560 px de ventana. Se probó a 1240 y salía lo previsible: «Banda elástica»
      partida en dos líneas y la columna «Lo tuyo» fuera de la vista. Un banco
      que no cabe es peor que una capa que sí. */
-  const hayCarril = useMediaQuery('(min-width: 1560px)');
+  const hayCarril = useMediaQuery('(min-width: 1440px)');
 
   /* La lista mezclada, con la ficha del catálogo pegada a cada uno: la
      biblioteca no guarda `equipment` ni `description` —son del catálogo, 0094—

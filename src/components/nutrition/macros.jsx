@@ -1,4 +1,4 @@
-import { KCAL_PER_GRAM, MACROS, claseDe } from '@/domain/nutrition';
+import { KCAL_PER_GRAM, MACROS, claseDe, estadoDe } from '@/domain/nutrition';
 import { round, toNum0 } from '@/lib/num';
 import { MacroDonut } from '@/components/ui/charts';
 
@@ -273,6 +273,36 @@ export const opcionElegida = (meal, elegidas) => {
  */
 export const estadoMacro = (real, objetivo, campo = 'kcals') =>
   claseDe(real, objetivo, campo).trim();
+
+/**
+ * Lo que se paga por cambiar un alimento por otro: «+9», «−1».
+ *
+ * ══ Y SOLO SE PINTA CUANDO DE VERDAD DESVÍA ════════════════════════════════
+ *
+ * La diferencia iba SIEMPRE en rojo o en ámbar, así que «+4 kcal» sobre 232
+ * —un uno y medio por ciento— salía marcada en rojo como una avería. Eso es
+ * reñir por nada, y es exactamente lo que la tanda 1 corrigió en el resto de la
+ * pantalla poniéndole suelo al semáforo: máx(5 %, 25 kcal) y máx(5 %, 3 g).
+ *
+ * Usa `estadoDe`, que es el único sitio donde vive esa regla: dentro del margen
+ * la cifra se escribe igual —la información no se esconde— pero en voz baja y
+ * sin color.
+ *
+ * Vivía dentro de `MealCard`. Sale porque las equivalencias las lee también el
+ * cliente en su propia comida (`Client/ComidaDelCliente`), y dos copias de un
+ * juicio es como se acaba con la misma diferencia marcada en rojo en una
+ * pantalla y en gris en la otra.
+ */
+export const Desvio = ({ diff, de, campo }) => {
+  if (!diff) return null;
+  const estado = estadoDe(de + diff, de, campo);
+  return (
+    <b className={`dif${estado === 'over' ? ' is-mas' : estado === 'under' ? ' is-menos' : ' is-dentro'}`}>
+      {diff > 0 ? '+' : ''}
+      {diff}
+    </b>
+  );
+};
 
 /**
  * UNA COLUMNA DE LA TIRA DEL DÍA: rótulo, lo que va sobre lo pedido, y de

@@ -14,6 +14,7 @@ import {
   Layers,
   ListChecks,
   Paperclip,
+  PersonStanding,
   Plus,
   Ruler,
   Scale,
@@ -46,8 +47,14 @@ import {
   tiposDe,
   valorLegible,
 } from '@/domain/formulario';
-import { estanteria, tiposDeMomento } from '@/domain/formularios';
-import { MAX_CUSTOM as MAX_PROPIAS, WEIGH_INS_MAX as MAX_VECES } from '@/domain/protocol';
+import { estanteria, medidaComoElemento, tiposDeMomento } from '@/domain/formularios';
+import { CUANDOS, buildMedida } from '@/domain/medidas';
+import {
+  INSTRUMENTOS,
+  MAX_CUSTOM as MAX_PROPIAS,
+  WEIGH_INS_MAX as MAX_VECES,
+  catalogQuestionById,
+} from '@/domain/protocol';
 import {
   Field,
   SegmentedControl,
@@ -55,11 +62,13 @@ import {
   TextInput,
   TextoEnSitio,
 } from '@/components/ui/primitives';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
 import { Pliegue } from '@/components/ui/Pliegue';
 /* El control del cliente, tal cual. Ver el porqué en `CampoLibre`. */
 import { CampoLibre } from '@/components/Client/CampoLibre';
 import { GUIAS, GuiaDeMedidas } from './GuiaDeMedidas';
+import { VistaPreviaFormulario } from './VistaPreviaFormulario';
 
 /**
  * EL CONSTRUCTOR DE UN FORMULARIO SUELTO.
@@ -104,6 +113,7 @@ const ICONO = {
   una: CircleDot,
   varias: ListChecks,
   escala: SlidersHorizontal,
+  zona: PersonStanding,
   fecha: Calendar,
   archivo: Paperclip,
   peso: Scale,
@@ -118,7 +128,145 @@ const iconoDe = (tipo) => ICONO[tipoById(tipo)?.icono] || Text;
 
 // ══ La lámina: «¿Qué quieres preguntar?» ═══════════════════════════════════
 
-const Lamina = ({ onElegir, onCoger, tipos, balda = [], sinCupo = null, inline = false }) => (
+/**
+ * ESCRIBIR UNA MEDIDA EN TU VOCABULARIO.
+ *
+ * ══ Los cuatro campos son los cuatro que hacen falta, y ni uno más ═════════
+ *
+ * El nombre y la unidad porque sin ellos no es una medida; los decimales porque
+ * son la diferencia entre 36 °C y 36,4 °C; y el rango porque es lo que atrapa un
+ * 950 de glucosa escrito con un dedo de más.
+ *
+ * Lo que NO se pregunta es qué significa el número. Ni rango «normal», ni aviso,
+ * ni color por salirse: la aplicación no interpreta. Ver la ley en
+ * `domain/medidas.js`.
+ */
+const NuevaMedida = ({ onGuardar, onCerrar }) => {
+  const [label, setLabel] = useState('');
+  const [unit, setUnit] = useState('');
+  const [decimals, setDecimals] = useState(0);
+  const [cuando, setCuando] = useState('revision');
+  const [min, setMin] = useState('0');
+  const [max, setMax] = useState('1000');
+
+  const nombre = label.trim();
+  const desde = Number(min);
+  const hasta = Number(max);
+  const valido =
+    nombre.length > 0 && Number.isFinite(desde) && Number.isFinite(hasta) && hasta > desde;
+
+  return (
+    <Modal
+      title="Nueva medida"
+      onClose={onCerrar}
+      footer={
+        <>
+          <button type="button" className="btn btn-secondary" onClick={onCerrar}>
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            form="medida-form"
+            className="btn btn-primary"
+            disabled={!valido}
+          >
+            Guardarla
+          </button>
+        </>
+      }
+    >
+      <form
+        id="medida-form"
+        className="col gap-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valido) return;
+          onGuardar(
+            buildMedida({ label: nombre, unit: unit.trim(), decimals, min: desde, max: hasta, cuando })
+          );
+        }}
+      >
+        <Field label="Cómo se llama" hint="Como se lo dirías a tu cliente.">
+          {(props) => (
+            <TextInput {...props} value={label} placeholder="Glucosa en ayunas" onChange={setLabel} />
+          )}
+        </Field>
+
+        <div className="grid-2">
+          <Field label="Unidad" hint="Sale al lado del campo.">
+            {(props) => (
+              <TextInput {...props} value={unit} placeholder="mg/dL" onChange={setUnit} />
+            )}
+          </Field>
+          <Field label="Decimales">
+            <SegmentedControl
+              value={decimals}
+              onChange={setDecimals}
+              options={[
+                { id: 0, label: '36' },
+                { id: 1, label: '36,4' },
+                { id: 2, label: '36,45' },
+              ]}
+              label="Cuántos decimales tiene"
+            />
+          </Field>
+        </div>
+
+        <Field label="Cuándo se apunta">
+          <SegmentedControl
+            value={cuando}
+            onChange={setCuando}
+            options={CUANDOS.map((c) => ({ id: c.id, label: c.label }))}
+            label="Cuándo se apunta esta medida"
+          />
+        </Field>
+        <span className="t-xs t-tertiary">{CUANDOS.find((c) => c.id === cuando)?.hint}</span>
+
+        {/* El rango, dicho por lo que es. «Mínimo» y «máximo» a secas se leen
+            como un objetivo, y esto no juzga nada: solo atrapa un dedazo. */}
+        <Field
+          label="Entre qué valores puede caer"
+          hint="Solo sirve para atrapar un dedo de más al teclear. No es un rango normal ni un aviso."
+        >
+          <div className="row gap-2">
+            <input
+              type="text"
+              inputMode="numeric"
+              className="input input-sm input-center"
+              style={{ width: '8ch' }}
+              value={min}
+              onChange={(e) => setMin(e.target.value)}
+              aria-label="Valor mínimo que se puede teclear"
+            />
+            <span className="t-sm t-tertiary" aria-hidden="true">
+              —
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              className="input input-sm input-center"
+              style={{ width: '8ch' }}
+              value={max}
+              onChange={(e) => setMax(e.target.value)}
+              aria-label="Valor máximo que se puede teclear"
+            />
+            <span className="t-sm t-tertiary">{unit}</span>
+          </div>
+        </Field>
+      </form>
+    </Modal>
+  );
+};
+
+const Lamina = ({
+  onElegir,
+  onCoger,
+  tipos,
+  balda = [],
+  sinCupo = null,
+  inline = false,
+  onNuevaMedida = null,
+}) => (
   <div className={`selector${inline ? ' is-inline' : ''}`}>
     <div className="selector-cab">
       <span className="selector-tit">¿Qué quieres preguntar?</span>
@@ -166,19 +314,60 @@ const Lamina = ({ onElegir, onCoger, tipos, balda = [], sinCupo = null, inline =
         la escala, ponle una regla— y su serie no se parte, porque conserva de
         dónde salió.
       */}
-      {balda.length > 0 && (
+      {balda.filter((e) => e.tipo !== 'medida').length > 0 && (
         <div className="selector-col">
           <span className="selector-rot">
             <span className="disco-fam" data-tono="pregunta" aria-hidden="true" />
             Las de siempre
           </span>
-          {balda.map((e) => (
-            <button key={e.origen} type="button" className="tipo-suelto" onClick={() => onCoger(e)}>
-              <ListChecks size={15} aria-hidden="true" />
-              <span className="tipo-nom">{e.enun}</span>
-            </button>
-          ))}
+          {balda
+            .filter((e) => e.tipo !== 'medida')
+            .map((e) => (
+              <button key={e.origen} type="button" className="tipo-suelto" onClick={() => onCoger(e)}>
+                <ListChecks size={15} aria-hidden="true" />
+                <span className="tipo-nom">{e.enun}</span>
+              </button>
+            ))}
           <span className="tipo-hint">Cógela y es tuya: puedes cambiarle lo que quieras.</span>
+        </div>
+      )}
+
+      {/*
+        ══ Y TU VOCABULARIO DE MEDIDAS ═══════════════════════════════════════
+
+        En su propia columna y no mezcladas con las preguntas, porque no son lo
+        mismo y el producto lleva toda esta ronda haciendo esa distinción: una
+        pregunta es una opinión con forma de número y una medida es un número
+        con unidad tomado con un aparato. Mezcladas, «Glucosa en ayunas» se
+        leería como una escala del 1 al 10 más.
+
+        Cada una dice SU unidad en la propia balda, que es lo que la distingue de
+        un vistazo. Y el verbo de crear vive aquí, donde se ve lo que falta —la
+        gramática del §5.8—: crear una medida es escribir una palabra en tu
+        vocabulario, no configurar nada.
+      */}
+      {onNuevaMedida && (
+        <div className="selector-col">
+          <span className="selector-rot">
+            <span className="disco-fam" data-tono="oficio" aria-hidden="true" />
+            Lo que se mide
+          </span>
+          {balda
+            .filter((e) => e.tipo === 'medida')
+            .map((e) => (
+              <button key={e.origen} type="button" className="tipo-suelto" onClick={() => onCoger(e)}>
+                <Ruler size={15} aria-hidden="true" />
+                <span className="tipo-nom">{e.enun}</span>
+                {e.unidad && <span className="tipo-cae">{e.unidad}</span>}
+              </button>
+            ))}
+          <button type="button" className="tipo-suelto" onClick={onNuevaMedida}>
+            <Plus size={15} aria-hidden="true" />
+            <span className="tipo-nom">Nueva medida</span>
+          </button>
+          <span className="tipo-hint">
+            Un número con unidad, tomado con un aparato. Vale para todos tus clientes.
+          </span>
         </div>
       )}
     </div>
@@ -343,13 +532,7 @@ const Opciones = ({ elem, onCambiar }) => {
         </div>
       ))}
       {ops.length < MAX_OPCIONES && (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onCambiar({ ops: [...ops, `Opción ${ops.length + 1}`] })}
-        >
-          <Plus size={13} /> Otra opción
-        </button>
+        <BotonMas palabra="opción" onClick={() => onCambiar({ ops: [...ops, `Opción ${ops.length + 1}`] })} />
       )}
     </div>
   );
@@ -369,13 +552,11 @@ const Regla = ({ elem, elementos, onCambiar }) => {
 
   if (!elem.regla) {
     return (
-      <button
-        type="button"
-        className="btn btn-secondary btn-sm"
+      <BotonMas
+        palabra="regla"
+        title="Enseñarla solo si antes contestó algo"
         onClick={() => onCambiar({ regla: reglaPorDefecto(candidatos[candidatos.length - 1]) })}
-      >
-        <Plus size={13} /> Ponerle una regla
-      </button>
+      />
     );
   }
 
@@ -500,32 +681,52 @@ const Carril = ({ elem, elementos, onCambiar, onGuia }) => {
         <Opciones elem={elem} onCambiar={onCambiar} />
       )}
 
-      {elem.tipo === 'escala' && (
-        <>
-          <Field label="De cuánto a cuánto">
-            <div className="row gap-2">
-              <SegmentedControl
-                label="Desde"
-                value={elem.min}
-                onChange={(min) => onCambiar({ min })}
-                options={[ESCALA_MIN, 1].map((n) => ({ id: n, label: String(n) }))}
-              />
-              <SegmentedControl
-                label="Hasta"
-                value={elem.max}
-                onChange={(max) => onCambiar({ max })}
-                options={[5, ESCALA_MAX].map((n) => ({ id: n, label: String(n) }))}
-              />
-            </div>
-          </Field>
-          <Switch
-            label="Menos es mejor"
-            hint="Para el dolor o el hambre: así la serie se lee al derecho."
-            checked={elem.mejorAbajo}
-            onChange={(v) => onCambiar({ mejorAbajo: v })}
-          />
-        </>
-      )}
+      {elem.tipo === 'escala' &&
+        /*
+          ── EL RANGO NO SE TOCA CUANDO LO MANDA EL INSTRUMENTO ─────────────
+          Una escala del catálogo que se contesta con estrellas, caras o el
+          depósito tiene CINCO pasos porque el instrumento tiene cinco: diez
+          estrellas no son una escala más fina, son precisión falsa. El mando
+          «De cuánto a cuánto» aquí no habría sido un ajuste, habría sido la
+          forma de romperlo — y además partiría la serie, porque lo ya contestado
+          está en escala de 5 (migración 0120).
+
+          Se DICE en vez de pintar dos segmentados que no se pueden pulsar, que
+          es el mismo criterio que ya usan la medida de aquí al lado y la
+          pregunta de catálogo del otro constructor.
+        */
+        (catalogQuestionById(elem.origen)?.instrumento ? (
+          <p className="ajustes-nota">
+            Se contesta con {INSTRUMENTOS[catalogQuestionById(elem.origen).instrumento].frase}, así que
+            su escala viene puesta: es la misma en todos tus clientes y es la que tienen las
+            respuestas ya dadas. Puedes moverla de sitio, cambiarle el texto o quitarla.
+          </p>
+        ) : (
+          <>
+            <Field label="De cuánto a cuánto">
+              <div className="row gap-2">
+                <SegmentedControl
+                  label="Desde"
+                  value={elem.min}
+                  onChange={(min) => onCambiar({ min })}
+                  options={[ESCALA_MIN, 1].map((n) => ({ id: n, label: String(n) }))}
+                />
+                <SegmentedControl
+                  label="Hasta"
+                  value={elem.max}
+                  onChange={(max) => onCambiar({ max })}
+                  options={[5, ESCALA_MAX].map((n) => ({ id: n, label: String(n) }))}
+                />
+              </div>
+            </Field>
+            <Switch
+              label="Menos es mejor"
+              hint="Para el dolor o el hambre: así la serie se lee al derecho."
+              checked={elem.mejorAbajo}
+              onChange={(v) => onCambiar({ mejorAbajo: v })}
+            />
+          </>
+        ))}
 
       {(elem.tipo === 'numero' || elem.tipo === 'peso') && (
         <Field label="Unidad" hint="Sale a la derecha del campo.">
@@ -538,6 +739,20 @@ const Carril = ({ elem, elementos, onCambiar, onGuia }) => {
             />
           )}
         </Field>
+      )}
+
+      {/*
+        Una medida no se edita aquí: su unidad, sus decimales y su rango son de
+        la DEFINICIÓN, y son los mismos para todos tus clientes —esa es la razón
+        de que exista un vocabulario y no un campo suelto por formulario—. Lo que
+        se decide en el lienzo es si se pide y si es obligatoria. Se dice, en vez
+        de pintar campos que no se pueden tocar.
+      */}
+      {elem.tipo === 'medida' && (
+        <p className="ajustes-nota">
+          Se apunta en {elem.unidad || 'su unidad'}, tal como está definida. Para cambiarle la
+          unidad o los decimales, edita la medida en la Librería: vale para todos tus clientes.
+        </p>
       )}
 
       {/* Cuántas veces a la semana se pesa. Estaba en el protocolo, en otra
@@ -590,13 +805,21 @@ const Carril = ({ elem, elementos, onCambiar, onGuia }) => {
 export const ConstructorLibre = ({
   form,
   elementos,
+  /* El vocabulario de medidas del entrenador: de él sale la balda de medidas
+     del check-in. Sin él, la estantería es la de siempre. */
+  medidas = [],
+  /* Escribir una medida nueva en el vocabulario del entrenador. Sin esto, la
+     balda solo ofrece lo que ya tiene y no hay verbo para crear. */
+  onNuevaMedida = null,
   onChange,
   onVolver,
   onMandar = null,
-  onVerComoCliente = null,
 }) => {
   const [tocado, setTocado] = useState(null);
   const [anadiendo, setAnadiendo] = useState(false);
+  const [creandoMedida, setCreandoMedida] = useState(false);
+  /* El ensayo: contestar el formulario entero antes de mandárselo a nadie. */
+  const [ensayando, setEnsayando] = useState(false);
   /* Qué lámina de medición está abierta: `null`, `'cinta'` o `'pliegue'`. */
   const [guia, setGuia] = useState(null);
 
@@ -612,6 +835,11 @@ export const ConstructorLibre = ({
      escala o texto, así que ofrecerles «Elegir una» sería perder las opciones
      al guardar sin decirlo. */
   const tipos = tiposDeMomento(form.momento || 'libre');
+
+  /* Las medidas son del CHECK-IN y de ningún otro momento: son lo que se toma en
+     la revisión de la semana, y el parte de una sesión no mide nada. Sin verbo
+     para guardarlas tampoco se ofrece crear ninguna. */
+  const puedeMedir = tipos.includes('medida') && Boolean(onNuevaMedida);
 
   /*
     El parte y el check-in guardan seis preguntas propias como mucho
@@ -631,7 +859,7 @@ export const ConstructorLibre = ({
      ya en el lienzo. Comparar por `origen` y no por id es lo que evita ofrecer
      dos veces la misma pregunta con dos identidades. */
   const puestos = new Set(elementos.map((e) => e.origen).filter(Boolean));
-  const balda = estanteria(form.momento || 'libre').filter((e) => !puestos.has(e.origen));
+  const balda = estanteria(form.momento || 'libre', medidas).filter((e) => !puestos.has(e.origen));
 
   const cambiar = (patch) => onChange(editarElemento(elementos, tocado, patch));
 
@@ -682,15 +910,17 @@ export const ConstructorLibre = ({
               {cuentaElementos(elementos)} {cuentaElementos(elementos) === 1 ? 'elemento' : 'elementos'}
             </span>
             <div className="cartera-cab-acciones">
-              {/* Verlo en el portal de verdad, que es donde se contesta. Lo
-                  tenía el editor de los cuestionarios del protocolo y se
-                  conserva al pasar por aquí. */}
-              {onVerComoCliente && (
-                <button type="button" className="cab-accion" onClick={onVerComoCliente}>
-                  <Eye size={15} aria-hidden="true" />
-                  <span>Ver como cliente</span>
-                </button>
-              )}
+              {/*
+                Contestarlo tú, con lo que verá él. Aquí hubo un «Ver como
+                cliente» que saltaba a su portal, y allí un formulario solo
+                aparece si está pendiente para esa persona: lo que acabas de
+                montar era justo lo que no se podía ver. Ver
+                `VistaPreviaFormulario`.
+              */}
+              <button type="button" className="cab-accion" onClick={() => setEnsayando(true)}>
+                <Eye size={15} aria-hidden="true" />
+                <span>Verlo como cliente</span>
+              </button>
               {onMandar && (
                 <button
                   type="button"
@@ -716,6 +946,7 @@ export const ConstructorLibre = ({
               tipos={tipos}
               balda={balda}
               sinCupo={sinCupo}
+              onNuevaMedida={puedeMedir ? () => setCreandoMedida(true) : null}
               inline
             />
           ) : (
@@ -734,15 +965,19 @@ export const ConstructorLibre = ({
                 />
               ))}
 
-              <button
-                type="button"
-                className="btn btn-secondary anadir-pregunta"
-                onClick={() => setAnadiendo(true)}
-                disabled={lleno}
-              >
-                <Plus size={15} />
-                {lleno ? `El tope son ${MAX_ELEMENTOS} elementos` : 'Añadir'}
-              </button>
+              {/* El verbo, con su sustantivo: «Añadir» a secas obligaba a mirar
+                  arriba para saber qué se añadía, y el constructor de al lado
+                  —el del protocolo— decía «Añadir pregunta». Un gesto, un
+                  nombre. Ver `docs/producto.md` §5.8.
+
+                  Y el tope deja de disfrazarse de verbo apagado: un botón que
+                  dice «El tope son 30 elementos» es un aviso dentro de un
+                  control, y en reposo no está (ver la ley del reposo). */}
+              {lleno ? (
+                <p className="ajustes-nada">El tope son {MAX_ELEMENTOS} elementos.</p>
+              ) : (
+                <BotonMas palabra="pregunta" onClick={() => setAnadiendo(true)} />
+              )}
             </>
           )}
         </div>
@@ -751,8 +986,43 @@ export const ConstructorLibre = ({
       </div>
 
       <Modal open={anadiendo} onClose={() => setAnadiendo(false)} size="lg" title="Añadir">
-        <Lamina onElegir={anadir} onCoger={coger} tipos={tipos} balda={balda} sinCupo={sinCupo} />
+        <Lamina
+          onElegir={anadir}
+          onCoger={coger}
+          tipos={tipos}
+          balda={balda}
+          sinCupo={sinCupo}
+          onNuevaMedida={puedeMedir ? () => setCreandoMedida(true) : null}
+        />
       </Modal>
+
+      {/* Escribir una palabra en tu vocabulario de medidas. Se guarda en tus
+          preferencias —vale para todos tus clientes— y entra en el lienzo en el
+          mismo gesto: crear algo que hay que ir a buscar después es medio gesto. */}
+      {creandoMedida && (
+        <NuevaMedida
+          onCerrar={() => setCreandoMedida(false)}
+          onGuardar={(medida) => {
+            setCreandoMedida(false);
+            onNuevaMedida?.(medida);
+            coger(medidaComoElemento(medida));
+          }}
+        />
+      )}
+
+      {/* El ensayo, con el lienzo TAL Y COMO ESTÁ: no lo guardado, sino lo que
+          hay delante. Mirar cómo queda una pregunta que acabas de escribir no
+          puede pedirte que guardes primero. */}
+      {ensayando && (
+        <VistaPreviaFormulario
+          form={form}
+          elementos={elementos}
+          /* El vocabulario de medidas: el check-in se ensaya con el asistente de
+             verdad, y él lee la unidad y los decimales del catálogo. */
+          medidas={medidas}
+          onCerrar={() => setEnsayando(false)}
+        />
+      )}
 
       {guia && (
         <Modal size="lg" title={GUIAS[guia].titulo} onClose={() => setGuia(null)}>

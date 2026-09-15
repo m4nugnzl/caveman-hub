@@ -33,7 +33,7 @@
    se quedan en el acento: son de un par de píxeles y ahí decir «estás aquí» es
    exactamente su trabajo.
 
-   El valor, #3B49DF, está elegido por contraste y no por gusto: 6,2:1 sobre el
+   El valor, #3B49DF, está elegido por contraste y no por gusto: 6,1:1 sobre el
    lienzo y 6,6:1 con el blanco encima. Aquí el acento TAMBIÉN es texto —la
    pestaña abierta, un enlace, la semana en curso— y por eso se descartó el azul
    de sistema de iOS (#007AFF), que se queda en 3,8:1 y no vale como texto. De
@@ -46,20 +46,58 @@
    tiene en las manos todos los días. Una paleta categórica que además significa
    algo en el oficio vale más que una paleta bonita inventada desde cero.
 
-   ── Las dos tierras ─────────────────────────────────────────────────────────
-   HIERRO (oscuro): grafito frío con algo de azul, el color de una barra cargada
-   bajo la luz del gimnasio. No es negro: el negro puro aplasta las sombras de
-   las fotos de progreso, que es media aplicación.
+   ── Las dos tierras, y cuál es LA CARA ──────────────────────────────────────
+   PAPEL (claro) es la cara del producto: es con lo que arranca (`index.html`
+   lo escribe antes de que monte nada) y es donde se hace el acabado. Papel de
+   verdad, templado, con las tarjetas en blanco puro.
 
-   PAPEL (claro): el gris frío de una hoja de programación impresa, con las
-   tarjetas en blanco puro. No es crema: el crema cálido lee editorial —una
-   revista— y esto es una hoja de cálculo con criterio.
+   HIERRO (oscuro) es una preferencia, no el default: grafito frío con algo de
+   azul, el color de una barra cargada bajo la luz del gimnasio. No es negro —
+   el negro puro aplasta las sombras de las fotos de progreso, que es media
+   aplicación—, pero sí es todavía más genérico de lo que debería: mientras el
+   papel se trabajaba, el hierro se quedó donde estaba. Está dicho para que no
+   se vuelva a descubrir dentro de tres meses.
 
-   Esto estaba ESCRITO y no cumplido. El lienzo valía #f4f2ee y la tinta #201c18:
-   los dos cálidos —R > G > B—, es decir crema y sepia, exactamente lo que el
-   párrafo de arriba prohibe. Toda la aplicación tenía debajo un velo de papel
-   viejo, filetes y rellenos incluidos, y las cinco sombras iban en
-   rgba(60, 45, 30). Ahora los neutros son neutros de verdad, y algo fríos.
+   La decisión se tomó el 11 sep 2026 y tiene una razón de uso por encima de la
+   de identidad: esto es una herramienta de jornada completa, que se usa a
+   media mañana con luz de ventana leyendo cifras pequeñas. Lo que no era
+   defendible es lo de antes — que el producto fuera dos productos distintos
+   según la hora, y que todo el acabado se estuviera haciendo en el que casi
+   nadie veía.
+
+   ── Aquí el papel se giró dos veces, y la segunda tiene razón ──────────────
+   Este párrafo dijo durante meses lo contrario: «el gris frío de una hoja de
+   programación impresa. No es crema: el crema cálido lee editorial —una
+   revista— y esto es una hoja de cálculo con criterio». Se escribió para
+   corregir un lienzo #f4f2ee con tinta #201c18 —crema y sepia— que además
+   estaba puesto SIN estar decidido, y la corrección a neutro frío fue correcta
+   contra aquello.
+
+   Lo que no vio es la consecuencia. El gris azulado (#f6f7f9, #e6e9ef, #5b6270)
+   ES el gris de una hoja de cálculo, literalmente: es el que traen Sheets,
+   Notion y medio panel de administración, y con nueve pantallas seguidas
+   encima el producto se lee como un formulario que hay que rellenar. El dueño,
+   con el móvil delante (11 sep 2026): «se puede mejorar mucho el diseño y
+   hacerlo menos robótico, más estético y moderno».
+
+   Así que el matiz vuelve a cruzar, pero por el otro lado y con cuidado:
+   MISMA CLARIDAD, otra temperatura. #f7f6f2 no es el crema de antes (que era
+   más oscuro y más saturado); es papel de impresora bueno. Y el contraste no
+   se paga, SUBE — el texto secundario pasa de 5,7:1 a 7,8:1 sobre el lienzo,
+   medido, porque de paso se corrige que aquel #5b6270 andaba justo.
+
+   La distinción que zanja la discusión de las dos vueltas: lo editorial no lo
+   hace la temperatura del papel, lo hace la SERIF. Aquí no hay ninguna —la voz
+   es una grotesca de asta recta— y la señal sigue siendo azul, así que un
+   papel templado no lee «revista»: lee papel.
+
+   ⚠ Y por eso mismo no se toca el resto. Papel cálido + serif de alto
+   contraste + acento terracota es una estética entera, y es justo la que hay
+   que evitar (`CLAUDE.md` §25.2). De las tres patas aquí solo está la primera.
+
+   Las sombras van teñidas con la tinta del papel —rgba(38, 32, 20)— y no en
+   negro puro: una sombra gris sobre un fondo templado es lo que hace que un
+   sistema de superficies claras parezca montado de dos sitios distintos.
 
    Ninguna de las dos es la inversión de la otra: el papel se apoya en la sombra
    y el hierro en el canto, porque una sombra sobre grafito no se ve.
@@ -85,6 +123,42 @@
    y de un solo peso. Lo que compita con la firma de su pantalla (otra caja del
    mismo tamaño, un segundo primario, un vacío que grita) es lo primero que se
    recorta.
+
+   ── Y LA REGLA QUE LO HACE COMPROBABLE (L-07) ───────────────────────────────
+   La tabla de arriba llevaba dos meses escrita sin aplicarse, porque «una firma
+   por pantalla» es una intención hasta que se dice qué mide. Lo que la hace
+   comprobable es una sola frase:
+
+     En cada pantalla, la firma OCUPA SOLA el escalón más alto de la escala de
+     tipo que esa pantalla usa. Nada más lo alcanza — y menos el costado.
+
+   Un costado ACOMPAÑA a una firma; cuando la empata, la parte en dos. Da igual
+   que la pieza sea una cifra, un rótulo o el nombre de un día: lo que decide
+   el escalón no es de qué tipo es la pieza, sino de quién es la pantalla. La
+   misma cifra —el peso— es 42 en el Resumen del entrenador y 30 en el portal
+   de su cliente, porque en una es a lo que se va y en la otra es un dato que se
+   mira de paso (`.layout-portal .peso-cifra`, en `datos.css`).
+
+   Medido pantalla por pantalla con la aplicación delante y datos de verdad
+   (12 sep 2026), esto es lo que salió y lo que se corrigió:
+
+     Inicio    el saludo 42 · la cola 30       ya pasaba
+     Clientes  el nombre 18 · la cinta 20      ya pasaba (la cinta es chasis:
+                                               no es contenido de la pantalla)
+     Entreno   el costado 22 · la hoja 18/14   NO pasaba — el número más grande
+                                               de la pantalla estaba FUERA de la
+                                               hoja. Hoja a 22, costado a 18.
+     Revisión  la cifra 42 · el plan 18        ya pasaba
+     Dieta     las kcal 42 · los pasos 22      dos cifras grandes en el mismo
+                                               panel. Los pasos, a 18.
+     Portal    el saludo 32 · el peso 32 ·     NO pasaba — la firma era la
+               la sesión 18                    QUINTA pieza más grande de su
+                                               propia portada. Sesión al
+                                               escalón de arriba, saludo a
+                                               rótulo, peso un punto abajo.
+
+   Quien añada una pieza grande a una de estas seis pantallas mira antes esta
+   tabla: si su pieza alcanza el escalón de la firma, la que sobra es la suya.
    ========================================================================== */
 
 :root {
@@ -97,13 +171,16 @@
      `canvas` es el fondo de la página; `surface` las tarjetas, en blanco puro.
      El salto entre el gris del lienzo y el blanco de la tarjeta es lo que separa
      «la mesa» de «la hoja» sin necesidad de decorar nada. */
-  /* Mismo arreglo que en la noche, más suave: aquí la sombra sí funciona y solo
-     hace falta que la acompañe un escalón perceptible. De 1,12:1 a 1,17:1. */
-  --canvas: #f6f7f9;
-  --canvas-alt: #eceff3;
+  /* El escalón es CORTO a propósito —1,08:1 medido entre lienzo y tarjeta— y no
+     tiene que ser otra cosa: sobre papel lo que separa la hoja de la mesa es la
+     sombra de contacto, y un escalón largo convierte el lienzo en un gris sucio.
+     La mesa (`--canvas-alt`) sí abre más contra la hoja, 1,10:1, porque ahí no
+     hay sombra que ayude: es el marco de fuera contra el papel. */
+  --canvas: #f7f6f2;
+  --canvas-alt: #edebe3;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #f3f5f8;
+  --surface-sunken: #f2f0e9;
   --surface-glass: rgba(255, 255, 255, 0.78);
 
   /* ── La mesa y la hoja del puesto ────────────────────────────────────────
@@ -126,11 +203,11 @@
   --hoja: var(--canvas);
 
   /* ── Separadores y rellenos ── */
-  --hairline: #e6e9ef;
-  --hairline-strong: #cbd1dc;
-  --fill-subtle: #f4f6f9;
-  --fill: #eceff4;
-  --fill-strong: #dee3ec;
+  --hairline: #e7e3d9;
+  --hairline-strong: #cfc9bb;
+  --fill-subtle: #f5f3ed;
+  --fill: #eceae1;
+  --fill-strong: #dfdbcd;
 
   /* ── Canto de la tarjeta ─────────────────────────────────────────────────
      Nuevo. Antes la tarjeta se separaba del fondo SOLO por la sombra, y en el
@@ -141,21 +218,62 @@
      Ahora todas las superficies tienen canto definido. Un instrumento tiene
      piezas con borde; una tarjeta que flota sin canto es una convención de
      marketing, no de medida. */
-  --edge: rgba(18, 24, 38, 0.09);
+  --edge: rgba(38, 32, 20, 0.11);
+
+  /* ── EL CANTO DE LA TARJETA GRANDE, que sobre papel no está ──────────────
+     La regla de arriba dice «toda superficie lleva canto», y para el hierro es
+     cierta y no se discute: una sombra sobre grafito no existe, así que sin
+     canto las tarjetas se funden con el lienzo.
+
+     Sobre papel el canto sí tenía alternativa, y hacía daño. Un filete de 1 px
+     rodeando CADA caja, con el radio de un campo de formulario, es lo que hace
+     que una pantalla con cuatro bloques se lea como «una tabla dentro de otra
+     tabla» — el efecto de plantilla que el dueño señaló en el móvil. La
+     separación la pueden hacer el escalón de superficie (lienzo templado
+     contra tarjeta blanca) y una sombra de contacto corta, que es lo que hace
+     el papel de verdad.
+
+     Solo para las superficies GRANDES —`.card`, `.list`—. Lo pequeño y lo
+     hundido (`.card-inset`, los controles, los filetes) conserva su canto:
+     ahí el borde no rodea una pantalla entera, dice dónde se escribe.
+
+     Es `transparent` y no `border: 0` a propósito: el píxel se sigue
+     reservando, así que quitarlo no mueve ni una caja de sitio. */
+  --edge-card: transparent;
 
   /* ── El canto de lo que se TOCA ──────────────────────────────────────────
      Solo para controles: el borde del botón secundario, de los campos y de los
      selects. Existe porque el canto de separar (`--hairline`/`--hairline-strong`)
-     está calibrado para filetes —no debe gritar— y un control lo necesita al
-     mínimo de WCAG (3:1) para leerse como algo pulsable. Subir los hairlines
-     habría engordado todos los separadores de la casa; esto solo afila lo que
-     se pulsa o se escribe. 3,35:1 sobre blanco y 3,13:1 sobre el lienzo. */
-  --edge-control: #848d9b;
+     está calibrado para filetes —no debe gritar— y lo que se pulsa o se escribe
+     pide un canto propio.
+
+     ══ SE ACLARA, Y NO ES UN DESCUIDO (14 sep 2026) ══════════════════════════
+     Estaba en #8a8378 —un gris caliente casi tinta— para cumplir el mínimo de
+     WCAG 1.4.11 (3:1) con el canto SOLO. Medido sobre la aplicación corriendo,
+     era el valor que más envejecía la pantalla: cada campo de la casa llevaba
+     1,5 px de ese gris, y catorce campos en una hoja son catorce rectángulos
+     pasados a rotulador. Es el hallazgo #3 del estudio de los mandos.
+
+     La familia que eligió el dueño —la «B», la del cuerpo— no sostiene el
+     control con el canto sino con la ANATOMÍA: relleno propio, 1 px de canto y
+     una sombra de contacto de 1 px. Así se construye el control en Linear, en
+     Stripe o en Vercel, y es la razón de que sus campos no se lean como una
+     plantilla de formulario.
+
+     EL PRECIO, medido y dicho: 1,42:1 sobre blanco, contra los 3,64:1 de antes.
+     Con el canto solo ya no se cumple 1.4.11 — lo que identifica el campo pasa
+     a ser el conjunto relleno + canto + hundido. Si hay que volver al mínimo,
+     es ESTE valor y ningún otro: se sube aquí y la casa entera obedece.
+
+     Uno solo para el campo y para el botón normal: el estudio traía dos matices
+     (#ddd8ca y #e2ded2) y la diferencia entre ellos no se ve, así que el segundo
+     sería un valor más que mantener a cambio de nada. */
+  --edge-control: #ddd8ca;
 
   /* ── Texto ── */
-  --text: #12151a;
-  --text-secondary: #5b6270;
-  --text-tertiary: #6e7686;
+  --text: #191713;
+  --text-secondary: #514d45;
+  --text-tertiary: #706c62;
   --text-inverse: #ffffff;
 
   /* ── Acento: TIZA ────────────────────────────────────────────────────────
@@ -365,6 +483,44 @@
   --fs-xl: 1.875rem;    /* 30px — cifra de tarjeta */
   --fs-2xl: 2.625rem;   /* 42px — cifra principal */
 
+  /* ── La escala de PESO ─────────────────────────────────────────────────────
+     Esta escala no existía. Había dieciséis pesos —400, 500, 550, 560, 600,
+     620, 640, 650, 660, 680, 700, 720, 730, 740, 750, 800— porque Archivo es
+     variable y poner «un pelín más» no cuesta nada. El resultado medido: 600 y
+     650 hacían EXACTAMENTE el mismo trabajo —el nombre de una fila, un rótulo,
+     un `strong`— escrito de dos maneras, así que dos rótulos del mismo rango no
+     se veían iguales y nadie sabía decir por qué.
+
+     Cinco valores, cada uno con un trabajo:
+
+       400 CUERPO   el texto que se lee seguido, y solo eso.
+       500 RÓTULO   la etiqueta, el pie, el secundario que quiere despegarse
+                    del cuerpo sin llegar a llamar.
+       600 FUERTE   el nombre de una fila, el `strong`, la pestaña abierta: lo
+                    que el ojo usa para recorrer la pantalla a saltos.
+       700 CIFRA    los números y los titulares de sección, lo que se lee de un
+                    vistazo desde lejos.
+       800 DISPLAY  SOLO con `--font-display` o `--font-ancha`, y solo en la
+                    portada y en las portadillas. Dentro de la aplicación no
+                    aparece: un 800 en una tarjeta es un grito.
+
+     ── Por qué cinco y no los tres de Coachway ───────────────────────────────
+     Coachway usa 400/500/600 porque su producto casi no tiene cifras. Aquí la
+     cifra ES la firma de cuatro de las seis pantallas —el peso, las kcal, el
+     kilaje de una serie— y necesita un escalón propio por encima del nombre de
+     fila, o la hoja de entreno pierde su jerarquía. Colapsar las 298
+     declaraciones de 600 contra las 238 de 700 habría dejado media aplicación
+     en negrita, que es otra forma de que todo pese lo mismo.
+
+     Lo que sostiene la escala no es este comentario: es el guardián de
+     `scripts/verify-styles.mjs`, que falla ante cualquier `font-weight`
+     numérico fuera de estos cinco. Sin él vuelven los 730 en un mes. */
+  --peso-cuerpo: 400;
+  --peso-rotulo: 500;
+  --peso-fuerte: 600;
+  --peso-cifra: 700;
+  --peso-display: 800;
+
   --lh-tight: 1.15;
   /* 1,45 con un cuerpo de 15 px daba 21,75 px de renglón, y el producto no se
      escribe en el cuerpo: el 79 % de sus declaraciones de tamaño van a 13 px o
@@ -385,20 +541,50 @@
   --tracking-stencil: 0.1em;
 
   /* ── Radios ──────────────────────────────────────────────────────────────
-     Más cerrados que antes (la tarjeta baja de 14 a 10 px). El radio abierto lee
-     blando y de consumo; esto es una herramienta de medida y carga. No se va a
-     cero porque el canto vivo lee frágil en pantalla y se come el antialiasing
-     en las esquinas de las tarjetas anidadas. */
-  --r-xs: 4px;
-  --r-sm: 7px;
-  --r-md: 11px;
-  /* La tarjeta a 14 y lo flotante a 18: un paso hacia los radios del
+     LA ESCALA SUBE UN ESCALÓN ENTERO (11 sep 2026, con el móvil delante).
+
+     El argumento de antes era bueno en abstracto —«más cerrados: el radio
+     abierto lee blando y de consumo, y esto es una herramienta de medida»— y
+     en pantalla salía otra cosa. 11 px es el radio de un CAMPO DE FORMULARIO,
+     y una tarjeta con el radio de un campo se lee como un campo grande: de ahí
+     la sensación de «una tabla dentro de otra tabla» que tenían las pantallas
+     con cuatro bloques.
+
+     Lo que separa un objeto de un campo no es el radio en sí: es la DISTANCIA
+     entre los dos. Con 14 px para lo mediano y 20 para la tarjeta, el chip y el
+     campo siguen cerrados —siguen siendo instrumento— y la caja que los
+     contiene deja de parecerse a ellos.
+
+     No se va a cero por lo de siempre: el canto vivo lee frágil en pantalla y
+     se come el antialiasing en las esquinas de las tarjetas anidadas. */
+  --r-xs: 5px;
+  --r-sm: 9px;
+  --r-md: 14px;
+  /* La tarjeta a 20 y lo flotante a 26: un paso hacia los radios del
      escaparate, sin llegar a ellos. La tarjeta deja de leerse recortada al lado
      de la portada, y los controles pequeños (chips, campos, botones) se quedan
      en sus radios cerrados: siguen siendo instrumento. */
-  --r-lg: 18px;
-  --r-xl: 24px;
+  --r-lg: 20px;
+  --r-xl: 26px;
   --r-pill: 999px;
+
+  /* ── EL RADIO DE LO QUE SE TOCA ───────────────────────────────────────────
+     Medido sobre la aplicación corriendo, en una misma pantalla convivían TRES
+     redondeces para tres objetos que se tocan igual: el botón a 999 px, el
+     campo a 14 y el chip a 9. Ninguna estaba mal por su cuenta; juntas dicen que
+     no hay una sola mano detrás.
+
+     Uno para los tres, y sale de la escala en vez de sumarse a ella: es el
+     escalón que va entre `--r-xs` y `--r-sm`, el de lo que se pulsa o se
+     escribe. La píldora no se va de la casa —la semana en curso, el disco de
+     una serie, el estado de un cobro siguen siendo píldoras—, pero deja de ser
+     la forma del BOTÓN: lo que la píldora dice bien es «esto es una etiqueta»,
+     y un botón no lo es.
+
+     Va con `--h-control` y `--edge-control`: los tres describen el mismo objeto
+     y se leen juntos. Cambiar este valor cambia el carácter de la aplicación
+     entera, que es exactamente lo que se quería al ponerlo en un solo sitio. */
+  --r-control: 8px;
 
   /* ── Y los del ESCAPARATE, mucho más abiertos ──────────────────────────────
      Los de arriba son los del producto y su techo son 14 px: dentro, el canto
@@ -425,6 +611,20 @@
   --s6: 32px;
   --s7: 44px;
 
+  /* ── El margen del teléfono, y por qué tiene número propio ────────────────
+     20 px. No es un escalón de la escala y no puede serlo: por debajo de 640
+     px la escala se remapea (`--s5` pasa a valer 16) y entre `--s4` y `--s6`
+     no queda ningún paso en esa franja. Tampoco es «un valor suelto»: es la
+     sangría de `docs/portal-dos-aparatos.html`, medida contra el prototipo que
+     el dueño aprobó, y la única medida de la casa que se eligió mirando un
+     teléfono de verdad y no la rejilla.
+
+     Se declara aquí, con la escala, por la misma razón que ella: un literal de
+     píxeles vive en el sitio donde se decide, no repartido por seis hojas. El
+     único lector es `--hueco-hoja` en `responsive.css`; todo lo que sangra ya
+     sangra por él. */
+  --hueco-movil: 20px;
+
   /* ── Altura de control ───────────────────────────────────────────────────
      Había escala de tipo (`--fs-*`) y escala de espaciado (`--s*`), y las dos
      se respetaban. La de control NO EXISTÍA, y por eso lo que se pulsaba era
@@ -437,31 +637,80 @@
      El defecto es que nadie los miraba juntos, y juntos es como se usan — se
      pasa de la cartera a la hoja y de la hoja a la dieta en el mismo minuto.
 
-     Son dos, y la diferencia entre ellas dice algo:
+     Son tres, y la diferencia entre ellas dice algo:
        · `sm` — DENTRO de algo que ya es una fila: la papelera de un ejercicio,
          los verbos de una comida, el menú de una pauta. Ceden tamaño porque su
          renglón manda.
        · el normal — el control suelto, que es casi todo.
+       · `lg` — el que cierra una decisión: el pie de una ventana, la acción de
+         un alta. No es «más importante», es que va SOLO en su renglón y ahí
+         una caja de 32 se queda pequeña.
 
-     La tercera no es una talla sino el DEDO: en táctil no hay «al acercarse»
+     La cuarta no es una talla sino el DEDO: en táctil no hay «al acercarse»
      y la diana tiene que caber en una yema (ver `jornada.css`).
+
+     ── Y AHORA LA RESPETA TODO LO QUE SE PULSA (14 sep 2026) ─────────────────
+     La escala existía y solo la usaban los botones de icono. Medido en un banco
+     con la hoja de verdad puesta, lo demás caía donde quería: botón 39, campo
+     41, `btn-sm` 32, `btn-lg` 48, `input-sm` 29 — seis alturas para cinco
+     objetos que se usan en el mismo renglón. Ahora la escala la ponen `.btn`,
+     `.input`, `.select` y sus tallas, y quien necesite otra cosa coge un
+     escalón en vez de escribirse un número.
 
      Lo que esto compra no es el aspecto de hoy sino que no vuelva a abrirse:
      el siguiente contexto que necesite un botón apretado coge `sm` en vez de
      inventarse el séptimo número. */
   --h-control-sm: 26px;
   --h-control: 32px;
+  --h-control-lg: 36px;
   --h-control-touch: 40px;
+  /* El sexto escalón, y el único que no es para un control de fila: la PLACA,
+     el recuadro donde se escribe una cifra a 22 px (el peso de la revisión).
+     Está aquí y no suelto en `revision.css` porque lo comparten las dos placas
+     de la misma fila —la del peso y la de la fecha— y ése fue exactamente el
+     fallo: una medía 52 y la otra 40. Un alto compartido se declara donde se
+     declaran los altos. */
+  --h-placa: 52px;
 
   /* ── Sombras ─────────────────────────────────────────────────────────────
-     Sobre papel la sombra sigue existiendo, pero ahora ACOMPAÑA al canto en vez
-     de sustituirlo: más corta y más suave que antes, porque una tarjeta con
-     borde y sombra larga parece despegada. */
-  --shadow-xs: 0 1px 1px rgba(18, 24, 38, 0.04);
-  --shadow-sm: 0 1px 2px rgba(18, 24, 38, 0.05), 0 4px 14px -6px rgba(18, 24, 38, 0.09);
-  --shadow-md: 0 6px 20px -8px rgba(18, 24, 38, 0.15), 0 1px 3px rgba(18, 24, 38, 0.05);
-  --shadow-lg: 0 16px 36px -14px rgba(18, 24, 38, 0.24), 0 3px 8px rgba(18, 24, 38, 0.07);
-  --shadow-float: 0 10px 28px -8px rgba(18, 24, 38, 0.2);
+     Sobre papel la sombra VUELVE a ser lo que separa la tarjeta del lienzo,
+     porque la grande ya no lleva canto (ver `--edge-card`). Por eso `sm` y `lg`
+     crecen en alcance y se apoyan mucho: `0 14px 30px -22px` es una sombra de
+     contacto —casi todo el desenfoque queda recogido por el spread negativo—,
+     que es la que dice «esto está POSADO» sin despegar la tarjeta del papel.
+
+     Todas van teñidas con la tinta del papel, rgba(38, 32, 20), nunca en negro
+     puro: un gris frío debajo de un papel templado se ve, y se ve mal. */
+  --shadow-xs: 0 1px 1px rgba(38, 32, 20, 0.05);
+
+  /* ── LAS DOS SOMBRAS DEL CONTROL ──────────────────────────────────────────
+     Las de arriba separan una SUPERFICIE del papel. Estas dos son otra cosa:
+     le dan cuerpo a lo que se toca, que es lo único que distingue la familia
+     elegida (la «B») de la de antes.
+
+     `--shadow-control` va en el botón de acción, y son dos capas que hacen
+     trabajos distintos: la de fuera es una sombra de contacto de 1 px —el botón
+     está POSADO en el papel, no pintado encima— y la de dentro es un filo de
+     luz en el canto de arriba, que es lo que le da volumen a un relleno plano.
+     Sin el filo, un rectángulo azul con sombra parece un rectángulo azul con
+     sombra; con él, parece una pieza.
+
+     `--shadow-field` es su contrario: el campo se HUNDE un punto. Es la señal
+     que sustituye al canto oscuro que se ha retirado (ver `--edge-control`),
+     y por eso es tan tenue — si se nota, ya no es un campo, es una ranura.
+
+     ── LA TRAMPA, y está aquí para no volver a caer ──────────────────────────
+     Un `none` dentro de una lista de sombras separada por comas INVALIDA la
+     declaración entera; no se ignora esa capa, se cae todo. Se vio construyendo
+     el estudio: el botón normal se quedaba sin su filete y la familia de antes
+     salía peor de lo que era. Para apagar una capa se escribe el cero
+     transparente, `0 0 0 0 rgba(0, 0, 0, 0)`, nunca `none`. */
+  --shadow-control: 0 1px 2px rgba(38, 32, 20, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --shadow-field: inset 0 1px 2px rgba(38, 32, 20, 0.045);
+  --shadow-sm: 0 1px 2px rgba(38, 32, 20, 0.06), 0 14px 30px -22px rgba(38, 32, 20, 0.55);
+  --shadow-md: 0 6px 20px -8px rgba(38, 32, 20, 0.16), 0 1px 3px rgba(38, 32, 20, 0.06);
+  --shadow-lg: 0 24px 56px -28px rgba(38, 32, 20, 0.45), 0 3px 8px rgba(38, 32, 20, 0.08);
+  --shadow-float: 0 10px 28px -8px rgba(38, 32, 20, 0.22);
 
   /* ── Aquí vivía la flecha de las puertas ─────────────────────────────────
      Un «→» dibujado con `mask` que colgaba de todo lo que llevaba a algún
@@ -621,7 +870,6 @@
      número tiene que salir de un sitio, no de dos. */
   --carril-ficha: 400px;
 
-
   /* ── Por qué 880 para una columna de decisiones ──────────────────────────
      Es la medida a la que ninguna de esas frases se parte en dos líneas y el
      ojo no tiene que viajar para emparejar un rótulo con su dato. No es el
@@ -643,7 +891,100 @@
      de ella, que es el error clásico de estas barras. */
   --bottombar-h: 56px;
   --safe-b: env(safe-area-inset-bottom, 0px);
+
+  /* ── LO ELEGIDO, EN MACIZO ────────────────────────────────────────────────
+     La casilla que se está mirando de una lista corta se pinta ENTERA, en el
+     contrario del papel: la tesela del día en la semana de la dieta y su
+     hermana del escritorio. Es la marca más barata que existe —no añade una
+     sola pieza— y la única que a 44 px de ancho se ve sin buscarla.
+
+     Es tinta y no color por la ley de la casa: el semáforo juzga y el azul
+     invita, y ser martes no es ni una cosa ni la otra.
+
+     ── Y SÍ cambia con el tema, al revés que la tinta de la sesión ──────────
+     Aquí abajo la barra de la sesión vale lo mismo de día y de noche porque es
+     una BANDA a lo ancho y de noche la separan del lienzo su filete y su
+     sombra. Una tesela de 44 px no tiene esa suerte: pintada del mismo hierro
+     que el fondo, las siete casillas se ven idénticas y el día de hoy
+     desaparece — medido en el tema oscuro antes de escribir esto. De noche, lo
+     macizo es lo CLARO. */
+  --elegido: #171a20;
+  --elegido-texto: #ffffff;
+  --elegido-apagado: rgba(255, 255, 255, 0.62);
+  --elegido-filete: rgba(255, 255, 255, 0.14);
+
+  /* ── LA TINTA DE LA SESIÓN ────────────────────────────────────────────────
+     Mientras se entrena, el aparato está en otro MODO, y el modo se dice con
+     la tinta del producto: la barra de la sesión va de este color y con ella
+     se tiñen las barras del propio navegador (`lib/useCromoTenido`, `W-06`).
+
+     Es un token y no un literal por eso último: el cromo del navegador no
+     entiende `var()`, así que el valor se LEE de aquí con `getComputedStyle` y
+     se le da resuelto. Con el color escrito en el CSS de la barra habría dos
+     sitios que decir lo mismo, y el día que cambie uno el teléfono quedaría
+     partido en dos por arriba.
+
+     ── Y por qué no un color ──────────────────────────────────────────────
+     Coachway pinta su barra de sesión de naranja. Aquí no: el semáforo juzga y
+     el azul invita, y estar entrenando no es ni una cosa ni la otra. Ver «la
+     ley del color». El mismo valor en los dos temas, porque el modo es el
+     mismo — en el tema oscuro la barra se distingue del lienzo por el filete y
+     la sombra, no por ser más oscura. */
+  --sesion-tinta: #171a20;
+  --sesion-tinta-fila: rgba(255, 255, 255, 0.09);
+  --sesion-tinta-texto: rgba(255, 255, 255, 0.62);
 }
+
+/* ==========================================================================
+   LOS CUATRO ANCHOS
+   --------------------------------------------------------------------------
+   Aquí se declaran los puntos de corte del producto. No pueden ser tokens
+   —una consulta de medios no entiende `var()`, esa es la limitación de CSS
+   que hace falta conocer— así que lo que hay es esta tabla y un guardián en
+   `scripts/verify-styles.mjs` que rechaza cualquier otro número.
+
+   ── De dónde viene ──────────────────────────────────────────────────────────
+   Había TREINTA Y UN anchos distintos en `max-width` y quince en `min-width`:
+   250, 420, 519.98, 560, 599.98, 620, 640, 700, 719.98, 720, 759.98, 760,
+   767.98, 801.98, 860, 880, 885.98, 899.98, 900, 969.98, 1023.98, 1037.98,
+   1040, 1080, 1100, 1119.98, 1180, 1199.98, 1439.98, 1599.98… Ninguno era un
+   error: cada uno se eligió mirando SU pantalla, con la regla delante, y a
+   solas cada uno es correcto. El defecto es que nadie los miraba juntos, y
+   juntos es como se usan — se estrecha la ventana una vez y la aplicación
+   cruza nueve cortes distintos, recolocándose a trompicones.
+
+   Y encima se tapaban unos a otros. La semana del check-in tenía dos reglas
+   opuestas, una a 560 y otra a 639,98, y la de 560 no pintaba nada desde hacía
+   meses sin que se notara: mientras los cortes no coinciden, cada uno parece
+   mandar en su tramo.
+
+   ── La escala ───────────────────────────────────────────────────────────────
+     ≤  639,98 px   MÓVIL       el teléfono. Una columna, el pulgar manda.
+     ≤ 1023,98 px   TABLETA     el corte del CHASIS: barra del pulgar, sin
+                                barra lateral. Es el más importante de los
+                                cuatro y el que más reglas lleva.
+     ≤ 1199,98 px   ESCRITORIO  un portátil. Lo que son dos columnas con
+                    ESTRECHO    holgura en un monitor, aquí es una.
+     ≥ 1440    px   ANCHA       el monitor. Aquí las cosas CRECEN — es el
+                                único que da y no quita.
+
+   Los `min-width` son los complementarios exactos: 640, 1024, 1200, 1440.
+   El `.98` no es superstición: `max-width: 640px` y `min-width: 640px` se
+   solapan en un píxel, y ahí se cuelan dos reglas a la vez.
+
+   ── Lo que NO entra aquí ────────────────────────────────────────────────────
+   `@container`. Una consulta de contenedor mide UNA pieza contra su hueco, no
+   la ventana contra el mundo: la ficha de la cartera se estrecha a 801,98 px
+   de columna esté la ventana como esté, y eso es una medida de la pieza. Sus
+   números son suyos y el guardián no los toca.
+
+   ── Y el quinto ancho ───────────────────────────────────────────────────────
+   No entra. Si una pantalla parece pedirlo, lo que pide casi siempre es un
+   `@container` —porque el problema es el hueco de la pieza, no el monitor— o
+   una rejilla que se reparta sola (`auto-fill` con `minmax`). Un corte nuevo
+   es la última opción, no la primera, y añadirlo significa cambiar esta tabla
+   y el guardián a la vez: dos sitios, a propósito, para que cueste.
+   ========================================================================== */
 
 /* ==========================================================================
    Tema oscuro — HIERRO
@@ -721,12 +1062,25 @@
      su trabajo, al 9 % no lo hacía: con el escalón de fondo abierto, el canto
      acompaña en vez de sostener él solo. */
   --edge: rgba(214, 224, 244, 0.14);
+  /* Sobre hierro la tarjeta SÍ lleva canto: la sombra no existe. Ver `--edge-card`. */
+  --edge-card: var(--edge);
 
   /* El canto de control, sobre hierro: 3,26:1 contra la tarjeta —que es el
      fondo más claro sobre el que se posa un control— y 3,88:1 contra el
      lienzo. Sólido y no alfa a propósito: un borde translúcido cambia de
      contraste según lo que tenga debajo, y este existe para garantizar uno. */
   --edge-control: #66707e;
+
+  /* ── LO ELEGIDO, DE NOCHE: lo macizo es lo CLARO ─────────────────────────
+     De día, la casilla que se mira se pinta de tinta sobre papel. De noche eso
+     sería hierro sobre hierro y las siete casillas se verían iguales: se
+     invierte, que es lo que hace el propio tema con todo lo demás. El texto es
+     el lienzo, no el negro puro — el par es el mismo que `--text` /
+     `--text-inverse`, o sea el que ya está medido. */
+  --elegido: var(--text);
+  --elegido-texto: var(--text-inverse);
+  --elegido-apagado: rgba(16, 19, 26, 0.62);
+  --elegido-filete: rgba(16, 19, 26, 0.16);
 
   --text: #e9ecf2;
   --text-secondary: #a2a9b7;
@@ -811,6 +1165,16 @@
   --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
   --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.65);
+
+  /* El cuerpo del control, de noche. La sombra de contacto aprieta —sobre un
+     fondo oscuro una sombra clara no existe— y el filo de luz SE QUEDA: es lo
+     único que separa un botón azul de un rectángulo azul cuando no hay papel
+     debajo que le haga de suelo.
+
+     El hundido del campo se invierte: de noche lo que hunde no es una sombra
+     de tinta sino una de negro, y más marcada, porque el canto ya no se ve. */
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --shadow-field: inset 0 1px 2px rgba(0, 0, 0, 0.28);
 }
 
 /* ==========================================================================
@@ -934,6 +1298,7 @@
   --fill: rgba(214, 224, 244, 0.085);
   --fill-strong: rgba(214, 224, 244, 0.145);
   --edge: rgba(214, 224, 244, 0.12);
+  --edge-card: var(--edge);
   --edge-control: #66707e;
 
   --text: #e9ecf2;

@@ -12,6 +12,8 @@ import { Tarjeta, TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { ComparisonData } from '@/components/review/ComparisonData';
 import { PhotoContactSheet } from '@/components/review/PhotoContactSheet';
 import { PhotoStrip } from '@/components/review/PhotoStrip';
+import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
+import { hayRespuesta } from '@/domain/protocol';
 
 /**
  * EL CUERPO: lo que te cuenta, cómo se ve y lo que dice la cinta métrica.
@@ -81,6 +83,8 @@ export const BodyCard = ({
   respuestas = {},
   tendencia = [],
   textos = [],
+  /* Lo que contestó marcando —sí/no, opciones, zonas—. Ver el tramo 1. */
+  marcadas = [],
   client,
 }) => {
   const deEstaSemana = groups.find((g) => g.week === selected)?.photos.length || 0;
@@ -125,7 +129,11 @@ export const BodyCard = ({
     escalas.some((fila) => fila.from !== null && fila.from !== undefined) &&
     escalas.every((fila) => fila.delta === null || fila.delta === 0);
 
-  const hayRespuestas = escalas.length > 0 || dichos.length > 0;
+  /* Lo marcado cuenta como contestar. Sin esto, quien solo conteste el sí/no y
+     las zonas ve «no contestó a tus preguntas esta semana» justo encima de lo
+     que contestó. */
+  const hayMarcadas = marcadas.some((q) => hayRespuesta(respuestas[q.id]));
+  const hayRespuestas = escalas.length > 0 || dichos.length > 0 || hayMarcadas;
   const nombre = client?.name?.split(' ')[0] || 'Tu cliente';
 
   return (
@@ -159,6 +167,18 @@ export const BodyCard = ({
             )}
           </>
         )}
+
+        {/*
+          Lo que contestó MARCANDO: sí/no, las opciones, las zonas del cuerpo.
+          No es una cantidad —no se compara con la semana pasada— ni son sus
+          palabras —no se cita—, así que va por su propio camino y con el mismo
+          control con el que se dio. Que la respuesta se lea con la forma en que
+          se contestó es lo que evita que las dos versiones divergan
+          (`SessionFeedback`), y en el caso de las zonas es además lo único que
+          se entiende de un vistazo: «hombro dcho., lumbares» escrito en una
+          línea no dice que las dos llevan tres semanas seguidas.
+        */}
+        <SessionFeedback questions={marcadas} answers={respuestas} title={false} readOnly />
 
         {!hayRespuestas &&
           (preguntas.length === 0 ? (

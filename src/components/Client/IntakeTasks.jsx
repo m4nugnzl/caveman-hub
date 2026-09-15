@@ -30,6 +30,9 @@ import { Panel } from '@/components/ui/primitives';
 const DESTINO = {
   form: '#cuestionario',
   gym: '#gimnasio',
+  /* «Tu revisión», que es donde están los pasos de la entrega con sus verbos. La
+     báscula (`/mi/evolucion/medidas`) es donde se anota el pesaje, no donde se
+     entrega: son dos destinos porque son dos cosas. */
   checkin: '/mi/evolucion',
 };
 

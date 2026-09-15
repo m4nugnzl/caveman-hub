@@ -22,19 +22,21 @@ export const ClientPhotosRoute = () => {
   );
 
   return (
-    <div className="stack">
+    <div className="stack cascada">
       <PageHead title="Mis fotos" sub="Semana a semana, y el antes y después." />
       <ClientPhotos
         client={activeClient}
         photos={photos}
         history={anthropometry[activeClient.id]?.history || []}
-        /* Subir vive en el nivel de al lado, que es donde toca hacerlo: con el
+        /* Subir vive dentro del asistente, que es donde toca hacerlo: con el
            peso de la semana y la misma fecha. Aquí solo se mira.
 
            Y se llega con el asistente ABIERTO: el botón dice «Hacer mi
-           check-in», así que dejar al cliente en la hoja de al lado buscando
-           cuál de los botones era es prometer un gesto y entregar una pantalla.
-           Ver `ClientCheckInsRoute`. */
+           check-in», así que dejar al cliente en otra pantalla buscando cuál de
+           los botones era es prometer un gesto y entregar un sitio.
+
+           El destino es «Tú» desde el 12 de septiembre: el gesto de entregar
+           vive donde está la semana que se entrega. Ver `ClientTu`. */
         onGoToCheckIn={() => navigate('/mi/evolucion', { state: { abrirCheckIn: true } })}
       />
     </div>

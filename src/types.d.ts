@@ -114,6 +114,13 @@ export interface SessionEntry {
   name?: string;
   muscle?: string;
   sets?: SetEntry[];
+  /**
+   * Lo que dice EL CLIENTE de este ejercicio en este entreno («bajé el peso:
+   * dormí fatal»). La escribe él (RPC `log_exercise_note`, 0119) y cuelga de la
+   * sesión, no del plan: así queda fechada con el entreno y pegada a los kilos
+   * que explica. La del plan es `Exercise.coachNote`, que es del entrenador.
+   */
+  clientNote?: string;
 }
 
 /**
@@ -140,6 +147,22 @@ export interface Session {
   isLegacy?: boolean;
   /** Lo añade `allSessions` al aplanar; no está en la base de datos. */
   weekNumber?: number;
+  /**
+   * ══ EL PRINCIPIO Y EL FIN (0119) ══════════════════════════════════════════
+   *
+   * Marca de tiempo completa (ISO con zona), no una fecha: `date` dice el DÍA
+   * que se entrenó y estos dos, cuándo empezó y cuándo se dejó.
+   *
+   * `startedAt` lo estampa el servidor al crear la sesión —un reloj de teléfono
+   * mal puesto daría duraciones imposibles— y `endedAt`, «Terminar». Las dos
+   * son opcionales porque todo lo registrado antes de la 0119 no las tiene, y
+   * sin ellas simplemente no se dice cuánto costó.
+   *
+   * Que falte `endedAt` habiendo series anotadas es lo que significa «la
+   * dejaste a medias» (ver `sesionAMedias`).
+   */
+  startedAt?: string;
+  endedAt?: string;
 }
 
 /** Una semana (o sesión, en ciclos rotativos) del programa. */

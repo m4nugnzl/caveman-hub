@@ -105,9 +105,24 @@ export const Dashboard = ({ audience = 'coach' }) => {
     setPreguntaVentana(pregunta);
     setVentana(id);
   };
-  /* Contra qué se dibuja el peso. Vive aquí y no en la tarjeta porque la ventana
-     no lo hereda: dentro se mira el peso solo, con su recta y su banda. */
-  const [banda, setBanda] = useState('kcals');
+  /*
+    Contra qué se dibuja el peso. Vive aquí y no en la tarjeta porque la ventana
+    no lo hereda: dentro se mira el peso solo, con su recta y su banda.
+
+    ── Y el cliente abre en PASOS ────────────────────────────────────────────
+    El entrenador abre en calorías porque cada peldaño de esa escalera es una
+    decisión suya y lo que quiere ver es si funcionó. Al cliente le pasa lo
+    contrario: su plan lleva cinco semanas igual, así que la escalera de kcal le
+    sale plana —una serie que no se mueve, que en una gráfica no es un dato, es
+    un adorno—. Lo que sí se mueve semana a semana son sus pasos, que además son
+    lo único de las dos bandas que depende de él.
+
+    El conmutador sigue ahí: esto es por dónde se abre, no qué se puede mirar.
+    Y por eso el estado arranca sin elegir (`null`) en vez de arrancar en
+    «steps»: a quien no le han puesto pasos, abrir por ellos sería una banda
+    vacía. La preferencia se aplica donde se sabe si hay pasos, más abajo.
+  */
+  const [bandaElegida, setBanda] = useState(null);
 
   /*
     ══ El histórico de check-ins, que alimenta DOS cosas ══════════════════════
@@ -117,7 +132,22 @@ export const Dashboard = ({ audience = 'coach' }) => {
     cada semana, que sí es suyo y lo ve. Es una sola consulta para las dos.
   */
   const { rows: revisiones, checkIns } = useReviewRows(activeClient?.id);
-  const track = useReviewTrack(isClient ? [] : revisiones);
+  /*
+    ══ Y LA ESCALERA TAMBIÉN ES SUYA ═════════════════════════════════════════
+
+    Aquí se le pasaba una lista vacía al cliente, con el argumento de que «el
+    cliente ya lee tus cambios en su semana». El argumento confundía dos cosas:
+    leer un cambio —«te subo 100 g de carbos»— no es ver la gráfica de dos
+    bandas, que es la única pieza del producto que contesta *si esto está
+    funcionando*: su peso arriba y, debajo y con el mismo eje de semanas,
+    contra qué se compara.
+
+    Sin track, `conAjustes` era falso para él y su curva salía sola. Y es SU
+    peso contra SU plan: ni una consulta nueva —`revisiones` ya las lee— ni una
+    política nueva. Lo que su entrenador no quiera enseñarle sigue fuera por
+    donde ya lo estaba (`Oculto`), que es de donde tiene que salir.
+  */
+  const track = useReviewTrack(revisiones);
 
   /* El ancho de la tarjeta del peso, para dibujar la gráfica a píxel real. Se
      mide un contenedor SIEMPRE montado: el observador se engancha al montar, y
@@ -195,13 +225,16 @@ export const Dashboard = ({ audience = 'coach' }) => {
     mando de Entreno y Dieta no cambia: allí lleva acciones.
   */
 
-  /* La escalera de lo que le fuiste poniendo es del entrenador y necesita al
-     menos dos semanas de historia; si no, la curva del peso sola dice lo mismo
-     sin fingir una escalera de un solo escalón. */
-  const conAjustes = !isClient && track.length > 1;
+  /* La escalera de lo que le fuiste poniendo necesita al menos dos semanas de
+     historia; si no, la curva del peso sola dice lo mismo sin fingir una
+     escalera de un solo escalón. */
+  const conAjustes = track.length > 1;
   /* Los pasos se ofrecen cuando hay DOS semanas con dato: con una sola, la
      escalera es una raya y el conmutador promete una lectura que no existe. */
   const hayPasos = track.filter((f) => f.steps !== null && f.steps !== undefined).length > 1;
+  /* Lo elegido manda; sin elegir, el cliente abre en pasos si los tiene y el
+     entrenador siempre en calorías. Ver el comentario del estado, arriba. */
+  const banda = bandaElegida || (isClient && hayPasos ? 'steps' : 'kcals');
 
   const aDieta = isClient ? '/mi/dieta' : clientPath(activeClient.id, 'nutricion');
   const aEntreno = isClient ? '/mi/rutina' : clientPath(activeClient.id, 'rutina');
@@ -315,7 +348,14 @@ export const Dashboard = ({ audience = 'coach' }) => {
           )}
         </div>
 
-        <aside className="resumen-lado">
+        {/* `es-panel`: la columna es UN panel con apartados separados por
+            filete, no tres cajas flotando al lado de un mosaico de cinco. Es
+            la misma gramática que el costado de la dieta, y la corrección es
+            la misma — ocho cantos redondeados en una pantalla, cada uno
+            anunciando que lo suyo es otra cosa, cuando lo que hay ahí dentro
+            es una cosa: con qué se juzga a esta persona. La regla vive en
+            `revision.css`, «EL COSTADO ES UN PANEL». */}
+        <aside className="resumen-lado es-panel">
           {/* El hilo va lo primero de la columna: es lo que se lee antes de
               escribirle. El cliente no lo ve —su portal ya cuenta su semana en
               cada sección— y sus respuestas tuyas las lee en la revisión. */}

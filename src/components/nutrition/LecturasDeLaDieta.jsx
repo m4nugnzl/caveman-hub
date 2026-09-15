@@ -137,6 +137,9 @@ const lecturaKcal = (real, objetivo) => {
  *                            diga del envase. Ver `declaredMicro`.
  * @param {boolean} [avanzado] Las cuatro del envase a la vista y contra lo que
  *                            se les pida, en vez de la fibra y un desplegable.
+ * @param {boolean} [soloPautado] Lo PAUTADO y nada más: sin la suma del menú,
+ *                            sin la diferencia y sin los g/kg. Es lo que ve el
+ *                            cliente — ver abajo.
  */
 export const ObjetivoDelDia = ({
   meals,
@@ -150,10 +153,29 @@ export const ObjetivoDelDia = ({
   conGkg = true,
   catalogo = null,
   avanzado = false,
+  soloPautado = false,
 }) => {
   const [micros, setMicros] = useState(false);
 
   const hayMenu = meals.length > 0;
+  /*
+    ══ LO QUE SUMA EL MENÚ ES DEL ENTRENADOR ═════════════════════════════════
+
+    El dueño, el 14 de septiembre de 2026: *«el cliente no ha de ver los macros
+    reales, ha de ver los pautados; la diferencia solo la ve el entrenador»*.
+
+    Y era literal: en el portal esta sección decía «Proteína 111/120 g · −9 g»
+    con el −9 en rojo. Eso no es su plan, es el descuadre entre lo que su
+    entrenador pautó y lo que le cuadró el menú al escribirlo — trabajo de
+    quien lo escribe, no de quien lo come. A ojos del cliente, «te faltan 9 g de
+    proteína» se lee como un reproche por algo que no ha hecho todavía.
+
+    `soloPautado` apaga la columna de lo real, la diferencia y los g/kg. La
+    forma de la sección no cambia: lo que se queda es la misma lista de
+    renglones con una cifra en vez de dos, igual que en un plan por macros sin
+    menú. Ver la ley del reposo y «la app no receta».
+  */
+  const suma = hayMenu && !soloPautado;
 
   /* El peso contra el que se leen los g/kg: la media móvil de tres pesajes y no
      el último. Un pesaje suelto se mueve un kilo por la sal de anoche, y con él
@@ -278,11 +300,13 @@ export const ObjetivoDelDia = ({
             </p>
           )}
           <span className="lado-desde">
-            {hayMenu
+            {suma
               ? hayAlternativas
                 ? `Su menú, con las opciones abiertas: ${abiertas.join(' · ')}`
                 : 'Su menú, con lo que hay en cada comida'
-              : 'Sin menú que sumar: lo que cuadra es el día entero'}
+              : soloPautado
+                ? 'lo que te toca este día'
+                : 'Sin menú que sumar: lo que cuadra es el día entero'}
           </span>
         </>
       )}
@@ -297,7 +321,7 @@ export const ObjetivoDelDia = ({
             exactamente lo que esta sección existe para permitir desde que el
             objetivo y el día son una sola. Sigue separada por su filete: es el
             total de las tres que la descomponen. */}
-        {hayMenu && (
+        {suma && (
           <Medidor
             total
             fila
@@ -312,7 +336,7 @@ export const ObjetivoDelDia = ({
 
         {MACRO_META.map(({ key, label }) => {
           const objetivo = toNum0(targets?.[`${key}Grams`]);
-          const valor = hayMenu ? Math.round(real[key]) : objetivo;
+          const valor = suma ? Math.round(real[key]) : objetivo;
           const diff = valor - objetivo;
           const porKilo = gkg(objetivo, peso);
           return (
@@ -321,12 +345,12 @@ export const ObjetivoDelDia = ({
               fila
               label={label}
               campo={key}
-              juzga={juzga && hayMenu}
+              juzga={juzga && suma}
               valor={valor}
-              objetivo={hayMenu ? objetivo : null}
+              objetivo={suma ? objetivo : null}
               unidad="g"
               lectura={
-                juzga && hayMenu && objetivo
+                juzga && suma && objetivo
                   ? diff === 0
                     ? 'clavado'
                     : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} g`
@@ -591,6 +615,13 @@ export const LecturasDeLaDieta = ({
     de cada cifra. Ver `MacroTargetCard`, forma «mesa».
   */
   conElDia = true,
+  /*
+    ── Quién mira el costado ─────────────────────────────────────────────────
+    El entrenador juzga el plan: lo pautado contra lo que suma el menú, la
+    diferencia y los g/kg. El cliente solo ve lo que le han pautado. Es una
+    decisión de producto del dueño, no de forma; ver `ObjetivoDelDia`.
+  */
+  soloPautado = false,
 }) => {
   const [ventana, setVentana] = useState(null);
 
@@ -602,12 +633,19 @@ export const LecturasDeLaDieta = ({
         targets={targets}
         elegidas={elegidas}
         history={registros}
-        juzga
+        /* Sin juicio no hay semáforo ni veredicto: al cliente no se le pinta en
+           rojo un descuadre que no es suyo. */
+        juzga={!soloPautado}
         onAbrir={onAbrirDia}
         titulo={tituloObjetivo}
         onEditar={onEditarObjetivo}
         catalogo={catalogo}
         avanzado={avanzado}
+        soloPautado={soloPautado}
+        /* Los g/kg son la cifra con la que se JUZGA si el plan está bien
+           planteado. Es del entrenador, y además su pie («g/kg sobre 60,9 kg»)
+           enseña la media de pesajes en una pantalla que no habla de eso. */
+        conGkg={!soloPautado}
       />
       )}
 

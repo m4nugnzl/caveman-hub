@@ -62,6 +62,9 @@ import {
   sheetVolumeByGroup,
   updatePlanDayIn,
   proyectarPlanEnDias,
+  abreSoloElCiclo,
+  cicloPorAbrir,
+  semanaDelCliente,
 } from './blocks';
 
 const programa = (semanas, extra = {}) => ({
@@ -1417,5 +1420,159 @@ describe('sheetVolumeByGroup', () => {
   it('una hoja sin ejercicios no devuelve nada', () => {
     expect(sheetVolumeByGroup({}, hojas)).toEqual([]);
     expect(sheetVolumeByGroup(undefined, undefined)).toEqual([]);
+  });
+});
+
+/*
+  ══ «¿LE TOCA EL SIGUIENTE?» ═════════════════════════════════════════════════
+
+  La regla la preguntan dos cosas que tienen que contestar lo mismo: el aviso de
+  la portada del cliente y el automatismo de «que el siguiente se abra solo al
+  cerrar este». Lo que se fija aquí son las tres condiciones, y que las tres
+  sean hechos: el ciclo entero anotado, nada a medias, y el bloque abierto.
+*/
+describe('cicloPorAbrir', () => {
+  const serie = [{ kg: 60, reps: 8, rir: 2 }];
+  /* El día del PLAN va con sus series en blanco: lo anotado vive en la sesión.
+     Con números dentro, `executedSessions` fabrica además la sesión heredada del
+     registro viejo y el día contaría como entrenado sin haberlo estado. */
+  const dia = (dayName) => ({
+    dayName,
+    exercises: [{ id: `e-${dayName}`, name: 'Press', sets: [{ kg: '', reps: '', rir: '' }] }],
+  });
+  /* Una sesión real y terminada, que es lo que deja anotado un día. */
+  const hecha = (dayName) => ({
+    id: `s-${dayName}`,
+    dayName,
+    date: '2026-09-10',
+    endedAt: '2026-09-10T11:00:00Z',
+    entries: [{ exerciseId: `e-${dayName}`, name: 'Press', sets: serie }],
+  });
+
+  const ciclo = (weekNumber, dias, sessions) => ({
+    weekNumber,
+    id: `m${weekNumber}`,
+    /* Sin `date`, el día del plan no puede convertirse en sesión heredada y la
+       semana se leería como no entrenada aunque traiga sus series. */
+    date: '2026-09-07',
+    days: dias.map(dia),
+    sessions,
+  });
+
+  const plan = (microcycles, extra = {}) => ({ weeklySplit: {}, microcycles, ...extra });
+
+  it('con el ciclo entero anotado ofrece el siguiente', () => {
+    const p = plan([ciclo(1, ['Push', 'Pull'], [hecha('Push'), hecha('Pull')])]);
+    expect(cicloPorAbrir(p)).toBe(2);
+  });
+
+  it('con una sesión sin anotar no ofrece nada', () => {
+    const p = plan([ciclo(1, ['Push', 'Pull'], [hecha('Push')])]);
+    expect(cicloPorAbrir(p)).toBeNull();
+  });
+
+  /* Una sesión abierta espera una decisión suya —seguirla o descartarla— y
+     ofrecerle empezar otro ciclo encima son dos verbos a la vez. */
+  it('con una sesión a medias se calla', () => {
+    const aMedias = { ...hecha('Pull'), endedAt: null };
+    const p = plan([ciclo(1, ['Push', 'Pull'], [hecha('Push'), aMedias])]);
+    expect(cicloPorAbrir(p)).toBeNull();
+  });
+
+  /* Solo el bloque ABIERTO crece: prometer alargar uno cerrado hace dos meses
+     es ofrecer algo que no va a pasar. */
+  it('si el ciclo es de un bloque cerrado, no', () => {
+    const p = plan([ciclo(1, ['Push'], [hecha('Push')])]);
+    const { program } = openNextBlock(p, { name: 'Fuerza' });
+    expect(cicloPorAbrir(program)).toBeNull();
+  });
+
+  it('un microciclo sin días no está cerrado: está sin montar', () => {
+    expect(cicloPorAbrir(plan([ciclo(1, [], [])]))).toBeNull();
+    expect(cicloPorAbrir(plan([]))).toBeNull();
+    expect(cicloPorAbrir(null)).toBeNull();
+  });
+});
+
+/*
+  La preferencia es del CLIENTE y vive en su jsonb de siempre, así que lo único
+  que hay que fijar es que no se encienda sola: sin escribir nada, nadie le crea
+  microciclos por su cuenta.
+*/
+describe('abreSoloElCiclo', () => {
+  it('apagada mientras no la marque', () => {
+    expect(abreSoloElCiclo(undefined)).toBe(false);
+    expect(abreSoloElCiclo({})).toBe(false);
+    expect(abreSoloElCiclo({ rutina: {} })).toBe(false);
+  });
+
+  it('encendida cuando la marca', () => {
+    expect(abreSoloElCiclo({ rutina: { seguirSolo: true } })).toBe(true);
+  });
+});
+
+/*
+  ══ LA SEMANA DEL CLIENTE ═══════════════════════════════════════════════════
+
+  La traducción entre el modelo —la dieta se reparte por CASILLAS— y cómo se
+  enseña desde el 13 de septiembre de 2026: siete días naturales. Lo que hay que
+  fijar es la cuenta del ciclo rotativo, que es donde se puede colar un día de
+  desfase y nadie lo notaría hasta que alguien comiera lo que no era.
+*/
+describe('semanaDelCliente', () => {
+  const casillas = ['1', '2', '3', '4', '5'].map((key) => ({ key, corto: `D${key}` }));
+  /* Un viernes: el lunes de su semana es el 7 de septiembre de 2026. */
+  const HOY = '2026-09-11';
+
+  it('el ciclo natural no traduce nada: la casilla ES el día', () => {
+    const semana = semanaDelCliente({ cycleType: 'weekly' }, null, [], HOY);
+    expect(semana.map((d) => d.key)).toEqual([
+      'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo',
+    ]);
+    expect(semana.map((d) => d.corto)).toEqual(['L', 'M', 'X', 'J', 'V', 'S', 'D']);
+    expect(semana.filter((d) => d.esHoy)).toHaveLength(1);
+    expect(semana.find((d) => d.esHoy).fecha).toBe(HOY);
+  });
+
+  /* El ancla es la fecha del microciclo y la cuenta es la misma con la que la
+     aplicación fecha el siguiente: días transcurridos, módulo las casillas. */
+  it('coloca las casillas de un rotativo en los días de la semana', () => {
+    const program = { microcycles: [{ weekNumber: 1, date: '2026-09-07', days: [] }] };
+    const semana = semanaDelCliente({ cycleType: 'rotating' }, program, casillas, HOY);
+    /* El ciclo arrancó el lunes 7, que es el lunes de esta semana: la vuelta
+       de cinco cae D1…D5 de lunes a viernes y vuelve a empezar el sábado. */
+    expect(semana.map((d) => d.key)).toEqual(['1', '2', '3', '4', '5', '1', '2']);
+    expect(semana.find((d) => d.esHoy).key).toBe('5');
+  });
+
+  /* Con varios montados manda el ÚLTIMO: cada ciclo nuevo reancla la cuenta, y
+     partiendo del primero las bajas y las vacaciones se acumulan. */
+  it('se ancla en el microciclo más reciente con fecha', () => {
+    const program = {
+      microcycles: [
+        { weekNumber: 1, date: '2026-01-05', days: [] },
+        { weekNumber: 2, date: '2026-09-09', days: [] },
+      ],
+    };
+    const semana = semanaDelCliente({ cycleType: 'rotating' }, program, casillas, HOY);
+    /* Anclado en el miércoles 9 y no en enero: el lunes 7 queda dos días ANTES
+       del ancla, o sea el D4 de la vuelta anterior. */
+    expect(semana.map((d) => d.key)).toEqual(['4', '5', '1', '2', '3', '4', '5']);
+  });
+
+  /* Sin fecha de la que partir no se coloca a ojo: quien lo llama se queda con
+     las casillas, que es lo que había. */
+  it('sin ancla no inventa la semana', () => {
+    expect(semanaDelCliente({ cycleType: 'rotating' }, { microcycles: [] }, casillas, HOY)).toBeNull();
+    expect(semanaDelCliente({ cycleType: 'rotating' }, null, casillas, HOY)).toBeNull();
+    expect(semanaDelCliente({ cycleType: 'rotating' }, { microcycles: [{ weekNumber: 1, date: '2026-09-07' }] }, [], HOY)).toBeNull();
+  });
+
+  /* Un ciclo anterior al ancla —hojear la semana pasada— no puede salir con
+     índice negativo. */
+  it('aguanta fechas anteriores al ancla', () => {
+    const program = { microcycles: [{ weekNumber: 1, date: '2026-09-30', days: [] }] };
+    const semana = semanaDelCliente({ cycleType: 'rotating' }, program, casillas, HOY);
+    expect(semana.every((d) => casillas.some((c) => c.key === d.key))).toBe(true);
   });
 });

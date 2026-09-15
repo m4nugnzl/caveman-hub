@@ -10,11 +10,10 @@ import {
   LayoutTemplate,
   LifeBuoy,
   Plug,
-  Ruler,
   Salad,
   Home,
   Shapes,
-  SquarePen,
+  TrendingUp,
   UserRound,
   Users,
   UsersRound,
@@ -181,8 +180,8 @@ export const COACH_PRIMARY = [
  * percibe siquiera como existente.
  *
  * ── El orden es el del oficio ─────────────────────────────────────────────
- * Cómo trabajas (protocolos) → qué preguntas (formularios) → con qué material
- * (ejercicios, alimentos) → qué tienes guardado (plantillas).
+ * Cómo trabajas y qué preguntas (protocolos, con sus formularios dentro) → con
+ * qué material (ejercicios, alimentos) → qué tienes guardado (plantillas).
  */
 /*
   ══ Por qué la LIBRERÍA es una puerta y no dos ═══════════════════════════════
@@ -199,7 +198,7 @@ export const COACH_PRIMARY = [
       Librería    el material suelto     un ejercicio · un alimento
       Plantillas  lo compuesto con él    un día       · un plato
 
-  Un ejercicio es a un día lo que un alimento es a un plato. Con cuatro puertas
+  Un ejercicio es a un día lo que un alimento es a un plato. Con pocas puertas
   cada par significa algo; con cinco, la lista era un inventario.
 
   ── Las dos rutas siguen existiendo, y a propósito ─────────────────────────
@@ -208,9 +207,23 @@ export const COACH_PRIMARY = [
   tiene que hacer. Lo que cambia es que en la barra ocupan una fila y no dos.
   `also` es lo que mantiene esa fila encendida en las dos.
 */
+/*
+  ══ Y FORMULARIOS DEJA DE SER PUERTA, por el mismo motivo ════════════════════
+
+  Era la segunda fila, y el párrafo de arriba ya las nombraba como una sola
+  partida: «cómo trabajas (protocolos) → qué preguntas (formularios)». Eran dos
+  mitades de la misma cosa —el protocolo dice CUÁNDO se le pide algo y el
+  formulario dice QUÉ se le pregunta— y estar en dos puertas obligaba a cada una
+  a enlazar a la otra en los dos sentidos, y a explicar por escrito qué mitad del
+  trabajo le tocaba. El pie de Formularios lo decía con todas las letras.
+
+  Como con la Librería: `/formularios` no se toca —es un tramo de la cinta de
+  Protocolos, se puede enlazar y el botón de atrás funciona—; lo que cambia es
+  que en la barra ocupan una fila y no dos. `also` es lo que la mantiene
+  encendida en las dos.
+*/
 export const COACH_TALLER = [
-  { path: '/protocolos', label: 'Protocolos', icon: ClipboardList },
-  { path: '/formularios', label: 'Formularios', icon: SquarePen },
+  { path: '/protocolos', label: 'Protocolos', icon: ClipboardList, also: ['/formularios'] },
   /* `Shapes` —un círculo, un triángulo y un cuadrado— y no `Boxes`. Los cubos
      isométricos eran el único icono con perspectiva en una barra de iconos
      planos, y a 16 px se leían como una mancha. Además el par dice lo que la
@@ -538,9 +551,9 @@ export const SETTINGS_SECTIONS = [
  * pesaje. La analítica y el calendario los abre de vez en cuando.
  *
  * Ese orden pasó a importar de verdad cuando el móvil dejó de navegar con un
- * carril que se arrastra y pasó a tener barra inferior: ahora las CUATRO PRIMERAS
- * son las que se ven siempre, y el resto queda detrás de «Más». La lista deja de
- * ser una enumeración y es una decisión de producto.
+ * carril que se arrastra y pasó a tener barra inferior: la lista ES la barra del
+ * pulgar, entera y sin «Más» detrás. Deja de ser una enumeración y es una
+ * decisión de producto — por eso son CINCO y no seis.
  *
  * `short` es la etiqueta de la barra inferior. «Mis check-ins» no cabe en un
  * destino de 78 px, y abreviar en el componente significaría cortar por caracteres
@@ -548,35 +561,171 @@ export const SETTINGS_SECTIONS = [
  */
 export const CLIENT_SECTIONS = [
   /*
-    «Hoy» va la primera porque es la única que contesta la pregunta con la que se
-    abre la aplicación: ¿hay algo para mí y qué me toca? Las demás son sitios
-    donde se consulta algo que ya se sabe que existe.
+    ══ CINCO DESTINOS, Y NINGUNO ES UN ARCHIVADOR ═════════════════════════════
+
+    Cinco versiones de esta lista. Las tres primeras discutían el ORDEN; la
+    cuarta —12 de septiembre de 2026, `docs/replanteamiento-movil-el-aparato.md`—
+    discute cuántos son y cómo se llaman, que es lo que de verdad estaba mal:
+
+    1. Era «Hoy» —una sección propia para los avisos— y «Mi progreso» iba
+       quinto. Estaba al revés: el progreso es la razón por la que un cliente
+       paga, y «Hoy» era una pantalla que la mayoría de los días no tenía nada
+       que decir.
+    2. Se fundieron: el inicio pasó a ser el panel de progreso con lo que ha
+       cambiado condensado arriba, y la rutina se puso primera porque es lo que
+       se abre en el gimnasio.
+    3. El 12 de septiembre el dueño eligió la portada del prototipo, y con ella
+       el inicio volvió a ser lo PRIMERO.
+    4. Y ese mismo día, mirando el portal en su teléfono: «no parece una app
+       móvil, sino una adaptación de lo que está en la web del PC». Pasaron a
+       CUATRO, con el criterio de cuántas veces al mes se abre cada uno, y la
+       revisión bajó al `also` de «Tú».
+    5. La quinta —misma tarde, `D-10` del prototipo v5— devuelve la revisión a la
+       barra. Son CINCO, y el criterio ya no es la frecuencia sola sino **las
+       tres misiones del cliente**: entrenar, comer y entregar la semana.
+
+         Hoy        Entreno        Dieta          Revisión       Tú
+         ───        ───────        ─────          ────────       ──
+         lo que     la cinta       el día         el peso,       el calendario,
+         toca y     de hojas       y sus          las fotos      tus datos,
+         lo que                    comidas        y lo que       tu cuenta
+         espera                                   contestas
+
+    ── Por qué vuelve «Revisión» y sigue fuera «Calendario» ───────────────────
+    Las dos se abren pocas veces al mes, y ahí acaba el parecido. El calendario
+    es una consulta: se mira cuando hace falta y no pasa nada si no se mira. La
+    revisión es **lo único que el cliente le DEBE a su entrenador**, y no
+    entregarla deja a la otra persona sin con qué trabajar. Estar apagada seis
+    días de cada siete no es su defecto: es el recordatorio.
+
+    El calendario conserva su ruta entera (`/mi/calendario`) en el `also` de
+    «Tú», así que los enlaces guardados siguen valiendo y la barra sigue marcando
+    dónde estás al bajar a él.
+
+    ── Y por qué cambian los nombres ──────────────────────────────────────────
+    «Inicio · Rutina · Dieta · Revisión · Calendario» son cinco archivadores:
+    sitios donde se guarda algo, no cosas que se hacen. `short` —lo que se lee en
+    la barra del pulgar, que en el teléfono es la ÚNICA navegación— pasa a decir
+    a qué se entra: «Hoy» y «Entreno». `label` es el nombre largo, el de las
+    pestañas de escritorio y el de la paleta, y ahí se conserva la voz del
+    portal, que es la del cliente hablando de lo suyo.
+
+    Que «Hoy» vaya primera es además lo que permite que sea la puerta de toda la
+    cartera: es la única sección sin `service` que contesta algo (ver
+    `clientHomeFor`).
+  */
+  { path: 'inicio', label: 'Mi inicio', short: 'Hoy', icon: Home },
+  { path: 'rutina', label: 'Mi rutina', short: 'Entreno', icon: Layers, service: 'training' },
+  /*
+    `corto` es el nombre en la BARRA DEL PULGAR, y solo existe aquí.
+
+    Los dos prototipos que el dueño eligió el 14 de septiembre discrepan en esta
+    palabra y en ninguna más: la cinta del monitor (`docs/estudio-cajas.html`)
+    rotula «Dieta» y la barra del teléfono (`docs/estudio-la-app-del-cliente.html`)
+    rotula «Comer». El criterio del segundo es la ley 1 de aquel estudio —se
+    nombra lo que HACES, no lo que te dan— y el del primero es que en una línea
+    de 1.360 px el destino se lee junto a «Entreno» y «Revisión», que son
+    sustantivos.
+
+    Se respetan los dos porque son dos aparatos distintos, no dos maneras de
+    decir lo mismo en la misma pantalla. La ruta no cambia (`/mi/dieta`), así que
+    ningún enlace guardado se entera.
+  */
+  { path: 'dieta', label: 'Mi dieta', short: 'Dieta', corto: 'Comer', icon: Salad, service: 'nutrition' },
+  /*
+    ── La revisión vuelve a ser destino (12 sep 2026, `D-10`) ─────────────────
+
+    Aquí, cuatro párrafos más arriba, se argumentó lo contrario: que una pestaña
+    de revisión está apagada seis días de cada siete y que el ritual se convoca
+    desde «Hoy». El argumento era bueno y el dueño lo ha decidido al revés,
+    mirando el prototipo (`docs/portal-dos-aparatos.html`, v5).
+
+    Lo que el argumento viejo no pesaba: **de las tres misiones del cliente, esta
+    es la que le cuesta dinero si no la hace.** Apuntar una serie se le olvida y
+    no pasa nada; no entregar la semana deja a su entrenador sin con qué
+    trabajar. Que esté apagada seis días no es el defecto: es el recordatorio. Y
+    convocarla solo desde «Hoy» la ataba a que la portada acertara el día —si el
+    aviso no sale, no hay puerta—, mientras que un destino se puede abrir sin
+    haber decidido ir, que es justo lo que se le pedía a «Hoy».
+
+    Comparte icono con «Revisiones» del entrenador a propósito: es el mismo
+    concepto visto desde los dos lados, y la casa nombra un concepto una vez.
+
+    Sus dos niveles de dentro van escritos aparte porque `also` no entiende
+    prefijos, y hacen falta en dos sitios: sin ellos, bajar a la báscula o al
+    archivo de fotos apaga la pestaña (`isSectionActive`) y además esas rutas
+    dejan de contarse como sección del portal (`SEC_PORTAL`, en `lib/analytics`).
   */
   /*
-    ══ El inicio es SU PROGRESO ═══════════════════════════════════════════════
+    ── «Mi progreso» es del ESCRITORIO, y solo del escritorio (13 sep 2026) ───
 
-    Era «Hoy» —una sección propia para los avisos— y «Mi progreso» iba quinto,
-    detrás de la rutina y de la dieta. Estaba al revés: el progreso es la razón
-    por la que un cliente paga, y «Hoy» era una pantalla que la mayoría de los
-    días no tenía nada que decir.
+    El dueño, con el prototipo delante: *«tampoco veo los elementos en cabecera
+    que están en el prototipo (falta progreso)»*. Y era literal: la cabecera de
+    `docs/portal-dos-aparatos.html` tiene cinco pestañas —Inicio · Mi rutina ·
+    Mi dieta · **Mi progreso** · Mis revisiones— y aquí `/mi/progreso` existía
+    como ruta, con el panel entero dentro, **sin una sola puerta en la barra**:
+    se llegaba tocando la cifra del peso en la portada y de ningún otro sitio.
 
-    Ahora el inicio son sus cifras y sus gráficos, con lo que ha cambiado
-    condensado arriba y en la campana de la cabecera. Ver `ClientStart`.
+    `soloAncho` es lo que deja añadirla sin tocar el teléfono. Allí la barra del
+    pulgar son CINCO destinos y esa cuenta está decidida —las tres misiones del
+    cliente más «Hoy» y «Tú»—; el progreso «se mira, no se hace» y sigue siendo
+    una pantalla EMPUJADA desde la portada. Arriba, en cambio, no hay presupuesto
+    de destinos que gastar: son enlaces en una línea de 1.400 px.
+
+    Quien lo filtra es `destinosDeBarra`, y lo filtra en los dos sitios que
+    dependen de la cuenta del teléfono: la barra y el deslizado entre destinos.
   */
-  { path: 'rutina', label: 'Mi rutina', short: 'Rutina', icon: Layers, service: 'training' },
-  { path: 'inicio', label: 'Mi progreso', short: 'Progreso', icon: Gauge },
-  { path: 'dieta', label: 'Mi dieta', short: 'Dieta', icon: Salad, service: 'nutrition' },
+  {
+    path: 'progreso',
+    label: 'Mi progreso',
+    short: 'Progreso',
+    icon: TrendingUp,
+    soloAncho: true,
+  },
   /*
-    «Mi evolución» era dos secciones —«Mis check-ins» y «Mis fotos»— y para el
-    cliente son el mismo gesto de la semana: pesarse y hacerse las fotos, en las
-    mismas condiciones y el mismo día. Tenerlas separadas hacía que fueran dos
-    tareas que se recuerdan por separado, y la segunda se olvidaba.
+    ── Y «Revisión» vuelve a bajar de la barra del pulgar (14 sep 2026) ───────
 
-    Además había DOS botones de subir foto en dos sitios distintos, lo que
-    obligaba a preguntarse cuál era el bueno. Ahora se sube donde toca hacerlo.
+    Tercera vuelta de la misma discusión, y la decide el prototipo del teléfono
+    que el dueño eligió: allí la barra son CUATRO destinos —Hoy · Entreno ·
+    Comer · Tú— y la entrega vive como una fila de «Tú», *Cerrar la semana*, con
+    su estado escrito al lado.
+
+    El argumento con el que subió el 12 de septiembre sigue siendo verdad: es lo
+    único que el cliente le DEBE a su entrenador y no entregarla deja a la otra
+    persona sin con qué trabajar. Lo que ese argumento no pesaba es el coste: en
+    un aparato cuya navegación entera son cuatro botones, un destino apagado seis
+    días de cada siete gasta uno de los cuatro. El recordatorio no se pierde —la
+    fila de «Tú» lo lleva en azul y el pedido de la portada lo sigue sacando
+    arriba el día que toca—, y lo que se gana es que los otros cuatro se lean.
+
+    Arriba, en el monitor, no hay presupuesto de destinos que gastar: son enlaces
+    en una línea de 1.360 px y la cinta los enseña los seis. Por eso `soloAncho`
+    y no una ruta menos: la pantalla sigue existiendo igual para todo el mundo.
   */
-  { path: 'evolucion', label: 'Mi revisión', short: 'Revisión', icon: Ruler, also: ['evolucion/fotos'] },
-  { path: 'calendario', label: 'Mi calendario', short: 'Calendario', icon: CalendarDays },
+  {
+    path: 'evolucion',
+    label: 'Mis revisiones',
+    short: 'Revisión',
+    icon: CalendarCheck,
+    soloAncho: true,
+    also: ['evolucion/medidas', 'evolucion/fotos'],
+  },
+  /*
+    «Tú» recoge lo que estaba tirado por el pie del inicio —el calendario, la
+    privacidad, la carpeta—.
+
+    No es un cajón de sastre. Es el único de los cinco que no habla del plan de
+    hoy sino de la persona y de su rastro, y por eso tiene un sujeto tan claro
+    como los otros cuatro. Lo que ya no recoge es la revisión: se ha ido a su
+    propio destino, justo encima.
+  */
+  {
+    path: 'tu',
+    label: 'Lo tuyo',
+    short: 'Tú',
+    icon: UserRound,
+    also: ['calendario'],
+  },
 ];
 
 /**
@@ -622,6 +771,19 @@ export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${s
  */
 export const sectionsFor = (sections, protocol) =>
   sections.filter((s) => !s.service || isServiceOn(protocol, s.service));
+
+/**
+ * Las de la BARRA DEL PULGAR: las mismas menos las que son solo de escritorio.
+ *
+ * Existe porque las dos listas dejaron de ser la misma el día que «Mi progreso»
+ * subió a la cabecera del monitor sin subir al teléfono (ver `soloAncho` en
+ * `CLIENT_SECTIONS`). Y se filtra en una función y no en cada sitio porque son
+ * DOS los que dependen de esta cuenta y tienen que decir lo mismo: la barra de
+ * abajo y el deslizado entre destinos. Con el índice sacado de una lista y los
+ * botones de la otra, deslizar llevaría a la sección de al lado de la que la
+ * barra está marcando.
+ */
+export const destinosDeBarra = (sections) => sections.filter((s) => !s.soloAncho);
 
 /**
  * La puerta de entrada del portal PARA ESTE CLIENTE.

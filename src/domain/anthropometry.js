@@ -86,7 +86,21 @@ const compact = (values) => {
  * quien tiene delante el ciclo de esta persona— y se guarda tal cual para poder
  * cruzar después kcal y macros con la evolución del peso.
  */
-export const buildAnthropometryLog = ({ date, weight, folds, perimeters, nutritionFoto = null }) => {
+export const buildAnthropometryLog = ({
+  date,
+  weight,
+  folds,
+  perimeters,
+  /*
+    ── Y lo que el entrenador haya decidido medir ────────────────────────────
+    Ya viene compactado por `compactMedidas` —que sabe los decimales de cada
+    una— y con la misma ley que los pliegues: lo que no se rellenó no entra, y
+    `null` significa «no medido» y no cero. En una glucosa eso no es un matiz:
+    es la diferencia entre un hueco y una hipoglucemia. Ver `domain/medidas.js`.
+  */
+  medidas = null,
+  nutritionFoto = null,
+}) => {
   const log = {
     id: newId('log'),
     date: toISODate(date),
@@ -97,6 +111,7 @@ export const buildAnthropometryLog = ({ date, weight, folds, perimeters, nutriti
   const perims = compact(perimeters);
   if (skinFolds) log.skinFolds = skinFolds;
   if (perims) log.perimeters = perims;
+  if (medidas && Object.keys(medidas).length > 0) log.medidas = medidas;
 
   /*
     ── La foto del plan llega HECHA ──────────────────────────────────────────

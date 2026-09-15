@@ -7,7 +7,13 @@ import { resolvedMicrocycles } from '@/domain/blocks';
 import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
 import { currentCheckInPeriod } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
-import { checkinQuestions, clientProtocol, weighInsTarget } from '@/domain/protocol';
+import {
+  checkinQuestions,
+  clientProtocol,
+  esRespuesta,
+  esTexto,
+  weighInsTarget,
+} from '@/domain/protocol';
 import { clientGoal } from '@/domain/goals';
 import { readingHeadline, weeklyReading, weekSignals, weightTrend } from '@/domain/reading';
 import { effectiveGoal, phaseAt, phaseProgress } from '@/domain/roadmap';
@@ -823,7 +829,11 @@ export const WeekReview = () => {
     () => answerTrend({ checkIns: entregas, questions: preguntas, weekStart: datos.weekStart }),
     [entregas, preguntas, datos.weekStart]
   );
-  const textos = useMemo(() => preguntas.filter((q) => q.kind === 'text'), [preguntas]);
+  const textos = useMemo(() => preguntas.filter(esTexto), [preguntas]);
+  /* Y lo que contestó marcando: sí/no, las opciones y las zonas. Ni se compara
+     —no es una cantidad— ni se cita —no son sus palabras—, así que es un tercer
+     camino y no un caso raro de los otros dos. Ver `esRespuesta`. */
+  const marcadas = useMemo(() => preguntas.filter(esRespuesta), [preguntas]);
 
   /*
     ══ LO QUE PASÓ CON TU ÚLTIMO CAMBIO, y LAS SEÑALES ═══════════════════════
@@ -1152,6 +1162,7 @@ export const WeekReview = () => {
             respuestas={respuestas}
             tendencia={tendencia}
             textos={textos}
+            marcadas={marcadas}
             client={activeClient}
           />
 

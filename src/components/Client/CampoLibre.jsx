@@ -1,6 +1,11 @@
-import { Field, NumberInput, TextInput } from '@/components/ui/primitives';
+import { Contador } from '@/components/ui/Contador';
+import { Escala } from '@/components/ui/Escala';
+import { Opciones } from '@/components/ui/Opciones';
+import { ZonaDelCuerpo } from '@/components/ui/ZonaDelCuerpo';
+import { Field, HUECO_CIFRA, NumberInput, TextInput } from '@/components/ui/primitives';
 import { FOLDS_LABELS, PERIMETER_LABELS } from '@/domain/anthropometry';
 import { fraseDeRegla } from '@/domain/formulario';
+import { catalogQuestionById } from '@/domain/protocol';
 
 /**
  * UN ELEMENTO DEL FORMULARIO, tal y como lo ve el cliente.
@@ -31,7 +36,7 @@ const Medidas = ({ elem, valor, onChange, soloLectura }) => (
               value={(valor || {})[pieza] ?? ''}
               onChange={(v) => onChange({ ...(valor || {}), [pieza]: v })}
               disabled={soloLectura}
-              placeholder="—"
+              placeholder={HUECO_CIFRA}
             />
             <span aria-hidden="true">cm</span>
           </div>
@@ -41,87 +46,92 @@ const Medidas = ({ elem, valor, onChange, soloLectura }) => (
   </div>
 );
 
-const Opciones = ({ elem, valor, onChange, soloLectura }) => {
-  const varias = elem.tipo === 'varias';
-  const puestas = varias ? valor || [] : [];
-
-  return (
-    <div className="opciones-libres" role="group" aria-label={elem.enun}>
-      {(elem.ops || []).map((op) => {
-        const marcada = varias ? puestas.includes(op) : valor === op;
-        return (
-          <button
-            key={op}
-            type="button"
-            className="chip-op"
-            aria-pressed={marcada}
-            disabled={soloLectura}
-            onClick={() => {
-              if (!varias) return onChange(marcada ? '' : op);
-              /* Volver a pulsar la quita: sin eso, marcar por error una de siete
-                 obliga a recargar la página para deshacerlo. */
-              return onChange(marcada ? puestas.filter((x) => x !== op) : [...puestas, op]);
-            }}
-          >
-            {op}
-          </button>
-        );
-      })}
-    </div>
-  );
-};
-
-const Escala = ({ elem, valor, onChange, soloLectura }) => {
-  const nums = [];
-  for (let i = elem.min; i <= elem.max; i += 1) nums.push(i);
-
-  return (
-    <div className="escala-libre" role="group" aria-label={elem.enun}>
-      {nums.map((n) => (
-        <button
-          key={n}
-          type="button"
-          className="escala-num"
-          aria-pressed={String(valor) === String(n)}
-          disabled={soloLectura}
-          onClick={() => onChange(String(valor) === String(n) ? '' : n)}
-        >
-          {n}
-        </button>
-      ))}
-    </div>
-  );
-};
-
 const Control = ({ elem, valor, onChange, soloLectura }) => {
-  if (elem.tipo === 'sino') {
+  /* Sí/no y elegir: la MISMA pieza que el cuestionario del check-in (`ui/
+     Opciones`). Aquí vivían escritos a mano los dos controles, y al abrir el
+     check-in a estos tipos la salida fácil era copiarlos allí — dos copias del
+     mismo botón, y la que divergiría sería la que se contesta cada semana. Es lo
+     que ya pasó con la escala y está contado debajo. */
+  if (elem.tipo === 'sino' || elem.tipo === 'una' || elem.tipo === 'varias') {
     return (
-      <div className="opciones-libres" role="group" aria-label={elem.enun}>
-        {[
-          { id: 'si', label: 'Sí' },
-          { id: 'no', label: 'No' },
-        ].map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            className="chip-op"
-            aria-pressed={valor === o.id}
-            disabled={soloLectura}
-            onClick={() => onChange(valor === o.id ? '' : o.id)}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
+      <Opciones
+        ops={elem.tipo === 'sino' ? null : elem.ops}
+        /* El sí/no con su visto y su aspa, igual que en el check-in: se
+           distingue por la forma antes de leer la palabra. */
+        sino={elem.tipo === 'sino'}
+        varias={elem.tipo === 'varias'}
+        valor={valor}
+        etiqueta={elem.enun}
+        soloLectura={soloLectura}
+        onChange={onChange}
+      />
     );
   }
 
-  if (elem.tipo === 'una' || elem.tipo === 'varias') {
-    return <Opciones elem={elem} valor={valor} onChange={onChange} soloLectura={soloLectura} />;
+  /* Y el cuerpo, para decir dónde le molesta. Ver `ui/ZonaDelCuerpo`: un texto
+     libre de una zona no se puede leer dos veces. */
+  if (elem.tipo === 'zona') {
+    return (
+      <ZonaDelCuerpo
+        valor={valor}
+        etiqueta={elem.enun}
+        soloLectura={soloLectura}
+        onChange={onChange}
+      />
+    );
   }
 
   if (elem.tipo === 'escala') {
-    return <Escala elem={elem} valor={valor} onChange={onChange} soloLectura={soloLectura} />;
+    /*
+      La MISMA escala del check-in y del parte (`ui/Escala`). Aquí vivió una
+      copia con su propio CSS que hubo que igualar a mano a la otra; el cliente
+      contesta las dos y no tiene por qué encontrarse dos controles para lo
+      mismo.
+
+      ══ Y CON SU INSTRUMENTO, que era lo que se quedaba por el camino ═══════
+
+      Una escala de este modelo puede venir de dos sitios: la escribe el
+      entrenador —y entonces es la rampa, que es lo que corresponde a una
+      pregunta de la que nadie ha decidido qué clase de cosa mide— o la coge de
+      la ESTANTERÍA, y entonces es una pregunta del catálogo con todo lo suyo.
+
+      El elemento solo se trae de allí lo que se puede retocar: el enunciado, la
+      ayuda, el rango. Lo que NO se retoca —el instrumento, las puntas, el color
+      de la serie— no se copia a propósito, porque copiarlo sería dejarlo
+      editable. La consecuencia era que «Energía» sacada a un formulario salía
+      como una rampa de cinco discos en vez de como su depósito, y «Sensaciones
+      generales» como otra rampa igual en vez de como sus caras: el mismo
+      control dos veces, que es justo la avería que los instrumentos cerraron.
+
+      Así que se va a buscar por `origen`, que es el id de la pregunta de serie
+      y lo único que el elemento sí conserva.
+    */
+    const base = catalogQuestionById(elem.origen);
+    return (
+      <Escala
+        /* EL RANGO LO MANDA EL INSTRUMENTO, igual que en `sanitizeCustom`: cinco
+           estrellas son cinco. Un elemento guardado antes de que la adherencia
+           bajara a 1-5 sigue diciendo `max: 10`, y sin esto el cliente se
+           encontraría diez estrellas en fila. */
+        min={base?.instrumento ? (base.min ?? 1) : elem.min}
+        max={base?.instrumento ? (base.max ?? 5) : elem.max}
+        instrumento={base?.instrumento || null}
+        anclas={base?.anclas || null}
+        /* La tinta de su serie. Una pregunta inventada no tiene ninguna —no se
+           pinta después en ninguna gráfica— y ahí manda el acento, que es lo que
+           invita; una del catálogo comparte tinta con la línea que su entrenador
+           mira el lunes. */
+        color={base?.color || null}
+        valor={valor}
+        etiqueta={elem.enun}
+        soloLectura={soloLectura}
+        /* De vuelta a número. La escala devuelve texto —es lo que el check-in
+           guarda—, pero aquí la respuesta viaja a `client_actions` y las reglas
+           («solo si es mayor que 3») la comparan como cifra: cambiar el tipo de
+           lo que se guarda sería cambiar el dato, no el control. */
+        onChange={(v) => onChange(v === '' ? '' : Number(v))}
+      />
+    );
   }
 
   if (elem.tipo === 'perimetros' || elem.tipo === 'pliegues') {
@@ -140,6 +150,16 @@ const Control = ({ elem, valor, onChange, soloLectura }) => {
     );
   }
 
+  /* Una cifra SIN unidad se cuenta con dos botones, igual que en el check-in
+     (`ui/Contador`): son cuántos días, cuántas veces. Con unidad no —«75,4 kg»
+     no se sube de uno en uno—, así que ésa se queda con su casilla y su
+     sufijo. */
+  if (elem.tipo === 'numero' && !elem.unidad) {
+    return (
+      <Contador valor={valor} etiqueta={elem.enun} soloLectura={soloLectura} onChange={onChange} />
+    );
+  }
+
   if (elem.tipo === 'numero' || elem.tipo === 'peso') {
     return (
       <div className="input-suffix">
@@ -148,7 +168,7 @@ const Control = ({ elem, valor, onChange, soloLectura }) => {
           value={valor ?? ''}
           disabled={soloLectura}
           onChange={onChange}
-          placeholder="—"
+          placeholder={HUECO_CIFRA}
         />
         {elem.unidad && <span aria-hidden="true">{elem.unidad}</span>}
       </div>
@@ -208,6 +228,10 @@ export const CampoLibre = ({ elem, elementos = [], valor, onChange, soloLectura 
          aviso de abajo, cuando de verdad faltan. */
       label={elem.oblig ? `${elem.enun} *` : elem.enun}
       hint={elem.ayuda || (soloLectura ? fraseDeRegla(elem, elementos) : '')}
+      /* La ayuda ANTES del control y no después. Aquí siempre dice cómo se
+         contesta —«de 1 a 10», «en centímetros, sin meter tripa»— y puesta
+         debajo se leía cuando ya habías contestado. Ver `Field`. */
+      hintArriba
     >
       <Control elem={elem} valor={valor} onChange={onChange} soloLectura={soloLectura} />
     </Field>

@@ -419,9 +419,9 @@ export const nombreDe = (auto) => {
     return `${dias} días sin ${silencioById(que).label}`;
   }
   if (auto?.disparador === 'semana') {
-    const { day, every } = sanitizeSchedule(auto.valor);
-    const dia = DIAS.find((x) => x.id === day)?.plural || 'lunes';
-    return every === 1 ? `Cada ${dia}` : `Cada ${every} semanas, ${dia}`;
+    const { weekday, everyWeeks } = sanitizeSchedule(auto.valor);
+    const dia = DIAS.find((x) => x.id === weekday)?.plural || 'lunes';
+    return everyWeeks === 1 ? `Cada ${dia}` : `Cada ${everyWeeks} semanas, ${dia}`;
   }
   return disparadorById(auto?.disparador).label;
 };
@@ -442,11 +442,11 @@ export const hiloDice = (auto, dia) => {
   const n = clampInt(dia, 0, MAX_DIA, 0);
 
   if (auto?.disparador === 'semana') {
-    const { day } = sanitizeSchedule(auto.valor);
+    const { weekday } = sanitizeSchedule(auto.valor);
     const nombre = (d) => DIAS.find((x) => x.id === d)?.corto || 'lunes';
-    if (n === 0) return `ese ${nombre(day)}`;
-    if (n === 7) return `el ${nombre(day)} siguiente`;
-    const cae = ((day - 1 + n) % 7) + 1;
+    if (n === 0) return `ese ${nombre(weekday)}`;
+    if (n === 7) return `el ${nombre(weekday)} siguiente`;
+    const cae = (weekday + n) % 7;
     return n < 7 ? `el ${nombre(cae)}` : `el ${nombre(cae)} siguiente`;
   }
 
@@ -537,7 +537,7 @@ const disparosDe = (auto, { cliente, hoy, horizonte }) => {
   }
 
   if (auto.disparador === 'semana') {
-    const { day, every } = sanitizeSchedule(auto.valor);
+    const { weekday, everyWeeks } = sanitizeSchedule(auto.valor);
     const desdeSemana = alta ? weekStart(alta) : null;
     const out = [];
     /*
@@ -548,8 +548,8 @@ const disparosDe = (auto, { cliente, hoy, horizonte }) => {
       el recordatorio.
     */
     let lunes = weekStart(hoy);
-    while (lunes && addDays(lunes, day - 1) <= tope) {
-      const disparo = addDays(lunes, day - 1);
+    while (lunes && addDays(lunes, weekday) <= tope) {
+      const disparo = addDays(lunes, weekday);
       const semanasDesdeElAlta = desdeSemana
         ? Math.round((Date.parse(lunes) - Date.parse(desdeSemana)) / (7 * 86400000))
         : null;
@@ -561,7 +561,7 @@ const disparosDe = (auto, { cliente, hoy, horizonte }) => {
       */
       const leToca =
         (!alta || disparo >= alta) &&
-        (every === 1 || (semanasDesdeElAlta !== null && semanasDesdeElAlta % every === 0));
+        (everyWeeks === 1 || (semanasDesdeElAlta !== null && semanasDesdeElAlta % everyWeeks === 0));
       if (leToca) out.push({ desde: disparo, ocurrencia: semanaISO(disparo) });
       lunes = addDays(lunes, 7);
     }

@@ -314,13 +314,31 @@ export const intakeFormToPreferences = (form) => coachIntakeForm({ intakeForm: f
  * ninguno de los dos asuntos y colarlas dentro haría que el orden del catálogo
  * dejara de ser el orden de la pantalla.
  */
+/**
+ * La pregunta dicha a quien la contesta.
+ *
+ * El catálogo del perfil está escrito para el entrenador —«Le gusta», «Días que
+ * puede entrenar»— porque de ahí salen también su ficha y su constructor. Esta
+ * función es la ÚNICA puerta por la que ese catálogo llega al cliente, así que
+ * la traducción vive aquí y no en la pantalla: puesta en el componente, el día
+ * que alguien monte otra vista del alta volvería a preguntarle a una persona
+ * por «él». Ver el bloque de `labelTu` en `domain/profile.js`.
+ */
+const enTu = (f) => ({ ...f, label: f.labelTu || f.label, hint: f.hintTu || f.hint });
+
 export const formSections = (form) => {
   const preguntadas = new Set(form?.asked || []);
 
   const tandas = PROFILE_GROUPS.map((grupo) => ({
     id: grupo.id,
-    label: grupo.label,
-    fields: PROFILE_FIELDS.filter((f) => f.group === grupo.id && preguntadas.has(f.id)),
+    /* También el nombre de la tanda. Se le escapaba al reparto de `labelTu`
+       porque hasta ahora solo lo leía un carril de pasos —cuatro palabras
+       encima del formulario— y desde que las tandas encabezan su tramo de la
+       hoja, «Cómo entrena» es un rótulo dentro de la pantalla de alguien
+       hablando de esa misma persona en tercera. Las otras dos tandas —la del
+       entrenador y la del cribado— ya estaban en segunda persona. */
+    label: grupo.labelTu || grupo.label,
+    fields: PROFILE_FIELDS.filter((f) => f.group === grupo.id && preguntadas.has(f.id)).map(enTu),
   })).filter((t) => t.fields.length > 0);
 
   const propias = (form?.custom || []).map((q) => ({ ...q, custom: true }));
@@ -364,7 +382,12 @@ export const missingRequired = (form, profile) => {
     .map((id) => {
       const propia = (form.custom || []).find((q) => q.id === id);
       const valor = propia ? propias[id] : profile?.[id];
-      return puesto(valor) ? null : { id, label: propia ? propia.label : fieldById(id)?.label };
+      /* En segunda persona, porque esta lista se lee en el aviso del cliente
+         —«tu entrenador necesita esto para empezar: …»— y allí nombrarle sus
+         propias respuestas con «Le gusta» es hablarle de sí mismo en tercera. */
+      return puesto(valor)
+        ? null
+        : { id, label: propia ? propia.label : enTu(fieldById(id) || {}).label };
     })
     .filter((q) => q && q.label);
 };

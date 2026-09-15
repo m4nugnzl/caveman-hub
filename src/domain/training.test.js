@@ -4,6 +4,8 @@ import {
   adoptMicrocycle,
   blankDays,
   buildMicrocycle,
+  WEEK_DAYS,
+  claveDelDia,
   cloneDays,
   cloneExerciseAsTemplate,
   conLaPauta,
@@ -1144,5 +1146,26 @@ describe('el remate cuelga de la serie, y lleva sus números', () => {
     expect(copia.sets[0].kg).toBe('');
     expect(copia.sets[0].targetKg).toBe('95');
     expect(copia.sets[0].tecnica).toEqual({ id: 'bajada', veces: 2 });
+  });
+});
+
+/* ══ QUÉ DÍA ES HOY ══════════════════════════════════════════════════════════
+   `getDay()` cuenta desde el domingo y `WEEK_DAYS` empieza en lunes, así que
+   quien la usa escribe `(getDay() + 6) % 7`. Estaba escrito tres veces y es la
+   clase de cuenta que se copia mal una vez y deja a alguien mirando el menú del
+   martes en domingo. */
+describe('claveDelDia', () => {
+  it('nombra el día de una fecha con el vocabulario del reparto', () => {
+    expect(claveDelDia('2026-09-12')).toBe('Sábado');
+    expect(claveDelDia('2026-09-13')).toBe('Domingo');
+    expect(claveDelDia('2026-09-14')).toBe('Lunes');
+  });
+
+  it('el domingo es el SÉPTIMO y no el primero', () => {
+    expect(WEEK_DAYS.indexOf(claveDelDia('2026-09-13'))).toBe(6);
+  });
+
+  it('sin fecha válida no inventa día', () => {
+    expect(claveDelDia('mañana')).toBe(null);
   });
 });

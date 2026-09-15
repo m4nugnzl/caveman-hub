@@ -206,8 +206,8 @@ export const Panel = ({
  * verdad: énfasis para el lector de pantalla, cursiva de Archivo para el ojo.
  * No es un segundo título: si hacen falta dos frases, la segunda es `sub`.
  */
-export const PageHead = ({ title, remate, sub, action }) => (
-  <div className="section-head">
+export const PageHead = ({ title, remate, sub, action, className = '' }) => (
+  <div className={`section-head${className ? ` ${className}` : ''}`}>
     <div>
       <h1>
         {title}
@@ -389,6 +389,14 @@ export const Notice = ({ tone = 'info', children, action, icon, onClose }) => {
 
 // ── Estado vacío ───────────────────────────────────────────────────────────
 
+/**
+ * Un vacío es una BANDA, no una losa: azulejo, qué va a aparecer ahí, y el
+ * verbo al final de la fila. La gramática entera vive en `.empty`
+ * (`controles.css`); aquí solo está el orden de las piezas.
+ *
+ * El glifo va a 20 y no a 26: 26 es tamaño de ilustración, y un vacío no
+ * ilustra nada — dice qué falta. Ver el azulejo en el CSS.
+ */
 export const EmptyState = ({ icon: Icon, title, message, action }) => (
   /* La lumbre: un vacío suele ser lo único que hay en pantalla, así que puede
      llevar el momento cálido sin pelearse con nadie. Ver `.card-lumbre`. */
@@ -396,7 +404,7 @@ export const EmptyState = ({ icon: Icon, title, message, action }) => (
     <div className="empty">
       {Icon && (
         <span className="empty-icon">
-          <Icon size={26} />
+          <Icon size={20} />
         </span>
       )}
       <h3>{title}</h3>
@@ -495,10 +503,21 @@ export const Loading = ({ label = 'Cargando…' }) => (
 
 // ── Controles de formulario ────────────────────────────────────────────────
 
-export const Field = ({ label, hint, error, children, className = '' }) => {
+/**
+ * @param hintArriba La ayuda ENTRE la etiqueta y el control, en vez de debajo.
+ *
+ *   El sitio de la ayuda no es una preferencia: depende de qué dice. Debajo del
+ *   control está bien para una consecuencia —«sale en tu cola de Inicio»,
+ *   «a quien ya lo lleva le llega cuando pongas al día»—, que se lee después de
+ *   decidir. Pero en un formulario la ayuda dice CÓMO se contesta («de 1 a 10»,
+ *   «0 si no has pasado nada»), y eso hay que leerlo ANTES de contestar. Puesta
+ *   debajo, se lee cuando ya no sirve.
+ */
+export const Field = ({ label, hint, error, children, className = '', hintArriba = false }) => {
   const id = useId();
   const isRenderProp = typeof children === 'function';
   const control = isRenderProp ? children({ id, 'aria-invalid': Boolean(error) }) : children;
+  const ayuda = hint ? <span className="field-hint">{hint}</span> : null;
 
   /*
    * `htmlFor` solo cuando el control recibe de verdad ese id (render prop). Con
@@ -517,11 +536,37 @@ export const Field = ({ label, hint, error, children, className = '' }) => {
         ) : (
           <span className="field-label">{label}</span>
         ))}
+      {hintArriba && ayuda}
       {control}
-      {error ? <span className="field-error">{error}</span> : hint && <span className="field-hint">{hint}</span>}
+      {error ? <span className="field-error">{error}</span> : !hintArriba && ayuda}
     </div>
   );
 };
+
+/**
+ * EL HUECO DE UNA CIFRA: la raya que espera un número.
+ *
+ * ══ Y por qué NO es el guion largo que había ═══════════════════════════════
+ *
+ * Las casillas de cifra enseñaban un «—» (raya, U+2014) mientras estaban
+ * vacías. Medido en Archivo a 30 px: la raya ocupa 30 px de avance y su trazo va
+ * de 1 a 31; un dígito ocupa 16,65 y su trazo va de −1 a 16. O sea que en una
+ * casilla alineada a la derecha —la del peso lo está— el hueco se pinta quince
+ * píxeles más a la izquierda y dos más a la derecha de donde va a caer el
+ * número. Al escribir, la cifra aparece en otro sitio. Es pequeño y se ve: es lo
+ * que el dueño señaló dos veces.
+ *
+ * El «‒» (U+2012, raya de cifra) existe justo para esto: las tipografías serias
+ * lo dibujan con **el ancho exacto de un dígito** y a la altura de las cifras.
+ * Archivo lo trae —16,65 px de avance y el trazo de −1 a 16, el mismo cajón que
+ * el «3»—, así que el hueco cae en la columna de la cifra y el número aterriza
+ * donde estaba la raya.
+ *
+ * Es un carácter y no un dibujo de CSS a propósito: lo pinta el `::placeholder`
+ * con su color, se va solo al escribir y no hace falta ni un elemento más ni un
+ * `:has()`.
+ */
+export const HUECO_CIFRA = '‒';
 
 /**
  * Campo numérico. `type="text"` + `inputMode="decimal"` a propósito: en
@@ -727,11 +772,16 @@ export const Switch = ({ label, hint, checked, onChange, disabled = false }) => 
       disabled={disabled}
       onChange={(e) => onChange(e.target.checked)}
     />
-    <span className="track" aria-hidden="true" />
+    {/*
+      El texto ANTES que el mando, y en el DOM, no con `order` en la hoja: así
+      se oye igual que se lee —«Nutrición, puesta»— y no al revés. El porqué de
+      que el mando esté al final del renglón, en `controles.css`.
+    */}
     <span className="body">
       <span className="nm">{label}</span>
       {hint && <span className="hint">{hint}</span>}
     </span>
+    <span className="track" aria-hidden="true" />
   </label>
 );
 

@@ -2,13 +2,14 @@ import { useMemo, useState } from 'react';
 import { History, Link2, MessageSquareQuote, Pencil, Trash2, Video } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
-import { checkinQuestions, clientProtocol } from '@/domain/protocol';
+import { checkinQuestions, clientProtocol, esRespuesta, esSerie, esTexto } from '@/domain/protocol';
 import { PlanChanges } from '@/components/review/PlanChanges';
 import { VIDEO_URL_HINT, parseVideoUrl } from '@/domain/video';
 import { shortDate } from '@/lib/dates';
 import { Fold, Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { Subjetivo } from '@/components/ui/Subjetivo';
+import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { useOculto } from '@/components/Client/Oculto';
 
 /**
@@ -316,7 +317,7 @@ export const ReviewHistory = ({
             {esEntrenador &&
               fila.notes &&
               !preguntasCheckIn.some(
-                (q) => q.kind === 'text' && String(fila.answers?.[q.id] ?? '').trim() === fila.notes.trim()
+                (q) => esTexto(q) && String(fila.answers?.[q.id] ?? '').trim() === fila.notes.trim()
               ) && <p className="t-xs t-secondary pre-wrap">Él anotó: {fila.notes}</p>}
 
             {/*
@@ -337,13 +338,23 @@ export const ReviewHistory = ({
                 se contestaron: eso es un control, y aquí se lee. Cinco filas de
                 once botones eran media ventana para decir «7, 7, 7, 6, 7». */}
             <Subjetivo
-              preguntas={preguntasCheckIn.filter((q) => q.kind !== 'text')}
+              preguntas={preguntasCheckIn.filter(esSerie)}
               answers={fila.answers || {}}
               titulo={esEntrenador ? 'Lo que contestó' : 'Lo que contestaste'}
             />
+            {/* Y lo que MARCÓ, con el control con el que lo marcó: unas zonas
+                señaladas sobre el cuerpo se leen de un vistazo, y escritas en
+                una línea —«hombro dcho., lumbares»— no dicen nada. Ver
+                `BodyCard`. */}
+            <SessionFeedback
+              questions={preguntasCheckIn.filter(esRespuesta)}
+              answers={fila.answers || {}}
+              title={false}
+              readOnly
+            />
             {/* Y lo que escribió, como cita: es lo que dijo una persona. */}
             {preguntasCheckIn
-              .filter((q) => q.kind === 'text' && String(fila.answers?.[q.id] ?? '').trim() !== '')
+              .filter((q) => esTexto(q) && String(fila.answers?.[q.id] ?? '').trim() !== '')
               .map((q) => (
                 <figure className="cita" key={q.id}>
                   <blockquote>{String(fila.answers[q.id]).trim()}</blockquote>

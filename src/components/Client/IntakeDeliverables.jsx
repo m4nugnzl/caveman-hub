@@ -36,7 +36,12 @@ import { Panel, SectionTitle } from '@/components/ui/primitives';
  * Firmar es una llamada de red, así que se hace UNA por pantalla y con todas las
  * rutas juntas, no una por fila.
  */
-export const IntakeDeliverables = ({ client }) => {
+/**
+ * @param desnudo Dentro de una capa: sin `Panel` ni cabecera, que ya las pone la
+ *   ventana. Es como se abre desde la fila «De tu entrenador» de su portada, que
+ *   es donde vive desde que el pie de esa pantalla se convirtió en tres filas.
+ */
+export const IntakeDeliverables = ({ client, desnudo = false }) => {
   const { signPaths } = useActions();
   const items = intakeDeliverables(clientIntake(client?.preferences));
   const [urls, setUrls] = useState(() => new Map());
@@ -61,20 +66,43 @@ export const IntakeDeliverables = ({ client }) => {
 
   if (items.length === 0) return null;
 
-  return (
-    <Panel className="col gap-3">
-      <SectionTitle icon={PlayCircle}>De tu entrenador</SectionTitle>
-      <p className="t-sm t-secondary">
-        Lo que te dejó preparado al empezar. Está aquí siempre, no hace falta que lo busques.
-      </p>
+  const Marco = desnudo ? 'div' : Panel;
 
-      <div className="col gap-2">
+  return (
+    <Marco className="col gap-3">
+      {!desnudo && (
+        <>
+          <SectionTitle icon={PlayCircle}>De tu entrenador</SectionTitle>
+          <p className="t-sm t-secondary">
+            Lo que te dejó preparado al empezar. Está aquí siempre, no hace falta que lo busques.
+          </p>
+        </>
+      )}
+
+      {/*
+        ══ EN CUADRÍCULA, Y NO EN FILAS ══════════════════════════════════════
+
+        Eran cuatro `card-inset` apiladas con «Abrir ›» al canto derecho de cada
+        una: cuatro renglones idénticos que hay que leerse para distinguir el
+        vídeo de bienvenida del contrato. Un documento no se lee, se BUSCA —por
+        el dibujo y por el sitio—, y eso es lo que hace una cuadrícula.
+
+        El verbo «Abrir» se va con las filas: la tarjeta entera es el enlace, y
+        un enlace dentro de un enlace era dos objetivos para el mismo gesto. Ver
+        `la ley de los gestos`.
+      */}
+      <div className="papeles">
         {items.map((step) => {
           /* El archivo manda sobre el enlace, igual que al leer las preferencias:
              de todas formas nunca hay los dos, pero el orden se escribe una sola
              vez y así no depende de quién pregunte. */
           const destino = step.path ? urls.get(step.path) || null : step.url;
           const esArchivo = Boolean(step.path);
+
+          /* El dibujo dice de qué clase es: un archivo suyo o algo que se abre
+             fuera. Es la única distinción que hay entre estas cosas y la que
+             decide si hace falta conexión con otra casa. */
+          const Dibujo = esArchivo ? FileText : ExternalLink;
 
           /*
             Un archivo cuya URL no se ha podido firmar se pinta APAGADO en vez de
@@ -84,11 +112,12 @@ export const IntakeDeliverables = ({ client }) => {
           */
           if (!destino) {
             return (
-              <div className="card-inset col gap-1" key={step.id}>
-                <span className="t-sm" style={{ fontWeight: 600 }}>
-                  {step.label}
+              <div className="papel is-roto" key={step.id}>
+                <span className="list-icon" aria-hidden="true">
+                  <Dibujo size={15} />
                 </span>
-                <span className="t-2xs t-tertiary">
+                <b>{step.label}</b>
+                <span>
                   No se puede abrir ahora mismo. Recarga la página; si sigue igual, díselo a tu
                   entrenador.
                 </span>
@@ -99,28 +128,22 @@ export const IntakeDeliverables = ({ client }) => {
           return (
             <a
               key={step.id}
-              className="card-inset row between wrap gap-2"
+              className="papel"
               href={destino}
               target="_blank"
               rel="noreferrer noopener"
             >
-              <span className="col gap-1" style={{ minWidth: 0 }}>
-                <span className="t-sm" style={{ fontWeight: 600 }}>
-                  {step.label}
-                </span>
-                {/* Del archivo se dice su nombre: «anamnesis-marta.pdf» explica
-                    qué se va a abrir mejor que la descripción del paso. */}
-                <span className="t-2xs t-tertiary">
-                  {esArchivo ? attachmentName(step.path) : step.hint}
-                </span>
+              <span className="list-icon" aria-hidden="true">
+                <Dibujo size={15} />
               </span>
-              <span className="row gap-1 shrink-0 t-xs link">
-                Abrir {esArchivo ? <FileText size={13} /> : <ExternalLink size={13} />}
-              </span>
+              <b>{step.label}</b>
+              {/* Del archivo se dice su nombre: «anamnesis-marta.pdf» explica
+                  qué se va a abrir mejor que la descripción del paso. */}
+              <span>{esArchivo ? attachmentName(step.path) : step.hint}</span>
             </a>
           );
         })}
       </div>
-    </Panel>
+    </Marco>
   );
 };

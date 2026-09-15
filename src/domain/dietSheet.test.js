@@ -6,6 +6,7 @@ import {
   asPlan,
   dietSummary,
   foodNames,
+  iconoDeComida,
   macrosDeTexto,
   mergeDietReadings,
   parseCantidad,
@@ -434,6 +435,28 @@ describe('varianteDeTexto', () => {
        etiqueta: marcar el plan entero como día de entreno por eso sería adivinar
        en la primera página. */
     expect(varianteDeTexto('Si entrenas algún día en un horario no habitual').variant).toBeNull();
+  });
+});
+
+describe('iconoDeComida', () => {
+  it('saca el dibujo del nombre que escribió el entrenador', () => {
+    expect(iconoDeComida('Desayuno')).toBe('taza');
+    expect(iconoDeComida('Media mañana')).toBe('manzana');
+    expect(iconoDeComida('Comida')).toBe('cuenco');
+    expect(iconoDeComida('Cena ligera')).toBe('plato');
+  });
+
+  it('el batido manda sobre el momento con el que viene escrito', () => {
+    /* «Batido post-entreno» es un batido, y «Comida post-entreno» una comida:
+       si ganara la última palabra, las dos llevarían el mismo dibujo. */
+    expect(iconoDeComida('Batido post-entreno')).toBe('batido');
+    expect(iconoDeComida('Comida post-entreno')).toBe('cuenco');
+  });
+
+  it('lo que no reconoce lleva el cubierto, no el dibujo de al lado', () => {
+    expect(iconoDeComida('Antes de dormir')).toBe('cubierto');
+    expect(iconoDeComida('')).toBe('cubierto');
+    expect(iconoDeComida(null)).toBe('cubierto');
   });
 });
 

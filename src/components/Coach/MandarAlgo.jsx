@@ -24,6 +24,7 @@ import { addDays, dayMonthMaybeYear, todayISO } from '@/lib/dates';
 import { useToast } from '@/components/ui/ToastProvider';
 import { BotonAccion, Field, Notice, TextInput } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
+import { CarrilDePasos } from '@/components/ui/Asistente';
 
 /**
  * MANDAR ALGO: el «a quién» y el «cuándo» que a las acciones les faltaban.
@@ -341,24 +342,10 @@ export const MandarAlgo = ({ formulario = null, preseleccion = null, queInicial 
       }
     >
       <div className="wiz">
-        <ol className="wiz-rail">
-          {PASOS.map((p, i) => (
-            <li
-              className={`wiz-mark${i === indice ? ' is-on' : ''}${i < indice ? ' is-done' : ''}`}
-              key={p.id}
-              aria-current={i === indice ? 'step' : undefined}
-            >
-              <span className="wiz-mark-n" aria-hidden="true">
-                {i < indice ? <Check size={13} strokeWidth={3} /> : i + 1}
-              </span>
-              <span className="wiz-mark-k">{p.titulo}</span>
-            </li>
-          ))}
-        </ol>
-
-        <p className="wiz-count">
-          Paso {indice + 1} de {PASOS.length}
-        </p>
+        {/* El carril es de `ui/Asistente`, el mismo que la revisión semanal: sin
+            `onIr`, porque aquí cada paso abre la puerta del siguiente y saltar
+            adelante dejaría respuestas sin dar. */}
+        <CarrilDePasos pasos={PASOS} indice={indice} />
 
         {/*
           Con gente marcada, el «a quién» no tiene paso — así que tiene que

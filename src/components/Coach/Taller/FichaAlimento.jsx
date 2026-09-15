@@ -448,7 +448,7 @@ export const FichaAlimento = ({
                   className="btn btn-sm"
                   onClick={() => onCrearElMio?.(alimento)}
                 >
-                  Crear el mío a partir de este
+                  Nuevo alimento a partir de este
                 </button>
               </div>
             </div>

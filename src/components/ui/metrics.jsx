@@ -19,15 +19,29 @@ import { round } from '@/lib/num';
  * `lowerIsBetter` decide el color, no el signo: bajar de peso suele ser el
  * objetivo, bajar de tonelaje es lo contrario. Sin esto, el mismo signo se leería
  * igual en métricas que significan lo opuesto.
+ *
+ * ── Y `neutral`, que es no decidir ────────────────────────────────────────
+ * Hay cifras en las que subir no es ni bueno ni malo, y pintarlas de verde o de
+ * rojo sería que la aplicación opinara: una glucosa que sube dos puntos no es un
+ * problema ni un logro, es un dato. Con `neutral` se dice el signo y la
+ * magnitud, y el veredicto lo pone quien lleva al cliente. Ver la ley en
+ * `domain/medidas.js`.
  */
-export const Delta = ({ value, unit = '', percent = null, lowerIsBetter = false, decimals = 1 }) => {
+export const Delta = ({
+  value,
+  unit = '',
+  percent = null,
+  lowerIsBetter = false,
+  neutral = false,
+  decimals = 1,
+}) => {
   if (value === null || value === undefined || !Number.isFinite(Number(value))) return null;
 
   const n = Number(value);
   const flat = Math.abs(n) < 1e-9;
   const good = lowerIsBetter ? n < 0 : n > 0;
   const Icon = flat ? Minus : n > 0 ? ArrowUp : ArrowDown;
-  const tone = flat ? 'flat' : good ? 'good' : 'bad';
+  const tone = flat || neutral ? 'flat' : good ? 'good' : 'bad';
 
   return (
     <span className={`delta delta-${tone}`}>

@@ -50,6 +50,7 @@
  */
 
 import { newId } from '@/lib/ids';
+import { diceRespuesta } from './protocol';
 
 /**
  * Tope de elementos por formulario.
@@ -136,6 +137,21 @@ export const TIPOS = [
   { id: 'una', fam: 'pregunta', label: 'Elegir una', icono: 'una', cae: 'respuesta' },
   { id: 'varias', fam: 'pregunta', label: 'Elegir varias', icono: 'varias', cae: 'respuesta' },
   { id: 'escala', fam: 'pregunta', label: 'Una escala', icono: 'escala', cae: 'serie' },
+  /*
+    ── DÓNDE LE DUELE ────────────────────────────────────────────────────────
+    Un cuerpo con sus zonas, y no un campo de texto. La razón entera está en
+    `ZONAS` (`domain/protocol.js`) y se resume en que «hombro», «hombro dcho» y
+    «el mismo de siempre» son cuatro respuestas a la misma pregunta que no se
+    pueden contar ni comparar con la del mes pasado — y una molestia que vuelve
+    tres semanas seguidas es de lo poco que esta aplicación debería ver sola.
+
+    Es una pregunta y no una pieza del oficio porque NO aterriza: los
+    condicionantes de la ficha son lesiones declaradas por el entrenador, y una
+    molestia de una semana no es una lesión. El día que ese camino de escritura
+    exista, cambia de familia; prometerlo ahora sería contar con un dato que no
+    va a estar ahí.
+  */
+  { id: 'zona', fam: 'pregunta', label: 'Dónde le molesta', icono: 'zona', cae: 'respuesta' },
   { id: 'fecha', fam: 'pregunta', label: 'Una fecha', icono: 'fecha', cae: 'respuesta' },
   { id: 'archivo', fam: 'pregunta', label: 'Subir un archivo', icono: 'archivo', cae: 'respuesta' },
 
@@ -157,6 +173,22 @@ export const TIPOS = [
   { id: 'peso', fam: 'oficio', label: 'Su peso', icono: 'peso', cae: 'antro' },
   { id: 'perimetros', fam: 'oficio', label: 'Sus perímetros', icono: 'cinta', cae: 'antro', guia: true },
   { id: 'pliegues', fam: 'oficio', label: 'Sus pliegues', icono: 'pliegue', cae: 'antro', guia: true },
+  /*
+    ── UNA MEDIDA: un número CON UNIDAD, tomado con un aparato ──────────────
+
+    Es la pieza que faltaba, y no es una escala más. Una pregunta de escala está
+    capada a enteros de 0 a 10 sin unidad —correcto para «¿cómo has dormido?»— y
+    ahí no cabe una temperatura basal de 36,4 °C ni una glucosa de 95 mg/dL. Una
+    pregunta es una opinión con forma de número; una medida es un número con
+    unidad que alguien ha tomado con un aparato.
+
+    Aterriza en la antropometría como el peso y los pliegues, en `log.medidas`, y
+    cuál es se dice en `origen`: el id de su definición en el catálogo del
+    entrenador (`domain/medidas.js`), que es de donde salen su unidad, sus
+    decimales y su rango de cordura. El id ES la serie, igual que en las
+    preguntas: sin él, renombrar la medida partiría en dos la gráfica.
+  */
+  { id: 'medida', fam: 'oficio', label: 'Una medida', icono: 'peso', cae: 'antro' },
   /*
     Las fotos SÍ tienen camino de escritura, y por eso entran: no lo tienen por
     `aterrizar` —una foto no es una cifra de la antropometría— sino por el
@@ -214,6 +246,9 @@ export const defaultElemento = (tipo) => {
     return { ...base, enun: 'Sus pliegues', piezas: ['tricipital', 'subescapular', 'suprailiaco', 'abdominal'] };
   }
   if (tipo === 'peso') return { ...base, enun: 'Su peso', unidad: 'kg', veces: 1 };
+  /* Una medida sin `origen` no sabe qué mide: nace en blanco y quien la añade
+     elige del catálogo. Ver `medidaComoElemento`. */
+  if (tipo === 'medida') return { ...base, enun: 'Una medida', unidad: '' };
   if (tipo === 'fotos') return { ...base, enun: 'Sus fotos de progreso', ayuda: 'Frente, perfil y espalda' };
   if (tipo === 'apartado') return { ...base, enun: 'Apartado nuevo' };
   if (tipo === 'nota') return { ...base, enun: 'Lo que quieras explicarle antes de pedirle nada.' };
@@ -323,7 +358,7 @@ export const sanitizeElemento = (raw, { tecleando = false } = {}) => {
     elem.mejorAbajo = raw.mejorAbajo === true;
   }
 
-  if (t.id === 'numero' || t.id === 'peso') elem.unidad = txt(raw.unidad, 12);
+  if (t.id === 'numero' || t.id === 'peso' || t.id === 'medida') elem.unidad = txt(raw.unidad, 12);
   /*
     Cuántas veces a la semana se pesa. Vive en el elemento y no fuera porque es
     lo que hace fiable la media, y sin él una ida y vuelta por el lienzo
@@ -525,6 +560,20 @@ export const faltanObligatorias = (elementos, respuestas = {}) =>
     (el) => el.oblig && esPregunta(el) && vacio(respuestas[el.id])
   );
 
+/**
+ * ¿Esto ya está contestado?
+ *
+ * Lo usa el carril de números de la hoja, que enciende el de cada pregunta en
+ * cuanto tiene respuesta. Es `vacio` al revés con una salvedad: lo que se
+ * contesta EN PIEZAS —perímetros, pliegues— llega como un objeto con una clave
+ * por medida, y ahí basta una puesta. Sin ese caso, rellenar la cintura dejaba
+ * el número apagado y el cliente no sabía si había contado.
+ */
+export const contestado = (valor) =>
+  valor !== null && typeof valor === 'object' && !Array.isArray(valor)
+    ? Object.values(valor).some((v) => !vacio(v))
+    : !vacio(valor);
+
 // ── Lectura ────────────────────────────────────────────────────────────────
 
 export const cuentaElementos = (elementos) => (elementos || []).filter(esPregunta).length;
@@ -552,6 +601,10 @@ export const columnasDe = (elementos) =>
  */
 export const respuestaLegible = (elem, valor) => {
   if (vacio(valor)) return '—';
+  /* Las zonas se guardan por id —es lo que permite compararlas con las de la
+     semana pasada— y un id delante de una persona es una fuga de la base de
+     datos: «hombroD, lumbares» donde tenía que poner «Hombro dcho., Lumbares». */
+  if (elem?.tipo === 'zona') return diceRespuesta({ kind: 'zone' }, valor);
   if (Array.isArray(valor)) return valor.join(', ');
   if (elem?.tipo === 'sino') return valorLegible(valor);
   if (elem?.tipo === 'archivo') return 'Adjunto';

@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entreno y descanso, en la misma mesa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&display=swap" rel="stylesheet">
+<style>
+  /* Tokens copiados de src/styles/tokens.css: la maqueta tiene que parecer la app. */
+  :root {
+    --canvas: #f7f6f2; --canvas-alt: #edebe3; --surface: #fff; --sunken: #f2f0e9;
+    --hairline: #e7e3d9; --hairline-strong: #cfc9bb; --fill: #eceae1;
+    --text: #191713; --text-2: #514d45; --text-3: #706c62;
+    --accent: #3b49df; --accent-soft: rgba(59,73,223,.08); --accent-wash: rgba(59,73,223,.12);
+    --positive: #10774c; --negative: #b93429; --warning: #a4530e;
+    --r-sm: 9px; --r-md: 14px; --r-control: 8px;
+    --font: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --ancha: 'Archivo', var(--font);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #161513; --canvas-alt: #1d1c19; --surface: #22211e; --sunken: #1a1917;
+      --hairline: #2f2d29; --hairline-strong: #45423c; --fill: #2b2a26;
+      --text: #f2efe8; --text-2: #c3bfb5; --text-3: #9a968c;
+      --accent: #8b95ff; --accent-soft: rgba(139,149,255,.10); --accent-wash: rgba(139,149,255,.16);
+      --positive: #4fbf8a; --negative: #f07b6f; --warning: #e3a25b;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--canvas); color: var(--text); font: 400 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+  .pagina { max-width: 1120px; margin: 0 auto; padding: 56px 24px 96px; }
+  h1 { font: 800 clamp(30px, 4.4vw, 44px)/1.08 var(--ancha); font-stretch: 112%; letter-spacing: -.01em; margin: 0 0 16px; max-width: 18ch; }
+  h2 { font: 700 24px/1.2 var(--font); margin: 0; }
+  h3 { font: 600 13px/1.3 var(--font); margin: 0 0 6px; color: var(--text-3); }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  .entradilla { font-size: 17px; color: var(--text-2); }
+  code { font: 500 .88em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--fill); padding: 1px 5px; border-radius: 4px; }
+  .t3 { color: var(--text-3); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ── Mandos de la página ── */
+  .mandos { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--canvas) 92%, transparent); backdrop-filter: blur(8px);
+    display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 12px 0; margin: 32px 0 8px; border-bottom: 1px solid var(--hairline); }
+  .mandos nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mandos nav a { color: var(--text-2); text-decoration: none; font-size: 13px; padding: 5px 10px; border-radius: 999px; }
+  .mandos nav a:hover { background: var(--fill); color: var(--text); }
+  .seg { display: inline-flex; background: var(--fill); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: transparent; color: var(--text-2); font: 500 13px var(--font); padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ── Secciones ── */
+  section.lamina { padding: 56px 0 8px; border-top: 1px solid var(--hairline); margin-top: 48px; }
+  .lamina-cab { display: flex; align-items: baseline; gap: 14px; margin-bottom: 12px; flex-wrap: wrap; }
+  .letra { font: 800 15px var(--ancha); font-stretch: 120%; color: var(--accent); }
+  .etq { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 28px; margin-top: 20px; }
+  .ficha div { border-top: 1px solid var(--hairline); padding-top: 10px; }
+  .ficha p { font-size: 14px; color: var(--text-2); margin: 0; }
+  .ficha ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--text-2); }
+
+  /* ── La hoja: la caja de la app ── */
+  .hoja { background: var(--surface); border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--hairline), 0 1px 3px rgba(0,0,0,.04); margin-top: 20px; overflow: hidden; }
+  .cinta { display: flex; align-items: center; gap: 4px; padding: 8px 12px; background: var(--sunken); border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+  .pest { border: 0; background: transparent; font: 600 14px var(--font); color: var(--text-3); padding: 6px 12px; border-radius: var(--r-control); cursor: pointer; }
+  .pest:hover { color: var(--text); background: var(--fill); }
+  .pest[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 0 0 1px var(--hairline); }
+  .pest small { font-weight: 500; color: var(--text-3); margin-left: 6px; font-variant-numeric: tabular-nums; }
+  .hueco { flex: 1; }
+  .dato { font-size: 12px; color: var(--text-3); }
+  .cuerpo { padding: 16px 16px 20px; overflow-x: auto; }
+  .rotulo { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .rotulo b { font-size: 13px; font-weight: 600; }
+  .rotulo span { font-size: 12px; color: var(--text-3); }
+  select.mini { font: 500 13px var(--font); color: var(--accent); background: transparent; border: 0; padding: 2px 4px; border-radius: 6px; cursor: pointer; }
+  select.mini:hover { background: var(--accent-soft); }
+
+  /* ── La tabla: la rejilla de PlanDia ── */
+  .tabla { display: grid; row-gap: 3px; min-width: max-content; }
+  .fila { display: grid; align-items: center; column-gap: 6px; min-height: 34px; padding: 0 6px; border-radius: 8px; }
+  .fila:hover:not(.cab):not(.pie) { background: var(--canvas); }
+  .cab { min-height: 22px; font-size: 11px; font-weight: 600; color: var(--text-3); }
+  .cab .n, .cab .c { text-align: center; }
+  .n { font: 700 12px var(--font); color: var(--text-3); text-align: center; }
+  .nm { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nm small { display: block; font-size: 11px; font-weight: 400; color: var(--text-3); line-height: 1.2; }
+  .c { text-align: center; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .celda { width: 100%; height: 28px; border: 1px solid transparent; background: var(--sunken); border-radius: 6px; text-align: center;
+    font: 500 14px var(--font); font-variant-numeric: tabular-nums; color: var(--text); padding: 0 2px; }
+  .fila:hover .celda { border-color: var(--hairline-strong); }
+  .celda:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .g0 { box-shadow: inset 1px 0 0 var(--hairline); padding-left: 6px; }
+  .grupo { text-align: center; font-size: 13px; font-weight: 600; color: var(--text); display: flex; justify-content: center; gap: 6px; align-items: baseline; }
+  .grupo small { font-weight: 500; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .pie { min-height: 30px; }
+  .pie.plan { color: var(--text-3); }
+  .pie.plan .nm, .pie.suma .nm { font-size: 12px; font-weight: 600; color: var(--text-3); }
+  .pie.suma { border-top: 1px solid var(--hairline-strong); border-radius: 0; padding-top: 4px; margin-top: 2px; }
+  .pie.suma .c { font-weight: 700; }
+  .is-ok { color: var(--positive); }
+  .is-off { color: var(--negative); }
+  .dif { font-size: 13px; color: var(--text-2); text-align: center; font-variant-numeric: tabular-nums; }
+  .dif.cero { color: var(--hairline-strong); }
+  .dif-cab { color: var(--text-2); }
+  .sombra { display: block; font-size: 11px; color: var(--text-3); text-align: center; line-height: 1.3; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .sombra b { font-weight: 600; color: var(--text-2); }
+  .lapiz { border: 0; background: transparent; color: var(--accent); font: 500 12px var(--font); cursor: pointer; padding: 0 2px; }
+
+  /* Comida a comida */
+  .bloque-comida { padding: 8px 0 10px; border-bottom: 1px solid var(--hairline); }
+  .bloque-comida:last-of-type { border-bottom: 0; }
+  .bloque-cab { display: flex; gap: 10px; align-items: baseline; padding: 0 6px 4px; }
+  .bloque-cab b { font-size: 14px; font-weight: 600; }
+  .dia-chip { font-size: 13px; color: var(--text-2); }
+  .dif-linea { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dif-linea.cero { color: var(--text-3); }
+
+  /* B afinada: la tinta dice lo que cambia, los números sobran */
+  .b-tabla { min-width: 0; }
+  .b-fila { display: grid; grid-template-columns: 92px repeat(4, 60px) minmax(200px, 1fr); align-items: center; column-gap: 6px; min-height: 34px; padding: 0 6px; border-radius: 8px; }
+  .b-fila.cab { min-height: 22px; }
+  .b-comida { padding: 10px 0 8px; border-bottom: 1px solid var(--hairline); }
+  .b-comida:last-child { border-bottom: 0; }
+  .b-titulo { display: flex; align-items: baseline; gap: 10px; padding: 0 6px 4px; min-height: 26px; }
+  .b-titulo .nm { font-weight: 600; }
+  .b-titulo .hueco { flex: 1; }
+  .b-estado { font-size: 12px; color: var(--text-3); }
+  .b-dia { font-size: 13px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .b-fila:not(.cab):hover, .b-fila:focus-within { background: var(--canvas); }
+  /* Igual que el primer día: la cifra está, pero callada. */
+  .celda.is-igual { background: transparent; color: var(--text-3); font-weight: 400; }
+  .b-fila:hover .celda.is-igual, .celda.is-igual:focus { background: var(--sunken); color: var(--text); }
+  .b-lado { display: flex; align-items: center; gap: 10px; padding-left: 10px; min-width: 0; }
+  .b-barra { flex: 1; max-width: 150px; height: 6px; border-radius: 3px; background: var(--fill); overflow: hidden; }
+  .b-barra i { display: block; height: 100%; background: var(--text-3); border-radius: 3px; }
+  @media (prefers-reduced-motion: no-preference) { .b-barra i { transition: width .18s ease; } }
+  .b-dif { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .b-dif.cero { color: var(--text-3); }
+  .b-dif .larga { display: none; }
+  .b-fila:hover .b-dif .corta, .b-fila:focus-within .b-dif .corta { display: none; }
+  .b-fila:hover .b-dif .larga, .b-fila:focus-within .b-dif .larga { display: inline; }
+  .b-accion { border: 0; background: transparent; color: var(--accent); font: 500 12px var(--font); cursor: pointer; padding: 2px 4px; border-radius: 6px; opacity: 0; }
+  .b-comida:hover .b-accion, .b-accion:focus-visible { opacity: 1; }
+  .b-accion:hover { background: var(--accent-soft); }
+  .b-comida:has(+ .b-dia-total) { border-bottom-color: var(--hairline-strong); }
+  .b-dia-total { padding-top: 12px; }
+  .b-dia-total .b-titulo .nm { font-size: 12px; color: var(--text-3); }
+  @media (hover: none) { .b-accion { opacity: 1; } }
+  @media (max-width: 640px) {
+    .b-fila { grid-template-columns: 70px repeat(4, minmax(0, 1fr)); row-gap: 4px; padding: 4px 4px; }
+    .b-fila.cab > :last-child { display: none; }
+    .b-lado { grid-column: 2 / -1; padding-left: 0; }
+    .b-barra { max-width: none; }
+  }
+
+  pre.ascii { font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: var(--surface); box-shadow: 0 0 0 1px var(--hairline);
+    border-radius: var(--r-sm); padding: 14px 16px; overflow-x: auto; color: var(--text-2); margin: 12px 0 0; }
+  .dos { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 16px; }
+  .reglas { counter-reset: r; list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 14px; }
+  .reglas li { display: grid; grid-template-columns: 28px 1fr; gap: 4px 10px; max-width: 76ch; }
+  .reglas li::before { counter-increment: r; content: counter(r); font: 700 13px var(--font); color: var(--accent); padding-top: 2px; }
+  .reglas b { display: block; }
+  .reglas span { color: var(--text-2); font-size: 14px; }
+  table.comp { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 640px; }
+  table.comp th, table.comp td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  table.comp th { font-size: 12px; color: var(--text-3); font-weight: 600; }
+  .recomienda { background: var(--surface); box-shadow: 0 0 0 1px var(--hairline); border-left: 3px solid var(--accent); border-radius: var(--r-sm); padding: 18px 20px; margin-top: 20px; }
+  .recomienda p { max-width: 72ch; }
+  .rueda { overflow-x: auto; }
+  @media (max-width: 640px) { .pagina { padding-top: 32px; } .mandos { position: static; } .cuerpo { padding: 12px 8px 16px; } }
+  @media (prefers-reduced-motion: no-preference) { .celda, .pest, .seg button { transition: background .12s, border-color .12s, box-shadow .12s; } }
+</style>
+</head>
+<body>
+<main class="pagina">
+  <p class="t3" style="font-size:13px;margin-bottom:10px">Dieta · el reparto por comida · 15 sep 2026</p>
+  <h1>Entreno y descanso, en la misma mesa</h1>
+  <p class="entradilla">Hoy el reparto por comida (<code>PlanDia</code>) enseña un solo día. Para ver en qué se diferencia la comida del día de descanso de la del día de entreno hay que cambiar de pestaña y acordarse de las cifras. Aquí van tres formas de verlos juntos, y una decisión aparte: si se editan en la mesa o en una ventana.</p>
+  <p class="t3" style="font-size:14px">Todas las tablas de esta página son la misma dieta. Lo que escribas en una aparece en las demás. El ejemplo tiene a propósito una comida con nombre distinto en cada día («Pre-entreno» y «Merienda»), porque va a pasar.</p>
+
+  <div class="mandos">
+    <div class="seg" role="group" aria-label="Días en el plan">
+      <button type="button" data-ndias="2" aria-pressed="true">2 días</button>
+      <button type="button" data-ndias="3" aria-pressed="false">3 días</button>
+    </div>
+    <nav aria-label="Secciones">
+      <a href="#hoy">Hoy</a><a href="#a">A · Columnas</a><a href="#b">B · Comida a comida</a><a href="#c">C · Contra otro día</a><a href="#donde">Dónde vive</a><a href="#reglas">Reglas</a><a href="#elegir">Elegir</a>
+    </nav>
+  </div>
+
+  <!-- ══ HOY ══ -->
+  <section class="lamina" id="hoy" style="border-top:0;margin-top:0">
+    <div class="lamina-cab"><h2>Lo que hay hoy</h2><span class="etq" style="background:var(--fill);color:var(--text-2)">para comparar</span></div>
+    <p>Un día abierto cada vez. Para saber cuántos hidratos le quitas a la cena el día de descanso hay que abrir el otro día y mirar la misma fila de memoria.</p>
+    <div class="hoja" id="mock-hoy"></div>
+  </section>
+
+  <!-- ══ A ══ -->
+  <section class="lamina" id="a">
+    <div class="lamina-cab"><span class="letra">A</span><h2>Las columnas del reparto</h2><span class="etq">la más directa</span></div>
+    <p>Las comidas son las filas y cada día es un grupo de columnas. Con dos días hay además un grupo «Diferencia» que responde a la pregunta sin hacer cuentas. Se escribe en cualquier celda de cualquier día, sin cambiar de pestaña.</p>
+    <div class="hoja" id="mock-a"></div>
+    <div class="ficha">
+      <div><h3>Gana</h3><p>Todo a la vista: lo pautado, lo repartido y la diferencia, fila a fila. Es la forma que tiene ya Entreno con los microciclos.</p></div>
+      <div><h3>Quita</h3><p>Cambiar de pestaña para repartir. Las pestañas se quedan para el menú de una dieta cerrada.</p></div>
+      <div><h3>Límite</h3><p>El ancho. En esta maqueta, dos días con diferencia ocupan unos 1.000 px, y tres días, lo mismo sin la diferencia (que desaparece, porque ya no hay una sola resta). Con más de tres días hay que deslizar en horizontal. En la app la mesa comparte fila con el costado de 300 px, así que en «Todos» o se pliega el costado o se desliza. Hay que medirlo en la app antes de construir.</p></div>
+      <div><h3>Cuesta</h3><p>Un día. Una pieza nueva sobre la rejilla de <code>PlanDia</code>. <code>updateMealTarget</code> ya recibe el día, así que no hacen falta verbos nuevos para escribir.</p></div>
+    </div>
+  </section>
+
+  <!-- ══ B ══ -->
+  <section class="lamina" id="b">
+    <div class="lamina-cab"><span class="letra">B</span><h2>Comida a comida</h2><span class="etq">la elegida</span></div>
+    <p>La unidad es la comida, con un renglón por día. Para que comparar sea mirar y no leer cifras, hay cuatro reglas:</p>
+    <ol class="reglas" style="margin-bottom:8px">
+      <li><b>Si una comida es igual en todos los días, ocupa un solo renglón.</b><span>El desayuno no cambia, así que se lee una vez. Lo que escribes ahí vale para todos los días. «Separar» la abre en un renglón por día.</span></li>
+      <li><b>Lo que no cambia se ve en gris.</b><span>En una comida que sí cambia, una cifra igual a la del primer día pierde el fondo y la tinta. Los números que destacan son los que cambian. Sigue siendo editable.</span></li>
+      <li><b>Una barra por día para las kcal.</b><span>Sin leer nada, ves que la cena de descanso es más corta. La barra es gris: más corta no es peor.</span></li>
+      <li><b>La diferencia, corta en reposo y entera al pasar.</b><span>Sin tocar nada, solo «−150 kcal». Si pasas el ratón o escribes en el renglón, sale el detalle: «−150 kcal · −30 C · −2 G».</span></li>
+    </ol>
+    <div class="hoja" id="mock-b"></div>
+    <div class="ficha">
+      <div><h3>Gana</h3><p>Las columnas no crecen con los días: tres o cinco días caben igual, y en tablet y móvil no hace falta deslizar. Las comidas iguales dejan de duplicar cifras.</p></div>
+      <div><h3>Quita</h3><p>La lectura de un día entero de arriba abajo. El total de cada día queda al pie, en «El día».</p></div>
+      <div><h3>Límite</h3><p>Es más alta que la de hoy. Juntar las comidas iguales lo compensa: en el ejemplo, cuatro comidas y dos días son siete renglones y no ocho.</p></div>
+      <div><h3>Cuesta</h3><p>Un día y medio. Escribe como A, con <code>updateMealTarget</code> por día. El renglón que vale para todos llama al mismo verbo una vez por día.</p></div>
+    </div>
+  </section>
+
+  <!-- ══ C ══ -->
+  <section class="lamina" id="c">
+    <div class="lamina-cab"><span class="letra">C</span><h2>Contra otro día</h2><span class="etq">la más barata</span></div>
+    <p>La mesa de hoy tal cual, con un mando en su cabecera: «Comparar con». Encendido, debajo de cada celda aparece en voz baja la cifra del otro día y la diferencia. Se sigue escribiendo solo en el día abierto.</p>
+    <div class="hoja" id="mock-c"></div>
+    <div class="ficha">
+      <div><h3>Gana</h3><p>No cambia la pantalla: quien no compara no ve nada nuevo. Sirve para cualquier número de días, porque siempre son dos.</p></div>
+      <div><h3>Quita</h3><p>Nada, y ese es su límite: para escribir en el otro día sigue habiendo que cambiar de pestaña. Resuelve el «ver», no el «editar».</p></div>
+      <div><h3>Límite</h3><p>Cada fila dobla su alto con la sombra encendida, y dos cifras por celda son mucha tinta si se deja puesto siempre.</p></div>
+      <div><h3>Cuesta</h3><p>Medio día. Una prop <code>comparar</code> en <code>PlanDia</code> y el selector en la cabecera del reparto.</p></div>
+    </div>
+  </section>
+
+  <!-- ══ DÓNDE ══ -->
+  <section class="lamina" id="donde">
+    <div class="lamina-cab"><h2>Dónde vive: en la mesa o en una ventana</h2></div>
+    <p>Pediste poder «dar a editar». A y B pueden vivir en dos sitios, y es una decisión independiente de la forma. (C solo tiene sentido en la mesa.)</p>
+    <div class="dos">
+      <div>
+        <h3>1 · Un conmutador en la cinta (recomendado)</h3>
+        <pre class="ascii">▌Entreno  Descanso  + día   ·····  [Un día | Todos]  ⧉ ⚙ 🗑
+─────────────────────────────────────────────────────────
+ El reparto                          4 comidas · 2 días
+            ┌── Entreno ──┐┌── Descanso ─┐┌ Diferencia ┐
+ 1 Desayuno  550 35 70 15   550 35 70 15    ·  ·  ·  ·
+ 2 Comida    800 45 100 24  700 45 75 24  −100 · −25 ·</pre>
+        <p style="margin-top:10px;font-size:14px;color:var(--text-2)">«Todos» cambia la mesa a la vista comparada y se queda puesto para esa dieta. Las pestañas de día se apagan mientras tanto, porque ya no eligen nada. Es un clic y no tapa nada.</p>
+      </div>
+      <div>
+        <h3>2 · Una ventana «Editar el reparto»</h3>
+        <pre class="ascii">┌ Editar el reparto ───────────────────────── ✕ ┐
+│            Entreno         Descanso    Dif.    │
+│ Desayuno   550 35 70 15    550 35 70 15  ·     │
+│ Comida     800 45 100 24   700 45 75 24  −100  │
+│ …                                              │
+│                         [Cancelar] [Guardar]   │
+└────────────────────────────────────────────────┘</pre>
+        <p style="margin-top:10px;font-size:14px;color:var(--text-2)">Tiene todo el ancho, así que caben más días. Pero mete un «Guardar» donde hoy se guarda solo, deja la mesa de siempre con la vista de un día y separa la edición de lo que se ve. La casa ya reserva las ventanas centradas para decidir (el ajuste del objetivo), no para comparar.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ REGLAS ══ -->
+  <section class="lamina" id="reglas">
+    <div class="lamina-cab"><h2>Reglas que valen para las tres</h2></div>
+    <ol class="reglas">
+      <li><b>Las comidas se emparejan por posición.</b><span>La comida 3 de entreno va con la 3 de descanso. Si el nombre no coincide, se dicen los dos («Pre-entreno / en descanso: Merienda»). Emparejar por nombre falla en cuanto alguien renombra una comida.</span></li>
+      <li><b>Un día con menos comidas deja la celda vacía, no la inventa.</b><span>La celda dice «—» y ofrece «+ comida» en ese día. La diferencia de esa fila no se calcula.</span></li>
+      <li><b>«+ comida» en la vista comparada, ¿a todos los días o a uno?</b><span>Pendiente de decidir. Propongo: a todos, porque una fila que existe solo en un día rompe la tabla. Quitar pregunta «¿de todos los días o solo de Descanso?».</span></li>
+      <li><b>La diferencia no lleva color.</b><span>Que el día de descanso tenga 45 g menos de hidratos es una decisión, no un fallo. El rojo y el verde siguen solo en «Repartidas» contra el objetivo de cada día, que es lo único que se juzga. La ley del color y «la app no receta».</span></li>
+      <li><b>Cero no es un número.</b><span>Una diferencia de cero es un punto gris, para que las filas iguales (el desayuno) se lean como iguales de un vistazo y la tinta quede para lo que cambia.</span></li>
+      <li><b>El objetivo de cada día sigue pasando por el asistente.</b><span>La cabecera de cada grupo lleva su cifra y «Cambiar», que abre <code>EditarObjetivo</code> para ese día. Cambiar el objetivo reajusta el reparto y el menú, y eso tiene que seguir enseñándose antes de guardar.</span></li>
+      <li><b>El candado es por comida y por día.</b><span>Ya es así en los datos (<code>meal.fijo</code> vive en la comida de cada día). En B aparece al final de cada renglón al pasar el ratón. En un renglón «Todos», el candado vale para todos los días.</span></li>
+    </ol>
+  </section>
+
+  <!-- ══ ELEGIR ══ -->
+  <section class="lamina" id="elegir">
+    <div class="lamina-cab"><h2>Las tres, juntas</h2></div>
+    <div class="rueda">
+      <table class="comp">
+        <thead><tr><th></th><th>Ver los dos días</th><th>Escribir en los dos</th><th>3+ días</th><th>Tablet / móvil</th><th>Coste</th></tr></thead>
+        <tbody>
+          <tr><td><b>A · Columnas</b></td><td>Sí, con diferencia</td><td>Sí</td><td>Hasta 3; luego se desliza</td><td>Se desliza</td><td>1 día</td></tr>
+          <tr><td><b>B · Comida a comida</b> <span class="etq">elegida</span></td><td>Sí, por comida, con barra</td><td>Sí</td><td>Sin límite</td><td>Cabe</td><td>1½ días</td></tr>
+          <tr><td><b>C · Contra otro día</b></td><td>Sí, en sombra</td><td>No</td><td>De dos en dos</td><td>Cabe, pero apretado</td><td>½ día</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="recomienda">
+      <h3 style="color:var(--accent)">Elegida: B, con el conmutador «Un día | Todos» en la cinta</h3>
+      <p>El criterio es comparar de forma sencilla, sin que los números se amontonen. A pone ocho columnas de cifras más cuatro de resta en una misma fila, y eso es justo lo que no se quiere. B compara dentro de cada comida y resta tinta en cuatro sitios: junta las comidas iguales, deja en gris lo que no cambia, lleva la comparación de kcal a una barra y solo enseña la diferencia entera cuando la pides. <em>(La primera versión de este estudio recomendaba A.)</em></p>
+      <p style="margin:0">Fuera de este encargo, anotado: comparar <em>menús</em> de una dieta cerrada (los alimentos, no el reparto) es otra pantalla, la V2 del estudio de las cinco versiones, y no hace falta para esto.</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const F = ['k', 'p', 'c', 'g'];
+  const ETQ = { k: 'kcal', p: 'P', c: 'C', g: 'G' };
+  const m = (name, k, p, c, g) => ({ name, k, p, c, g });
+  const DIAS = [
+    { name: 'Entreno', target: { k: 2600, p: 160, c: 320, g: 75 }, meals: [
+      m('Desayuno', 550, 35, 70, 15), m('Comida', 800, 45, 100, 24), m('Pre-entreno', 450, 30, 70, 6), m('Cena', 800, 50, 80, 30) ] },
+    { name: 'Descanso', target: { k: 2200, p: 160, c: 220, g: 75 }, meals: [
+      m('Desayuno', 550, 35, 70, 15), m('Comida', 700, 45, 75, 24), m('Merienda', 300, 30, 25, 8), m('Cena', 650, 50, 50, 28) ] },
+    { name: 'Pierna', target: { k: 2850, p: 160, c: 390, g: 70 }, meals: [
+      m('Desayuno', 600, 35, 80, 15), m('Comida', 900, 45, 125, 24), m('Pre-entreno', 550, 30, 95, 6), m('Cena', 800, 50, 90, 25) ] },
+  ];
+  const st = { n: 2, hoy: 0, cAbierto: 0, cCon: 1, bSeparadas: new Set() };
+  const dias = () => DIAS.slice(0, st.n);
+  const nComidas = () => Math.max(...dias().map((d) => d.meals.length));
+
+  const fmt = (v) => (v === null || v === undefined || Number.isNaN(v) ? '—' : String(Math.round(v)));
+  const fmtDif = (v) => (v === 0 ? '·' : (v > 0 ? '+' : '−') + Math.abs(Math.round(v)));
+  const suma = (d, f) => d.meals.reduce((s, x) => s + (Number(x[f]) || 0), 0);
+  /* El margen de la casa: 5 % con suelo (kcal 50, macros 5 g). */
+  const cuadra = (v, t, f) => Math.abs(v - t) <= Math.max(t * 0.05, f === 'k' ? 50 : 5);
+  const val = (d, i, f) => { const x = DIAS[d].meals[i]; return x ? Number(x[f]) || 0 : null; };
+
+  const celda = (d, i, f, extra = '') =>
+    DIAS[d].meals[i]
+      ? `<input class="celda" inputmode="numeric" data-d="${d}" data-m="${i}" data-f="${f}" value="${DIAS[d].meals[i][f]}" aria-label="${ETQ[f]} de ${DIAS[d].meals[i].name}, ${DIAS[d].name}">${extra}`
+      : `<span class="c t3">—</span>`;
+
+  const nombreFila = (i) => {
+    const nombres = dias().map((d) => d.meals[i]?.name).filter(Boolean);
+    const base = nombres[0];
+    const otro = dias().find((d, j) => j > 0 && d.meals[i] && d.meals[i].name !== base);
+    return `<span class="nm">${base}${otro ? `<small>en ${otro.name.toLowerCase()}: ${otro.meals[i].name}</small>` : ''}</span>`;
+  };
+
+  /* ── HOY ── */
+  const pintarHoy = () => {
+    const d = DIAS[st.hoy];
+    const cols = 'grid-template-columns: 22px minmax(130px,1fr) repeat(4, 64px)';
+    document.getElementById('mock-hoy').innerHTML = `
+      <div class="cinta">
+        ${dias().map((x, j) => `<button class="pest" type="button" data-hoy="${j}" aria-pressed="${j === st.hoy}">${x.name}</button>`).join('')}
+        <span class="hueco"></span><span class="dato">por macros</span>
+      </div>
+      <div class="cuerpo">
+        <div class="rotulo"><b>El reparto</b><span>${d.meals.length} comidas</span></div>
+        <div class="tabla">
+          <div class="fila cab" style="${cols}"><span></span><span></span>${F.map((f) => `<span class="c">${ETQ[f]}</span>`).join('')}</div>
+          <div class="fila pie plan" style="${cols}"><span></span><span class="nm">Objetivo del día</span>${F.map((f) => `<span class="c">${d.target[f]}</span>`).join('')}</div>
+          ${d.meals.map((x, i) => `<div class="fila" style="${cols}"><span class="n">${i + 1}</span><span class="nm">${x.name}</span>${F.map((f) => `<span>${celda(st.hoy, i, f)}</span>`).join('')}</div>`).join('')}
+          <div class="fila pie suma" style="${cols}"><span></span><span class="nm">Repartidas</span>${F.map((f) => `<span class="c" data-calc="suma" data-d="${st.hoy}" data-f="${f}"></span>`).join('')}</div>
+        </div>
+      </div>`;
+  };
+
+  /* ── A ── */
+  const pintarA = () => {
+    const ds = dias();
+    const conDif = ds.length === 2;
+    const grupo = '60px 46px 46px 46px';
+    const cols = `grid-template-columns: 22px minmax(140px,1fr) ${ds.map(() => grupo).join(' ')}${conDif ? ' 48px 40px 40px 40px' : ''}`;
+    const nc = nComidas();
+    const span = (a, b) => `grid-column: ${a} / ${b}`;
+    document.getElementById('mock-a').innerHTML = `
+      <div class="cinta">
+        ${ds.map((x) => `<button class="pest" type="button" disabled aria-pressed="false" style="opacity:.45;cursor:default">${x.name}</button>`).join('')}
+        <span class="hueco"></span>
+        <div class="seg" role="group" aria-label="Vista del reparto"><button type="button" aria-pressed="false" tabindex="-1">Un día</button><button type="button" aria-pressed="true" tabindex="-1">Todos</button></div>
+      </div>
+      <div class="cuerpo">
+        <div class="rotulo"><b>El reparto</b><span>${nc} comidas · ${ds.length} días</span></div>
+        <div class="tabla">
+          <div class="fila cab" style="${cols}">
+            <span></span><span></span>
+            ${ds.map((x, j) => `<span class="grupo g0" style="${span(3 + j * 4, 7 + j * 4)}">${x.name}<small data-calc="target-k" data-d="${j}"></small><button class="lapiz" type="button" title="Abre el ajuste del objetivo de ${x.name}">Cambiar</button></span>`).join('')}
+            ${conDif ? `<span class="grupo g0 dif-cab" style="${span(11, 15)}">Diferencia</span>` : ''}
+          </div>
+          <div class="fila cab" style="${cols}">
+            <span></span><span></span>
+            ${ds.map(() => F.map((f, k) => `<span class="c${k === 0 ? ' g0' : ''}">${ETQ[f]}</span>`).join('')).join('')}
+            ${conDif ? F.map((f, k) => `<span class="c${k === 0 ? ' g0' : ''}">${ETQ[f]}</span>`).join('') : ''}
+          </div>
+          <div class="fila pie plan" style="${cols}">
+            <span></span><span class="nm">Objetivo del día</span>
+            ${ds.map((x, j) => F.map((f, k) => `<span class="c${k === 0 ? ' g0' : ''}">${x.target[f]}</span>`).join('')).join('')}
+            ${conDif ? F.map((f, k) => `<span class="dif${k === 0 ? ' g0' : ''}" data-calc="dif-target" data-f="${f}"></span>`).join('') : ''}
+          </div>
+          ${Array.from({ length: nc }, (_, i) => `
+            <div class="fila" style="${cols}">
+              <span class="n">${i + 1}</span>${nombreFila(i)}
+              ${ds.map((x, j) => F.map((f, k) => `<span class="${k === 0 ? 'g0' : ''}">${celda(j, i, f)}</span>`).join('')).join('')}
+              ${conDif ? F.map((f, k) => `<span class="dif${k === 0 ? ' g0' : ''}" data-calc="dif" data-m="${i}" data-f="${f}" data-a="0" data-b="1"></span>`).join('') : ''}
+            </div>`).join('')}
+          <div class="fila pie suma" style="${cols}">
+            <span></span><span class="nm">Repartidas</span>
+            ${ds.map((x, j) => F.map((f, k) => `<span class="c${k === 0 ? ' g0' : ''}" data-calc="suma" data-d="${j}" data-f="${f}"></span>`).join('')).join('')}
+            ${conDif ? F.map((f, k) => `<span class="dif${k === 0 ? ' g0' : ''}" data-calc="dif-suma" data-f="${f}"></span>`).join('') : ''}
+          </div>
+        </div>
+      </div>`;
+  };
+
+  /* ── B ── */
+  /* Una comida es «igual» si todos los días visibles la tienen con las mismas cuatro cifras. */
+  const comidaIgual = (i) => {
+    const ds = dias();
+    if (ds.some((d) => !d.meals[i])) return false;
+    return F.every((f) => ds.every((d) => Number(d.meals[i][f]) === Number(ds[0].meals[i][f])));
+  };
+  const pintarB = () => {
+    const ds = dias();
+    const nc = nComidas();
+    const nombresDias = ds.length === 2 ? 'los dos días' : `los ${ds.length} días`;
+    const celdaB = (d, i, f, todos = false) =>
+      DIAS[d].meals[i]
+        ? `<input class="celda" inputmode="numeric" data-d="${d}" data-m="${i}" data-f="${f}"${todos ? ' data-todos="1"' : d > 0 ? ' data-cmp="1"' : ''} value="${DIAS[d].meals[i][f]}" aria-label="${ETQ[f]} de ${DIAS[d].meals[i].name}, ${todos ? nombresDias : DIAS[d].name}">`
+        : `<span class="c t3">—</span>`;
+    const lado = (d, i, conDif) => `
+      <span class="b-lado">
+        <span class="b-barra" aria-hidden="true"><i data-calc="barra" data-d="${d}" data-m="${i}"></i></span>
+        ${conDif ? `<span class="b-dif" data-calc="b-dif" data-m="${i}" data-b="${d}"></span>` : ''}
+      </span>`;
+
+    const comida = (i) => {
+      const junta = comidaIgual(i) && !st.bSeparadas.has(i);
+      const cab = `
+        <div class="b-titulo">
+          <span class="n" style="width:14px">${i + 1}</span>${nombreFila(i)}
+          ${junta
+            ? `<span class="b-estado">igual en ${nombresDias}</span><button class="b-accion" type="button" data-separar="${i}">Separar</button>`
+            : comidaIgual(i) ? `<span class="b-estado">igual en ${nombresDias}</span><button class="b-accion" type="button" data-juntar="${i}">Juntar</button>` : ''}
+        </div>`;
+      if (junta) {
+        return `<div class="b-comida">${cab}
+          <div class="b-fila"><span class="b-dia">Todos</span>${F.map((f) => `<span>${celdaB(0, i, f, true)}</span>`).join('')}${lado(0, i, false)}</div>
+        </div>`;
+      }
+      return `<div class="b-comida">${cab}
+        ${ds.map((x, j) => `
+          <div class="b-fila"><span class="b-dia">${x.name}</span>${F.map((f) => `<span>${celdaB(j, i, f)}</span>`).join('')}${lado(j, i, j > 0)}</div>`).join('')}
+      </div>`;
+    };
+
+    document.getElementById('mock-b').innerHTML = `
+      <div class="cinta">
+        ${ds.map((x) => `<button class="pest" type="button" disabled aria-pressed="false" style="opacity:.45;cursor:default">${x.name}</button>`).join('')}
+        <span class="hueco"></span>
+        <div class="seg" role="group" aria-label="Vista del reparto"><button type="button" aria-pressed="false" tabindex="-1">Un día</button><button type="button" aria-pressed="true" tabindex="-1">Todos</button></div>
+      </div>
+      <div class="cuerpo">
+        <div class="rotulo"><b>El reparto</b><span>${nc} comidas · ${ds.length} días · se compara con ${ds[0].name.toLowerCase()}</span></div>
+        <div class="b-tabla">
+          <div class="b-fila cab"><span></span>${F.map((f) => `<span class="c">${ETQ[f]}</span>`).join('')}<span class="t3" style="font-size:11px;padding-left:10px">kcal de la comida</span></div>
+          ${Array.from({ length: nc }, (_, i) => comida(i)).join('')}
+          <div class="b-comida b-dia-total">
+            <div class="b-titulo"><span class="nm">El día · lo repartido contra su objetivo</span></div>
+            ${ds.map((x, j) => `
+              <div class="b-fila">
+                <span class="b-dia">${x.name}</span>
+                ${F.map((f) => `<span class="c" data-calc="suma" data-d="${j}" data-f="${f}"></span>`).join('')}
+                <span class="b-lado"><span class="b-dif cero"><span class="corta">de ${x.target.k} kcal</span><span class="larga">de ${x.target.k} · ${x.target.p} · ${x.target.c} · ${x.target.g}</span></span><button class="b-accion" type="button" title="Abre el ajuste del objetivo de ${x.name}">Cambiar</button></span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+  };
+
+  /* ── C ── */
+  const pintarC = () => {
+    const ds = dias();
+    if (st.cAbierto >= ds.length) st.cAbierto = 0;
+    if (st.cCon >= ds.length || st.cCon === st.cAbierto) st.cCon = (st.cAbierto + 1) % ds.length;
+    const a = st.cAbierto;
+    const b = st.cCon;
+    const cols = 'grid-template-columns: 22px minmax(130px,1fr) repeat(4, 72px)';
+    const d = DIAS[a];
+    const con = b >= 0;
+    document.getElementById('mock-c').innerHTML = `
+      <div class="cinta">
+        ${ds.map((x, j) => `<button class="pest" type="button" data-cab="${j}" aria-pressed="${j === a}">${x.name}</button>`).join('')}
+        <span class="hueco"></span><span class="dato">por macros</span>
+      </div>
+      <div class="cuerpo">
+        <div class="rotulo"><b>El reparto</b><span>${d.meals.length} comidas</span><span class="hueco"></span>
+          <label class="dato" style="display:flex;gap:4px;align-items:center">Comparar con
+            <select class="mini" data-ccon>
+              <option value="-1"${con ? '' : ' selected'}>nada</option>
+              ${ds.map((x, j) => (j === a ? '' : `<option value="${j}"${j === b ? ' selected' : ''}>${x.name.toLowerCase()}</option>`)).join('')}
+            </select>
+          </label>
+        </div>
+        <div class="tabla">
+          <div class="fila cab" style="${cols}"><span></span><span></span>${F.map((f) => `<span class="c">${ETQ[f]}</span>`).join('')}</div>
+          <div class="fila pie plan" style="${cols}"><span></span><span class="nm">Objetivo del día</span>${F.map((f) => `<span class="c">${d.target[f]}${con ? `<span class="sombra">${DIAS[b].target[f]}</span>` : ''}</span>`).join('')}</div>
+          ${d.meals.map((x, i) => `<div class="fila" style="${cols}${con ? ';min-height:50px' : ''}"><span class="n">${i + 1}</span>
+              <span class="nm">${x.name}${con && DIAS[b].meals[i] && DIAS[b].meals[i].name !== x.name ? `<small>en ${DIAS[b].name.toLowerCase()}: ${DIAS[b].meals[i].name}</small>` : ''}</span>
+              ${F.map((f) => `<span>${celda(a, i, f, con ? `<span class="sombra" data-calc="sombra" data-m="${i}" data-f="${f}" data-a="${a}" data-b="${b}"></span>` : '')}</span>`).join('')}</div>`).join('')}
+          <div class="fila pie suma" style="${cols}"><span></span><span class="nm">Repartidas</span>${F.map((f) => `<span class="c" data-calc="suma" data-d="${a}" data-f="${f}"></span>`).join('')}</div>
+        </div>
+      </div>`;
+  };
+
+  /* ── Las cuentas: solo se tocan los huecos calculados, nunca el campo que se escribe ── */
+  const refrescar = (origen = null) => {
+    document.querySelectorAll('input.celda').forEach((el) => {
+      if (el === origen) return;
+      const x = DIAS[+el.dataset.d].meals[+el.dataset.m];
+      if (x && el.value !== String(x[el.dataset.f])) el.value = x[el.dataset.f];
+    });
+    document.querySelectorAll('input.celda[data-cmp]').forEach((el) => {
+      const { d, m: mi, f } = el.dataset;
+      el.classList.toggle('is-igual', val(+d, +mi, f) === val(0, +mi, f));
+    });
+    const maxK = Math.max(1, ...dias().flatMap((d) => d.meals.map((x) => Number(x.k) || 0)));
+    document.querySelectorAll('[data-calc]').forEach((el) => {
+      const { calc, d, f, m: mi, a, b } = el.dataset;
+      if (calc === 'suma') {
+        const v = suma(DIAS[+d], f);
+        el.textContent = fmt(v);
+        el.classList.toggle('is-ok', cuadra(v, DIAS[+d].target[f], f));
+        el.classList.toggle('is-off', !cuadra(v, DIAS[+d].target[f], f));
+      } else if (calc === 'target-k') {
+        el.textContent = `${DIAS[+d].target.k}`;
+      } else if (calc === 'dif') {
+        const va = val(+a, +mi, f); const vb = val(+b, +mi, f);
+        const v = va === null || vb === null ? null : vb - va;
+        el.textContent = v === null ? '' : fmtDif(v);
+        el.classList.toggle('cero', v === 0);
+      } else if (calc === 'dif-target') {
+        const v = DIAS[1].target[f] - DIAS[0].target[f];
+        el.textContent = fmtDif(v); el.classList.toggle('cero', v === 0);
+      } else if (calc === 'dif-suma') {
+        const v = suma(DIAS[1], f) - suma(DIAS[0], f);
+        el.textContent = fmtDif(v); el.classList.toggle('cero', v === 0);
+      } else if (calc === 'dif-linea') {
+        const partes = F.map((k) => {
+          const va = val(+a, +mi, k); const vb = val(+b, +mi, k);
+          if (va === null || vb === null) return null;
+          const v = vb - va;
+          return v === 0 ? null : `${fmtDif(v)}${k === 'k' ? ' kcal' : ` ${ETQ[k]}`}`;
+        }).filter(Boolean);
+        el.textContent = partes.length ? partes.join(' · ') : 'igual';
+        el.classList.toggle('cero', !partes.length);
+      } else if (calc === 'barra') {
+        const v = val(+d, +mi, 'k') || 0;
+        el.style.width = `${Math.round((v / maxK) * 100)}%`;
+      } else if (calc === 'b-dif') {
+        const difs = F.map((k) => {
+          const va = val(0, +mi, k); const vb = val(+b, +mi, k);
+          return va === null || vb === null ? null : vb - va;
+        });
+        const partes = difs.map((v, n) => (v ? `${fmtDif(v)}${F[n] === 'k' ? ' kcal' : ` ${ETQ[F[n]]}`}` : null)).filter(Boolean);
+        const corta = !partes.length ? 'igual' : difs[0] ? `${fmtDif(difs[0])} kcal` : 'mismas kcal';
+        el.innerHTML = `<span class="corta">${corta}</span><span class="larga">${partes.length ? partes.join(' · ') : 'igual'}</span>`;
+        el.classList.toggle('cero', !partes.length);
+      } else if (calc === 'sombra') {
+        const va = val(+a, +mi, f); const vb = val(+b, +mi, f);
+        if (vb === null) { el.textContent = '—'; return; }
+        const v = va - vb;
+        el.innerHTML = `${fmt(vb)}${v === 0 ? '' : ` · <b>${fmtDif(v)}</b>`}`;
+      }
+    });
+  };
+
+  const pintarTodo = () => { pintarHoy(); pintarA(); pintarB(); pintarC(); refrescar(); };
+
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!el.matches('input.celda')) return;
+    const limpio = el.value.replace(/[^\d]/g, '');
+    if (limpio !== el.value) el.value = limpio;
+    const nuevo = limpio === '' ? 0 : Number(limpio);
+    const destino = el.dataset.todos ? dias() : [DIAS[+el.dataset.d]];
+    destino.forEach((d) => { if (d.meals[+el.dataset.m]) d.meals[+el.dataset.m][el.dataset.f] = nuevo; });
+    refrescar(el);
+  });
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    if (t.dataset.ndias) {
+      st.n = +t.dataset.ndias;
+      document.querySelectorAll('[data-ndias]').forEach((x) => x.setAttribute('aria-pressed', String(x === t)));
+      if (st.hoy >= st.n) st.hoy = 0;
+      pintarTodo();
+    } else if (t.dataset.separar) { st.bSeparadas.add(+t.dataset.separar); pintarB(); refrescar(); }
+    else if (t.dataset.juntar) { st.bSeparadas.delete(+t.dataset.juntar); pintarB(); refrescar(); }
+    else if (t.dataset.hoy) { st.hoy = +t.dataset.hoy; pintarHoy(); refrescar(); }
+    else if (t.dataset.cab) {
+      st.cAbierto = +t.dataset.cab;
+      if (st.cCon === st.cAbierto) st.cCon = (st.cAbierto + 1) % st.n;
+      pintarC(); refrescar();
+    }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('[data-ccon]')) { st.cCon = +e.target.value; pintarC(); refrescar(); }
+  });
+
+  pintarTodo();
+})();
+</script>
+</body>
+</html>

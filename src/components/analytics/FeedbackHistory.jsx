@@ -1,7 +1,14 @@
 import { useMemo, useState } from 'react';
 import { MessageSquare, NotebookPen, Quote } from 'lucide-react';
 
-import { activeQuestions, asksFeedback, scaleQuestions } from '@/domain/protocol';
+import {
+  activeQuestions,
+  asksFeedback,
+  diceRespuesta,
+  esRespuesta,
+  esTexto,
+  scaleQuestions,
+} from '@/domain/protocol';
 import {
   buildFeedbackSeries,
   feedbackAdherence,
@@ -39,10 +46,25 @@ const AnswerPill = ({ row }) => {
   const { question, value } = row;
   const [open, setOpen] = useState(false);
 
-  if (question.kind === 'text') {
+  if (esTexto(question)) {
     return (
       <span className="log-answer is-text" title={question.label}>
         {value}
+      </span>
+    );
+  }
+
+  /*
+    Lo que marcó —sí/no, una opción, unas zonas—. No lleva «sobre 10» porque no
+    hay nada sobre lo que esté: la píldora dice la pregunta y lo contestado, y
+    nada más. Aquí no cabe el control con el que se dio —una línea por sesión no
+    admite un cuerpo entero—, así que se dice en palabras (`diceRespuesta`), que
+    además es lo que impide que salga «hombroD,lumbares».
+  */
+  if (esRespuesta(question)) {
+    return (
+      <span className="log-answer is-text" title={question.label}>
+        {question.short || question.label}: {diceRespuesta(question, value)}
       </span>
     );
   }

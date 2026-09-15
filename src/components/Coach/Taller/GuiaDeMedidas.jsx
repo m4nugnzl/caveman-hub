@@ -178,9 +178,18 @@ const PIERNA_D = 'M72 150 L74 200 L75 252 L89 252 L90 200 L88 150';
    Ver el encabezado: sin ella las dos figuras son el mismo dibujo. */
 const COLUMNA = 'M65 48 L65 149';
 
-/** Una figura entera, desplazada a su sitio del lienzo. */
-const Figura = ({ vista, dx = 0, rotulo }) => (
-  <g transform={dx ? `translate(${dx} 0)` : undefined}>
+/**
+ * El CUERPO: el trazo, la columna de la vista de espalda y el rótulo.
+ *
+ * Exportado porque lo usa el mapa del dolor (`ui/ZonaDelCuerpo`), que es otra
+ * cosa que se señala sobre el mismo cuerpo. Un segundo monigote dibujado aparte
+ * para la misma aplicación se separaría del primero a la tercera semana, y
+ * entonces habría dos siluetas distintas del mismo cliente en dos pantallas
+ * suyas. En un lienzo de 130 × 276 con el eje en x = 65; quien lo monta lo
+ * desplaza a su sitio.
+ */
+export const FiguraDeCuerpo = ({ vista, rotulo }) => (
+  <>
     <g className="guia-cuerpo">
       <circle cx={CABEZA.cx} cy={CABEZA.cy} r={CABEZA.r} />
       {[CUELLO, TRONCO, BRAZO_I, BRAZO_D, PIERNA_I, PIERNA_D].map((d) => (
@@ -188,9 +197,18 @@ const Figura = ({ vista, dx = 0, rotulo }) => (
       ))}
     </g>
     {vista === 'espalda' && <path className="guia-eje" d={COLUMNA} />}
-    <text className="guia-vista" x="65" y="270" textAnchor="middle">
-      {rotulo}
-    </text>
+    {rotulo && (
+      <text className="guia-vista" x="65" y="270" textAnchor="middle">
+        {rotulo}
+      </text>
+    )}
+  </>
+);
+
+/** Una figura entera, desplazada a su sitio del lienzo. */
+const Figura = ({ vista, dx = 0, rotulo }) => (
+  <g transform={dx ? `translate(${dx} 0)` : undefined}>
+    <FiguraDeCuerpo vista={vista} rotulo={rotulo} />
   </g>
 );
 
@@ -286,26 +304,42 @@ export const GUIAS = {
 /** La guía por su id, para quien solo necesita nombrarla o listar sus sitios. */
 export const guiaById = (que) => GUIAS[que] || GUIAS.cinta;
 
-/** La lámina: las figuras, las marcas y los números. */
-const Lamina = ({ guia, pliegue }) => (
+/**
+ * La lámina: las figuras, las marcas y los números.
+ *
+ * @param activo El índice del sitio que se está midiendo AHORA MISMO, si hay
+ *   alguno. La lámina completa enseña seis sitios a la vez y eso está bien para
+ *   leerla de corrido; cuando se usa para rellenar (`MedirConGuia`) hay uno que
+ *   importa y cinco que no, y señalarlo es la mitad del valor del dibujo.
+ *   Se marca con `data-on` y lo viste el CSS: apagar los otros aquí, en el JSX,
+ *   obligaría a repetir la decisión en cada nodo.
+ */
+const Lamina = ({ guia, pliegue, activo = null }) => (
   <svg className="guia-svg" viewBox={guia.caja} role="img" aria-label={guia.rotulo}>
     {guia.figuras.map((f) => (
       <Figura key={f.vista} {...f} />
     ))}
 
-    <g className={pliegue ? 'guia-pellizco' : 'guia-cinta'}>
+    <g className={pliegue ? 'guia-pellizco' : 'guia-cinta'} data-hay-activo={activo === null ? undefined : '1'}>
       {guia.marcas.map(({ cinta, pellizco }, i) =>
         pliegue ? (
-          <path key={i} {...lente(pellizco)} />
+          <path key={i} {...lente(pellizco)} data-on={i === activo ? '1' : undefined} />
         ) : (
-          <line key={i} x1={cinta[0]} y1={cinta[1]} x2={cinta[2]} y2={cinta[3]} />
+          <line
+            key={i}
+            x1={cinta[0]}
+            y1={cinta[1]}
+            x2={cinta[2]}
+            y2={cinta[3]}
+            data-on={i === activo ? '1' : undefined}
+          />
         )
       )}
     </g>
 
-    <g className="guia-punto">
+    <g className="guia-punto" data-hay-activo={activo === null ? undefined : '1'}>
       {guia.marcas.map(({ punto }, i) => (
-        <g key={i}>
+        <g key={i} data-on={i === activo ? '1' : undefined}>
           <circle cx={punto[0]} cy={punto[1]} r="8" />
           <text x={punto[0]} y={punto[1] + 3.2} textAnchor="middle">
             {i + 1}
@@ -315,6 +349,24 @@ const Lamina = ({ guia, pliegue }) => (
     </g>
   </svg>
 );
+
+/**
+ * La lámina SOLA, para quien pone al lado sus propias casillas.
+ *
+ * La usa el asistente de la revisión (`anthropometry/MedirConGuia`): allí la
+ * guía no es un desplegable que se abre antes de medir, es la mitad izquierda
+ * del paso, y los seis renglones de la derecha son los campos. Por eso hace
+ * falta el dibujo sin su lista —la lista la pone quien mide— y con un sitio
+ * encendido.
+ */
+export const LaminaDeMedidas = ({ que = 'cinta', activo = null }) => {
+  const guia = guiaById(que);
+  return (
+    <div className={`guia-lamina${guia.figuras.length > 1 ? ' es-doble' : ''}`}>
+      <Lamina guia={guia} pliegue={que === 'pliegue'} activo={activo} />
+    </div>
+  );
+};
 
 /**
  * El cuerpo de la guía, sin diálogo: quien la abre decide si va en una capa

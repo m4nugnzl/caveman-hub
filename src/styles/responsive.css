@@ -12,13 +12,13 @@
    Responsive
    ========================================================================== */
 
-@media (max-width: 1180px) {
+@media (max-width: 1199.98px) {
   .studio { grid-template-columns: 248px minmax(0, 1fr); }
   .studio-controls { grid-column: 1 / -1; }
   .studio-side { position: static; max-height: none; }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1023.98px) {
   .layout { --hueco-hoja: var(--s4); padding: var(--hueco-hoja) var(--hueco-hoja) var(--s6); }
   .card { padding: var(--s4); }
   .studio { grid-template-columns: minmax(0, 1fr); }
@@ -26,21 +26,31 @@
   /* Siete columnas que se comprimen, no siete columnas fijas que se desplazan:
      a este ancho todavía caben unos 90 px por día, que es lo que necesita
      «Empuje A». Por debajo de 640 px ya no caben y la rejilla pasa a filas. */
-  .split-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
   .exercise-name { width: 146px; }
 
   .meter-label { width: 92px; font-size: var(--fs-xs); }
-  /* Por debajo de este ancho, media fila deja de ser legible: todo a una
-     columna, y «media» y «completa» dejan de distinguirse. Su botón en las
-     herramientas de edición tampoco distingue nada: fuera. */
-  .grid-slots { grid-template-columns: 1fr; }
-  .slot-btn.slot-span { display: none; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   :root { --s5: 16px; --s6: 24px; --s7: 32px; --fs-2xl: 2rem; --fs-xl: 1.5rem; }
   .app-header { padding: var(--s2) var(--s4); }
-  .layout { --hueco-hoja: var(--s3); padding: var(--hueco-hoja) var(--hueco-hoja) var(--s6); }
+  /* ── EL MARGEN DEL TELÉFONO: los 20 del prototipo (13 sep 2026) ──────────
+     Dos vueltas. La primera lo subió de 12 a 16 y se quedó en el escalón de la
+     escala «porque 20 no es ninguno de los pasos». El dueño, con las dos
+     capturas delante: *«siento que los márgenes no se terminan de parecer a
+     los estipulados en el prototipo»*. Medido: `.scroll` del teléfono del
+     prototipo sangra `4px 20px 24px`; aquí eran 16, o sea cuatro píxeles de
+     menos en cada canto y la página leyéndose más ancha y más apretada.
+
+     La escala no tiene ese paso y no lo va a tener: aquí abajo `--s5` vale 16,
+     igual que `--s4`, así que entre 16 y 24 no hay escalón. De ahí
+     `--hueco-movil`, declarado con la escala en `tokens.css`.
+
+     Es el ÚNICO sitio donde tocarlo: el margen tiene nombre desde el 11 de
+     septiembre y todo lo que sangra lo sangra por `calc(var(--hueco-hoja) * -1)`
+     (ver `sangrado-y-barra-del-pulgar`), así que la tira de hojas y las cintas
+     se recolocan solas. */
+  .layout { --hueco-hoja: var(--hueco-movil); padding: var(--hueco-hoja) var(--hueco-hoja) var(--s6); }
   .modal-body, .modal-header, .modal-footer { padding-left: var(--s4); padding-right: var(--s4); }
   .modal-footer .btn { flex: 1; }
 
@@ -62,9 +72,14 @@
     /* La hoja llega desde abajo y ATERRIZA: `--spring`, como en escritorio. */
     animation: modal-sube 0.32s var(--spring);
   }
-  /* La hoja anclada se va por abajo, no encogiendo: `modal-baja` deshace a
-     `modal-sube` igual que `modal-sale` deshace a `sheet` en escritorio. */
-  .modal-backdrop[data-state='closing'] > .modal { animation: modal-baja var(--fast) both; }
+  /* La hoja anclada se va POR ABAJO, entera: `hoja-baja` deshace a `modal-sube`
+     igual que `modal-sale` deshace a `sheet` en escritorio. Era `modal-baja`,
+     que decía lo mismo y hacía otra cosa —bajar 24 px desvaneciéndose—; desde
+     que la hoja se puede arrastrar, soltarla a noventa píxeles y ver que la
+     salida arranca desde los veinticuatro es un salto hacia arriba. */
+  .modal-backdrop[data-state='closing'] > .modal { animation: hoja-baja var(--fast) var(--ease) both; }
+  /* Y aquí la ventana ES una hoja, así que tiene asa. Ver «LA AGARRADERA». */
+  .modal > .modal-grip { display: block; }
 
   .exercise { flex-wrap: wrap; row-gap: var(--s2); }
   .exercise-name { width: auto; flex: 1; }
@@ -93,141 +108,260 @@
      Siete columnas no caben de ninguna manera en 366 px: a 52 px por día no
      entra el nombre de un solo entrenamiento. En filas cabe todo y además se
      lee en el orden en que se piensa la semana, de lunes a domingo hacia abajo. */
-  .split-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s1); }
-  .split-day { flex-direction: row; align-items: center; gap: var(--s3); }
-  .split-day > .name { width: 34px; flex-shrink: 0; text-align: left; }
-  .split-day > .value,
-  .split-day > .split-value { flex: 1; min-width: 0; text-align: left; padding: 8px var(--s3); }
 
   .meter-row { flex-wrap: wrap; }
   .meter-label { width: 100%; text-align: left; }
   .grid-auto { grid-template-columns: 1fr 1fr; }
-  .studio-canvas { max-height: 42vh; }
+  .studio-canvas { max-height: 42vh; max-height: 42svh; }
   .row-meta { min-width: 0; }
-
-  .folio-grid { grid-template-columns: 1fr; }
   /* Baja una grada de la escala de cifras, apretado incluido. */
   .tile > .v { font-size: var(--fs-lg); letter-spacing: -0.025em; }
   .slot-tools { top: -11px; right: 2px; }
 }
 
-/* ── Veredicto en la ficha de la cartera ───────────────────────────────────
-   La ficha contaba lo que FALTA —días sin entrenar, check-in a medias— y ninguna
-   de esas líneas decía si el cliente progresa. Un cliente sin alertas y estancado
-   seis semanas se veía idéntico a uno que va perfecto.
+/* ══════════════════════════════════════════════════════════════════════════
+   LA BARRA DE LA SESIÓN, y la pastilla del pulgar — solo chasis móvil
+   --------------------------------------------------------------------------
+   El porqué de las dos piezas está en `Client/BarraDeSesion.jsx` y en
+   `Client/PastillaDelPulgar.jsx`. Aquí, lo que hay que saber para no
+   romperlas:
 
-   Va por encima de los datos y con la franja de color al canto: es la conclusión,
-   y las cifras de debajo son de dónde sale. */
-.folio-verdict {
-  display: flex; align-items: center; gap: var(--s2);
-  padding: 7px var(--s3); border-radius: var(--r-sm);
-  font-size: var(--fs-sm); font-weight: 650;
-  background: var(--fill-subtle); color: var(--text-secondary);
-}
-.folio-verdict > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.folio-verdict.is-good { background: var(--positive-soft); color: var(--positive); }
-.folio-verdict.is-warn { background: var(--warning-soft); color: var(--warning); }
-.folio-verdict.is-bad { background: var(--negative-soft); color: var(--negative); }
+     · La barra va ARRIBA y fija. Sustituye a la cabecera de la aplicación
+       mientras dura la sesión, y el contenido tiene que reservarle su hueco:
+       una barra fija sin hueco tapa el título de la pantalla.
+     · Existe solo por debajo de 1024, que es el corte del chasis: por encima
+       navega el chasis de escritorio y la cabecera de la sesión ya lleva el
+       descanso (ver `.descanso-cab`).
+     · La pastilla va ABAJO, sobre el teclado, y su posición la calcula el
+       componente con `visualViewport`: aquí no se declara ningún `bottom`
+       fijo, porque el teclado no cambia el tamaño de la página.
+   ══════════════════════════════════════════════════════════════════════════ */
+.pastilla-pulgar { display: none; }
 
-
-/* ══ LA RUTINA DEL CLIENTE, EN ESCRITORIO ═══════════════════════════════════
-   La sesión es un DOCUMENTO, y un documento tiene medida.
-
-   El portal usa la medida de trabajo (1.560 px) porque su inicio es un mosaico
-   de dos columnas que la aprovecha. La rutina no: es una columna de ejercicios
-   con tres campos por serie, y a 1.440 px eso dejaba una tarjeta de mil
-   cuatrocientos píxeles con la tabla acabándose a la mitad —contenido a la
-   izquierda y medio panel vacío a la derecha, que es exactamente lo que se lee
-   como «cortado»—.
-
-   Así que la sesión se queda en 720 px, que es lo que piden un nombre de
-   ejercicio y sus tres columnas, y el sobrante se usa para lo que antes iba
-   apretado encima de la tira: en qué bloque estás y cuánto llevas hecho en él.
-   Las dos columnas se CENTRAN: manda la medida, no el monitor, así que un
-   monitor de 1.920 no separa las dos columnas hasta los bordes.
-
-   La medida la lleva la PÁGINA y no el cuerpo. Centrar solo las dos columnas
-   dejaba el titular «Mi rutina» y el aviso del alta cruzando los 1.560 px
-   mientras la sesión de debajo medía 1.044: un escalón a media pantalla que se
-   lee como dos páginas pegadas. Con el `:has()` la manda el marco —el mismo
-   recurso con el que el chasis del entrenador estrecha sus pantallas de
-   trabajo— y todo lo de la ruta comparte borde izquierdo y derecho.
-
-   El corte es 1.100 y no el 1.024 del chasis a propósito: las dos columnas
-   suman 1.044 px con su hueco, y meterlas en 1.024 sería apretarlas justo por
-   debajo de su medida. Por debajo, una sola columna y el costado detrás de la
-   sesión, que en el teléfono es donde no estorba. */
-.rutina-cuerpo { display: flex; flex-direction: column; gap: var(--s4); }
-.rutina-centro { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-.rutina-lado { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
-@media (min-width: 1100px) {
-  .layout-portal:has(.rutina-portal) { max-width: 1108px; }
-  .rutina-cuerpo {
-    display: grid; grid-template-columns: minmax(0, 1fr) 300px;
-    gap: var(--s5); align-items: start;
-  }
-  /* Se queda a la vista mientras se baja por los ejercicios: es la referencia
-     contra la que se mide lo que estás haciendo. */
-  .rutina-lado { position: sticky; top: var(--s5); }
-}
-
-/* En un monitor grande, el costado ENSANCHA con la página.
-   La progresión de un ejercicio es una tabla —una fila por semana, tres
-   minicolumnas por serie— y en 300 px sus cifras se tocan unas con otras. Es
-   el mismo crecimiento que el costado del entrenador, que va de 260 a 400
-   según el ancho: aquí de 300 a 360, con la página abriendo lo justo para
-   pagarlo. Por debajo no cambia nada, y el nivel del plan agradece igual los
-   140 px de más para sus columnas de hojas. */
-@media (min-width: 1440px) {
-  .layout-portal:has(.rutina-portal) { max-width: 1240px; }
-  .rutina-cuerpo { grid-template-columns: minmax(0, 1fr) 360px; }
-}
-/* Y el último escalón, el mismo con el que se queda el costado del entrenador:
-   400 px son los que necesitan las cinco series de la progresión para que
-   «102,5 · 8 · 2» de una columna no toque el de la siguiente. */
-@media (min-width: 1600px) {
-  .layout-portal:has(.rutina-portal) { max-width: 1320px; }
-  .rutina-cuerpo { grid-template-columns: minmax(0, 1fr) 400px; }
-}
-
-/* ── La barra del guardado al entrenar (portal del cliente) ─────────────────
-   El estado del guardado y el «X de Y series» vivían arriba del todo de la
-   rutina: por el cuarto ejercicio ya habían salido de pantalla, y un «No se
-   guardó» a mitad de entreno era invisible — el cliente seguía apuntando kilos
-   que no llegaban a ninguna parte. Fija abajo, donde está el pulgar y donde
-   se mira entre serie y serie.
-
-   Se llama `.save-bar` y no «session bar» a propósito: el editor de rutina del
-   entrenador YA tiene una `.session-bar` (el selector de sesiones del día), y
-   la primera versión de esta barra usó ese nombre — la redefinición dejó
-   aquella invisible en escritorio y clavada abajo en el móvil.
-
-   Solo existe en el chasis móvil: en escritorio la cabecera se ve sin scroll.
-   Fija abajo y apoyada sobre la barra del pulgar, como lo estuvo la de la
-   revisión en curso antes de que la revisión cupiera en una sola pantalla. */
-.save-bar { display: none; }
 @media (max-width: 1023.98px) {
-  .save-bar {
-    position: fixed; left: 0; right: 0; z-index: 60;
-    bottom: calc(var(--bottombar-h) + var(--safe-b));
-    display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
-    padding: 8px var(--s4);
-    background: var(--surface-glass);
-    backdrop-filter: blur(10px);
-    border-top: 1px solid var(--edge);
-    box-shadow: 0 -4px 20px rgba(18, 24, 38, 0.1);
-  }
-  /* El hueco para que la última fila de la sesión no quede debajo de la barra. */
-  .save-pad { padding-bottom: 64px; }
 
-  /* Y donde ESTÁ esa barra, la cabecera de la sesión no vuelve a contar las
-     series: la barra las dice fija abajo, y la pastilla de la cinta las dice
-     otra vez cien píxeles más arriba. Tres veces lo mismo en media pantalla.
-     El corte es el de la barra (1024) y no el de la cinta (1100): entre los
-     dos no hay barra que lo diga, así que ahí la cuenta se queda. */
-  .sesion-cab .sesion-cuenta { display: none; }
+  /* ── LA PASTILLA DEL PULGAR ──────────────────────────────────────────────
+     Sobre el teclado. El `bottom` lo pone el componente en línea (lo mide con
+     `visualViewport`), así que aquí no se declara: es lo único de esta hoja
+     que depende de algo que el CSS no puede saber. */
+  .pastilla-pulgar {
+    position: fixed; left: var(--s3); right: var(--s3); z-index: 96;
+    display: flex; gap: 6px; align-items: stretch;
+    padding: 6px; border-radius: var(--r-lg);
+    background: var(--sesion-tinta);
+    box-shadow: 0 8px 28px rgba(38, 32, 20, 0.3);
+  }
+  /* Los dos botones de «lo mismo»: el rótulo arriba en voz baja y la cifra
+     debajo con la voz de las cifras. Ningún signo delante — un «+2,5» se lee
+     como una recomendación, y esta aplicación no receta. */
+  .pastilla-igual {
+    flex: 1; min-width: 0;
+    display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
+    padding: var(--s2) 10px; border: 0; border-radius: var(--r-sm);
+    background: var(--sesion-tinta-fila); color: var(--sesion-tinta-texto);
+    font-family: inherit; font-size: var(--fs-2xs); font-weight: 600;
+    cursor: pointer; text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .pastilla-igual > b {
+    font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 600;
+    color: #fff; font-variant-numeric: tabular-nums;
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pastilla-sig {
+    flex-shrink: 0;
+    padding: var(--s2) 14px; border: 0; border-radius: var(--r-sm);
+    background: var(--accent); color: var(--accent-on);
+    font-family: inherit; font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
+  }
+
+  /* ══════════════════════════════════════════════════════════════════════
+     ENTRENANDO, LA PÁGINA ES LA SESIÓN
+     ----------------------------------------------------------------------
+     La barra ya decía que el aparato está en otro modo, y debajo seguía
+     intacta la página de siempre: el título «Mi rutina» con su frase, la
+     tarjeta del alta, la línea del bloque, la cinta de sesiones y la cabecera
+     del día con su fecha y sus chapas. Seis piezas de contexto —unos 300 px—
+     antes del primer ejercicio, y todas contestan a preguntas que ya no se
+     hacen: dónde estoy y qué día es. La barra lo dice en 64 px.
+
+     Peor aún, la cuenta se decía DOS veces a la vez: «1 de 21 series» en la
+     barra de arriba y otra vez en la de guardado de abajo. Eso se arregla en
+     `ClientRoutine` —la barra de abajo se queda con el estado del guardado—;
+     lo de aquí es el resto del chasis.
+
+     `body:has(.barra-sesion)` es el mismo mecanismo con el que la cabecera de
+     la aplicación cede el sitio unas líneas más arriba: la presencia de la
+     pieza ES el estado, y así ninguna pantalla tiene que enterarse.
+
+     Y se acota a `.ruta-rutina`: la barra sobrevive al cambio de sección —es
+     el camino de vuelta—, así que sin este ancla la dieta y la revisión se
+     quedarían sin su título mientras alguien entrena.
+     ══════════════════════════════════════════════════════════════════════ */
+  /*
+     ── Y desde el 14 de septiembre de 2026 no hace falta ──────────────────
+     La sesión dejó de ser un modo sobre la pantalla de la rutina y pasó a ser
+     su propia RUTA (/mi/rutina/sesion), con su cabecera en grafito y sin cinta
+     de secciones. No hay chasis que callar: no se monta ninguno. Ver
+     `ClientSesionRoute` y `ClientLayout`.
+  */
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   LA SERIE EN EL TELÉFONO: dos cajas con nombre y un visto que se toca
+   --------------------------------------------------------------------------
+   La tabla ancha es correcta con el ratón: cinco columnas —serie, objetivo y
+   los tres valores— con las etiquetas una sola vez arriba. En 390 px esa misma
+   rejilla deja los campos en 60 px, la cabecera en cinco rótulos de 9 px que no
+   se leen, y el visto —que es el gesto más repetido de la pantalla— en un disco
+   de 26 px pegado al borde izquierdo, o sea donde el pulgar no llega.
+
+   Aquí la fila se reparte de otra manera, y ninguna de las tres cosas que
+   decía se pierde:
+
+     · **El número** se queda a la izquierda, pequeño.
+     · **Las casillas** se ensanchan y llevan su rótulo dentro. Es lo que hace
+       que «80» se lea como kilos sin subir la vista a una cabecera de 9 px.
+     · **El visto** se va a la derecha con 44 px reales, que es el objetivo
+       táctil de verdad. Mientras la serie está vacía y hay referencia, sigue
+       siendo el botón de «lo mismo que la vez anterior».
+     · **El objetivo y la referencia** bajan a un pie de una línea. Esos 52 px
+       de la columna «obj» son los que pagan el ancho de las casillas, y en el
+       pie caben enteros: «100 kg · 6-8 · la vez anterior 80 × 8 · semana 2».
+
+   El corte es el del teléfono (639,98) y no el del chasis (1023,98): en una
+   tableta la tabla de cinco columnas cabe de sobra dentro de sus 520 px.
+   ══════════════════════════════════════════════════════════════════════════ */
+.set-row-n,
+.set-row-pie,
+.set-campo-k,
+.ej-series { display: none; }
+/* La envoltura del campo no existe en la tabla ancha: `display: contents` deja
+   al `<input>` siendo hijo de la rejilla, exactamente como estaba. */
+.set-campo { display: contents; }
+
+@media (max-width: 639.98px) {
+  /* Cinco columnas: el número, los tres valores y el visto. El objetivo se fue
+     al pie, así que su columna ya no está. */
+  .set-table .set-row {
+    grid-template-columns: 22px repeat(3, minmax(0, 1fr)) 44px;
+    gap: 6px;
+    padding: var(--s1) 0;
+  }
+  /* Las etiquetas de columna sobran: ahora cada casilla lleva la suya. */
+  .set-table .set-row.is-head { display: none; }
+  .set-table .set-row-target { display: none; }
+
+  /* El renglón del ejercicio cambia una pieza por otra: el GALÓN —«4 series ·
+     6-8 reps · RIR 2», que aquí ya no se ve de un vistazo porque la columna del
+     objetivo bajó al pie de cada serie— en lugar de de cuándo son las cifras
+     apagadas, que ahora lo dice ese mismo pie con su semana. */
+  .ej-series { display: inline; }
+  .exercise-meta > .prev-hint { display: none; }
+
+  /*
+    ── Y registrando, el músculo cede el renglón ─────────────────────────────
+    «pecho · 4 series · 6-8 reps · RIR 2 · descanso 90 s» son cinco piezas en
+    390 px: se parten en dos líneas y la última, que es la única que no se
+    repite en ninguna otra parte de la pantalla, queda debajo.
+
+    De las cinco, el músculo es la que sobra AQUÍ: quien está levantando ya
+    sabe qué trabaja el press banca, y lo dice igual la ficha del ejercicio
+    detrás de la cadena. Programando no se toca —ahí el músculo es con lo que
+    se reparte el volumen del día— y en la tabla ancha tampoco.
+  */
+  .exercise.is-log .ej-musculo { display: none; }
+  /* Y el descanso, que aquí viaja dentro del galón. Fuera se quedaría dicho
+     dos veces en el mismo renglón. */
+  .exercise.is-log .ej-descanso { display: none; }
+
+  /*
+    ── La cadena, con un dedo de sitio ───────────────────────────────────────
+    El glifo mide 22 px y no se toca: es un renglón de texto y crecer movería
+    el nombre. Lo que crece es su zona tocable, que sale del flujo — 44 px
+    reales, que es lo que pide el pulgar y lo que la casa exige a cualquier
+    mando del teléfono.
+  */
+  .ej-marca { position: relative; }
+  .ej-marca::after { content: ''; position: absolute; inset: -11px; }
+
+  .set-row-n {
+    display: block;
+    font-size: var(--fs-2xs); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-tertiary); text-align: center;
+  }
+
+  /* La casilla: el rótulo dentro y arriba, el número debajo y grande. El borde
+     y el foco pasan a la envoltura, así que el campo se queda desnudo — si los
+     llevara los dos, serían dos rectángulos uno dentro de otro. */
+  .set-table .set-campo {
+    display: flex; flex-direction: column; gap: 1px;
+    min-width: 0; padding: var(--s1) var(--s2) var(--s1);
+    border: 1px solid var(--edge-control); border-radius: var(--r-sm);
+    background: var(--surface);
+  }
+  .set-table .set-campo:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .set-campo-k {
+    display: block;
+    font-size: var(--fs-3xs); font-weight: 700;
+    letter-spacing: var(--tracking-stencil); text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  /* El número va en PESO DE CIFRA, no en peso de nombre de fila. La escala de
+     `tokens.css` reserva el 700 para «los números y los titulares de sección,
+     lo que se lee de un vistazo desde lejos», y esto es literalmente eso: lo
+     que la persona acaba de levantar, mirado de pie y con el teléfono en la
+     otra mano. A 600 pesaba lo mismo que el nombre del ejercicio de arriba, y
+     la firma de esta pantalla es la sesión, no el índice. El cuerpo no se
+     toca: 22 ya era el escalón bueno, y por debajo de 16 el teléfono hace zoom
+     al enfocar el campo. */
+  .set-table .set-row .input {
+    min-height: 0; padding: 0;
+    border: 0; background: transparent; box-shadow: none;
+    text-align: left;
+    font-family: var(--font-display);
+    font-size: var(--fs-lg); font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  /* El hueco, un punto más bajo. A la voz de las cifras, una raya de «vacío»
+     mide lo que una palabra y se lee como un renglón tachado; y lo que va ahí
+     —la cifra de la vez anterior— es referencia, no lo que has hecho. */
+  .set-table .set-row .input::placeholder { font-size: var(--fs-base); }
+
+  /* El visto, al otro extremo y con el tamaño de un dedo. */
+  .set-table .set-row-tag {
+    order: 3;
+    width: 44px; height: 44px; border-radius: var(--r-sm);
+    font-size: var(--fs-sm);
+  }
+
+  /* El pie: lo que te piden y lo que hiciste, en voz baja y bajo las casillas
+     que explica. Sangrado hasta donde empieza la primera, que es de lo que
+     habla. */
+  .set-row-pie {
+    display: block; order: 4; grid-column: 1 / -1;
+    margin-top: -2px; padding-left: 28px;
+    font-size: var(--fs-2xs); font-weight: 500;
+    color: var(--text-tertiary); font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Las tandas de un remate ─────────────────────────────────────────────
+     Sus dos casillas caen en las columnas de las de su serie, que es lo que
+     hace que se lean como una continuación y no como otra tabla. El nombre
+     («bajada 1») no cabe en los 22 px del número, así que baja al sitio del
+     pie: se pierde el orden de lectura ideal y se gana que las columnas
+     cuadren, que es lo que estaba escrito que importaba. */
+  .set-table .set-row.is-sub > .set-row-target {
+    display: block; order: 4; grid-column: 1 / -1;
+    margin-top: -2px; padding-left: 28px; text-align: left;
+  }
+  .set-table .set-row.is-sub .set-campo { border-style: dashed; }
+  .set-table .set-row.is-sub .input { font-size: var(--fs-base); }
+}
 
 /* ── El antes y el después de una revisión ─────────────────────────────────
    Lo retirado tachado y en rojo, lo nuevo en verde. El color NO dice si el
@@ -283,7 +417,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--s4);
   align-items: baseline;
-  padding: 5px 0;
+  padding: var(--s1) 0;
   font-size: var(--fs-sm);
 }
 .diff-row + .diff-row, .diff-group + .diff-row { border-top: 1px solid var(--hairline); }
@@ -305,7 +439,7 @@
    salieron, y en mayúsculas «Hack Squat» deja de ser un nombre. */
 .diff-where {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2);
-  padding: 7px 0 3px;
+  padding: var(--s2) 0 3px;
   font-family: var(--font-display);
   font-size: var(--fs-sm); font-weight: 700; color: var(--text);
 }
@@ -323,24 +457,6 @@
   gap: 6px;
   padding-left: 10px;
   border-left: 2px solid var(--edge);
-}
-
-/* ── La campana de avisos del cliente ──────────────────────────────────────
-   Reutiliza la caja del menú de cuenta —misma forma, mismo sitio, mismo gesto—
-   y solo añade el contador. Aparece únicamente cuando hay algo que decir: una
-   campana permanentemente vacía enseña a ignorarla. */
-.bell { position: relative; }
-.bell-dot {
-  position: absolute; top: -3px; right: -3px;
-  min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: var(--r-pill);
-  display: grid; place-items: center;
-  background: var(--accent); color: var(--accent-on);
-  font-family: var(--font-display); font-size: var(--fs-3xs); font-weight: 750;
-  font-variant-numeric: tabular-nums;
-  /* El canto del fondo de la cabecera, para que el contador no se funda con el
-     avatar de al lado cuando se solapan. */
-  box-shadow: 0 0 0 2px var(--surface-glass);
 }
 
 /* ── El vídeo de una revisión, antes de pulsarlo ───────────────────────────
@@ -399,7 +515,7 @@
 .checkin-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
+  gap: var(--s1);
 }
 .checkin-week > .card-inset { padding: var(--s2) 6px; min-width: 0; }
 /* A esta anchura, el nombre del día y la píldora de «hoy» no caben en la misma
@@ -410,6 +526,20 @@
    aprieta: a 13 px el interletraje de una cifra de 28 pega los dígitos. */
 .checkin-week .metric-value { font-size: var(--fs-sm); letter-spacing: normal; }
 .checkin-week .input { padding-left: 2px; padding-right: 2px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LAS MEDIDAS DEL PASO DE LA REVISIÓN
+
+   Una columna por medida a partir de 220 px, que es lo que mide un rótulo
+   («Frecuencia cardíaca en reposo») más su casilla con la unidad dentro. Con el
+   `auto-fit` de la rejilla de pliegues —158 px— el rótulo de tres palabras se
+   partía en tres renglones y la lista dejaba de leerse como una lista.
+   ══════════════════════════════════════════════════════════════════════════ */
+.medidas-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s3);
+}
 /* Con el pulgar, la casilla del día necesita alto de verdad; la letra a 16 px
    ya la pone el bloque de campos táctiles (ver Ergonomía táctil). */
 @media (hover: none) { .checkin-week .input { min-height: 40px; } }
@@ -421,10 +551,52 @@
   box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-@media (max-width: 560px) {
-  /* En un móvil, siete columnas de 44 px no admiten una casilla de texto. Se
-     parten en dos filas de cuatro y tres, que sigue leyéndose como una semana
-     porque el orden se conserva. */
-  .checkin-week { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
+/* ── Aquí vivía la semana partida en 4 + 3 ─────────────────────────────────
+   Decía: «en un móvil, siete columnas de 44 px no admiten una casilla de
+   texto; se parten en dos filas de cuatro y tres, que sigue leyéndose como una
+   semana porque el orden se conserva». Iba a 560 px.
 
+   Ya no pintaba nada, y llevaba tiempo sin pintarlo: `piezas.css` fuerza siete
+   columnas con `!important` por debajo de 639,98 px, con el argumento
+   contrario —«la semana entera en una fila o no es una semana»— y explicando
+   que «la regla de arriba la partía en 4 + 3». Dos decisiones opuestas, la
+   segunda ganando siempre, y las dos escritas como si estuvieran vivas.
+
+   El ancho suelto de 560 px era lo que lo tapaba: mientras los dos cortes no
+   coincidían, parecía que cada uno mandaba en su tramo. Al recogerlos en la
+   escala quedaron encima uno del otro y se vio. Se va la que perdía. */
+
+
+/* ── ENTRENANDO, UNA SOLA MEDIDA ────────────────────────────────────────────
+   La página del entreno se montaba con DOS anchos: el título y la tira de
+   sesiones cruzaban los 1.320 px del portal mientras la hoja se quedaba en su
+   columna, con un costado de 300 px al lado. El dueño lo dijo entero en una
+   frase: «en la vista del pc el entreno sale deformado y con la box esa en un
+   sitio raro».
+
+   Eran las dos mitades de la misma avería. La caja del costado es una pieza de
+   costado, y ESTA pantalla no tiene costado del que colgarla; y una tabla de
+   seis cifras estirada a 1.272 px separa tanto el «120» del «6» que deja de
+   leerse como una serie, mientras que dejarla en 900 contra el borde izquierdo
+   deja trescientos setenta píxeles de nada a la derecha de cada ficha.
+
+   Con `es-hoja` la manda el MARCO —el mismo `:has()` con el que la ruta ya
+   elige su ancho— así que el título, la tira, el foco y la hoja comparten borde
+   izquierdo y derecho, y el hueco de los lados se lee como margen.
+
+   ── Por qué `--max-w-columna` y no una medida nueva ────────────────────────
+   El prototipo la dibujó en 940 px. Novecientos cuarenta no es ninguno de los
+   cuatro anchos de la casa, y un quinto ancho es exactamente de donde venía el
+   desorden que `tokens.css` recogió. Los 880 de una columna de trabajo son el
+   escalón declarado más cercano, y las cuentas salen: la hoja necesita 637 px
+   para sus nueve columnas, así que al nombre del ejercicio le quedan 243 —más
+   que suficiente— y las seis casillas siguen juntas.
+
+   Solo cuando de verdad se está en la hoja: el nivel del bloque SÍ es una
+   página de lecturas, y para eso está su columna. */
+
+/* ── Aquí vivió el mueble de «Tu revisión» ─────────────────────────────────
+   Dos carriles con `:has()` y dos excepciones de ancho (1.108 y 1.320) para
+   una sola pantalla. Era la avería E-01 del estudio de cajas —tres anchos para
+   seis pantallas— y se ha ido con ella: el portal del monitor tiene UNA sola
+   medida de hoja, la de `.pc-hoja`. Ver `styles/portal-pc.css`. */

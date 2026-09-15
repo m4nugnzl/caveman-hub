@@ -41,9 +41,36 @@ const clave = (name) => String(name || '').trim().toLowerCase();
  */
 export const mergeCatalog = (library = [], catalog = []) => {
   const mios = new Set((library || []).map((item) => clave(item?.name)));
+  const general = new Map((catalog || []).map((item) => [clave(item?.name), item]));
+
+  /*
+    ── Y LA CATEGORÍA VIAJA CON ÉL ───────────────────────────────────────────
+
+    Tu copia de un alimento del catálogo se guarda SIN categoría a propósito
+    (`upsertLibraryFood` hace `delete columnas.category`): la clasificación es un
+    hecho del catálogo, y repartir copias de un hecho es justo lo que evitaron la
+    0033 y la 0094. La premisa de aquello era «la pantalla ya la lee de allí por
+    nombre», y era falsa: aquí mismo, tu fila tapa la del catálogo y el dato
+    desaparecía de la mezcla.
+
+    Se notaba donde más caro sale. El reescalado del menú decide de dónde recorta
+    por CATEGORÍA (ver `CESTAS` en `domain/nutrition`) y sin ella se cae a la
+    densidad del macro, así que el brócoli y el kiwi bajaban con la patata — que
+    es lo que no hace nadie. Y pasaba desde la primera vez que usabas un
+    alimento, porque usarlo es exactamente lo que crea tu copia.
+
+    La categoría no se copia a tu fila: se completa al mezclar, que es el único
+    sitio por el que pasan todas las pantallas. `AlimentosPanel` ya lo reparaba
+    por su cuenta —una tercera copia de la misma regla— y ya no tiene por qué.
+  */
+  const conCategoria = (item) => {
+    if (!item || item.category) return item;
+    const ref = general.get(clave(item.name));
+    return ref?.category ? { ...item, category: ref.category } : item;
+  };
 
   return [
-    ...(library || []),
+    ...(library || []).map(conCategoria),
     ...(catalog || [])
       .filter((item) => item && !mios.has(clave(item.name)))
       .map((item) => ({ ...item, fromCatalog: true })),

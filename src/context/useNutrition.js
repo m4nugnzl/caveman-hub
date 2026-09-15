@@ -396,6 +396,27 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [applyMeals]
   );
 
+  /**
+   * EL CANDADO DE UNA COMIDA: esta no se mueve aunque cambie el día.
+   *
+   * Al bajar el objetivo del día, el reparto le sigue y las comidas se reescalan
+   * (`repartoAlObjetivo`). Casi siempre es lo que se quiere; a veces no: el
+   * batido de después de entrenar son 300 kcal pase lo que pase, y lo que sobra
+   * o falta tiene que salir de las otras comidas. Eso es esto.
+   *
+   * Es del reparto y no del menú: aquí se clava LO QUE SE LE PIDE a la comida.
+   * Que un alimento concreto no se mueva al reajustar ya tenía su marca en la
+   * ficha del alimento (`fijo`), y son la misma palabra a propósito — el mismo
+   * gesto en dos pisos.
+   */
+  const toggleMealFijo = useCallback(
+    (clientId, variant, mealIdx) =>
+      applyMeals(clientId, variant, (meals) =>
+        meals.map((m, i) => (i === mealIdx ? { ...m, fijo: !m.fijo } : m))
+      ),
+    [applyMeals]
+  );
+
   const addMealOption = useCallback(
     (clientId, variant, mealIdx) =>
       applyMeals(clientId, variant, (meals) =>
@@ -776,6 +797,32 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     [patchFood]
   );
 
+  /**
+   * ESTE ALIMENTO NO SE MUEVE AL AJUSTAR.
+   *
+   * ══ Lo que la categoría no acierte, lo dice el entrenador ══════════════════
+   *
+   * El recorte de un ajuste sale de una cesta —cereales, tubérculos, legumbres y
+   * dulces para los hidratos— y eso acierta el caso normal. Lo que no acierta es
+   * lo de cada persona: el plátano de después de entrenar, el aceite de la
+   * ensalada, los 30 g de avena que son el desayuno entero de alguien.
+   *
+   * Vive en la entrada de la dieta —como `showAs` y como `equivHidden`— porque es
+   * una decisión de ESTE alimento en ESTA comida, y con precedente probado: lo
+   * que se cuenta por unidades ya es un alimento fijo, solo que hoy lo decide la
+   * aplicación. Esto es lo mismo, decidido por quien lleva al cliente.
+   *
+   * Se guarda solo el encendido (`fijo: true`), como las equivalencias: lo demás
+   * es el estado natural y no ensucia las entradas ya guardadas.
+   */
+  const setFoodFixed = useCallback(
+    (clientId, variant, mealIdx, optIdx, foodId, fijo) =>
+      patchFood(clientId, variant, mealIdx, optIdx, foodId, () => ({
+        fijo: fijo ? true : null,
+      })),
+    [patchFood]
+  );
+
   return {
     updateNutrition,
     updateNutritionTargets,
@@ -800,6 +847,7 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     updateMealName,
     updateMealNote,
     updateMealTarget,
+    toggleMealFijo,
     addMealOption,
     setMealOptions,
     renameMealOption,
@@ -817,5 +865,6 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
     swapFood,
     setFoodEquivalences,
     setFoodDisplay,
+    setFoodFixed,
   };
 };

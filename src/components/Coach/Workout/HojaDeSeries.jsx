@@ -449,6 +449,27 @@ export const HojaDeSeries = ({
               onTecnica={onTecnica}
             />
 
+            {/*
+              ══ Y LO QUE ÉL DIJO DE ESTE EJERCICIO ════════════════════════════
+
+              La nota que escribe quien entrena, en la ficha del ejercicio
+              (`M-03`). Va aquí, pegada a sus series, porque es lo que las
+              explica: «bajé el peso, el hombro iba justo» leído al lado de un
+              32 que bajó a 28 es la mitad de la conversación de la semana, y
+              suelta en un cuaderno al final de la sesión no se sabe de qué
+              ejercicio habla.
+
+              De solo leer, y sin interruptor de protocolo: no es un módulo que
+              se encienda, es algo que la persona ha dicho. Si no ha dicho nada
+              no hay ni una línea.
+            */}
+            {String(ex.clientNote || '').trim() && (
+              <div className="hoja-nota es-suya">
+                <span className="section-label">Lo que dijo</span>
+                <p>{ex.clientNote}</p>
+              </div>
+            )}
+
             {conNota && (
               <label className="hoja-nota">
                 <span className="section-label">

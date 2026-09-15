@@ -1,5 +1,5 @@
 import { Fragment, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Link2, Plus, Quote, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronRight, GripVertical, Plus, Quote, Trash2 } from 'lucide-react';
 
 import {
   nombreDeSubserie,
@@ -12,46 +12,12 @@ import {
   tecnicaSpec,
 } from '@/domain/training';
 import { e1rm, isRecord, isSetLogged, previousSetKey } from '@/domain/sessions';
+import { MarcaFicha } from '@/components/ui/MarcaFicha';
 
-/**
- * LA MARCA DEL EJERCICIO: que hay algo que abrir, y qué.
- *
- * ══ Una marca y no tres cosas en el renglón ════════════════════════════════
- *
- * El primer boceto ponía en la misma línea el ▶, la clave escrita y las
- * alternativas. Son tres elementos peleándose por 390 px, que es el ancho real
- * donde esto se usa: un teléfono en el gimnasio. Así que va una marca junto al
- * nombre y detrás está todo.
- *
- * ── Qué glifo, y por qué dos ───────────────────────────────────────────────
- * El mismo vocabulario que ya usa la columna «Lo tuyo» del Taller (`ej-marcas`):
- *
- *   · **cadena** si hay vídeo. Es el glifo correcto porque promete algo que
- *     está FUERA, y es el que pidió el dueño.
- *   · **comillas** si solo hay pautas. El mismo con el que esta lista ya rotula
- *     «Nota de X» tres pantallas más abajo.
- *
- * Nunca las dos: dos glifos por fila es exactamente el ruido que se evita.
- * Y sin vídeo y sin pautas no se pinta nada — el renglón queda idéntico al de
- * antes de todo esto, que es la mitad «si existen» del encargo.
- */
-const MarcaFicha = ({ ficha, onOpen }) => {
-  if (!ficha) return null;
-
-  const conVideo = Boolean(ficha.videoUrl);
-  const dice = conVideo
-    ? 'Ver cómo lo hace tu entrenador'
-    : 'Leer las pautas de tu entrenador';
-
-  return (
-    <button type="button" className="ej-marca" onClick={onOpen} title={dice} aria-label={dice}>
-      {/* La escala de iconos de la casa es 13/15/20. Las comillas van al escalón
-          de abajo y rellenas: al mismo tamaño que la cadena pesan más que ella,
-          porque son dos formas macizas contra un trazo. */}
-      {conVideo ? <Link2 size={15} /> : <Quote size={13} fill="currentColor" />}
-    </button>
-  );
-};
+/* `MarcaFicha` vive en `ui/MarcaFicha.jsx` desde el 13 de septiembre: la hoja
+   de una columna del portal (`Client/HojaDelCliente`) pintaba el NOMBRE entero
+   en azul para abrir lo mismo, y una marca con dos dibujos distintos en dos
+   pantallas es dos gramáticas. El porqué del glifo está allí. */
 
 /**
  * Qué serie del ejercicio es EL récord de hoy, si lo hay: la mejor de las que
@@ -76,17 +42,56 @@ import { Modal } from '@/components/ui/Modal';
 import { SetCell, SetRow, SetRowHead, SetSubRow } from './SetCell';
 
 /**
- * El resumen de un ejercicio para el índice del teléfono: «4 series × 8-10 ·
- * RIR 2». Los objetivos distintos se enumeran (una pirámide es «6-8 / 8-10»).
+ * EL GALÓN: lo que te piden en este ejercicio, en una línea.
+ *
+ *     4 series · 6-8 reps · RIR 2
+ *
+ * Los objetivos distintos se enumeran, que es lo único que puede decirse de un
+ * ejercicio entero sin mentir: una pirámide es «6-8 / 8-10», y un rango único
+ * escrito para todas las series borraría esa información (ver `SetCell`).
+ *
+ * ── Un solo galón para los dos sitios ──────────────────────────────────────
+ * Lo usan el índice del teléfono del entrenador y el renglón del cliente
+ * mientras registra. Eran dos formatos —«4 series × 8-10 · RIR 2» y «4
+ * series»— para la misma frase, y dos formas de decir lo mismo acaban
+ * divergiendo el día que se añada el tempo.
+ *
+ * ── Y por qué dice «reps» ──────────────────────────────────────────────────
+ * Porque en el renglón del cliente esta línea convive con «descanso 90 s» y
+ * con los kilos de las casillas: un «6-8» suelto entre cifras con unidad se
+ * puede leer como cualquier cosa. Es la misma palabra que llevan las casillas.
  */
-const resumenSeries = (exercise, showRir) => {
+/**
+ * ¿PIDEN LO MISMO TODAS LAS SERIES DE ESTE EJERCICIO?
+ *
+ * Con un sí, el galón del ejercicio —«4 series · 6-8 reps · RIR 2»— ya lo ha
+ * dicho entero y el pie de cada serie no tiene que repetirlo. Con un no —una
+ * pirámide, una rampa de kilos— cada serie pide lo suyo y su pie es el único
+ * sitio donde eso cabe.
+ *
+ * Mira los TRES campos que se pautan, y no solo las repeticiones: «100 kg · 6-8»
+ * y «110 kg · 6-8» son dos pautas distintas aunque el rango coincida, y el
+ * galón no dice los kilos.
+ *
+ * Ver `sinPauta` en `SetCell`.
+ */
+const pautaUniforme = (exercise) => {
   const sets = exercise.sets || [];
+  if (sets.length < 2) return false;
+  const firma = (s) => `${s.targetKg ?? ''}|${s.targetReps ?? ''}|${s.targetRir ?? ''}`;
+  return sets.every((s) => firma(s) === firma(sets[0]));
+};
+
+const galonDeSeries = (exercise, showRir) => {
+  const sets = exercise.sets || [];
+  if (sets.length === 0) return null;
   const objetivos = [...new Set(sets.map((s) => String(s.targetReps ?? '').trim()).filter(Boolean))];
   const rirs = showRir
     ? [...new Set(sets.map((s) => String(s.targetRir ?? '').trim()).filter(Boolean))]
     : [];
   return [
-    `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}${objetivos.length > 0 ? ` × ${objetivos.join(' / ')}` : ''}`,
+    `${sets.length} ${sets.length === 1 ? 'serie' : 'series'}`,
+    objetivos.length > 0 ? `${objetivos.join(' / ')} reps` : null,
     rirs.length > 0 ? `RIR ${rirs.join(' / ')}` : null,
   ]
     .filter(Boolean)
@@ -146,6 +151,12 @@ export const ExerciseList = ({
   */
   sheetOf = null,
   onOpenSheet = null,
+  /*
+    ── El foco de un campo, para la pastilla del pulgar ────────────────────
+    Solo lo pasa el portal del cliente. Llega con `{ field, plan, antes }` y se
+    le añade de qué serie es, que es lo único que esta lista sabe y la fila no.
+  */
+  onCampoFoco = null,
 }) => {
   const esTelefono = useEsTelefono();
   const [dragIndex, setDragIndex] = useState(null);
@@ -236,7 +247,7 @@ export const ExerciseList = ({
                   <span className="exercise-row-name">
                     <span className="name">{exercise.name}</span>
                     <span className="sum">
-                      {[exercise.muscle, resumenSeries(exercise, showRir), seriesGrammar(exercise)]
+                      {[exercise.muscle, galonDeSeries(exercise, showRir), seriesGrammar(exercise)]
                         .filter(Boolean)
                         .join(' · ')}
                     </span>
@@ -343,11 +354,27 @@ export const ExerciseList = ({
            anterior y de qué semana. Las cifras de cada serie van en su campo. */
         const antes = previousSets?.get(previousSetKey(exercise.name, 0)) || null;
         const nota = exercise.coachNote ?? '';
+        /* El galón del teléfono: lo que te piden en este ejercicio. Registrando
+           se lleva dentro el descanso; programando, el descanso sigue teniendo
+           su pieza y esta línea no se pinta. */
+        const galon = [
+          galonDeSeries(exercise, showRir),
+          canEditStructure ? null : restLabel(exercise.restSeconds),
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        /* Si las series de este ejercicio piden todas lo mismo, el galón de
+           arriba ya lo ha dicho y el pie de cada serie se lo ahorra. */
+        const mismaPauta = pautaUniforme(exercise);
         /* Con texto se enseña siempre; vacía, solo si acaban de pedirla. */
         const editandoNota = notaAbierta === exercise.id || nota.length > 0;
         return (
           <li
             key={exercise.id}
+            /* El ancla de la regla de la sesión: un tramo lleva a su ejercicio,
+               y para eso hace falta que el renglón tenga un sitio al que ir. Ver
+               `BarraDeSesion` y el efecto del objetivo en `ClientRoutine`. */
+            id={`ej-${exercise.id}`}
             className={[
               'exercise',
               /* Registrando, el ejercicio es una FICHA en columna —nombre arriba,
@@ -460,11 +487,36 @@ export const ExerciseList = ({
                 </div>
                 <MarcaFicha
                   ficha={sheetOf?.(exercise.name)}
-                  onOpen={() => onOpenSheet?.(exercise.name)}
+                  /* El EJERCICIO entero y no su nombre: la nota del cliente
+                     cuelga de esta entrada de la sesión, así que hace falta su
+                     id. La ficha de su entrenador sí se busca por nombre (0100),
+                     y eso no cambia. */
+                  onOpen={() => onOpenSheet?.(exercise)}
                 />
               </div>
               <div className="exercise-meta">
-                <span className="muscle">{exercise.muscle}</span>
+                <span className="muscle ej-musculo">{exercise.muscle}</span>
+                {/*
+                  ── EL GALÓN, y solo en el teléfono ─────────────────────────
+                  «4 series · 6-8 reps · RIR 2»: lo que te piden en este
+                  ejercicio, que en la tabla ancha se lee de un vistazo —están
+                  las cinco filas a la vista, cada una con su columna «obj»— y
+                  en 390 px no, porque ahí cada ejercicio ocupa más de una
+                  pantalla y la columna del objetivo bajó al pie de cada serie.
+
+                  Ocupa el hueco de «la vez anterior · semana 9», que ahora se
+                  dice en ese mismo pie. Lo esconde el CSS.
+
+                  Y el rango sigue diciéndose ADEMÁS en cada serie, a propósito:
+                  una pirámide tiene un objetivo por serie, y para cuando vas
+                  por la cuarta este renglón hace rato que se fue por arriba.
+                */}
+                {/* El descanso viaja DENTRO del galón cuando se registra, y no
+                    en la pieza de al lado: es la cuarta cosa que te piden («4
+                    series · 6-8 reps · RIR 2 · 90 s») y separarla dejaría dos
+                    frases pegadas sin nada entre medias. En la tabla ancha el
+                    galón no se pinta y el descanso sigue en su sitio. */}
+                {galon && <span className="muscle ej-series">{galon}</span>}
                 {/*
                   ── AQUÍ SOLO EL DESCANSO ─────────────────────────────────
                   Esta línea imprimía la gramática entera —«última con bajada
@@ -478,7 +530,7 @@ export const ExerciseList = ({
                   parte de esta lista: es del ejercicio entero.
                 */}
                 {restLabel(exercise.restSeconds) && (
-                  <span className="muscle">descanso {restLabel(exercise.restSeconds)}</span>
+                  <span className="muscle ej-descanso">descanso {restLabel(exercise.restSeconds)}</span>
                 )}
                 {/* De cuándo son las cifras apagadas de los campos. Sin esto, un
                     número gris dentro de una casilla vacía no dice nada. */}
@@ -565,6 +617,15 @@ export const ExerciseList = ({
                         previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
                         record={setIndex === recordSetIndex(exercise, bestSets)}
                         onConfirm={onConfirmSet ? (antes) => onConfirmSet(exercise.id, setIndex, antes) : null}
+                        /* Con las cuatro series pidiendo lo mismo, el pie no
+                           repite lo que el galón ya dice. Ver `pautaUniforme`. */
+                        sinPauta={mismaPauta}
+                        onFoco={
+                          onCampoFoco
+                            ? (info) =>
+                                onCampoFoco(info && { ...info, exId: exercise.id, setIndex })
+                            : null
+                        }
                       />
                       {remate && (
                         <p className="set-remate" title={tecnicaSpec(remate.id)?.ayuda}>
@@ -629,6 +690,16 @@ export const ExerciseList = ({
               <div className="exercise-note is-read">
                 <Quote size={13} />
                 <p>{nota}</p>
+              </div>
+            )}
+
+            {/* Y en el teléfono del ENTRENADOR, lo que dijo él de este
+                ejercicio (`M-03`). El porqué de que vaya pegado a las series
+                está en `HojaDeSeries`, que es la otra geometría de lo mismo. */}
+            {canEditStructure && String(exercise.clientNote || '').trim() && (
+              <div className="exercise-note is-read es-suya">
+                <Quote size={13} />
+                <p>{exercise.clientNote}</p>
               </div>
             )}
           </li>

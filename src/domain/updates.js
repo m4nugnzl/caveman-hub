@@ -46,7 +46,14 @@ import { weeklyCheckIn } from './anthropometry';
 import { diasDe, requiredBlocks, sanitizeSchedule, weighInsTarget } from './protocol';
 import { addDays, weekStart } from '@/lib/dates';
 
-/** Las tres cosas de las que se avisa, en el orden en que se enseñan. */
+/**
+ * Las cuatro cosas de las que se avisa, en el orden en que se enseñan.
+ *
+ * ── Cada una lleva DONDE ESTÁ, y no donde se lee ───────────────────────────
+ * Las dos primeras apuntaban a `/mi/hoy`, que desde el rediseño del 14 de
+ * septiembre rebota al inicio: pulsar la novedad dejaba en la misma pantalla en
+ * la que ya estabas. Lo que su entrenador contestó vive en «Tu revisión».
+ */
 export const UPDATE_KINDS = [
   {
     /*
@@ -57,13 +64,13 @@ export const UPDATE_KINDS = [
     id: 'checkin',
     label: 'Tu entrenador ha revisado tu semana',
     hint: 'Mira lo que te dice.',
-    href: '/mi/hoy',
+    href: '/mi/evolucion',
   },
   {
     id: 'review',
     label: 'Tienes una revisión nueva',
     hint: 'Tu entrenador ha grabado su repaso.',
-    href: '/mi/hoy',
+    href: '/mi/evolucion',
   },
   {
     id: 'routine',
@@ -170,7 +177,9 @@ export const unseenUpdates = (preferences, now = new Date().toISOString()) => {
         id: 'note',
         label: 'Un aviso de tu entrenador',
         hint: nota.text,
-        href: '/mi/hoy',
+        /* SIN destino, y es la única: su texto ya está delante entero. Un
+           enlace aquí llevaría a la pantalla desde la que se está leyendo. */
+        href: null,
         at: nota.at,
       });
     }
@@ -258,7 +267,7 @@ export const stampUpdate = (preferences, kind, now = new Date().toISOString()) =
  * de ruido.
  */
 export const recordatorioDeSemana = ({ protocol = null, tasks = [], today }) => {
-  const { day, remindAfter } = sanitizeSchedule(protocol?.schedule);
+  const { weekday, remindAfter } = sanitizeSchedule(protocol?.schedule);
   /*
     Solo cuentan las tareas DE LA SEMANA.
 
@@ -274,8 +283,9 @@ export const recordatorioDeSemana = ({ protocol = null, tasks = [], today }) => 
   const lunes = weekStart(today);
   if (!lunes) return null;
   /* El día en que se le pide, dentro de ESTA semana; el aviso llega N días
-     después. `day` va de 1 (lunes) a 7 (domingo). */
-  const seLePide = addDays(lunes, day - 1);
+     después. `weekday` va de 0 (lunes) a 6 (domingo), la numeración única de la
+     casa: ver `WEEKDAYS` en `domain/calendar.js`. */
+  const seLePide = addDays(lunes, weekday);
   const avisa = addDays(seLePide, remindAfter);
   if (!avisa || today < avisa) return null;
 
@@ -291,6 +301,9 @@ export const recordatorioDeSemana = ({ protocol = null, tasks = [], today }) => 
     id: 'recordatorio',
     label: 'Tu entrenador espera tu check-in',
     hint: `Se lo entregas los ${diasDe(protocol?.schedule)}.`,
+    /* A «Tu revisión», que es donde está el verbo de entregar. Las tareas de
+       debajo —«te falta 1 pesaje»— siguen yendo a la báscula, que es donde se
+       anota: son dos destinos porque son dos cosas distintas. */
     href: '/mi/evolucion',
   };
 };

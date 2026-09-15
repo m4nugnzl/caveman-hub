@@ -27,6 +27,39 @@ const FIELDS = [
 ];
 
 /**
+ * Salta al campo siguiente de la tabla del ejercicio, y en el último suelta el
+ * teclado. Lo usan la tecla «Siguiente» del teclado y el botón de la pastilla
+ * del pulgar: es el mismo gesto pedido por dos caminos, así que es una función
+ * y no dos copias.
+ */
+export const saltarAlSiguiente = (desde) => {
+  const tabla = desde?.closest?.('.set-table');
+  const campos = [...(tabla?.querySelectorAll('input') || [])];
+  const siguiente = campos[campos.indexOf(desde) + 1];
+  if (siguiente) siguiente.focus();
+  else desde?.blur?.();
+};
+
+/**
+ * Lo que el plan pauta para un campo de una serie, como cifra escribible.
+ *
+ * Devuelve `null` cuando no hay nada que ofrecer, y ahí entra el rango: «8-10»
+ * es un objetivo, no un valor. Escribirlo en la casilla de repeticiones lo
+ * rechaza la propia función de guardado (`log_session_set` exige un número), así
+ * que un botón que lo ofreciera prometería algo que falla.
+ */
+const planDelCampo = (set, field) => {
+  const pautado = {
+    kg: set?.targetKg,
+    reps: set?.targetReps,
+    rir: set?.targetRir,
+  }[field];
+  const texto = String(pautado ?? '').trim();
+  if (!texto) return null;
+  return /^[0-9]+([.,][0-9]+)?$/.test(texto) ? texto : null;
+};
+
+/**
  * La misma serie, como FILA de una tabla.
  *
  * ══ Por qué existen dos formas ══════════════════════════════════════════════
@@ -73,6 +106,21 @@ export const SetRow = ({
   previous = null,
   record = false,
   onConfirm = null,
+  /*
+    ── Quién tiene el foco, para la pastilla del pulgar ──────────────────────
+    Se avisa con `{ field, plan, antes, antesDice }` al entrar en un campo y con
+    `null` al salir. Lo pasa solo el portal del cliente (`ClientDay`): en la
+    pantalla del entrenador no hay pastilla, así que sin esta prop la fila es
+    exactamente lo que era.
+
+    Lo que NO se hace aquí es decidir cuándo se cierra: al saltar de kg a reps
+    hay un `blur` antes del `focus` siguiente, y cerrar en el `blur` haría
+    parpadear la pastilla entre campo y campo. Eso lo resuelve quien la pinta.
+  */
+  onFoco = null,
+  /* Las cuatro series de este ejercicio piden lo mismo, así que el pie no
+     repite la pauta: ya la dice el galón del ejercicio. Ver `pauta` abajo. */
+  sinPauta = false,
 }) => {
   const label = `${exerciseName}, serie ${index + 1}`;
   const done = isSetLogged(set);
@@ -81,8 +129,64 @@ export const SetRow = ({
      mismo que la última vez»— y ahorra escribir dos cifras por serie. */
   const puedeRepetir = !done && previous?.kg && previous?.reps && onConfirm;
 
+  /*
+    ── LO QUE TE PIDEN Y LO QUE HICISTE, en una línea ────────────────────────
+    Solo en el teléfono, y debajo de las casillas. Ahí la columna «obj» mide 52
+    px para decir «100 kg · 6-8» en dos renglones, y esos 52 px salen de las
+    tres casillas donde de verdad se escribe con el dedo. Bajarlo a un pie deja
+    los campos anchos y de paso permite decir la referencia entera —«la vez
+    anterior 80 × 8»— en vez de una cifra apagada dentro del hueco.
+
+    Se compone aquí y no en el CSS porque es texto, y porque las dos mitades
+    pueden faltar por separado: sin pauta y sin referencia no hay línea.
+  */
+  /*
+    ══ Y LA PAUTA SOLO CUANDO ES DE ESTA SERIE (13 sep 2026) ═════════════════
+
+    Aquí decía: *«el rango sigue diciéndose ADEMÁS en cada serie, a propósito:
+    una pirámide tiene un objetivo por serie, y para cuando vas por la cuarta el
+    galón hace rato que se fue por arriba»*. La razón es buena para una pirámide
+    y falsa para lo normal: con las cuatro series pautadas igual —que es el caso
+    de casi todos los ejercicios— el galón del ejercicio ya dice «4 series · 6-8
+    reps · RIR 2» y debajo venían cuatro renglones repitiendo «6-8 reps».
+
+    Medido en la app real a 392 px: un ejercicio de cuatro series gastaba cuatro
+    renglones en decir lo mismo que el de arriba, y con seis ejercicios eran
+    veinticuatro. El dueño: *«siento que hay demasiado texto que sobra… elimina
+    información redundante»*.
+
+    `sinPauta` lo decide quien tiene las series delante (`ExerciseList`), que es
+    el único que puede saber si las cuatro piden lo mismo. La pirámide sigue
+    diciendo la suya en cada serie, que es donde el argumento viejo acierta.
+  */
+  const pauta = sinPauta ? null : [
+    set.targetKg !== '' && set.targetKg != null ? `${set.targetKg} kg` : null,
+    set.targetReps ? `${set.targetReps} reps` : null,
+    showRir && set.targetRir !== '' && set.targetRir != null ? `RIR ${set.targetRir}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const referencia =
+    previous?.kg && previous?.reps
+      ? `la vez anterior ${previous.kg} × ${previous.reps}${
+          previous.weekNumber ? ` · semana ${previous.weekNumber}` : ''
+        }`
+      : null;
+
   return (
     <div className={`set-row${done ? ' is-done' : ''}${record ? ' is-record' : ''}`}>
+      {/*
+        ── El número de la serie, y solo en el teléfono ────────────────────────
+        En la tabla ancha la marca hace los dos trabajos —número mientras falta,
+        visto cuando está hecha— y eso está bien cuando vive a la izquierda. En
+        el teléfono la marca se va al otro extremo para ser el objetivo táctil
+        de 44 px que pide el pulgar, y una fila que empieza por una casilla no
+        dice por cuál serie vas. El número se queda en su sitio.
+      */}
+      <span className="set-row-n" aria-hidden="true">
+        {index + 1}
+      </span>
+
       {/*
         La marca de hecho sustituye al número, no lo acompaña: en una lista de
         cuatro series el orden ya lo da la posición, así que repetir «S3» al lado
@@ -125,8 +229,24 @@ export const SetRow = ({
            qué peso poner hoy, y ofrecerlo invitaría a copiarlo. */
         const antes = previous?.[field.key];
         return (
-          <input
-            key={field.key}
+          /*
+            ── La casilla y su rótulo son UNA pieza ──────────────────────────
+            En la tabla ancha el rótulo vive una sola vez, en la cabecera del
+            ejercicio (`SetRowHead`), y esta envoltura no se ve: es un
+            `display: contents` que deja el campo donde estaba.
+
+            En el teléfono la cabecera desaparece —cinco columnas de 9 px no son
+            una cabecera, son un borrón— y el rótulo baja DENTRO de la caja, que
+            es lo que hace que «80» se lea como kilos sin tener que subir la
+            vista. No es repetirlo cuatro veces por ejercicio, que fue lo que se
+            retiró de la tarjeta: es que sin cabecera hay que decirlo en alguna
+            parte, y dentro de la caja no gasta ni un renglón.
+          */
+          <label className="set-campo" key={field.key}>
+            <span className="set-campo-k" aria-hidden="true">
+              {field.unit}
+            </span>
+            <input
             type="text"
             inputMode={field.mode}
             className="input input-center"
@@ -146,21 +266,42 @@ export const SetRow = ({
             onKeyDown={(e) => {
               if (e.key !== 'Enter') return;
               e.preventDefault();
-              const tabla = e.currentTarget.closest('.set-table');
-              const campos = [...(tabla?.querySelectorAll('input') || [])];
-              const siguiente = campos[campos.indexOf(e.currentTarget) + 1];
-              if (siguiente) siguiente.focus();
-              else e.currentTarget.blur();
+              saltarAlSiguiente(e.currentTarget);
             }}
+            onFocus={
+              onFoco
+                ? () =>
+                    onFoco({
+                      field: field.key,
+                      /* Lo pautado para ESTA serie y este campo. El rango de
+                         repeticiones («8-10») no vale: no es un número que se
+                         pueda escribir, y ofrecerlo escribiría «8-10» en una
+                         casilla que la base de datos rechaza. */
+                      plan: planDelCampo(set, field.key),
+                      antes: antes ? String(antes) : null,
+                      antesDice: previous?.kg && previous?.reps
+                        ? `${previous.kg} × ${previous.reps}`
+                        : null,
+                    })
+                : undefined
+            }
+            onBlur={onFoco ? () => onFoco(null) : undefined}
             aria-label={
               antes
                 ? `${label}: ${field.label}. La vez anterior, ${antes}`
                 : `${label}: ${field.label}`
             }
-          />
+            />
+          </label>
         );
       })}
 
+      {/* El pie de la serie: lo que te piden y lo que hiciste. Solo se pinta en
+          el teléfono (lo decide el CSS); en la tabla ancha esas dos cosas están
+          en la columna «obj» y en el hueco apagado de cada casilla. */}
+      {(pauta || referencia) && (
+        <span className="set-row-pie">{[pauta, referencia].filter(Boolean).join(' · ')}</span>
+      )}
     </div>
   );
 };
@@ -179,20 +320,27 @@ export const SetRow = ({
  */
 export const SetSubRow = ({ nombre, extra, onChange, label }) => (
   <div className="set-row is-sub">
+    <span className="set-row-n" aria-hidden="true" />
     <span className="set-row-tag" aria-hidden="true" />
     <span className="set-row-target">{nombre}</span>
     {FIELDS.filter((f) => f.key !== 'rir').map((field) => (
-      <input
-        key={field.key}
-        type="text"
-        inputMode={field.mode}
-        className="input input-center"
-        placeholder="—"
-        value={extra?.[field.key] ?? ''}
-        onChange={(e) => onChange(field.key, e.target.value)}
-        enterKeyHint="next"
-        aria-label={`${label}: ${field.label}`}
-      />
+      /* La misma envoltura que la serie, y por lo mismo: en el teléfono las
+         columnas de la tanda tienen que caer donde las de su serie, y una fila
+         con campos desnudos y otra con campos envueltos no cuadra. El rótulo no
+         se repite aquí —la tanda cuelga de la serie de arriba, que ya lo dice—,
+         así que la envoltura va vacía. */
+      <label className="set-campo" key={field.key}>
+        <input
+          type="text"
+          inputMode={field.mode}
+          className="input input-center"
+          placeholder="—"
+          value={extra?.[field.key] ?? ''}
+          onChange={(e) => onChange(field.key, e.target.value)}
+          enterKeyHint="next"
+          aria-label={`${label}: ${field.label}`}
+        />
+      </label>
     ))}
     {/* La columna del RIR se queda vacía y no desaparece: si la fila tuviera dos
         campos donde las demás tienen tres, las columnas dejarían de cuadrar y

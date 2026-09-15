@@ -79,7 +79,7 @@ export const AlimentosPanel = ({ banda }) => {
      cabe la ficha al lado y se vuelve a la capa. Se reutiliza el número en vez
      de medir otro porque es el mismo mueble — dos cortes distintos para dos
      pantallas gemelas serían dos comportamientos que explicar. */
-  const hayCarril = useMediaQuery('(min-width: 1560px)');
+  const hayCarril = useMediaQuery('(min-width: 1440px)');
 
   /* A quién le das cada alimento. Los planes de todos los clientes ya están
      cargados, así que esto no cuesta una consulta (ver `foodClientsByName`), y

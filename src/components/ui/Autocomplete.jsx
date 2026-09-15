@@ -41,6 +41,11 @@ export const Autocomplete = ({
   getMeta,
   onPick,
   onCreate,
+  /* Qué se da de alta si lo que has escrito no está: «alimento», «ejercicio».
+     El rótulo es «Nuevo alimento «Skyr»» y no «Crear «Skyr»» porque dar de alta
+     una pieza se dice igual en toda la casa (`docs/producto.md` §5.8), y sin el
+     sustantivo el menú no dice de qué va a nacer la pieza. */
+  queEs = null,
   placeholder,
   maxSuggestions = 6,
   abreVacio = false,
@@ -177,7 +182,8 @@ export const Autocomplete = ({
                 setOpen(false);
               }}
             >
-              <Plus size={13} /> Crear &laquo;{String(value).trim()}&raquo;
+              <Plus size={13} /> Nuevo{queEs ? ` ${queEs}` : ''} &laquo;
+              {String(value).trim()}&raquo;
             </button>
           )}
         </div>

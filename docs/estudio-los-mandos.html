@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="es" data-fam="a" data-mando="interruptor">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Los mandos — el botón, el campo y el interruptor</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo:wdth,wght@75..125,400..800&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · Los mandos · 14 sep 2026
+
+   Encargo del dueño, literal: «los botones y diseños de ese estilo de la app
+   creo que deberían tener un rediseño, no me convencen los seguir aceptar
+   ajustar etc […] el cómo se ven, poco profesionales, creo que las startups
+   punteras hacen las cosas distinto, no veo a clickup por ejemplo con esa
+   interfaz». Y, de la imagen que mandó: los interruptores pasan a un mando de
+   dos caras.
+
+   ── Qué NO es este estudio ────────────────────────────────────────────────
+   No toca el color, ni la tipografía, ni el papel. El acento sigue siendo
+   #3b49df y el lienzo #f7f6f2. Si se movieran a la vez no se sabría qué es lo
+   que arregla la pantalla. Aquí se mueve UNA cosa: la anatomía de lo que se
+   pulsa y de lo que se escribe.
+
+   ── Las medidas son de la app en marcha ───────────────────────────────────
+   Nada aquí sale de leer la hoja de estilos: son `getComputedStyle` sobre
+   /protocolos con la demo sembrada, a 1600 px. Por eso el «hoy» del banco de
+   pruebas es el de verdad y no una réplica de memoria.
+
+   ── El plan, antes de escribir una línea ──────────────────────────────────
+   COLOR   Sin cambios. Se hereda el de la app para que la comparación sea
+           honesta. Lo único que entra son dos cantos nuevos —#e2ded2 para el
+           canto de control y una sombra de 1 px— porque el filete de 1,5 px en
+           #8a8378 es, medido, el rasgo que más envejece la pantalla.
+   TIPO    Inter para la interfaz. El botón baja de 14/600 a 13,5/500: el peso
+           600 a 14 px es voz de titular en una pieza que no titula nada.
+   LAYOUT  Una rejilla de alturas —28 / 32 / 36— compartida por botón, campo y
+           desplegable. Hoy el botón mide 32 y el campo 37 y nunca cuadran.
+   FIRMA   El secundario con CUERPO: relleno, canto y una sombra de 1 px. Es el
+           único rasgo que separa de un vistazo un producto acabado de uno que
+           parece una maqueta, y el que nos falta.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  /* El documento */
+  --doc: #eaecf0;
+  --caja: #ffffff;
+  --canto-doc: #dcdfe5;
+  --tinta: #12151a;
+  --tinta-2: #4a525e;
+  --tinta-3: #737c89;
+  --mal: #b42318;
+  --bien: #0e7a4e;
+
+  /* Los tokens REALES de la app, medidos hoy */
+  --lienzo: #f7f6f2;
+  --hoja: #ffffff;
+  --filete: #e7e3d9;
+  --filete-fuerte: #cfc9bb;
+  --relleno-tenue: #f5f3ed;
+  --relleno: #eceae1;
+  --canto-control: #8a8378;
+  --texto: #191713;
+  --texto-2: #514d45;
+  --texto-3: #706c62;
+  --acento: #3b49df;
+  --acento-hover: #2f3ac2;
+  --acento-suave: rgba(59, 73, 223, 0.08);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--doc); color: var(--tinta);
+  font-family: Inter, system-ui, sans-serif; font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: Archivo, Inter, sans-serif; letter-spacing: -0.02em; margin: 0; }
+p { margin: 0 0 0.9em; }
+p:last-child { margin-bottom: 0; }
+b, strong { font-weight: 600; }
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em;
+  background: #f1f3f6; padding: 1px 5px; border-radius: 4px; color: #3a4250;
+}
+
+.envoltorio { max-width: 1180px; margin: 0 auto; padding: 0 24px 120px; }
+
+/* ── La portada ─────────────────────────────────────────────────────────── */
+.portada { padding: 72px 0 40px; }
+.antetitulo {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--tinta-3); margin: 0 0 14px;
+}
+.portada h1 { font-size: 52px; line-height: 1.04; font-weight: 700; max-width: 16ch; }
+.portada > p { font-size: 18px; color: var(--tinta-2); max-width: 62ch; margin-top: 18px; }
+.cita {
+  margin: 28px 0 0; padding: 18px 22px; background: var(--caja);
+  border-left: 3px solid var(--acento); border-radius: 0 10px 10px 0;
+  font-size: 16px; color: var(--tinta-2);
+}
+.cita cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--tinta-3); }
+
+/* ── El conmutador pegajoso ─────────────────────────────────────────────── */
+.mando-doc {
+  position: sticky; top: 0; z-index: 40;
+  padding: 12px 0;
+  background: rgba(234, 236, 240, 0.9); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--canto-doc);
+}
+.mando-doc > .envoltorio {
+  padding: 0 24px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+}
+.mando-doc .k {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--tinta-3);
+}
+.grupo-doc { display: inline-flex; background: #dfe2e8; padding: 3px; border-radius: 9px; gap: 2px; }
+.grupo-doc button {
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--tinta-2);
+  border: 0; background: transparent; padding: 5px 13px; border-radius: 6px; cursor: pointer;
+}
+.grupo-doc button[aria-pressed='true'] {
+  background: #fff; color: var(--tinta); box-shadow: 0 1px 2px rgba(16, 20, 30, 0.14);
+}
+.aviso-doc {
+  margin-left: auto; font-size: 12.5px; color: var(--tinta-3);
+}
+
+/* ── Secciones ──────────────────────────────────────────────────────────── */
+section { padding-top: 68px; scroll-margin-top: 78px; }
+.num {
+  font-family: Archivo; font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--acento); display: block; margin-bottom: 8px;
+}
+section > h2 { font-size: 32px; line-height: 1.15; max-width: 22ch; }
+section > h2 + p { font-size: 17px; color: var(--tinta-2); max-width: 66ch; margin-top: 14px; }
+
+.caja {
+  background: var(--caja); border: 1px solid var(--canto-doc); border-radius: 14px;
+  padding: 26px; margin-top: 24px;
+}
+.caja > h3 { font-size: 19px; margin-bottom: 10px; }
+.caja > h3 + p { color: var(--tinta-2); }
+
+.hallazgo { display: grid; grid-template-columns: 1fr 1fr; gap: 0; overflow: hidden; padding: 0; }
+.hallazgo > .dice { padding: 26px; border-right: 1px solid var(--canto-doc); }
+.hallazgo > .ensena {
+  padding: 26px; background: var(--lienzo); display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: center; gap: 14px;
+}
+/* `.app` trae el chasis de la aplicación —fondo, canto y radio— y aquí dentro
+   estorba: la mitad derecha de un hallazgo es media caja, no una caja suelta.
+   Se le quedan solo los tokens, que es a lo que viene. */
+.caja.app { background: var(--caja); }
+.hallazgo > .ensena.app { background: var(--lienzo); border: 0; border-radius: 0; }
+.familia.app { background: var(--caja); }
+.hallazgo h3 { font-size: 18px; margin-bottom: 8px; }
+.hallazgo p { font-size: 14.5px; color: var(--tinta-2); }
+.medida {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-family: Archivo; font-size: 13px; font-weight: 600;
+  background: #f1f3f6; color: var(--tinta-2); padding: 3px 9px; border-radius: 6px;
+  margin: 0 4px 4px 0;
+}
+.medida > em { font-style: normal; color: var(--mal); }
+.pie { font-size: 12.5px; color: var(--tinta-3); margin-top: 10px; }
+.ensena .pie { color: var(--texto-3); }
+
+figure { margin: 24px 0 0; }
+figure img {
+  width: 100%; display: block; border-radius: 12px; border: 1px solid var(--canto-doc);
+  box-shadow: 0 18px 40px -28px rgba(16, 20, 30, 0.5);
+}
+figcaption { font-size: 13px; color: var(--tinta-3); margin-top: 10px; }
+
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
+th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--canto-doc); }
+th { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta-3); font-weight: 700; }
+td.bien { color: var(--bien); font-weight: 600; }
+
+.nota {
+  margin-top: 22px; padding: 16px 20px; border-radius: 10px;
+  background: #fff8e8; border: 1px solid #f0e0bb; font-size: 14.5px; color: #6b5620;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL BANCO: la app de verdad, con la familia puesta
+
+   Todo lo que va dentro de `.app` usa los tokens de la aplicación, y las tres
+   familias no son tres pieles: son tres valores de las MISMAS variables. Por
+   eso el conmutador cambia la página entera de golpe y no hay nada duplicado.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.app {
+  --a-radio: 999px;
+  --a-alto: 32px;
+  --a-alto-g: 37px;
+  /* El alto del campo. En A son los 37 px medidos en la app, contra los 32
+     del boton: la rejilla que falta. En B y C es el mismo del boton. */
+  --a-alto-campo: 37px;
+  --a-fs: 14px;
+  --a-fw: 600;
+  --a-pad: 0 13px;
+  --a-radio-campo: 14px;
+  --a-canto-campo: 1.5px solid var(--canto-control);
+  --a-fs-campo: 16px;
+  /* Cero transparente y no `none`: dentro de una lista de sombras separada
+     por comas un `none` tumba la declaracion entera, y el secundario de hoy se
+     quedaba sin su filete — o sea, la familia A salia peor de lo que es. */
+  --a-sombra-1: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-sombra-2: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-relieve: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-sec-fondo: transparent;
+  --a-sec-canto: inset 0 0 0 1px var(--canto-control);
+  --a-sec-hover: var(--relleno-tenue);
+  --a-campo-fondo: var(--hoja);
+  --a-campo-sombra: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-radio-cara: 999px;
+
+  font-family: Inter, system-ui, sans-serif;
+  background: var(--lienzo); color: var(--texto);
+  border: 1px solid var(--canto-doc); border-radius: 14px; overflow: hidden;
+}
+
+/* ── B · CUERPO ──────────────────────────────────────────────────────────
+   Radio de 8, peso 500, y lo que de verdad cambia la lectura: el secundario
+   deja de ser un contorno y pasa a tener relleno, canto de 1 px y una sombra
+   de 1 px. Es la anatomía de Linear, Stripe o Vercel — un control que parece
+   una pieza y no un rectángulo dibujado encima del fondo. */
+[data-fam='b'] .app:not([data-forzar]) {
+  --a-radio: 8px;
+  --a-alto: 32px;
+  --a-alto-g: 36px;
+  --a-alto-campo: 32px;
+  --a-fs: 13.5px;
+  --a-fw: 500;
+  --a-pad: 0 12px;
+  --a-radio-campo: 8px;
+  --a-canto-campo: 1px solid #ddd8ca;
+  --a-fs-campo: 14px;
+  --a-sombra-1: 0 1px 2px rgba(30, 25, 15, 0.16);
+  --a-sombra-2: 0 1px 2px rgba(38, 32, 20, 0.06);
+  --a-relieve: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --a-sec-fondo: var(--hoja);
+  --a-sec-canto: inset 0 0 0 1px #e2ded2;
+  --a-sec-hover: #faf9f6;
+  --a-campo-fondo: var(--hoja);
+  --a-campo-sombra: inset 0 1px 2px rgba(38, 32, 20, 0.045);
+  --a-radio-cara: 6px;
+}
+
+/* ── C · PLANO ───────────────────────────────────────────────────────────
+   Radio de 6, ninguna sombra en ningún sitio y el secundario como relleno
+   gris sin canto. Es la anatomía de ClickUp o Notion: más denso, más callado,
+   y sin una sola sombra que mantener en oscuro. */
+[data-fam='c'] .app:not([data-forzar]) {
+  --a-radio: 6px;
+  --a-alto: 30px;
+  --a-alto-g: 34px;
+  --a-alto-campo: 30px;
+  --a-fs: 13px;
+  --a-fw: 500;
+  --a-pad: 0 11px;
+  --a-radio-campo: 6px;
+  --a-canto-campo: 1px solid #e0dcd0;
+  --a-fs-campo: 14px;
+  --a-sombra-1: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-sombra-2: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-relieve: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-sec-fondo: var(--relleno);
+  --a-sec-canto: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-sec-hover: #e3e0d5;
+  --a-campo-fondo: var(--relleno-tenue);
+  --a-campo-sombra: 0 0 0 0 rgba(0, 0, 0, 0);
+  --a-radio-cara: 4px;
+}
+
+/* El botón, una sola vez */
+.b {
+  font-family: inherit; font-size: var(--a-fs); font-weight: var(--a-fw);
+  letter-spacing: -0.005em;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: var(--a-alto); padding: var(--a-pad); border-radius: var(--a-radio);
+  border: 0; background: var(--relleno); color: var(--texto);
+  cursor: pointer; white-space: nowrap;
+  transition: background-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.b:active { transform: scale(0.985); }
+.b-1 {
+  background: var(--acento); color: #fff;
+  box-shadow: var(--a-sombra-1), var(--a-relieve);
+}
+.b-1:hover { background: var(--acento-hover); }
+.b-2 {
+  background: var(--a-sec-fondo); color: var(--texto);
+  box-shadow: var(--a-sec-canto), var(--a-sombra-2);
+}
+.b-2:hover { background: var(--a-sec-hover); }
+.b-3 { background: transparent; color: var(--acento); box-shadow: none; }
+.b-3:hover { background: var(--acento-suave); }
+.b-g { height: var(--a-alto-g); font-size: calc(var(--a-fs) + 1px); padding: 0 18px; }
+.b:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--lienzo), 0 0 0 4px rgba(59, 73, 223, 0.45);
+}
+.b[disabled] { opacity: 0.42; cursor: not-allowed; }
+
+/* El campo */
+.c {
+  font-family: inherit; font-size: var(--a-fs-campo); font-weight: 500;
+  height: var(--a-alto-campo); width: 100%; min-width: 0;
+  background: var(--a-campo-fondo); color: var(--texto);
+  border: var(--a-canto-campo); border-radius: var(--a-radio-campo);
+  padding: 0 11px; box-shadow: var(--a-campo-sombra);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.c::placeholder { color: var(--texto-3); }
+.c:focus {
+  outline: none; border-color: var(--acento);
+  box-shadow: 0 0 0 3px rgba(59, 73, 223, 0.16);
+}
+
+/* El mando de dos caras: lo de la imagen del dueño */
+.dos-caras {
+  display: inline-flex; flex-shrink: 0; gap: 2px;
+  background: var(--relleno-tenue); padding: 3px;
+  border-radius: calc(var(--a-radio-cara) + 3px);
+}
+.dos-caras button {
+  font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--texto-3);
+  border: 0; background: transparent; cursor: pointer;
+  padding: 0 14px; height: 24px; border-radius: var(--a-radio-cara);
+  transition: background-color 0.12s, color 0.12s;
+}
+.dos-caras button:hover { color: var(--texto); }
+.dos-caras button[aria-pressed='true'] {
+  background: var(--hoja); color: var(--texto);
+  box-shadow: 0 1px 2px rgba(38, 32, 20, 0.1);
+}
+
+/* El interruptor de hoy, para poder comparar */
+.inter {
+  width: 38px; height: 22px; flex-shrink: 0; border-radius: 999px;
+  background: var(--filete-fuerte); border: 0; cursor: pointer; padding: 0;
+  position: relative; transition: background-color 0.15s;
+}
+.inter::before {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); transition: transform 0.15s;
+}
+.inter[aria-pressed='true'] { background: var(--acento); }
+.inter[aria-pressed='true']::before { transform: translateX(16px); }
+
+/* ── LA FILA DE AJUSTE ──────────────────────────────────────────────────── */
+.fila {
+  display: flex; align-items: center; gap: 20px;
+  padding: 12px 16px; border-bottom: 1px solid var(--filete);
+}
+.fila:last-child { border-bottom: 0; }
+.fila > .txt { flex: 1; min-width: 0; }
+.fila .nm { font-size: 14px; font-weight: 600; color: var(--texto); }
+.fila .ay { font-size: 12.5px; color: var(--texto-3); line-height: 1.35; }
+
+/* ── LA PANTALLA DEL PROTOCOLO ──────────────────────────────────────────── */
+.cinta {
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px; height: 56px; background: var(--hoja);
+  border-bottom: 1px solid var(--filete);
+}
+.cinta .volver {
+  width: 30px; height: 30px; border-radius: 8px; border: 0; background: transparent;
+  color: var(--texto-3); cursor: pointer; font-size: 17px; line-height: 1;
+}
+.cinta .volver:hover { background: var(--relleno-tenue); color: var(--texto); }
+.cinta h4 { font-family: Archivo; font-size: 18px; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+.camino { display: flex; gap: 2px; margin-left: 10px; }
+.camino button {
+  font-family: inherit; font-size: 13.5px; font-weight: 500; color: var(--texto-3);
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 0; background: transparent; cursor: pointer;
+  height: 56px; padding: 0 12px; position: relative;
+}
+.camino button:hover { color: var(--texto); }
+.camino button[aria-selected='true'] { color: var(--texto); font-weight: 600; }
+.camino button[aria-selected='true']::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: 0;
+  height: 2px; background: var(--acento); border-radius: 2px 2px 0 0;
+}
+.camino .n {
+  width: 18px; height: 18px; border-radius: 999px; background: var(--relleno);
+  color: var(--texto-3); font-size: 10px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.camino button[aria-selected='true'] .n { background: var(--acento); color: #fff; }
+.cinta .der { margin-left: auto; }
+
+.cuerpo { padding: 24px 20px 30px; min-height: 340px; }
+.tramo[hidden] { display: none; }
+
+/* El paso ①, con la medida nueva: el campo corto y las dos cajas repartiendo
+   el ancho en vez de una columna de 620 pegada a la izquierda. */
+.rejilla-1 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+/* El nombre va DENTRO de la columna izquierda, no cruzando las dos: puesto
+   arriba a lo ancho dejaba la izquierda con dos filas y la derecha con seis, y
+   el hueco de debajo era el mismo vacío de antes en pequeño. */
+.col-1 { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.bloque { background: var(--hoja); border: 1px solid var(--filete); border-radius: 12px; }
+.bloque > h5 {
+  font-family: Archivo; font-size: 11px; font-weight: 700; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--texto-3);
+  margin: 0; padding: 13px 16px 11px; border-bottom: 1px solid var(--filete);
+}
+.campo-nombre { max-width: 380px; }
+.campo-nombre > label {
+  display: block; font-size: 12.5px; font-weight: 600; color: var(--texto-2); margin-bottom: 2px;
+}
+.campo-nombre > .ay { font-size: 12px; color: var(--texto-3); margin-bottom: 8px; }
+
+/* El paso ②, en pequeño: lo justo para que se vea el salto de ancho */
+.banco { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 22px; }
+.tarjeta-accion {
+  background: var(--hoja); border: 1px solid var(--filete); border-radius: 10px;
+  padding: 11px 14px; margin-bottom: 8px;
+}
+.tarjeta-accion .k { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--texto-3); }
+.tarjeta-accion .nm { font-size: 14.5px; font-weight: 600; }
+.tarjeta-accion .ay { font-size: 12.5px; color: var(--texto-3); }
+.rotulo-tramo {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--texto-3); margin: 0 0 9px;
+}
+.plano-der { border-left: 1px solid var(--filete); padding-left: 20px; }
+
+/* El paso ③ */
+.gente { background: var(--hoja); border: 1px solid var(--filete); border-radius: 12px; max-width: 560px; }
+.cas {
+  width: 17px; height: 17px; border-radius: 5px; border: 1.5px solid var(--filete-fuerte);
+  background: var(--hoja); cursor: pointer; flex-shrink: 0; padding: 0;
+}
+.cas[aria-pressed='true'] { background: var(--acento); border-color: var(--acento); }
+
+/* El banco de pruebas de los botones */
+.muestras { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.muestras + .muestras { margin-top: 14px; }
+.et {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--texto-3); width: 84px; flex-shrink: 0;
+}
+.banco-botones { background: var(--lienzo); border: 1px solid var(--filete); border-radius: 12px; padding: 22px; margin-top: 18px; }
+
+/* Comparación de familias en columna */
+.familia { padding: 0; overflow: hidden; }
+.familia > header { padding: 20px 22px 16px; border-bottom: 1px solid var(--canto-doc); background: var(--caja); }
+.familia h3 { font-size: 18px; }
+.familia .quien { font-size: 12.5px; color: var(--tinta-3); margin-top: 4px; }
+.familia > .lienzo-f { background: var(--lienzo); padding: 22px; display: flex; flex-wrap: wrap; gap: 10px; }
+.familia > .porque { padding: 18px 22px; font-size: 14px; color: var(--tinta-2); background: var(--caja); }
+
+.elegida { border-color: var(--acento); box-shadow: 0 0 0 3px rgba(59, 73, 223, 0.12); }
+.sello {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--acento); background: var(--acento-suave);
+  padding: 3px 8px; border-radius: 5px; margin-bottom: 8px;
+}
+
+.barras { width: 100%; font-family: Archivo; font-size: 11px; font-weight: 700; color: var(--tinta-3); }
+.barras > div.b-r { height: 26px; background: var(--acento); opacity: 0.85; border-radius: 4px; }
+.barras > div.k-r { margin: 14px 0 6px; }
+.barras > div.k-r:first-child { margin-top: 0; }
+
+@media (max-width: 900px) {
+  .hallazgo, .dos, .tres, .rejilla-1, .banco { grid-template-columns: 1fr; }
+  .hallazgo > .dice { border-right: 0; border-bottom: 1px solid var(--canto-doc); }
+  .plano-der { border-left: 0; padding-left: 0; border-top: 1px solid var(--filete); padding-top: 18px; }
+  .portada h1 { font-size: 36px; }
+  section > h2 { font-size: 26px; }
+  .camino button { padding: 0 8px; font-size: 12.5px; }
+  .cinta { gap: 8px; padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="envoltorio">
+  <div class="portada">
+    <p class="antetitulo">Estudio · 14 de septiembre de 2026</p>
+    <h1>Los mandos</h1>
+    <p>
+      El botón, el campo y el interruptor. Tres piezas que salen en todas las
+      pantallas y que son, medidas una por una, lo que hace que la aplicación no
+      se lea como el producto que es.
+    </p>
+    <blockquote class="cita">
+      «Los botones y diseños de ese estilo de la app creo que deberían tener un
+      rediseño, no me convencen los seguir, aceptar, ajustar… El cómo se ven,
+      poco profesionales. Creo que las startups punteras hacen las cosas
+      distinto: no veo a ClickUp con esa interfaz.»
+      <cite>El dueño, hoy</cite>
+    </blockquote>
+  </div>
+</div>
+
+<div class="mando-doc">
+  <div class="envoltorio">
+    <span class="k">Familia</span>
+    <div class="grupo-doc" role="group" aria-label="Familia de mandos">
+      <button type="button" data-f="a" aria-pressed="true">A · Hoy</button>
+      <button type="button" data-f="b" aria-pressed="false">B · Cuerpo</button>
+      <button type="button" data-f="c" aria-pressed="false">C · Plano</button>
+    </div>
+    <span class="k">Los ajustes</span>
+    <div class="grupo-doc" role="group" aria-label="Cómo se enciende un ajuste">
+      <button type="button" data-m="interruptor" aria-pressed="true">Interruptor</button>
+      <button type="button" data-m="dos-caras" aria-pressed="false">Dos caras</button>
+    </div>
+    <span class="aviso-doc">Cambia la página entera. Todo lo de abajo está vivo.</span>
+  </div>
+</div>
+
+<div class="envoltorio">
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="ya">
+    <span class="num">00</span>
+    <h2>Antes de nada: el camino ya no te suelta a mitad</h2>
+    <p>
+      Lo primero que dijiste no era de diseño, era una avería: del paso ② al ③ no
+      había «Seguir» y del ① al ② sí. Está arreglado y probado en la app en
+      marcha.
+    </p>
+    <div class="caja">
+      <h3>Por qué pasaba</h3>
+      <p>
+        El verbo colgaba del <em>borrador</em>, o sea del protocolo que aún no
+        existe. Pulsar «Seguir» en el ① es justo lo que hace que empiece a
+        existir: al llegar al ② el borrador ya había muerto y el botón se iba con
+        él. Ahora lo que manda es si estás <b>montando</b> uno —desde «Protocolo
+        nuevo» hasta que llegas al ③—, así que el verbo te acompaña los dos
+        saltos y se apaga en la última parada, que ya tiene el suyo: «ponérselo a
+        alguien». Nunca hay dos azules en pantalla.
+      </p>
+      <p class="pie">
+        <code>ProtocolosPanel.jsx</code>, estado <code>montando</code>. Comprobado
+        contra la demo local: en el ② el botón existe y lleva al ③.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="diagnostico">
+    <span class="num">01</span>
+    <h2>Qué es exactamente lo que se ve mal</h2>
+    <p>
+      Todo lo que sigue está medido con <code>getComputedStyle</code> sobre la app
+      corriendo en local, a 1600 px y con la demo sembrada. Ninguna cifra sale de
+      leer la hoja de estilos.
+    </p>
+
+    <figure>
+      <img src="../capturas/mandos-14sep/01-paso1.png" alt="El paso ① del protocolo, hoy">
+      <figcaption>El paso ① tal cual está hoy. Es la pantalla de tu captura, en claro.</figcaption>
+    </figure>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>1 · Tres redondeces en la misma pantalla</h3>
+        <p>
+          El botón es una <b>píldora</b> —radio 999— y a su lado el campo y la
+          tarjeta son 14, y los chips 9. Un producto acabado tiene una escala de
+          radio, no tres formas sueltas; y la píldora la reserva para lo que
+          <em>etiqueta</em> —filtros, estados, cuentas—, nunca para la acción.
+        </p>
+        <p>
+          <span class="medida">botón <em>999px</em></span>
+          <span class="medida">campo <em>14px</em></span>
+          <span class="medida">chip <em>9px</em></span>
+        </p>
+      </div>
+      <div class="ensena app">
+        <div class="muestras">
+          <button type="button" class="b b-1">Seguir</button>
+          <input class="c" style="width:180px" value="Pérdida de grasa" readonly>
+        </div>
+        <p class="pie">La misma pareja, con las tres familias. Cambia arriba.</p>
+      </div>
+    </div>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>2 · El botón normal no tiene cuerpo</h3>
+        <p>
+          <code>btn-secondary</code> es <b>fondo transparente</b> con un filete de
+          1 px. Puesto al lado del azul macizo no se lee como «la otra acción»:
+          se lee como una acción apagada.
+        </p>
+        <p>
+          Los productos que pones de ejemplo hacen lo contrario: el secundario
+          tiene relleno propio, canto de 1 px y una sombra mínima. Parece una
+          pieza que se puede pulsar, no un rectángulo dibujado sobre el fondo.
+          Es el rasgo que más delata una maqueta.
+        </p>
+      </div>
+      <div class="ensena app">
+        <div class="muestras">
+          <button type="button" class="b b-1">Ponérselo</button>
+          <button type="button" class="b b-2">Poner al día</button>
+          <button type="button" class="b b-3">Editarlo</button>
+        </div>
+        <p class="pie">Acción · normal · callada.</p>
+      </div>
+    </div>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>3 · Cada campo lleva un filete de 1,5 px casi tinta</h3>
+        <p>
+          El canto de los campos y los desplegables es
+          <code>1.5px solid #8a8378</code>: un gris caliente medio, a un paso del
+          texto. Sale en todos los formularios de la aplicación.
+        </p>
+        <p>
+          Es, de largo, <b>lo que más envejece la pantalla</b>. Un campo de un
+          producto moderno es un canto de 1 px casi invisible con una sombra
+          interior mínima; el peso lo pone el <em>foco</em>, no el reposo.
+        </p>
+      </div>
+      <div class="ensena app">
+        <input class="c" style="max-width:240px" placeholder="Pérdida de grasa">
+        <p class="pie">Pincha dentro para ver el foco de cada familia.</p>
+      </div>
+    </div>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>4 · No hay rejilla de altura</h3>
+        <p>
+          El botón mide <b>32</b> y el campo <b>37</b>. No es el descuido de una
+          pantalla: el botón fija su alto con relleno vertical y el campo con el
+          suyo, así que no coinciden en ninguna fila de la app.
+        </p>
+        <p>
+          Lo que falta es una rejilla de tres alturas —28 / 32 / 36— que pidan
+          todos los mandos. Es lo que hace que una barra de herramientas se lea
+          como una línea y no como tres cosas a distinta altura.
+        </p>
+      </div>
+      <div class="ensena app">
+        <div class="muestras">
+          <input class="c" style="width:140px" value="jueves" readonly>
+          <button type="button" class="b b-2">cada 2 semanas</button>
+          <button type="button" class="b b-1">Guardar</button>
+        </div>
+        <p class="pie">En A no cuadran. En B y C comparten línea de base.</p>
+      </div>
+    </div>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>5 · El interruptor va delante del texto</h3>
+        <p>
+          Las ocho filas del paso ① llevan el mando a la izquierda y la ayuda
+          debajo. Sin columna de mandos, la lista queda dentada y no se puede
+          barrer de un vistazo qué está encendido.
+        </p>
+        <p>
+          Tu imagen hace lo contrario: <b>nombre a la izquierda, mando a la
+          derecha</b> y un filete entre filas. Se lee la columna de la derecha
+          sola, sin leer los nombres.
+        </p>
+      </div>
+      <div class="ensena app" style="align-items:stretch">
+        <div class="bloque" style="width:100%">
+          <div class="fila">
+            <div class="txt">
+              <div class="nm">Entrenamiento</div>
+              <div class="ay">Su programa y sus sesiones.</div>
+            </div>
+            <button type="button" class="inter" aria-pressed="true" aria-label="Entrenamiento"></button>
+          </div>
+          <div class="fila">
+            <div class="txt">
+              <div class="nm">Nutrición</div>
+              <div class="ay">Kcal, macros y menú.</div>
+            </div>
+            <div class="dos-caras" role="group" aria-label="Nutrición">
+              <button type="button" aria-pressed="true">Sí</button>
+              <button type="button" aria-pressed="false">No</button>
+            </div>
+          </div>
+        </div>
+        <p class="pie">Arriba el mando de hoy; abajo, el de tu imagen.</p>
+      </div>
+    </div>
+
+    <div class="caja hallazgo">
+      <div class="dice">
+        <h3>6 · Los tres tramos miden tres cosas distintas</h3>
+        <p>
+          Dijiste que el ① «se ve raro a nivel de escala». Está medido: el cuerpo
+          del paso ① son <b>620 px</b> pegados a la izquierda dentro de una mesa
+          de <b>1.306</b>. El 47 %. Y el paso ② usa los 1.306 enteros, con dos
+          planos.
+        </p>
+        <p>
+          Por eso pasar de ① a ② no se siente como avanzar dentro de una
+          pantalla, sino como cambiar de mueble — que es justo lo que el camino
+          venía a quitar.
+        </p>
+      </div>
+      <div class="ensena">
+        <div class="barras">
+          <div class="k-r">PASO ①</div>
+          <div class="b-r" style="width:47%"></div>
+          <div class="k-r">PASO ②</div>
+          <div class="b-r" style="width:100%"></div>
+          <div class="k-r">PASO ③</div>
+          <div class="b-r" style="width:47%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dos">
+      <figure>
+        <img src="../capturas/mandos-14sep/02-paso2.png" alt="El paso ② del protocolo">
+        <figcaption>El ②: dos planos, 1.306 px. Arriba a la derecha, el «Seguir» nuevo.</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/mandos-14sep/03-paso3.png" alt="El paso ③ del protocolo">
+        <figcaption>El ③: vuelta a la columna estrecha.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="familias">
+    <span class="num">02</span>
+    <h2>Tres familias, los mismos tokens</h2>
+    <p>
+      No son tres pieles: son tres juegos de valores para las mismas variables.
+      Elegir una es cambiar ocho números en <code>tokens.css</code> y cuatro
+      bloques en <code>controles.css</code>. Ninguna toca el color ni la
+      tipografía de la casa.
+    </p>
+
+    <div class="tres">
+      <div class="caja familia app" data-forzar="a">
+        <header>
+          <h3>A · Hoy</h3>
+          <p class="quien">Píldora, 14/600, secundario en contorno.</p>
+        </header>
+        <div class="lienzo-f">
+          <button type="button" class="b b-1">Seguir</button>
+          <button type="button" class="b b-2">Ajustar</button>
+          <input class="c" placeholder="Nombre">
+        </div>
+        <div class="porque">
+          El radio pleno viene de una ley escrita: «lo que se pulsa, en esta casa,
+          es redondo». Es coherente, pero es la forma que los productos punteros
+          reservan para etiquetas.
+        </div>
+      </div>
+
+      <div class="caja familia app elegida" data-forzar="b">
+        <header>
+          <span class="sello">Recomendada</span>
+          <h3>B · Cuerpo</h3>
+          <p class="quien">Radio 8, 13,5/500, sombra de 1 px.</p>
+        </header>
+        <div class="lienzo-f">
+          <button type="button" class="b b-1">Seguir</button>
+          <button type="button" class="b b-2">Ajustar</button>
+          <input class="c" placeholder="Nombre">
+        </div>
+        <div class="porque">
+          La anatomía de Linear, Stripe o Vercel. El secundario tiene relleno,
+          canto y una sombra mínima: parece una pieza. Es el cambio que más
+          distancia pone entre «maqueta» y «producto» por menos CSS.
+        </div>
+      </div>
+
+      <div class="caja familia app" data-forzar="c">
+        <header>
+          <h3>C · Plano</h3>
+          <p class="quien">Radio 6, 13/500, ninguna sombra.</p>
+        </header>
+        <div class="lienzo-f">
+          <button type="button" class="b b-1">Seguir</button>
+          <button type="button" class="b b-2">Ajustar</button>
+          <input class="c" placeholder="Nombre">
+        </div>
+        <div class="porque">
+          La anatomía de ClickUp o Notion. Más denso y más callado, y sin una
+          sola sombra que mantener en oscuro. A cambio el secundario pesa menos,
+          y sobre una cinta blanca casi desaparece.
+        </div>
+      </div>
+    </div>
+
+    <div class="caja app">
+      <h3 style="font-family:Archivo;font-size:19px;margin:0 0 4px">El banco entero, con la familia que tengas puesta arriba</h3>
+      <div class="banco-botones">
+        <div class="muestras">
+          <span class="et">Acción</span>
+          <button type="button" class="b b-1">Seguir</button>
+          <button type="button" class="b b-1 b-g">Ponérselo a 4</button>
+          <button type="button" class="b b-1" disabled>Seguir</button>
+        </div>
+        <div class="muestras">
+          <span class="et">Normal</span>
+          <button type="button" class="b b-2">Poner al día</button>
+          <button type="button" class="b b-2 b-g">Duplicar</button>
+          <button type="button" class="b b-2">Ver como él</button>
+        </div>
+        <div class="muestras">
+          <span class="et">Callada</span>
+          <button type="button" class="b b-3">Editarlo</button>
+          <button type="button" class="b b-3">+ acción</button>
+        </div>
+        <div class="muestras">
+          <span class="et">Campos</span>
+          <input class="c" style="width:200px" placeholder="Pérdida de grasa">
+          <button type="button" class="b b-2">jueves ▾</button>
+          <div class="dos-caras" role="group" aria-label="Ejemplo">
+            <button type="button" aria-pressed="true">Sí</button>
+            <button type="button" aria-pressed="false">No</button>
+          </div>
+        </div>
+      </div>
+      <p class="pie">
+        Todo lo de este banco comparte altura salvo en A, donde el campo saca
+        5 px al botón.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="pantalla">
+    <span class="num">03</span>
+    <h2>La pantalla entera, funcionando</h2>
+    <p>
+      El protocolo con su camino de tres paradas, la familia que elijas arriba y
+      la medida arreglada: los tres tramos ocupan lo mismo y el paso ① reparte el
+      ancho en dos bloques en vez de dejar medio lienzo en blanco. Pulsa los
+      tramos, el «Seguir» y los mandos.
+    </p>
+
+    <div class="app" style="margin-top:24px">
+      <div class="cinta">
+        <button type="button" class="volver" aria-label="Volver">←</button>
+        <h4>Pérdida de grasa</h4>
+        <nav class="camino" role="tablist" aria-label="Los pasos del protocolo">
+          <button type="button" role="tab" aria-selected="true" data-ir="1"><span class="n">1</span> Qué lleva</button>
+          <button type="button" role="tab" aria-selected="false" data-ir="2"><span class="n">2</span> Las acciones</button>
+          <button type="button" role="tab" aria-selected="false" data-ir="3"><span class="n">3</span> Quién lo lleva</button>
+        </nav>
+        <div class="der">
+          <button type="button" class="b b-1" data-seguir>Seguir →</button>
+        </div>
+      </div>
+
+      <div class="cuerpo">
+        <div class="tramo" data-tramo="1">
+          <div class="rejilla-1">
+            <div class="col-1">
+            <div class="campo-nombre">
+              <label for="nm">Cómo lo llamas</label>
+              <div class="ay">Solo lo ves tú.</div>
+              <input class="c" id="nm" value="Pérdida de grasa">
+            </div>
+            <div class="bloque">
+              <h5>Qué le llevas</h5>
+              <div class="fila">
+                <div class="txt"><div class="nm">Entrenamiento</div><div class="ay">Su programa y sus sesiones.</div></div>
+                <span data-mando-aqui data-on="1"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">Nutrición</div><div class="ay">Kcal, macros y menú.</div></div>
+                <span data-mando-aqui data-on="1"></span>
+              </div>
+            </div>
+            </div>
+            <div class="bloque">
+              <h5>Las piezas</h5>
+              <div class="fila">
+                <div class="txt"><div class="nm">Calentamiento y movilidad</div><div class="ay">Con vídeo, antes de cada sesión.</div></div>
+                <span data-mando-aqui data-on="0"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">Tu nota en cada sesión</div><div class="ay">Una indicación tuya en el día que quieras.</div></div>
+                <span data-mando-aqui data-on="1"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">Logbook del cliente</div><div class="ay">Sus apuntes de cada sesión.</div></div>
+                <span data-mando-aqui data-on="1"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">Feedback de la sesión</div><div class="ay">Tus preguntas al terminar de entrenar.</div></div>
+                <span data-mando-aqui data-on="1"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">RIR objetivo por serie</div><div class="ay">Lo que le pides, junto a lo que anota.</div></div>
+                <span data-mando-aqui data-on="0"></span>
+              </div>
+              <div class="fila">
+                <div class="txt"><div class="nm">Equivalencias en la dieta</div><div class="ay">Cambia alimentos sin descuadrar los macros.</div></div>
+                <span data-mando-aqui data-on="0"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tramo" data-tramo="2" hidden>
+          <div class="banco">
+            <div>
+              <p class="rotulo-tramo">Al entrar</p>
+              <div class="tarjeta-accion">
+                <div class="k">PÍDELE</div>
+                <div class="nm">Alta</div>
+                <div class="ay">El cuestionario que contesta en su portal.</div>
+              </div>
+              <div class="tarjeta-accion">
+                <div class="k">HAZ TÚ</div>
+                <div class="nm">Onboarding cerrado</div>
+                <div class="ay">El paso que da por terminada la puesta en marcha.</div>
+              </div>
+              <p class="rotulo-tramo" style="margin-top:18px">Cada semana</p>
+              <div class="muestras">
+                <span style="font-size:14px;color:var(--texto-2)">Le pides el check-in los</span>
+                <button type="button" class="b b-2">jueves ▾</button>
+                <button type="button" class="b b-2">cada 2 semanas ▾</button>
+              </div>
+              <div style="margin-top:14px"><button type="button" class="b b-3">+ acción</button></div>
+            </div>
+            <div class="plano-der">
+              <p class="rotulo-tramo">La acción</p>
+              <div style="font-size:15px;font-weight:600;margin-bottom:14px">Alta</div>
+              <div style="font-size:12.5px;font-weight:600;color:var(--texto-2);margin-bottom:6px">Qué formulario</div>
+              <button type="button" class="b b-2">Alta ▾</button>
+              <p style="font-size:13px;color:var(--texto-3);margin-top:14px">14 preguntas</p>
+              <button type="button" class="b b-3" style="padding:0 4px;margin-left:-4px">editarlo →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="tramo" data-tramo="3" hidden>
+          <p style="font-size:14px;color:var(--texto-2);margin-bottom:14px">Lo llevan Marta Ruiz y Claudia Rey.</p>
+          <div class="gente">
+            <div class="fila">
+              <button type="button" class="cas" aria-pressed="false" aria-label="Nerea Sanz"></button>
+              <div class="txt"><div class="nm">Nerea Sanz</div><div class="ay">Ahora lleva «Recomposición».</div></div>
+            </div>
+            <div class="fila">
+              <button type="button" class="cas" aria-pressed="true" aria-label="Álvaro Pino"></button>
+              <div class="txt"><div class="nm">Álvaro Pino</div><div class="ay">Ahora lleva «Recomposición».</div></div>
+            </div>
+            <div class="fila">
+              <button type="button" class="cas" aria-pressed="false" aria-label="Iván Tormo"></button>
+              <div class="txt"><div class="nm">Iván Tormo</div><div class="ay">Ahora lleva «Fuerza».</div></div>
+            </div>
+          </div>
+          <div style="margin-top:18px"><button type="button" class="b b-1 b-g">Ponérselo a 1</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nota">
+      <b>Lo que cambia de la medida:</b> el campo del nombre baja de 620 px a 380
+      —un nombre de dos palabras no necesita un campo de palmo y medio— y las dos
+      listas pasan a ser bloques que se reparten el ancho. El paso ① ocupa lo
+      mismo que el ②, y ninguna fila obliga a cruzar la pantalla con la vista
+      para llegar a su mando.
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section id="cuesta">
+    <span class="num">04</span>
+    <h2>Qué cuesta ponerlo</h2>
+    <p>
+      Contado sobre la rama de hoy. Casi todo es CSS: el marcado ya está
+      repartido en primitivas, que es lo que hace este cambio barato.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Lo que se toca</th><th>Dónde</th><th>Tamaño</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Los valores de la familia</td>
+          <td><code>tokens.css</code></td>
+          <td class="bien">8 líneas</td>
+        </tr>
+        <tr>
+          <td><code>.btn</code>, <code>.btn-secondary</code>, <code>.input</code>, <code>.select</code></td>
+          <td><code>controles.css</code></td>
+          <td class="bien">4 bloques</td>
+        </tr>
+        <tr>
+          <td>Rejilla de alturas 28 / 32 / 36 en botón, campo y desplegable</td>
+          <td><code>controles.css</code></td>
+          <td class="bien">3 reglas</td>
+        </tr>
+        <tr>
+          <td>La fila de ajuste: nombre a la izquierda, mando a la derecha</td>
+          <td><code>Switch</code> en <code>primitives.jsx</code> + <code>.switch-row</code></td>
+          <td>1 primitiva · <b>21 usos</b> sin tocar</td>
+        </tr>
+        <tr>
+          <td>El mando de dos caras donde hoy hay interruptor</td>
+          <td><code>SegmentedControl</code>, que ya existe</td>
+          <td class="bien">nada nuevo</td>
+        </tr>
+        <tr>
+          <td>La medida del paso ①</td>
+          <td><code>taller.css</code> · <code>.proto-paso</code></td>
+          <td class="bien">1 regla</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="caja">
+      <h3>Lo que este estudio deja fuera a propósito</h3>
+      <p>
+        <b>El papel.</b> El lienzo sigue siendo #f7f6f2 y los filetes, cálidos.
+        Parte de la distancia con ClickUp no es el botón: es que ellos van sobre
+        gris frío y nosotros sobre papel. Pero eso es el estudio «Cajas», que
+        está aparte y sin decidir, y mezclarlos haría imposible saber cuál de los
+        dos arregla la pantalla.
+      </p>
+      <p>
+        <b>Las palabras.</b> «Seguir», «Aceptar» y «Ajustar» no dicen qué pasa al
+        pulsarlos. Eso no se arregla con CSS —es la ley de que cada botón diga su
+        consecuencia—, así que va aparte y por escrito.
+      </p>
+    </div>
+  </section>
+
+  <section id="decision">
+    <span class="num">05</span>
+    <h2>Lo que hay que decidir</h2>
+    <div class="caja">
+      <h3>Una sola pregunta: A, B o C</h3>
+      <p>
+        Recomiendo la <b>B</b>. Es la que tiene el secundario con cuerpo, que es
+        el rasgo que de verdad separa un producto acabado de una maqueta, y la
+        que mejor aguanta el papel cálido que ya tenemos. La C es más moderna de
+        planta, pero en oscuro y sobre lienzo claro pierde el borde del
+        secundario justo donde más falta hace.
+      </p>
+      <p>
+        Elegida una, va a toda la app de una vez: los mismos tokens en los
+        botones y en los 21 interruptores, sin tocar un solo <code>.jsx</code>
+        salvo la primitiva del ajuste.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* El conmutador: todo cuelga de dos atributos del <html>, así que no hay una
+   versión por familia en ningún sitio. Las tres tarjetas de la §02 se escapan
+   con `data-forzar` —es lo único que necesita verse a la vez—, y por eso las
+   reglas de familia se declaran con `:not([data-forzar])`. */
+const raiz = document.documentElement;
+
+const FAM = {
+  a: {},
+  b: {
+    '--a-radio': '8px', '--a-alto': '32px', '--a-alto-g': '36px', '--a-alto-campo': '32px', '--a-fs': '13.5px',
+    '--a-fw': '500', '--a-pad': '0 12px', '--a-radio-campo': '8px',
+    '--a-canto-campo': '1px solid #ddd8ca', '--a-fs-campo': '14px',
+    '--a-sombra-1': '0 1px 2px rgba(30,25,15,.16)', '--a-sombra-2': '0 1px 2px rgba(38,32,20,.06)',
+    '--a-relieve': 'inset 0 1px 0 rgba(255,255,255,.16)', '--a-sec-fondo': '#ffffff',
+    '--a-sec-canto': 'inset 0 0 0 1px #e2ded2', '--a-sec-hover': '#faf9f6',
+    '--a-campo-sombra': 'inset 0 1px 2px rgba(38,32,20,.045)', '--a-radio-cara': '6px',
+  },
+  c: {
+    '--a-radio': '6px', '--a-alto': '30px', '--a-alto-g': '34px', '--a-alto-campo': '30px', '--a-fs': '13px',
+    '--a-fw': '500', '--a-pad': '0 11px', '--a-radio-campo': '6px',
+    '--a-canto-campo': '1px solid #e0dcd0', '--a-fs-campo': '14px',
+    '--a-sombra-1': '0 0 0 0 rgba(0,0,0,0)', '--a-sombra-2': '0 0 0 0 rgba(0,0,0,0)', '--a-relieve': '0 0 0 0 rgba(0,0,0,0)',
+    '--a-sec-fondo': '#eceae1', '--a-sec-canto': '0 0 0 0 rgba(0,0,0,0)', '--a-sec-hover': '#e3e0d5',
+    '--a-campo-fondo': '#f5f3ed', '--a-campo-sombra': '0 0 0 0 rgba(0,0,0,0)', '--a-radio-cara': '4px',
+  },
+};
+document.querySelectorAll('[data-forzar]').forEach((el) => {
+  Object.entries(FAM[el.dataset.forzar] || {}).forEach(([k, v]) => el.style.setProperty(k, v));
+});
+
+document.querySelectorAll('.grupo-doc button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const clave = b.dataset.f ? 'fam' : 'mando';
+    raiz.dataset[clave] = b.dataset.f || b.dataset.m;
+    b.parentElement.querySelectorAll('button').forEach((o) => {
+      o.setAttribute('aria-pressed', String(o === b));
+    });
+    if (clave === 'mando') pintarMandos();
+  });
+});
+
+/* El mando de cada ajuste del prototipo: interruptor o dos caras, con el mismo
+   estado en los dos para poder ir y venir sin perder lo encendido. */
+function pintarMandos() {
+  const dosCaras = raiz.dataset.mando === 'dos-caras';
+  document.querySelectorAll('[data-mando-aqui]').forEach((hueco) => {
+    const on = hueco.dataset.on === '1';
+    hueco.innerHTML = dosCaras
+      ? '<span class="dos-caras" role="group">'
+        + '<button type="button" aria-pressed="' + on + '">Sí</button>'
+        + '<button type="button" aria-pressed="' + !on + '">No</button></span>'
+      : '<button type="button" class="inter" aria-pressed="' + on + '"></button>';
+  });
+}
+pintarMandos();
+
+document.addEventListener('click', (e) => {
+  const inter = e.target.closest('.inter');
+  if (inter) {
+    const on = inter.getAttribute('aria-pressed') !== 'true';
+    inter.setAttribute('aria-pressed', String(on));
+    const hueco = inter.closest('[data-mando-aqui]');
+    if (hueco) hueco.dataset.on = on ? '1' : '0';
+    return;
+  }
+  const cara = e.target.closest('.dos-caras button');
+  if (cara) {
+    cara.parentElement.querySelectorAll('button').forEach((o) => {
+      o.setAttribute('aria-pressed', String(o === cara));
+    });
+    const hueco = cara.closest('[data-mando-aqui]');
+    if (hueco) hueco.dataset.on = cara.textContent === 'Sí' ? '1' : '0';
+    return;
+  }
+  const cas = e.target.closest('.cas');
+  if (cas) cas.setAttribute('aria-pressed', String(cas.getAttribute('aria-pressed') !== 'true'));
+});
+
+/* El camino del prototipo */
+const tramos = document.querySelectorAll('[data-tramo]');
+const pasos = document.querySelectorAll('[data-ir]');
+const seguir = document.querySelector('[data-seguir]');
+function ir(n) {
+  tramos.forEach((t) => { t.hidden = t.dataset.tramo !== String(n); });
+  pasos.forEach((p) => p.setAttribute('aria-selected', String(p.dataset.ir === String(n))));
+  seguir.hidden = n === 3;
+}
+pasos.forEach((p) => p.addEventListener('click', () => ir(+p.dataset.ir)));
+seguir.addEventListener('click', () => {
+  const ahora = +document.querySelector('[data-ir][aria-selected="true"]').dataset.ir;
+  ir(Math.min(3, ahora + 1));
+});
+</script>
+</body>
+</html>

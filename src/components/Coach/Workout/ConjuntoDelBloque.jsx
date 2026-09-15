@@ -64,6 +64,25 @@ import { TIPO, useZonasDeSoltar } from '@/lib/portapapeles';
  * ══ Hoja, y no «sesión» ════════════════════════════════════════════════════
  * Cada día de entreno es una HOJA. Lo ejecutado se llama ENTRENAMIENTO: en
  * rotativo «sesión» ya es la vuelta al ciclo.
+ *
+ * ══ Y desde el 14 sep, SOLO LECTURA de verdad ══════════════════════════════
+ *
+ * El dueño, sobre el portal: *«la vista de entrenamiento tiene que ser similar
+ * a la vista del entrenador, ves el bloque entero y ves las hojas de entreno,
+ * tal cual lo tiene el entrenador pero adaptado al cliente»*. O sea: ESTA
+ * rejilla, en `Client/EntrenoEnMonitor`.
+ *
+ * La pieza ya decía «lo que se puede hacer sale de lo que llega», pero solo lo
+ * cumplían los verbos que nacieron gateados. Renombrar, quitar, reordenar,
+ * añadir, el día de la hoja y —sobre todo— los CAMPOS de series y repeticiones
+ * se pintaban siempre. Montarla fuera del editor le habría enseñado al cliente
+ * su rutina con la papelera puesta y, al tocar un campo, `onSeries is not a
+ * function`.
+ *
+ * Ahora cada verbo cuelga de su manejador y la dosis se lee de un tirón («4 ×
+ * 6-8») cuando no hay dónde escribirla. El entrenador pasa los diecisiete
+ * manejadores de siempre, así que su pantalla no cambia en nada: se comprobó
+ * capturándola antes y después.
  */
 
 /**
@@ -496,7 +515,7 @@ export const ConjuntoDelBloque = ({
               ? 'Una hoja es un día de entreno de este bloque —Push, Pull, Pierna—. Añade la primera y ponle dentro sus ejercicios.'
               : 'Es un bloque cerrado y se quedó sin ninguna montada. Lo que se programe a partir de ahora va en el bloque abierto.'
           }
-          action={esActual ? altaDeHoja : null}
+          action={esActual && onAnadirHoja ? altaDeHoja : null}
         />
       </div>
     );
@@ -526,7 +545,7 @@ export const ConjuntoDelBloque = ({
           que ya se está haciendo, encima del sitio donde se está haciendo.
           Vuelve solo si se cierra el alta sin haber escrito nada.
         */}
-        {esActual && bloqueVacio && altaEn === null && nuevaHoja === null && (
+        {esActual && onAnadirEjercicio && bloqueVacio && altaEn === null && nuevaHoja === null && (
           <div className="plan-hueco plan-seccion">
             <span>
               «{comoSeLlama}» no tiene ningún ejercicio todavía:{' '}
@@ -673,7 +692,7 @@ export const ConjuntoDelBloque = ({
                     lo que mantiene la fila N de todas las hojas en la misma
                     altura. Ver `.plan-col-cab`.
                   */}
-                  {esActual && !rotativo ? (
+                  {esActual && !rotativo && onSplit ? (
                     <MenuAcciones
                       /* Sin día que decir, el rótulo guarda su sitio pero se
                          calla hasta que te acercas a la columna: cuatro hojas
@@ -723,6 +742,11 @@ export const ConjuntoDelBloque = ({
                     esta pantalla arrastra desde el principio. Y «Abrir la
                     hoja» tampoco: el nombre ES la puerta.
                   */}
+                  {/* Nada de esto se pinta si no llega su manejador — ver «lo
+                      que se puede hacer sale de lo que llega», arriba. Sin
+                      ninguno, el carril entero se va: un `span` vacío de 26 px
+                      subía la cabecera de todas las columnas. */}
+                  {(onCopiarHoja || onRenombrarHoja || onGuardarPieza || onQuitarHoja) && (
                   <span className="plan-col-acciones">
                     {onCopiarHoja && (
                       <button
@@ -735,6 +759,7 @@ export const ConjuntoDelBloque = ({
                         <Copy size={13} />
                       </button>
                     )}
+                    {onRenombrarHoja && (
                     <button
                       type="button"
                       className="btn btn-icon btn-icon-compact"
@@ -744,6 +769,7 @@ export const ConjuntoDelBloque = ({
                     >
                       <Pencil size={13} />
                     </button>
+                    )}
                     {onGuardarPieza && (
                       <button
                         type="button"
@@ -772,6 +798,7 @@ export const ConjuntoDelBloque = ({
                         <ClipboardPaste size={13} />
                       </button>
                     )}
+                    {onQuitarHoja && (
                     <button
                       type="button"
                       className="btn btn-icon btn-icon-compact btn-icon-danger"
@@ -781,9 +808,11 @@ export const ConjuntoDelBloque = ({
                     >
                       <Trash2 size={13} />
                     </button>
+                    )}
                   </span>
+                  )}
                   <header className="plan-col-cab">
-                    {esActual && plan.sessions.length > 1 && (
+                    {esActual && onMoverHoja && plan.sessions.length > 1 && (
                       <button
                         type="button"
                         className="hoja-asa plan-asa"
@@ -805,11 +834,28 @@ export const ConjuntoDelBloque = ({
                           onRename={(nombre) => onRenombrarHoja(hoja.dayName, nombre)}
                           onDone={() => setRenombrando(null)}
                         />
-                      ) : (
-                        /* El nombre ES la puerta: pulsarlo entra en la hoja. */
-                        <button type="button" className="plan-col-nombre" onClick={() => onAbrirHoja(hoja.dayName)} onDoubleClick={() => setRenombrando(hoja.dayName)} title={`Abrir ${hoja.dayName} y escribir sus series · doble clic para renombrar`}>
+                      ) : onAbrirHoja ? (
+                        /* El nombre ES la puerta: pulsarlo entra en la hoja. En
+                           el portal del cliente la puerta es otra —entrar a
+                           entrenar ese día— y por eso el título sale del lado
+                           que sí tiene el verbo de renombrar. */
+                        <button
+                          type="button"
+                          className="plan-col-nombre"
+                          onClick={() => onAbrirHoja(hoja.dayName)}
+                          onDoubleClick={onRenombrarHoja ? () => setRenombrando(hoja.dayName) : undefined}
+                          title={
+                            onRenombrarHoja
+                              ? `Abrir ${hoja.dayName} y escribir sus series · doble clic para renombrar`
+                              : `Abrir ${hoja.dayName}`
+                          }
+                        >
                           {hoja.dayName}
                         </button>
+                      ) : (
+                        /* Sin ninguna puerta detrás, el nombre es un rótulo y
+                           no un botón que no lleva a ningún sitio. */
+                        <span className="plan-col-nombre">{hoja.dayName}</span>
                       )}
                       {/*
                         ══ UNA SOLA LÍNEA DEBAJO DEL NOMBRE ══════════════════
@@ -920,7 +966,7 @@ export const ConjuntoDelBloque = ({
                           : ex.name;
                       return (
                         <li className={`plan-ej${marcas(piezaEj)}`} key={ex.id} {...(cerrada ? {} : receptor(piezaEj))}>
-                          {!cerrada && hoja.exercises.length > 1 && (
+                          {!cerrada && onMoverEjercicio && hoja.exercises.length > 1 && (
                             <button
                               type="button"
                               className="hoja-asa plan-asa is-ej"
@@ -980,32 +1026,57 @@ export const ConjuntoDelBloque = ({
                                 {pesoPautado(ex)}
                               </span>
                             )}
-                            <input
-                              className="plan-series"
-                              inputMode="numeric"
-                              defaultValue={ex.series}
-                              key={`s-${ex.id}-${ex.series}`}
-                              aria-label={`Series de ${ex.name}`}
-                              onBlur={(e) => {
-                                const n = clampInt(e.target.value, 1, 12, ex.series);
-                                if (n !== ex.series) onSeries(hoja.dayName, ex.name, n, ex.series);
-                                e.target.value = n;
-                              }}
-                            />
+                            {/*
+                              ── LA DOSIS: campos o rótulo ──────────────────
+                              Aquí se escribe el plan del bloque, y por eso son
+                              dos campos. Quien monta esta rejilla para MIRARLA
+                              —el portal del cliente— no pasa `onSeries` ni
+                              `onReps`, y entonces la dosis se lee y ya: un
+                              campo que no se puede escribir es una promesa
+                              falsa.
+
+                              El rótulo usa las MISMAS clases con `is-lectura`,
+                              que ya existían en `piezas.css` para esto: mismo
+                              ancho, misma cifra tabular y mismo sitio, así que
+                              las columnas del cliente caen exactamente donde
+                              caen las del entrenador. Lo que pierde es el
+                              fondo al pasar por encima, que era la única señal
+                              de que ahí se escribía.
+                            */}
+                            {onSeries ? (
+                              <input
+                                className="plan-series"
+                                inputMode="numeric"
+                                defaultValue={ex.series}
+                                key={`s-${ex.id}-${ex.series}`}
+                                aria-label={`Series de ${ex.name}`}
+                                onBlur={(e) => {
+                                  const n = clampInt(e.target.value, 1, 12, ex.series);
+                                  if (n !== ex.series) onSeries(hoja.dayName, ex.name, n, ex.series);
+                                  e.target.value = n;
+                                }}
+                              />
+                            ) : (
+                              <span className="plan-series is-lectura">{ex.series}</span>
+                            )}
                             <span className="plan-por" aria-hidden="true">
                               ×
                             </span>
-                            <input
-                              className="plan-reps"
-                              defaultValue={ex.targetReps ?? ''}
-                              key={`r-${ex.id}-${ex.targetReps}`}
-                              placeholder={ex.targetReps === null ? 'varias' : '8-10'}
-                              aria-label={`Repeticiones objetivo de ${ex.name}`}
-                              onBlur={(e) => {
-                                const reps = e.target.value.trim();
-                                if (reps !== (ex.targetReps ?? '')) onReps(hoja.dayName, ex.name, reps);
-                              }}
-                            />
+                            {onReps ? (
+                              <input
+                                className="plan-reps"
+                                defaultValue={ex.targetReps ?? ''}
+                                key={`r-${ex.id}-${ex.targetReps}`}
+                                placeholder={ex.targetReps === null ? 'varias' : '8-10'}
+                                aria-label={`Repeticiones objetivo de ${ex.name}`}
+                                onBlur={(e) => {
+                                  const reps = e.target.value.trim();
+                                  if (reps !== (ex.targetReps ?? '')) onReps(hoja.dayName, ex.name, reps);
+                                }}
+                              />
+                            ) : (
+                              <span className="plan-reps is-lectura">{ex.targetReps ?? 'varias'}</span>
+                            )}
                             {/*
                               El remate, si esa hoja lo pauta: una marca, no la
                               frase. Que un ejercicio acabe en bajada es parte
@@ -1028,19 +1099,25 @@ export const ConjuntoDelBloque = ({
                           </span>
                           {/* La papelera no gasta ancho: se posa encima del
                               carril de la pauta al acercarse a la fila. */}
-                          <button
-                            type="button"
-                            className="btn btn-icon btn-icon-compact btn-icon-danger plan-ej-quitar"
-                            aria-label={`Quitar ${ex.name}`}
-                            onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {onQuitarEjercicio && (
+                            <button
+                              type="button"
+                              className="btn btn-icon btn-icon-compact btn-icon-danger plan-ej-quitar"
+                              aria-label={`Quitar ${ex.name}`}
+                              onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
                         </li>
                       );
                     })}
                   </ol>
 
+                  {/* El pie es el carril de «+ ejercicio» y de los avisos de la
+                      hoja. Sin ninguno de los dos no se pinta: un pie vacío son
+                      13 px de relleno y un filete debajo de la última fila. */}
+                  {(cerrada || onAnadirEjercicio || (onIrSemana && hoja.difieren.length > 0)) && (
                   <div className="plan-col-pie">
                     {cerrada ? (
                       /* Sin sitio donde escribir: todas sus repeticiones están
@@ -1060,7 +1137,7 @@ export const ConjuntoDelBloque = ({
                         onRecordar={onRecordarEjercicio}
                         onClose={() => setAltaEn(null)}
                       />
-                    ) : (
+                    ) : onAnadirEjercicio ? (
                       <button
                         type="button"
                         className="plan-alta-abrir"
@@ -1069,9 +1146,9 @@ export const ConjuntoDelBloque = ({
                       >
                         <Plus size={13} aria-hidden="true" /> ejercicio
                       </button>
-                    )}
+                    ) : null}
 
-                    {hoja.difieren.length > 0 && (
+                    {onIrSemana && hoja.difieren.length > 0 && (
                       <button
                         type="button"
                         className="plan-difiere"
@@ -1082,6 +1159,7 @@ export const ConjuntoDelBloque = ({
                       </button>
                     )}
                   </div>
+                  )}
                 </section>
               );
             })}

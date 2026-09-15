@@ -42,7 +42,7 @@
 .row-end > .field { align-self: stretch; justify-content: flex-end; position: relative; }
 .row-end > .field > .field-hint,
 .row-end > .field > .field-error {
-  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  position: absolute; top: calc(100% + var(--s1)); left: 0; right: 0;
 }
 .row-end:has(> .field > .field-hint),
 .row-end:has(> .field > .field-error) { margin-bottom: 20px; }
@@ -57,7 +57,7 @@
 
    Y la ayuda vuelve al flujo: colgada en absoluto con 20 px reservados (una
    línea) se montaba sobre la segunda fila de campos al envolver. */
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .row-end { flex-wrap: wrap; }
   .row-end > .grow, .row-end > .field { flex-basis: min(150px, 100%); }
   .row-end > .field > .field-hint,
@@ -78,7 +78,6 @@
 .gap-3 { gap: var(--s3); }
 .gap-4 { gap: var(--s4); }
 .gap-5 { gap: var(--s5); }
-.gap-6 { gap: var(--s6); }
 
 .stack { display: flex; flex-direction: column; gap: var(--s6); }
 .stack-sm { display: flex; flex-direction: column; gap: var(--s3); }
@@ -126,7 +125,6 @@
    otra, sigue el mismo patrón. */
 .grid-auto { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(158px, 100%), 1fr)); gap: var(--s3); }
 .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: var(--s4); }
-.grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: var(--s4); }
 
 /* ── EL TECHO DE LA CASA, y nada más que el techo ──────────────────────────
    `.layout` capaba TODAS las pantallas del entrenador a 1320 px —la medida de
@@ -204,6 +202,24 @@
   .settings-body > .stack > *:nth-child(4) { animation-delay: 150ms; }
   .layout > .stack > *:nth-child(n + 5),
   .settings-body > .stack > *:nth-child(n + 5) { animation-delay: 190ms; }
+
+  /* ── Y el Resumen, que era la única pantalla que aparecía de golpe ────────
+     Medido con la aplicación delante (11 sep): el hijo de `.layout` en el
+     Resumen es `.resumen-pagina`, no un `.stack`, así que el selector de
+     arriba no lo tocaba y la pantalla más poblada del producto —ocho cajas—
+     se pintaba entera de una vez. Se nota justamente por ser la más poblada:
+     de un clic a otro no hay nada que diga que la pantalla ha cambiado.
+
+     La cascada va por la MESA, que es el mosaico, y el costado entra al final
+     como una sola pieza. Es lo que dice la forma: ese costado es un panel, no
+     tres tarjetas, y escalonarlo por dentro sería la cascada dentro de la
+     cascada contra la que avisa el bloque de arriba. */
+  .resumen > .mosaico > *,
+  .resumen > .resumen-lado { animation: pantalla-entra 0.4s var(--ease) backwards; }
+  .resumen > .mosaico > *:nth-child(2) { animation-delay: 50ms; }
+  .resumen > .mosaico > *:nth-child(3) { animation-delay: 100ms; }
+  .resumen > .mosaico > *:nth-child(n + 4) { animation-delay: 150ms; }
+  .resumen > .resumen-lado { animation-delay: 190ms; }
 }
 
 /* ══ EL ESQUELETO DE ARRANQUE ════════════════════════════════════════════════
@@ -213,7 +229,7 @@
 
    El pulso es de OPACIDAD y no de posición —nada se mueve— y desaparece entero
    con `prefers-reduced-motion`. */
-.boot { min-height: 100vh; display: flex; flex-direction: column; }
+.boot { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
 .boot-top {
   height: var(--header-h); flex-shrink: 0;
   display: flex; align-items: center; gap: var(--s4);

@@ -17,8 +17,8 @@ import { Panel, Switch } from '@/components/ui/primitives';
  * lo ancho de la hoja, o sea el color de lo que invita a pulsar puesto sobre lo
  * que ya está decidido y nadie va a tocar.
  */
-export const ServicesSection = ({ protocol, onSave, title, desnudo = false }) => (
-  <Panel title={title} desnudo={desnudo}>
+export const ServicesSection = ({ protocol, onSave, title, sub, desnudo = false }) => (
+  <Panel title={title} sub={sub} desnudo={desnudo}>
     <ul className="proto-modules">
       {SERVICES.map((servicio) => {
         const puesto = isServiceOn(protocol, servicio.id);
@@ -33,11 +33,7 @@ export const ServicesSection = ({ protocol, onSave, title, desnudo = false }) =>
           <li key={servicio.id}>
             <Switch
               label={servicio.label}
-              hint={
-                ultimo
-                  ? 'Tiene que quedar al menos uno: sin entrenamiento y sin nutrición no queda nada que enseñarle.'
-                  : servicio.hint
-              }
+              hint={ultimo ? 'Tiene que quedar uno de los dos.' : servicio.hint}
               checked={puesto}
               disabled={ultimo}
               onChange={() => onSave(toggleService(protocol, servicio.id))}

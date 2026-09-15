@@ -54,6 +54,10 @@ export const MacroTargetCard = ({
      del costado diciéndolos. Ver `bloque-cifras` más abajo. */
   peso = null,
   cuando = null,
+  /* El menú del día y de dónde salieron las calorías la última vez, para que el
+     editor pueda enseñar qué le hace el objetivo nuevo al menú. Va nulo desde la
+     revisión, que no tiene menú delante. Ver `EditarObjetivo`. */
+  reajuste = null,
 }) => {
   const targets = targetsFor(plan, variant);
   const macros = macroSplit(targets);
@@ -101,6 +105,7 @@ export const MacroTargetCard = ({
       targets={targets}
       onSave={onSave}
       avanzado={avanzado}
+      reajuste={reajuste}
     />
   );
 

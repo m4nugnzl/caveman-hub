@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Camera, Copy, Plus, Send, SlidersHorizontal, SquarePen, Text, Trash2 } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
@@ -8,22 +8,19 @@ import {
   MOMENTOS,
   buildFormulario,
   coachFormularios,
-  desdeElementos,
-  elementosDe,
   formulariosToPreferences,
   resumenFormulario,
 } from '@/domain/formularios';
 import { PLANTILLAS, cuentaElementos, duplicarElementos, elementosDePlantilla } from '@/domain/formulario';
 import { coachProtocolos } from '@/domain/protocolos';
-import { agrupar } from '@/domain/envios';
+import { agrupar, cuantasPorSalir } from '@/domain/envios';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { MandarAlgo } from '@/components/Coach/MandarAlgo';
 import { Cinta } from '@/components/ui/Cinta';
-import { ConstructorFormulario } from './ConstructorFormulario';
-import { ConstructorLibre } from './ConstructorLibre';
+import { EditorDeFormulario } from './EditorDeFormulario';
 
 /**
  * TUS FORMULARIOS: todo lo que le preguntas a un cliente, en un solo sitio.
@@ -63,20 +60,22 @@ const ICONO_MOMENTO = { alta: Text, sesion: SlidersHorizontal, semana: Camera, l
 const TONO_MOMENTO = { alta: 4, sesion: 2, semana: 5, libre: 1 };
 
 export const FormulariosPanel = () => {
-  const { coachPrefs, activeClient, openClientView, envioRows } = useApp();
+  const { coachPrefs, envioRows } = useApp();
   const { updateCoachPreferences } = useActions();
   const confirm = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
 
   /*
-    Puede llegar abierto: desde el protocolo se entra a EDITAR un formulario
-    concreto, no a la lista. Y `volver` recuerda de dónde se vino, para que la
-    flecha de atrás devuelva al protocolo abierto y no a la lista de protocolos.
+    ── Y YA NO LLEGA ABIERTO DESDE EL PROTOCOLO ────────────────────────────
+
+    Aquí había un `volver` que recordaba de qué protocolo se venía, escrito a
+    propósito para que la flecha de atrás no te dejara tirado en la lista. Ese
+    viaje ya no existe: el formulario de una acción se edita DENTRO del
+    protocolo, sin cambiar de pantalla (ver `EditorDeFormulario`). Cuando hay
+    que programar el camino de vuelta, el viaje sobraba.
   */
-  const [abierto, setAbierto] = useState(() => location.state?.abrir || null);
-  const volver = location.state?.volver || null;
+  const [abierto, setAbierto] = useState(null);
   const [renombrando, setRenombrando] = useState(null);
   /* `null` · `'momento'` · `'plantilla'`: crear un suelto son dos pasos, y el
      segundo es el que de verdad enseña el producto. */
@@ -85,34 +84,6 @@ export const FormulariosPanel = () => {
 
   const formularios = coachFormularios(coachPrefs);
   const form = formularios.find((f) => f.id === abierto) || null;
-
-  /*
-    ── EL LIENZO ES ESTADO, y tiene que serlo ────────────────────────────────
-
-    `elementosDe` no lee ids: los FABRICA. Un formulario del modelo viejo guarda
-    ids de catálogo (`adherence`) y campos sueltos (`weighIns`), así que sus
-    elementos nacen con `newId` en cada llamada. Calcularlos en el render
-    significaría que el elemento que estás tocando cambia de identidad en cada
-    tecla: el carril se cerraría solo, las `key` de React se rehacen enteras y
-    reordenar movería otra cosa.
-
-    Así que el lienzo se siembra UNA vez al abrir el formulario y vive aquí
-    mientras se edita. Lo que se guarda es el formulario —`desdeElementos` lo
-    devuelve a su forma de siempre—, y lo que se pinta es este estado.
-  */
-  const [lienzo, setLienzo] = useState([]);
-
-  useEffect(() => {
-    setLienzo(form ? elementosDe(form) : []);
-    /* Solo al cambiar de formulario abierto: reseembrar en cada cambio de
-       `form` volvería a fabricar ids y traería de vuelta el problema. */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [abierto]);
-
-  const guardarLienzo = (elementos) => {
-    setLienzo(elementos);
-    if (form) guardarUno(desdeElementos(form, elementos));
-  };
 
   /*
     Quién usa cada formulario. Se calcula sobre los protocolos y no se guarda en
@@ -186,70 +157,14 @@ export const FormulariosPanel = () => {
     guardarLista(formularios.filter((x) => x.id !== f.id));
   };
 
-  /*
-    Volver: al protocolo del que se vino, si se vino de uno. La flecha de atrás
-    del constructor es la misma en los dos casos; lo que cambia es a dónde
-    devuelve, y devolver a la lista a quien venía editando un protocolo es
-    perderle el sitio.
-  */
-  const alVolver = () => {
-    if (volver?.to) {
-      navigate(volver.to, { state: { abrir: volver.abrir || null } });
-      return;
-    }
-    setAbierto(null);
-  };
-
-  /* «Ver como cliente»: el formulario en el chasis real del portal, con un
-     cliente de verdad. */
-  const verComoCliente = () => {
-    if (!activeClient) {
-      toast({
-        text: 'Abre antes a un cliente: la previsualización entra en SU portal, con sus respuestas.',
-      });
-      return;
-    }
-    openClientView(form?.momento === 'alta' ? '/mi/alta' : '/mi/inicio');
-  };
-
   if (form) {
     return (
       <>
-        {/*
-          ── UN SOLO CONSTRUCTOR, salvo el alta ──────────────────────────────
-
-          El parte y el check-in se editaban con `ConstructorFormulario`, donde
-          una pregunta del catálogo solo se podía ENCENDER: «son opciones
-          semifijas, no puedes hacer tú una». Ahora entran por el mismo lienzo
-          que el suelto —renombrar, cambiar la escala, poner una regla— y el
-          catálogo pasa a ser una estantería de la que se coge.
-
-          La traducción vive en el dominio y en esta sola línea: `elementosDe`
-          lee el formulario como elementos y `desdeElementos` lo devuelve a la
-          forma en que se guarda. El portal, la revisión y la analítica siguen
-          leyendo exactamente lo mismo que antes.
-
-          El alta se queda con su editor: su modelo son campos de perfil
-          (`asked`, `askBasics`…), no preguntas, y no tiene puente todavía.
-        */}
-        {form.momento === 'alta' ? (
-          <ConstructorFormulario
-            form={form}
-            onChange={guardarUno}
-            onVolver={alVolver}
-            onVerComoCliente={verComoCliente}
-          />
-        ) : (
-          <ConstructorLibre
-            form={form}
-            elementos={lienzo}
-            onChange={guardarLienzo}
-            onVolver={alVolver}
-            onMandar={form.momento === 'libre' ? () => setMandando(form) : null}
-            onVerComoCliente={verComoCliente}
-          />
-        )}
-
+        <EditorDeFormulario
+          formId={form.id}
+          onVolver={() => setAbierto(null)}
+          onMandar={form.momento === 'libre' ? () => setMandando(form) : null}
+        />
         {mandando && <MandarAlgo formulario={mandando} onCerrar={() => setMandando(null)} />}
       </>
     );
@@ -258,8 +173,29 @@ export const FormulariosPanel = () => {
   return (
     <div className="stack cascada">
       <div className="taller">
+        {/*
+          ── LA MISMA CINTA QUE EL PROTOCOLO, con el tramo puesto ───────────
+
+          Esta pantalla dejó de ser una puerta del Taller: es el tercer tramo de
+          Protocolos, y por eso la banda dice «Protocolos» y no «Formularios».
+          El tramo ES la ruta —`/formularios` sigue existiendo—, igual que en la
+          Librería, así que cambiar de tramo navega y el botón de atrás hace lo
+          que tiene que hacer.
+
+          El porqué está en el protocolo: dos puertas para una sola partida, y
+          cada una explicando por escrito qué mitad del trabajo le tocaba.
+        */}
         <Cinta
-          titulo="Formularios"
+          titulo="Protocolos"
+          tramos={[
+            { id: 'protocolos', label: 'Protocolos' },
+            { id: 'sale', label: 'Lo que sale', n: cuantasPorSalir(envioRows || []) },
+            { id: 'formularios', label: 'Formularios', n: formularios.length },
+          ]}
+          tramo="formularios"
+          onTramo={(id) =>
+            id !== 'formularios' && navigate('/protocolos', { state: { tramo: id } })
+          }
           accion={
             <button
               type="button"
@@ -403,9 +339,16 @@ export const FormulariosPanel = () => {
             </div>
           )}
 
+          {/*
+            El pie decía «Aquí se escriben; qué protocolo usa cada uno —y a quién
+            se le manda— se decide en Protocolos». Una pantalla que necesita una
+            nota para explicar qué mitad del trabajo le toca está partida por
+            donde no debía, y ya no lo está: los tres tramos son la misma puerta
+            y el formulario de una acción se escribe dentro de su protocolo.
+          */}
           <p className="t-xs t-tertiary taller-pie">
-            {formularios.length} de {MAX_FORMULARIOS}. Aquí se escriben; qué protocolo usa cada uno
-            —y a quién se le manda— se decide en Protocolos.
+            {formularios.length} de {MAX_FORMULARIOS}. Un formulario dice QUÉ le preguntas; cuándo
+            se le pide lo dice el protocolo que lo usa.
           </p>
         </div>
       </div>

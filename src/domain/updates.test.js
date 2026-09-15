@@ -358,6 +358,11 @@ describe('recordatorioDeSemana', () => {
     /* Lo que dice es CUÁNDO se espera, que es lo que el cliente no sabe. No
        repite la tarea que ya está debajo. */
     expect(r.hint).toBe('Se lo entregas los lunes.');
+    /* A «Tu revisión», que es donde está el verbo de entregar. Fue «Tú» durante
+       las horas en las que la revisión no tuvo destino propio; con `D-10` lo
+       tiene otra vez. Las TAREAS de debajo —«te falta 1 pesaje»— siguen yendo a
+       la báscula (`/mi/evolucion/medidas`), que es donde se anota: son dos
+       destinos porque son dos cosas distintas. */
     expect(r.href).toBe('/mi/evolucion');
     /* Ni «llevas», ni «te has retrasado», ni cuántos días. */
     expect(r.label + r.hint).not.toMatch(/retras|tarde|deber/i);

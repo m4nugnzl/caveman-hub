@@ -1,10 +1,14 @@
-import { useState } from 'react';
-import { ArrowRightLeft, Bookmark } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Bookmark } from 'lucide-react';
 
-import { MACROS, displayAsUnits, unitsLabel } from '@/domain/nutrition';
-import { racionDe } from '@/domain/foodEquiv';
+import { MACROS, displayAsUnits, foodMacros, unitsLabel } from '@/domain/nutrition';
+import { aportaElMacro, candidatosDeGrupo, macroPor100, racionDe } from '@/domain/foodEquiv';
 import { gruposQueYaLosTienen, nombreRepetido } from '@/domain/gruposEquiv';
+import { norm } from '@/lib/texto';
 import { Modal } from '@/components/ui/Modal';
+import { Autocomplete } from '@/components/ui/Autocomplete';
+import { BotonMas } from '@/components/ui/BotonMas';
+import { IconoEquivalencia } from '@/components/ui/IconoEquivalencia';
 import { Field, Switch, TextInput } from '@/components/ui/primitives';
 import { useOculto } from '@/components/Client/Oculto';
 
@@ -35,6 +39,15 @@ const nombreDe = (item) => item.food?.name || '';
  * deja libres los otros dos, y esa diferencia es información que el que elige
  * debe ver, no un desajuste que esconder.
  *
+ * ══ La forma: el alimento arriba, y lo que vale por él debajo del ≈ ═════════
+ *
+ * Es una igualdad y se dibuja como una: el alimento de partida en su losa, el
+ * signo, y la lista. Antes la cuenta iba en una frase («150 g de huevo aportan
+ * 19 g de proteína. Estas raciones aportan lo mismo:») y cada ración en su caja
+ * con su botón «⇄ Usar» — doce cajas y doce botones iguales para una lista que
+ * se ojea. Ahora las filas son renglones de una sola lista y el verbo aparece
+ * con la fila, que es la ley de los gestos de la casa.
+ *
  * ══ Y es donde se monta un grupo tuyo ══════════════════════════════════════
  *
  * Porque es donde se está mirando la lista que sobra. Las equivalencias de
@@ -45,6 +58,14 @@ const nombreDe = (item) => item.food?.name || '';
  * El marcado es un MODO del mismo diálogo y no otra pantalla: la lista que se
  * poda es la que ya estás leyendo, y mandarte a otro sitio a repetirla sería
  * pedirte que la recuerdes.
+ *
+ * ══ Y lo que la lista no trae, se mete a mano ══════════════════════════════
+ *
+ * La lista de marcar es la FAMILIA del catálogo, y el criterio de un entrenador
+ * cruza familias: al huevo le vale el atún, al pan le vale la patata. «+
+ * equivalencia» busca en toda tu biblioteca y el catálogo, y lo elegido entra
+ * marcado en el grupo. Desde la lista de consulta, elegir uno pasa a marcar
+ * —un alimento suelto no se guarda en ningún sitio que no sea un grupo—.
  */
 export const FoodEquivalences = ({
   food,
@@ -55,13 +76,17 @@ export const FoodEquivalences = ({
      donde se está mirando lo que el cliente vería. */
   onSetVisible,
   clientSwapsOn = false,
-  /* Los grupos tuyos y la lista larga con la que se marcan. Sin `onSaveGrupo`
-     el diálogo es el de siempre: el del cliente, y el de un catálogo que
-     todavía no ha cargado. */
+  /* Tus grupos y lo que hace falta para montarlos: el catálogo y tu biblioteca,
+     de donde salen la lista larga de marcar y el buscador. Sin `onSaveGrupo` el
+     diálogo es el de siempre: el del cliente, que ni marca ni añade. */
   grupos = [],
-  candidatos = null,
+  catalogFoods = [],
+  libraryFoods = [],
   onSaveGrupo = null,
   onRemoveGrupo = null,
+  /* Abrir con el buscador ya puesto: lo pide el «+ equivalencia» de las filas que
+     cuelgan del alimento en la comida, que viene justo a eso. */
+  abrirBuscando = false,
   onClose,
 }) => {
   /* Al cliente con las kcal ocultas le vale la lista —«no tengo plátanos» se
@@ -73,6 +98,8 @@ export const FoodEquivalences = ({
   const macro = MACROS.find((m) => m.key === equivalences.macro);
   const nombre = (macro?.label || '').toLowerCase();
   const cantidad = displayAsUnits(food) ? `${unitsLabel(food)} (${food.grams} g)` : `${food.grams} g`;
+  const kcalFuente = Math.round(foodMacros(food).kcal);
+  const puedeAnadir = Boolean(onSaveGrupo) && libraryFoods.length > 0;
 
   /*
     ── El modo de marcar ────────────────────────────────────────────────────
@@ -85,14 +112,27 @@ export const FoodEquivalences = ({
   const [montando, setMontando] = useState(false);
   const [marcados, setMarcados] = useState([]);
   const [comoSeLlama, setComoSeLlama] = useState('');
+  /* Los metidos a mano, el último primero: salen arriba de la lista para que
+     quien acaba de elegir uno lo vea entrar, y no ordenado entre treinta. */
+  const [anadidos, setAnadidos] = useState([]);
+  const [buscando, setBuscando] = useState(abrirBuscando && puedeAnadir);
+  const [busqueda, setBusqueda] = useState('');
+  const [aviso, setAviso] = useState(null);
 
-  const empezar = () => {
-    /* Con grupo, lo que hay dentro; sin él, lo que hoy se ofrece. Son la misma
-       expresión porque `equivalences.items` YA es una cosa o la otra: con un
-       grupo puesto, la lista de consulta son sus miembros (ver `foodEquiv`). */
-    setMarcados(equivalences.items.map(nombreDe));
+  /* Con grupo, lo que hay dentro; sin él, lo que hoy se ofrece. Son la misma
+     expresión porque `equivalences.items` YA es una cosa o la otra: con un grupo
+     puesto, la lista de consulta son sus miembros (ver `foodEquiv`). */
+  const empezar = (conEste = null) => {
+    const hoy = equivalences.items.map(nombreDe);
+    setMarcados(conEste && !hoy.includes(conEste) ? [...hoy, conEste] : hoy);
     setComoSeLlama(grupo?.name || '');
     setMontando(true);
+  };
+
+  const cancelar = () => {
+    setMontando(false);
+    setAnadidos([]);
+    setAviso(null);
   };
 
   const alternar = (nombreAlimento) =>
@@ -102,7 +142,56 @@ export const FoodEquivalences = ({
         : [...antes, nombreAlimento]
     );
 
-  const lista = montando ? candidatos?.items || [] : equivalences.items;
+  /* La lista larga, la de marcar: la familia entera sin filtros, más lo que ya
+     esté en tu grupo y lo que acabas de meter a mano. Solo montando, que es
+     cuando se enseña. */
+  const candidatos = useMemo(
+    () =>
+      montando
+        ? candidatosDeGrupo(food, catalogFoods, libraryFoods, {
+            incluir: [...(grupo ? equivalences.items.map(nombreDe) : []), ...anadidos],
+            macro: grupo ? equivalences.macro : null,
+          })
+        : null,
+    [montando, food, catalogFoods, libraryFoods, grupo, equivalences, anadidos]
+  );
+
+  const lista = useMemo(() => {
+    if (!montando) return equivalences.items;
+    const items = candidatos?.items || [];
+    const claves = anadidos.map(norm);
+    const primero = claves
+      .map((clave) => items.find((item) => norm(nombreDe(item)) === clave))
+      .filter(Boolean);
+    return [...primero, ...items.filter((item) => !claves.includes(norm(nombreDe(item))))];
+  }, [montando, equivalences.items, candidatos, anadidos]);
+
+  /* Lo que el buscador ofrece: todo lo tuyo y del catálogo menos el propio
+     alimento y lo que ya está en la lista — elegirlo otra vez no haría nada. */
+  const buscables = useMemo(() => {
+    if (!puedeAnadir) return [];
+    const fuera = new Set([norm(food.name), ...lista.map((item) => norm(nombreDe(item)))]);
+    return libraryFoods.filter((f) => f?.name && !fuera.has(norm(f.name)));
+  }, [puedeAnadir, libraryFoods, food.name, lista]);
+
+  const anadir = (elegido) => {
+    setBusqueda('');
+    /* Sin macro no hay ración que calcular, y en vez de dejar que el alimento
+       no aparezca se dice al elegirlo: qué le falta y cuánto lleva. */
+    if (!aportaElMacro(elegido, equivalences.macro)) {
+      setAviso(
+        `«${elegido.name}» lleva ${macroPor100(elegido, equivalences.macro)} g de ${nombre} por 100 g: no hay ración suya que valga por ${food.name.toLowerCase()}.`
+      );
+      return;
+    }
+    setAviso(null);
+    if (montando) {
+      setMarcados((antes) => (antes.includes(elegido.name) ? antes : [...antes, elegido.name]));
+    } else {
+      empezar(elegido.name);
+    }
+    setAnadidos((antes) => [elegido.name, ...antes.filter((n) => n !== elegido.name)]);
+  };
 
   /* Un grupo de uno no ofrece ningún cambio, así que no es un grupo. */
   const sePuedeGuardar =
@@ -127,6 +216,17 @@ export const FoodEquivalences = ({
     });
     onClose();
   };
+
+  /* El rótulo del signo: qué es la lista de debajo. Con un grupo tuyo, de dónde
+     sale es OTRA COSA —lo escribiste tú— y decirlo es lo que explica por qué
+     esta lista es corta. */
+  const rotulo = montando
+    ? 'Marca los que valen por él'
+    : grupo
+      ? `Tu grupo «${grupo.name}»`
+      : oculto.nutrition
+        ? 'Valen por tu ración'
+        : `Aportan los mismos ${equivalences.macroGrams} g de ${nombre}`;
 
   return (
     <Modal
@@ -168,7 +268,7 @@ export const FoodEquivalences = ({
                 Quitar el grupo
               </button>
             )}
-            <button type="button" className="btn btn-secondary" onClick={() => setMontando(false)}>
+            <button type="button" className="btn btn-secondary" onClick={cancelar}>
               Cancelar
             </button>
             <button
@@ -181,19 +281,34 @@ export const FoodEquivalences = ({
             </button>
           </>
         ) : onSaveGrupo ? (
-          <button type="button" className="btn btn-secondary" onClick={empezar}>
+          <button type="button" className="btn btn-secondary" onClick={() => empezar()}>
             <Bookmark size={13} /> {grupo ? 'Editar tu grupo' : 'Guardar estos como grupo'}
           </button>
         ) : null
       }
     >
       <div className="col gap-4">
-        {montando ? (
+        {/* El alimento de partida: el lado izquierdo de la igualdad. Es el ancla
+            también al marcar, y por eso no se repite como fila de la lista. */}
+        <div className="equiv-fuente">
+          <span className="who">
+            <span className="name">{food.name}</span>
+            {!oculto.nutrition && (
+              <span className="sub">
+                {equivalences.macroGrams} g de {nombre}
+                <span className="sep">·</span>
+                {kcalFuente} kcal
+              </span>
+            )}
+          </span>
+          <span className="amount">{cantidad}</span>
+        </div>
+
+        {montando && (
           <>
             <p className="t-sm t-secondary">
-              Marca lo que de verdad vale por <strong>{cantidad}</strong> de{' '}
-              {food.name.toLowerCase()}. El grupo es tuyo y vale para todos tus clientes: donde
-              salga este alimento se ofrecerán estos y ninguno más.
+              El grupo es tuyo y vale para todos tus clientes: donde salga{' '}
+              {food.name.toLowerCase()} se ofrecerán los que marques y ninguno más.
             </p>
 
             <Field label="Cómo se llama">
@@ -205,140 +320,145 @@ export const FoodEquivalences = ({
               />
             </Field>
           </>
-        ) : (
-          <p className="t-sm t-secondary">
-            {/* La cuenta a la vista: de dónde sale la lista. Sin esto, los gramos
-                de abajo parecen sacados de una tabla mágica. Con un grupo tuyo,
-                de dónde sale es OTRA COSA —lo escribiste tú— y decirlo es lo que
-                explica por qué esta lista es corta. */}
-            {oculto.nutrition ? (
-              <>
-                Estas raciones valen por tus <strong>{cantidad}</strong> de{' '}
-                {food.name.toLowerCase()}:
-              </>
-            ) : grupo ? (
-              <>
-                Tu grupo <strong>«{grupo.name}»</strong>, con las raciones que aportan los{' '}
-                <strong>
-                  {equivalences.macroGrams} g de {nombre}
-                </strong>{' '}
-                de tus {cantidad}:
-              </>
-            ) : (
-              <>
-                <strong>{cantidad}</strong> de {food.name.toLowerCase()} aportan{' '}
-                <strong>
-                  {equivalences.macroGrams} g de {nombre}
-                </strong>
-                . Estas raciones aportan lo mismo:
-              </>
-            )}
-          </p>
         )}
 
-        <ul className={`equiv-list${montando ? ' is-marcando' : ''}`}>
-          {/* Montando, el alimento de partida encabeza la lista y no se marca:
-              es el ancla del grupo, no un candidato. */}
-          {montando && (
-            <li className="equiv-row es-ancla">
-              {/* El hueco de la casilla que esta fila no tiene: sin él, el
-                  nombre del ancla no cae bajo los de la lista. */}
-              <span className="equiv-casilla" aria-hidden="true" />
-              <span className="who">
-                <span className="name">{food.name}</span>
-                <span className="sub">el alimento del que sale</span>
-              </span>
-              <span className="amount">{cantidad}</span>
-            </li>
-          )}
+        <div className="equiv-lista">
+          <p className="equiv-signo">
+            <IconoEquivalencia size={15} />
+            <span>{rotulo}</span>
+          </p>
 
-          {lista.map((item) => {
-            const suNombre = nombreDe(item);
-            const puesto = marcados.includes(suNombre);
-            const fila = (
-              <>
-                <span className="who">
-                  <span className="name">{suNombre}</span>
-                  {/* Las DOS cifras que definen el cambio: los gramos del macro
-                      del grupo y las kcal, cada una con lo que se separa de la
-                      tuya. La ración se elige cuadrando ambas, así que enseñar
-                      solo una escondería en qué se pagó la otra. En tinta de dato;
-                      el color, solo en las diferencias. */}
-                  {!oculto.nutrition && (
-                    <span className="sub">
-                      {item.macroGrams} g de {nombre}
-                      {item.macroDiff ? (
-                        <b className={`dif${item.macroDiff > 0 ? ' is-mas' : ' is-menos'}`}>
-                          {item.macroDiff > 0 ? '+' : ''}
-                          {item.macroDiff}
-                        </b>
-                      ) : null}
-                      <span className="sep">·</span>
-                      {item.kcal} kcal
-                      {item.kcalDiff ? (
-                        <b className={`dif${item.kcalDiff > 0 ? ' is-mas' : ' is-menos'}`}>
-                          {item.kcalDiff > 0 ? '+' : ''}
-                          {item.kcalDiff}
-                        </b>
-                      ) : null}
-                    </span>
-                  )}
-                  {item.gramsKcal && !oculto.nutrition && !montando && (
-                    <span className="sub equiv-kcal">
-                      {onSwap ? (
-                        <button
-                          type="button"
-                          className="equiv-kcal-usar"
-                          onClick={() => onSwap({ ...item, grams: item.gramsKcal })}
-                          aria-label={`Cambiar ${food.name} por ${item.gramsKcal} g de ${suNombre}, con las mismas kcal`}
-                        >
-                          o {item.gramsKcal} g para las mismas kcal
-                        </button>
-                      ) : (
-                        `o ${item.gramsKcal} g para las mismas kcal`
-                      )}
-                    </span>
-                  )}
-                </span>
-                <span className="amount">{racion(item)}</span>
-              </>
-            );
+          <ul className={`equiv-list${montando ? ' is-marcando' : ''}`}>
+            {lista.map((item) => {
+              const suNombre = nombreDe(item);
+              const puesto = marcados.includes(suNombre);
+              const fila = (
+                <>
+                  <span className="who">
+                    <span className="name">{suNombre}</span>
+                    {/* Las DOS cifras que definen el cambio: los gramos del macro
+                        del grupo y las kcal, cada una con lo que se separa de la
+                        tuya. La ración se elige cuadrando ambas, así que enseñar
+                        solo una escondería en qué se pagó la otra. En tinta de
+                        dato; el color, solo en las diferencias. */}
+                    {!oculto.nutrition && (
+                      <span className="sub">
+                        {item.macroGrams} g de {nombre}
+                        {item.macroDiff ? (
+                          <b className={`dif${item.macroDiff > 0 ? ' is-mas' : ' is-menos'}`}>
+                            {item.macroDiff > 0 ? '+' : ''}
+                            {item.macroDiff}
+                          </b>
+                        ) : null}
+                        <span className="sep">·</span>
+                        {item.kcal} kcal
+                        {item.kcalDiff ? (
+                          <b className={`dif${item.kcalDiff > 0 ? ' is-mas' : ' is-menos'}`}>
+                            {item.kcalDiff > 0 ? '+' : ''}
+                            {item.kcalDiff}
+                          </b>
+                        ) : null}
+                      </span>
+                    )}
+                    {item.gramsKcal && !oculto.nutrition && !montando && (
+                      <span className="sub equiv-kcal">
+                        {onSwap ? (
+                          <button
+                            type="button"
+                            className="equiv-kcal-usar"
+                            onClick={() => onSwap({ ...item, grams: item.gramsKcal })}
+                            aria-label={`Cambiar ${food.name} por ${item.gramsKcal} g de ${suNombre}, con las mismas kcal`}
+                          >
+                            o {item.gramsKcal} g para las mismas kcal
+                          </button>
+                        ) : (
+                          `o ${item.gramsKcal} g para las mismas kcal`
+                        )}
+                      </span>
+                    )}
+                  </span>
+                  <span className="amount">{racion(item)}</span>
+                </>
+              );
 
-            /* La casilla delante y la fila apagada cuando queda fuera: la misma
-               mecánica que el reparto a varios clientes (`MandarLaPieza`), que
-               es la otra pantalla de la casa donde marcar ES el trabajo. */
-            if (montando) {
+              /* La casilla delante y la fila apagada cuando queda fuera: la misma
+                 mecánica que el reparto a varios clientes (`MandarLaPieza`), que
+                 es la otra pantalla de la casa donde marcar ES el trabajo. */
+              if (montando) {
+                const nuevo = anadidos.some((n) => norm(n) === norm(suNombre));
+                return (
+                  <li
+                    className={`equiv-row${puesto ? '' : ' es-fuera'}${nuevo ? ' es-nuevo' : ''}`}
+                    key={item.food.id || suNombre}
+                  >
+                    <input
+                      type="checkbox"
+                      className="equiv-casilla"
+                      checked={puesto}
+                      aria-label={`Meter ${suNombre} en el grupo`}
+                      onChange={() => alternar(suNombre)}
+                    />
+                    {fila}
+                  </li>
+                );
+              }
+
               return (
-                <li className={`equiv-row${puesto ? '' : ' es-fuera'}`} key={item.food.id || suNombre}>
-                  <input
-                    type="checkbox"
-                    className="equiv-casilla"
-                    checked={puesto}
-                    aria-label={`Meter ${suNombre} en el grupo`}
-                    onChange={() => alternar(suNombre)}
-                  />
+                <li className="equiv-row" key={item.food.id || suNombre}>
                   {fila}
+                  {/* El verbo, en azul y con la fila: doce botones «Usar» siempre
+                      puestos eran mobiliario (`ley-de-los-gestos`). */}
+                  {onSwap && (
+                    <button
+                      type="button"
+                      className="equiv-row-usar"
+                      onClick={() => onSwap(item)}
+                      aria-label={`Cambiar ${food.name} por ${racion(item)} de ${suNombre}`}
+                    >
+                      Usar
+                    </button>
+                  )}
                 </li>
               );
-            }
+            })}
+          </ul>
 
-            return (
-              <li className="equiv-row" key={item.food.id || suNombre}>
-                {fila}
-                {onSwap && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => onSwap(item)}
-                    aria-label={`Cambiar ${food.name} por ${racion(item)} de ${suNombre}`}
-                  >
-                    <ArrowRightLeft size={13} /> Usar
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+          {/* «+ equivalencia», al pie de la lista: la forma de añadir dentro de una
+              lista que ya está delante (`docs/producto.md` §5.8). */}
+          {puedeAnadir && (
+            <div className="equiv-alta">
+              {buscando ? (
+                <Autocomplete
+                  value={busqueda}
+                  onChange={setBusqueda}
+                  items={buscables}
+                  getMeta={(f) =>
+                    [
+                      `${macroPor100(f, equivalences.macro)} g de ${nombre} /100 g`,
+                      f.fromCatalog ? 'del catálogo' : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')
+                  }
+                  onPick={anadir}
+                  placeholder="Buscar un alimento que valga por él…"
+                  inputProps={{
+                    autoFocus: true,
+                    'aria-label': `Añadir un alimento a las equivalencias de ${food.name}`,
+                    onBlur: (e) => !e.target.value.trim() && setBuscando(false),
+                  }}
+                />
+              ) : (
+                <BotonMas
+                  palabra="equivalencia"
+                  onClick={() => setBuscando(true)}
+                  title={`Meter a mano un alimento que valga por ${food.name.toLowerCase()}`}
+                />
+              )}
+              {aviso && <p className="t-xs t-tertiary">{aviso}</p>}
+            </div>
+          )}
+        </div>
 
         {montando ? (
           <>

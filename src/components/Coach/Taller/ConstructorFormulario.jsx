@@ -40,17 +40,19 @@ import {
   resumenFormulario,
   togglePregunta,
 } from '@/domain/formularios';
-import { CHECKIN_MODES, WEIGH_INS_MAX } from '@/domain/protocol';
+import { CHECKIN_MODES, WEIGH_INS_MAX, dicePregunta } from '@/domain/protocol';
 import { PROFILE_FIELDS, PROFILE_GROUPS, fieldById } from '@/domain/profile';
 import { SCOFF_QUESTIONS } from '@/domain/scoff';
 import { FOLDS_LABELS, PERIMETER_LABELS } from '@/domain/anthropometry';
 import { Field, SegmentedControl, Switch, TextInput } from '@/components/ui/primitives';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
 import { Pliegue } from '@/components/ui/Pliegue';
 /* Los controles del cliente, tal cual. Ver el porqué en el carril, más abajo. */
 import { Pregunta } from '@/components/Client/IntakeQuestions';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { GUIAS, GuiaDeMedidas, guiaById } from './GuiaDeMedidas';
+import { VistaPreviaFormulario } from './VistaPreviaFormulario';
 
 /**
  * EL CONSTRUCTOR: un formulario se dibuja como se va a ver, no como un ajuste.
@@ -153,18 +155,18 @@ const TIPO = {
   scale: 'Escala',
 };
 
-/** Cómo se dice una pregunta de escala, con su rango. */
-const diceEscala = (q) =>
-  q.kind === 'scale'
-    ? `Escala ${q.min ?? 1}–${q.max ?? 10}${q.lowerIsBetter ? ' · menos es mejor' : ''}`
-    : 'Texto libre · no se puede medir';
+/* Cómo se contesta, dicho en un renglón: lo dice el dominio (`dicePregunta`).
+   Aquí vivía su propia copia del mismo `if` de dos ramas, y con siete tipos de
+   pregunta las dos ramas ya no son verdad. */
 
-export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoCliente }) => {
+export const ConstructorFormulario = ({ form, onChange, onVolver }) => {
   const momento = form.momento || 'alta';
   const esAlta = momento === 'alta';
 
   const [tocada, setTocada] = useState(null);
   const [anadiendo, setAnadiendo] = useState(false);
+  /* El ensayo: el formulario contestable, con lo que verá él. */
+  const [ensayando, setEnsayando] = useState(false);
   /* Qué guía está abierta: `null`, `'cinta'` o `'pliegue'`. Era un booleano
      cuando solo había una lámina. */
   const [guia, setGuia] = useState(null);
@@ -215,9 +217,18 @@ export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoClien
               {momentoById(momento).corto} · {resumenFormulario(form)}
             </span>
             <div className="cartera-cab-acciones">
-              <button type="button" className="cab-accion" onClick={onVerComoCliente}>
+              {/*
+                Contestarlo tú, con lo que verá él. Aquí hubo un «Ver como
+                cliente» que saltaba al portal del cliente abierto, y allí se ve
+                EL ALTA DE ESA PERSONA —otra distinta, con sus respuestas, y
+                solo si la tiene pendiente—: el formulario que acabas de montar
+                era el único que el botón no enseñaba. Es el mismo ensayo que ya
+                tenían los otros tres momentos, con el mismo rótulo. Ver
+                `VistaPreviaFormulario`.
+              */}
+              <button type="button" className="cab-accion" onClick={() => setEnsayando(true)}>
                 <Eye size={15} aria-hidden="true" />
-                <span>Ver como cliente</span>
+                <span>Verlo como cliente</span>
               </button>
             </div>
           </div>
@@ -307,7 +318,7 @@ export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoClien
                       <TarjetaPregunta
                         key={q.id}
                         titulo={q.label}
-                        tipo={diceEscala(q)}
+                        tipo={dicePregunta(q)}
                         icono={q.kind === 'scale' ? SlidersHorizontal : Text}
                         tocada={tocada?.tipo === 'pregunta' && tocada.id === q.id}
                         onTocar={() => setTocada({ tipo: 'pregunta', id: q.id })}
@@ -326,9 +337,12 @@ export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoClien
                 )
               )}
 
-              <button type="button" className="btn anadir-pregunta" onClick={() => setAnadiendo(true)}>
-                <Plus size={15} /> Añadir pregunta
-              </button>
+              {/* Uno más de la lista que está delante: el verbo azul de la casa
+                  (`BotonMas`), el mismo de «+ ejercicio» y «+ alimento». Era una
+                  caja discontinua a todo el ancho, que es lo que hacía que esta
+                  pantalla se leyera como un formulario y no como el mueble de
+                  al lado. Ver `docs/producto.md` §5.8. */}
+              <BotonMas palabra="pregunta" onClick={() => setAnadiendo(true)} />
             </>
           )}
         </div>
@@ -429,6 +443,10 @@ export const ConstructorFormulario = ({ form, onChange, onVolver, onVerComoClien
           <GuiaDeMedidas que={guia} />
         </Modal>
       )}
+
+      {/* Sin `elementos`: el alta no tiene lienzo —su modelo son campos de la
+          ficha— y el ensayo lo monta desde el formulario mismo. */}
+      {ensayando && <VistaPreviaFormulario form={form} onCerrar={() => setEnsayando(false)} />}
     </div>
   );
 };
@@ -645,7 +663,7 @@ const Selector = ({ form, onChange, enchufes, esAlta, inline = false }) => {
                     </span>
                     <span className="pieza-texto">
                       <span className="pieza-nom">{q.label}</span>
-                      <span className="pieza-dice">{q.hint || diceEscala(q)}</span>
+                      <span className="pieza-dice">{q.hint || dicePregunta(q)}</span>
                     </span>
                   </button>
                 ))}
@@ -828,7 +846,7 @@ const AjustesEscala = ({ form, onChange, pregunta, esPropia }) => (
     <Cabecera
       icono={pregunta.kind === 'scale' ? SlidersHorizontal : Text}
       titulo={pregunta.label}
-      dice={diceEscala(pregunta)}
+      dice={dicePregunta(pregunta)}
     />
 
     {pregunta.hint && !esPropia && <p className="ajustes-nota">{pregunta.hint}</p>}

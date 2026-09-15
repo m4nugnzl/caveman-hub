@@ -172,8 +172,11 @@ export const StudioToolbar = ({
             <button type="button" className="btn btn-secondary btn-sm" onClick={onUndo}>
               <Undo2 size={13} /> Deshacer
             </button>
+            {/* «Vaciar», como el portapapeles: se vacía un recipiente de lo que
+                tú has puesto dentro. «Limpiar» era la segunda palabra del mismo
+                gesto. Ver `docs/producto.md` §5.8. */}
             <button type="button" className="btn btn-secondary btn-sm" onClick={onClearAnnotations}>
-              Limpiar
+              Vaciar
             </button>
           </div>
         </div>

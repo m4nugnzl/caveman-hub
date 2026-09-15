@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowRightLeft, ArrowUp, BookmarkPlus, ChevronDown, ClipboardPaste, Copy, CopyPlus, GripVertical, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookmarkPlus, ChevronDown, ClipboardPaste, Copy, CopyPlus, GripVertical, Pencil, Trash2, X } from 'lucide-react';
 
 import {
+  abreviarUnidad,
   claseDe,
   displayAsUnits,
-  estadoDe,
   foodMacros,
   foodUnits,
   gramsFromUnits,
@@ -16,17 +16,19 @@ import {
   unitsLabel,
 } from '@/domain/nutrition';
 import { canEditLibraryItem } from '@/domain/catalog';
-import { candidatosDeGrupo, equivalencesFor, racionDe } from '@/domain/foodEquiv';
+import { equivalencesFor, racionDe } from '@/domain/foodEquiv';
 import { grupoDe } from '@/domain/gruposEquiv';
 import { coverageSaid, microSaid, sumMicros } from '@/domain/micros';
 import { toNum, toNum0 } from '@/lib/num';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { BotonMas } from '@/components/ui/BotonMas';
+import { IconoEquivalencia } from '@/components/ui/IconoEquivalencia';
 import { Modal } from '@/components/ui/Modal';
 import { Field, Notice, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
 import { AddFoodControl } from './AddFoodControl';
+import { dibujoDeComida } from './dibujoDeComida';
 import { FoodEquivalences } from './FoodEquivalences';
-import { MACRO_META, MacroRing } from './macros';
+import { Desvio, MACRO_META } from './macros';
 import { useOculto } from '@/components/Client/Oculto';
 
 /**
@@ -37,17 +39,12 @@ import { useOculto } from '@/components/Client/Oculto';
  * El nombre completo no se pierde: va en el `title` de la casilla —«2 huevos ·
  * 110 g»— y en la etiqueta que leen los lectores de pantalla.
  */
-const ABREVIATURAS = {
-  cucharada: 'cda',
-  cucharadita: 'cdta',
-  rebanada: 'reb',
-  vaso: 'vaso',
-  lata: 'lata',
-  cazo: 'cazo',
-  filete: 'fil',
-};
+/* El dibujo de cada comida vive en `dibujoDeComida`: lo dibujan esta hoja y la
+   comida del cliente, y para la misma palabra tienen que pintar lo mismo. */
 
-const abreviar = (label) => ABREVIATURAS[String(label || '').toLowerCase()] || 'ud';
+/* La tabla de abreviaturas vive en el dominio (`abreviarUnidad`): la piden esta
+   tabla y la del cliente, y es vocabulario de la nutrición, no de esta pieza. */
+const abreviar = abreviarUnidad;
 
 /**
  * Encabezado de la tabla de alimentos.
@@ -87,30 +84,8 @@ const FoodTableHead = ({ editable, sinCifras = false }) => (
 
 const CELL = ['is-p', 'is-c', 'is-f'];
 
-/**
- * Lo que se paga por cambiar un alimento por otro: «+9», «−1».
- *
- * ══ Y SOLO SE PINTA CUANDO DE VERDAD DESVÍA ════════════════════════════════
- *
- * La diferencia iba SIEMPRE en rojo o en ámbar, así que «+4 kcal» sobre 232
- * —un uno y medio por ciento— salía marcada en rojo como una avería. Eso es
- * reñir por nada, y es exactamente lo que la tanda 1 corrigió en el resto de la
- * pantalla poniéndole suelo al semáforo: máx(5 %, 25 kcal) y máx(5 %, 3 g).
- *
- * Aquí faltaba, y era la quinta copia del mismo juicio. Ahora usa `estadoDe`,
- * que es el único sitio donde vive esa regla: dentro del margen la cifra se
- * escribe igual —la información no se esconde— pero en voz baja y sin color.
- */
-const Desvio = ({ diff, de, campo }) => {
-  if (!diff) return null;
-  const estado = estadoDe(de + diff, de, campo);
-  return (
-    <b className={`dif${estado === 'over' ? ' is-mas' : estado === 'under' ? ' is-menos' : ' is-dentro'}`}>
-      {diff > 0 ? '+' : ''}
-      {diff}
-    </b>
-  );
-};
+/* `Desvio` —lo que se paga por cambiar un alimento por otro— vive en `macros`:
+   lo escriben esta tabla y la del cliente, y el juicio tiene que ser el mismo. */
 
 /**
  * Un alimento: solo números, alineados con el encabezado.
@@ -141,6 +116,7 @@ const FoodRow = ({
   onSetEquivalences,
   onGrams,
   onSetDisplay,
+  onSetFixed,
   onEditFood,
   onMove,
   onRemove,
@@ -161,6 +137,8 @@ const FoodRow = ({
   const oculto = useOculto();
   const sinCifras = oculto.nutrition && !editable;
   const [editando, setEditando] = useState(false);
+  /* `false`, o cómo se abre la ventana: 'lista' o 'buscando' (con «+ alimento»
+     ya puesto, desde el pie de las filas de abajo). */
   const [equivalenciasAbiertas, setEquivalenciasAbiertas] = useState(false);
   /* Si las equivalencias están desplegadas DEBAJO de esta fila. La ventana
      (`equivalenciasAbiertas`) es otra cosa y sigue viva: ver `equivFilas`. */
@@ -201,19 +179,9 @@ const FoodRow = ({
     [food, catalogFoods, libraryFoods, grupo]
   );
 
-  /* La lista larga, la de marcar, solo cuando hay una ventana abierta donde
-     marcar: es la familia entera del catálogo sin filtros, y calcularla en cada
-     fila de cada comida sería pagarla diecisiete veces para no enseñarla. */
-  const candidatos = useMemo(
-    () =>
-      equivalenciasAbiertas && onSaveGrupo
-        ? candidatosDeGrupo(food, catalogFoods, libraryFoods, {
-            incluir: grupo?.foods || [],
-            macro: grupo?.macro || null,
-          })
-        : null,
-    [equivalenciasAbiertas, onSaveGrupo, food, catalogFoods, libraryFoods, grupo]
-  );
+  /* La lista larga, la de marcar, la calcula la ventana y solo al marcar: es la
+     familia entera del catálogo sin filtros, y calcularla en cada fila de cada
+     comida sería pagarla diecisiete veces para no enseñarla. */
 
   /* Al cliente, un alimento excluido no le enseña botón: para él la lista no
      existe, no está «desactivada». El entrenador lo sigue viendo —es su
@@ -232,7 +200,7 @@ const FoodRow = ({
 
   const row = (
     <div
-      className={`food-row${sinCifras ? ' sin-cifras' : ''}${dropTarget ? ' is-drop-target' : ''}${dragging ? ' is-dragging' : ''}`}
+      className={`food-row${sinCifras ? ' sin-cifras' : ''}${equivAbajo && equivalencias ? ' con-equiv-abiertas' : ''}${dropTarget ? ' is-drop-target' : ''}${dragging ? ' is-dragging' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -332,16 +300,24 @@ const FoodRow = ({
           «Usar» esta ración en la dieta, y si el cliente ve esta lista—, y se
           entra por el verbo del pie. Ver `equivFilas` más abajo.
         */}
+        {/*
+          ══ EL ≈ Y CUÁNTAS ═══════════════════════════════════════════════════
+          El signo de «vale por» (ver `IconoEquivalencia`) con el número de
+          raciones detrás: «≈ 4» dice ANTES de pulsar si hay una salida o doce,
+          que es lo que el ⇄ a secas obligaba a abrir para saber. Desplegado se
+          queda encendido, para que se vea de qué alimento cuelgan las filas.
+        */}
         {conBoton && (
           <button
             type="button"
-            className={`btn btn-icon btn-icon-compact equiv-btn${editable && food.equivHidden ? ' is-off' : ''}`}
+            className={`equiv-marca${editable && food.equivHidden ? ' is-off' : ''}`}
             onClick={() => setEquivAbajo((v) => !v)}
             aria-expanded={equivAbajo}
-            aria-label={`Equivalencias de ${food.name}`}
+            aria-label={`${equivalencias.items.length} equivalencias de ${food.name}`}
             title={editable && food.equivHidden ? 'Equivalencias (el cliente no las ve)' : 'Equivalencias'}
           >
-            <ArrowRightLeft size={13} />
+            <IconoEquivalencia size={13} />
+            <span>{equivalencias.items.length}</span>
           </button>
         )}
 
@@ -508,7 +484,12 @@ const FoodRow = ({
             <div className="equiv-hijas" role="group" aria-label={`Equivalencias de ${food.name}`}>
               {primeras.map((item) => (
                 <div className={`food-row is-equiv${sinCifras ? ' sin-cifras' : ''}`} key={item.food.id || item.food.name}>
-                  <span className="equiv-hueco" aria-hidden="true" />
+                  {/* El ≈ en la columna del asa: cada fila hija dice «vale por lo
+                      de arriba» con el signo, en vez de una sangría y un filete
+                      que la sacaban de las columnas del padre. */}
+                  <span className="equiv-hueco equiv-signo-fila" aria-hidden="true">
+                    <IconoEquivalencia size={13} />
+                  </span>
                   <span className="name">
                     <span className="txt">{item.food.name}</span>
                     {/*
@@ -552,15 +533,27 @@ const FoodRow = ({
                   {editable && <span className="equiv-hueco" aria-hidden="true" />}
                 </div>
               ))}
-              {/* El verbo del pie: la ventana, que es donde se elige una y donde
-                  se decide si el cliente ve la lista. */}
-              <button type="button" className="equiv-hijas-mas" onClick={() => setEquivalenciasAbiertas(true)}>
-                {restan > 0
-                  ? `Ver las ${equivalencias.items.length} y ${editable ? 'cambiar' : 'sus cifras'}`
-                  : editable
-                    ? 'Cambiar por una de estas'
-                    : 'Ver sus cifras'}
-              </button>
+              {/* El pie: la ventana, que es donde se elige una y donde se decide
+                  si el cliente ve la lista; y «+ alimento», que abre esa misma
+                  ventana con el buscador puesto para meter uno a mano. */}
+              <div className="equiv-hijas-pie">
+                <button type="button" className="equiv-hijas-mas" onClick={() => setEquivalenciasAbiertas('lista')}>
+                  {restan > 0
+                    ? `Ver las ${equivalencias.items.length} y ${editable ? 'cambiar' : 'sus cifras'}`
+                    : editable
+                      ? 'Cambiar por una de estas'
+                      : 'Ver sus cifras'}
+                </button>
+                {editable && onSaveGrupo && (
+                  /* «equivalencia» y no «alimento»: dos filas más abajo está el
+                     «+ alimento» de la comida, que hace otra cosa. */
+                  <BotonMas
+                    palabra="equivalencia"
+                    onClick={() => setEquivalenciasAbiertas('buscando')}
+                    title={`Meter a mano un alimento que valga por ${food.name.toLowerCase()}`}
+                  />
+                )}
+              </div>
             </div>
           );
         })()
@@ -575,6 +568,7 @@ const FoodRow = ({
           food={food}
           onClose={() => setEditando(false)}
           onSetDisplay={onSetDisplay}
+          onSetFixed={onSetFixed}
           onSave={(cambios) => {
             onEditFood(cambios);
             setEditando(false);
@@ -598,7 +592,9 @@ const FoodRow = ({
           }
           onSetVisible={editable && onSetEquivalences ? onSetEquivalences : null}
           grupos={grupos}
-          candidatos={candidatos}
+          catalogFoods={catalogFoods}
+          libraryFoods={libraryFoods}
+          abrirBuscando={equivalenciasAbiertas === 'buscando'}
           onSaveGrupo={editable ? onSaveGrupo : null}
           onRemoveGrupo={editable ? onRemoveGrupo : null}
           onClose={() => setEquivalenciasAbiertas(false)}
@@ -638,7 +634,7 @@ const FoodRow = ({
  * puede reescribirle la dieta a veinte clientes a sus espaldas— y significa que
  * ahí la corrección hay que repetirla.
  */
-const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
+const FoodDialog = ({ food, onClose, onSetDisplay, onSetFixed, onSave }) => {
   /* Como texto y no como número: son casillas, y mientras se escribe hay que
      poder distinguir «0» de «vacío» (ver `toNum` en `lib/num.js`). */
   const [macros, setMacros] = useState(() =>
@@ -760,6 +756,51 @@ const FoodDialog = ({ food, onClose, onSetDisplay, onSave }) => {
               label="Medida"
             />
           </Field>
+        )}
+
+        {/*
+          ══ Y si este alimento se mueve o no al ajustar ═════════════════════
+
+          El recorte de un ajuste sale de una cesta —cereales, tubérculos,
+          legumbres y dulces para los hidratos—, y eso acierta el caso normal.
+          Lo que no acierta es lo de cada persona: el plátano de después de
+          entrenar, el aceite de la ensalada, los 30 g de avena que son el
+          desayuno entero de alguien.
+
+          Va aquí, pegado a la medida, porque es la misma clase de decisión
+          —cómo se comporta ESTE alimento en ESTA dieta— y con el mismo
+          precedente: lo que se cuenta por unidades ya es un alimento fijo, solo
+          que hoy lo decide la aplicación.
+
+          Se aplica al momento, como la medida: es una elección, no algo que
+          haya que confirmar.
+        */}
+        {onSetFixed && (
+          <label className={`switch-row${food.fijo === true ? ' is-on' : ''}`}>
+            <span className="col" style={{ gap: 1, minWidth: 0 }}>
+              <span className="t-sm" style={{ fontWeight: 600 }}>
+                No lo muevas al ajustar
+              </span>
+              <span className="t-xs t-tertiary">
+                Al reajustar el menú a otro objetivo, este alimento se queda con sus{' '}
+                {toNum0(food.grams)} g.
+              </span>
+            </span>
+            {/*
+              `pick-input` es lo que saca de la vista al input de verdad
+              dejándolo en el árbol de accesibilidad; sin él, esta fila pintaba
+              la casilla nativa del navegador Y el carril dibujado, o sea dos
+              mandos para el mismo ajuste. Se vio al enderezar el renglón.
+            */}
+            <input
+              type="checkbox"
+              role="switch"
+              className="pick-input"
+              checked={food.fijo === true}
+              onChange={(e) => onSetFixed(e.target.checked)}
+            />
+            <span className="track" aria-hidden="true" />
+          </label>
         )}
 
         {/*
@@ -959,6 +1000,8 @@ export const MealCard = ({
   onRemoveFood,
   onGrams,
   onSetDisplay,
+  /* El alimento que no se mueve al ajustar. Ver el mando en `FoodDialog`. */
+  onSetFixed = null,
   onEditFood,
   onMoveFood,
   /* Copiar la comida al PORTAPAPELES, y es el ÚNICO verbo de copiar que le
@@ -1107,6 +1150,10 @@ export const MealCard = ({
 
   const hayNota = Boolean(meal.note?.trim());
 
+  /* El dibujo de la comida, cuando la casilla de la izquierda no la ocupa su
+     número. El porqué, en la cabecera. */
+  const Dibujo = dibujoDeComida(meal.name);
+
   return (
     <section
       id={`comida-${meal.id}`}
@@ -1135,7 +1182,25 @@ export const MealCard = ({
             <GripVertical size={15} />
           </button>
         )}
-        {numero !== null && <span className="comida-n">{numero}</span>}
+        {/*
+          ── LA CASILLA DE LA IZQUIERDA DICE QUÉ ES ESTA COMIDA ─────────────
+          Y lo dice distinto según quién mire: al que la ORDENA le sirve su
+          número —es la hoja que está montando, y el orden es lo que toca—; al
+          que la COME le sirve el dibujo, que es lo que deja encontrar la cena
+          sin leerse las cuatro tarjetas. Es la misma casilla, no dos: dos
+          marcas a la izquierda del mismo título serían dos cosas compitiendo
+          por decir lo mismo.
+
+          La tesela es `.list-icon`, la de las filas del teléfono, y es gris:
+          quien distingue es el dibujo. Ver `la ley del color`.
+        */}
+        {numero !== null ? (
+          <span className="comida-n">{numero}</span>
+        ) : (
+          <span className="list-icon" aria-hidden="true">
+            <Dibujo size={15} />
+          </span>
+        )}
         {renombrando && editable ? (
           <RenombrarEnSitio
             variante="is-comida"
@@ -1161,6 +1226,23 @@ export const MealCard = ({
             {objetivo?.kcals ? ` / ${objetivo.kcals}` : ''} kcal
           </span>
         )}
+        {/*
+          ── Y AL CLIENTE, LO PAUTADO EN EL MISMO SITIO ────────────────────
+          La misma línea, con una cifra en vez de dos y sin color: lo que su
+          entrenador fijó para esta comida. Aquí no va lo que suma la opción
+          abierta —eso es el descuadre del menú, que mira quien lo escribe— ni
+          el semáforo que lo juzga. Ver `soloPautado` en `LecturasDeLaDieta`.
+
+          Esto sustituye al anillo de 86 px que colgaba al pie de la comida
+          rotulado «Objetivo de esta comida», que era la última pieza que solo
+          existía en el portal: el dueño pidió que la comida se dibujara igual
+          en los dos sitios.
+        */}
+        {!editable && !sinCifras && objetivo?.kcals ? (
+          <span className="comida-kcal">
+            <b>{objetivo.kcals}</b> kcal
+          </span>
+        ) : null}
         {/*
           ── Plegada, la comida sigue diciendo QUÉ ES ───────────────────────
           El chevron esconde la tabla, no la comida: arriba se quedan el número,
@@ -1414,23 +1496,18 @@ export const MealCard = ({
       )}
 
       {/*
-        Al cliente, lo ESTIPULADO como anillo: su plan es lo que su entrenador
-        fijó para esa comida, y no cambia según la alternativa que abra. Sin
-        objetivo no hay nada estipulado que enseñar.
-      */}
-      {!editable && !sinCifras && foods.length > 0 && objetivo && (
-        <div className="card-inset row wrap gap-4">
-          <MacroRing
-            protein={objetivo.protein}
-            carbs={objetivo.carbs}
-            fats={objetivo.fats}
-            kcals={objetivo.kcals}
-            size={86}
-            caption="Objetivo de esta comida"
-          />
-        </div>
-      )}
+        ── AQUÍ ESTUVO EL ANILLO, Y SE HA IDO ─────────────────────────────────
+        Un `MacroRing` de 86 px rotulado «Objetivo de esta comida» con la
+        proteína, los carbos y las grasas estipulados, y se pintaba SOLO para
+        el cliente (`!editable`). Era la última pieza que hacía que la misma
+        comida se dibujara de dos maneras distintas según quién la mirase, y es
+        lo que el dueño llamó «el diseño antiguo» el 14 de septiembre de 2026:
+        *«el diseño de la dieta es el antiguo que teníamos; ahora el entrenador
+        tiene un diseño distinto»*.
 
+        Lo pautado no se pierde: sube a la cabecera de la comida, al mismo
+        renglón donde el entrenador lee sus kcal. Una comida, un dibujo.
+      */}
       {foods.length === 0 && !editable ? (
         <p className="t-sm t-tertiary">Tu entrenador no ha detallado esta opción.</p>
       ) : (
@@ -1457,6 +1534,9 @@ export const MealCard = ({
               last={foodIndex === foods.length - 1}
               onGrams={(grams) => onGrams(index, food.id, grams)}
               onSetDisplay={(mode) => onSetDisplay?.(index, food.id, mode)}
+              onSetFixed={
+                editable && onSetFixed ? (fijo) => onSetFixed(index, food.id, fijo) : null
+              }
               onEditFood={(cambios) => onEditFood?.(index, food, cambios)}
               onMove={
                 onMoveFood ? (delta) => onMoveFood(index, foodIndex, foodIndex + delta) : null

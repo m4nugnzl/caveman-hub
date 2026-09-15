@@ -1,0 +1,2152 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cajas — el portal del cliente</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo:wdth,wght@75..125,400..800&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · Cajas — el portal del cliente · 14 sep 2026
+
+   Encargo del dueño, literal: «estudia las apps más punteras, quiero un
+   rediseño de lo que está actualmente, más por cajas, más limpio, menos
+   estilo hoja de papel, como hacen coachway y efort […] olvidando todo lo
+   estipulado de diseño y de contenido, la base es lo que tenemos hecho».
+
+   Esto TUMBA el estudio de ayer («La mesa», que mataba la caja) y con él la
+   ley «la hoja es fija y solo se levanta una cosa». Va en la dirección
+   contraria a propósito.
+
+   ── El plan de tokens, antes de escribir una línea ────────────────────────
+   COLOR   El lienzo pierde la TEMPERATURA, no la claridad: #f7f6f2 → #f1f2f5.
+           La tarjeta gana CANTO (#e3e6eb), que hoy es literalmente
+           `transparent`. Las sombras dejan el sepia. El acento #3b49df no se
+           toca. Y entra un ancla oscura (#10151d) en la cinta, que es lo
+           único que Coachway tiene en pantalla y nosotros no.
+   TIPO    Dos voces. Inter para la interfaz a 13/14 px —escala de panel, no
+           de lectura— y Archivo, la de la casa, solo para cifras y rótulos.
+           El saludo pierde la cursiva. Hay un interruptor en el prototipo
+           para verlo con Archivo en todo, que es la alternativa barata.
+   LAYOUT  UNA medida para las seis pantallas: 1360 sobre rejilla de 12. Hoy
+           son tres (1560 / 1320 / 880) y por eso cada pantalla empieza en un
+           sitio distinto. Ninguna caja pasa de 8 columnas salvo una tabla.
+   FIRMA   La TIRA DE TESELAS: cada pantalla abre con tres o cuatro cajas
+           pequeñas —rótulo, cifra, delta— antes que ninguna otra cosa. Es lo
+           que hacen Stripe, Coachway y Efort, y lo que no hace ninguna de
+           nuestras seis.
+
+   ── Segunda pasada, y lo que cambió ───────────────────────────────────────
+   La primera versión daba por hecho que el lienzo crema era la enfermedad y
+   proponía el gris frío de Efort. Se midió con un histograma de píxeles y
+   salió al revés: el lienzo de Coachway es #f9f7f3 —MÁS cálido y MÁS claro
+   que el nuestro— y su escalón a la tarjeta es 1,07, menor que nuestro 1,08.
+   El papel no es el color. Lo que ellos tienen y nosotros no es el CANTO, el
+   TAMAÑO de la caja y un ancla oscura. El lienzo se enfría igual —lo pidió
+   el dueño y no cuesta nada— pero el argumento del estudio está reescrito
+   entero alrededor del hallazgo, que es lo que de verdad explica por qué su
+   captura parece un panel y la nuestra una hoja impresa.
+
+   También se cayó de la primera versión el «antes y después» pantalla por
+   pantalla: repetía seis veces el mismo argumento. Va el antes REAL en el
+   diagnóstico y el después se ve funcionando en el prototipo.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  --doc: #eceef2;
+  --caja: #ffffff;
+  --canto: #e3e6eb;
+  --canto-fuerte: #ccd1d9;
+  --hundido: #f4f5f8;
+  --tinta: #12151a;
+  --tinta-2: #4a525e;
+  --tinta-3: #6f7884;
+  --tinta-4: #98a0ac;
+  --senal: #3b49df;
+  --senal-suave: rgba(59, 73, 223, .08);
+  --verde: #0e7a4e;
+  --verde-suave: #e4f3ea;
+  --rojo: #b8332a;
+  --rojo-suave: #fbe9e7;
+  --ambar: #9a5a0b;
+  --ambar-suave: #fbf0e0;
+  --noche: #10151d;
+  --escenario: #0c0f14;
+  --s-xs: 0 1px 2px rgba(16, 24, 40, .05);
+  --s-sm: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .04);
+  --s-md: 0 4px 14px -6px rgba(16, 24, 40, .16), 0 1px 2px rgba(16, 24, 40, .05);
+  --s-lg: 0 30px 60px -30px rgba(8, 12, 20, .5), 0 6px 16px -8px rgba(8, 12, 20, .25);
+  --r-s: 8px; --r-m: 12px; --r-l: 16px; --r-xl: 22px;
+  --ui: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --cifra: 'Archivo', var(--ui);
+  --ease: cubic-bezier(.32, .72, 0, 1);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--doc);
+  color: var(--tinta);
+  font: 400 16px/1.65 var(--ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── El documento ───────────────────────────────────────────────────────── */
+.doc { max-width: 1500px; margin: 0 auto; padding: 0 24px 120px; }
+.col { max-width: 740px; margin: 0 auto; }
+
+.portada {
+  padding: 96px 0 52px;
+  border-bottom: 1px solid var(--canto-fuerte);
+}
+.kicker {
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+h1 {
+  font: 800 clamp(38px, 6vw, 62px)/1.02 var(--cifra);
+  font-stretch: 112%;
+  letter-spacing: -.028em;
+  margin: 18px 0 0;
+}
+.bajada {
+  font-size: 21px;
+  line-height: 1.55;
+  color: var(--tinta-2);
+  margin: 20px 0 0;
+  max-width: 660px;
+}
+.bajada b { color: var(--tinta); font-weight: 600; }
+
+h2 {
+  font: 700 30px/1.15 var(--cifra);
+  font-stretch: 105%;
+  letter-spacing: -.022em;
+  margin: 0 0 6px;
+}
+h3 {
+  font: 600 18px/1.3 var(--ui);
+  letter-spacing: -.012em;
+  margin: 40px 0 10px;
+}
+h4 {
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  margin: 0 0 12px;
+}
+section { padding: 66px 0 0; }
+section > .col > p { margin: 0 0 18px; color: var(--tinta-2); }
+section > .col > p b, li b { color: var(--tinta); font-weight: 600; }
+.sub { color: var(--tinta-3); font-size: 15px; margin: 0 0 30px; }
+
+.nota {
+  border-left: 2px solid var(--canto-fuerte);
+  padding: 2px 0 2px 18px;
+  color: var(--tinta-3);
+  font-size: 15px;
+  margin: 22px 0;
+}
+.alerta {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-left: 3px solid var(--ambar);
+  border-radius: var(--r-m);
+  padding: 18px 20px;
+  margin: 26px 0;
+  font-size: 15px;
+  color: var(--tinta-2);
+  box-shadow: var(--s-xs);
+}
+.alerta b { color: var(--tinta); }
+
+ul, ol { margin: 0 0 18px; padding-left: 20px; color: var(--tinta-2); }
+li { margin: 0 0 9px; }
+code {
+  font: 500 13px/1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  border-radius: 5px;
+  padding: 2px 5px;
+  color: var(--tinta-2);
+}
+
+/* ── Fichas de avería ───────────────────────────────────────────────────── */
+.averias { display: grid; gap: 10px; margin: 26px 0 0; }
+.averia {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: var(--r-m);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  gap: 14px;
+  align-items: start;
+  box-shadow: var(--s-xs);
+  margin: 0;
+}
+.averia dt {
+  font: 700 12px/1.6 var(--cifra);
+  color: var(--senal);
+  letter-spacing: .02em;
+}
+.averia dd { margin: 0; font-size: 15px; line-height: 1.55; color: var(--tinta-2); }
+.averia dd b { color: var(--tinta); font-weight: 600; }
+.dato {
+  font: 600 12.5px/1 var(--cifra);
+  color: var(--tinta);
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  border-radius: 5px;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+/* ── Tablas del documento ───────────────────────────────────────────────── */
+.tabla {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  font-size: 14px;
+  box-shadow: var(--s-xs);
+  margin: 8px 0 0;
+}
+.tabla th {
+  text-align: left;
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  padding: 12px 14px;
+  background: var(--hundido);
+  border-bottom: 1px solid var(--canto);
+  white-space: nowrap;
+}
+.tabla td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--canto);
+  color: var(--tinta-2);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.tabla tr:last-child td { border-bottom: 0; }
+.tabla td:first-child { color: var(--tinta); font-weight: 600; }
+.tabla .si { color: var(--verde); font-weight: 600; }
+.tabla .no { color: var(--tinta-4); }
+.envoltorio { overflow-x: auto; margin: 8px 0 0; }
+
+/* ── Muestras de color ──────────────────────────────────────────────────── */
+.muestras { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; margin: 8px 0 0; }
+.muestra {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  box-shadow: var(--s-xs);
+}
+.muestra .tono { height: 52px; border-bottom: 1px solid var(--canto); }
+.muestra .pie { padding: 9px 11px; }
+.muestra .nom { font: 600 13px/1.3 var(--ui); }
+.muestra .hex { font: 500 11px/1.4 ui-monospace, Menlo, monospace; color: var(--tinta-3); }
+
+/* ── Capturas del antes ─────────────────────────────────────────────────── */
+.capturas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 28px 0 0; }
+.captura {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  box-shadow: var(--s-sm);
+  margin: 0;
+}
+.captura img { display: block; width: 100%; }
+.captura figcaption {
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--tinta-3);
+  border-top: 1px solid var(--canto);
+  background: var(--hundido);
+  line-height: 1.5;
+}
+.captura figcaption b { color: var(--tinta); font-weight: 600; }
+@media (max-width: 860px) { .capturas { grid-template-columns: 1fr; } }
+
+/* ── El escenario del prototipo ─────────────────────────────────────────── */
+.escenario {
+  background: var(--escenario);
+  border-radius: var(--r-xl);
+  padding: 24px 24px 28px;
+  margin: 28px 0 0;
+  box-shadow: var(--s-lg);
+}
+.escenario-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 18px;
+  padding: 0 4px;
+}
+.escenario-cab h4 { color: rgba(255,255,255,.45); margin: 0; }
+.mandos { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.mando {
+  font: 600 12px/1 var(--ui);
+  color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 999px;
+  padding: 8px 13px;
+  cursor: pointer;
+  transition: .16s var(--ease);
+}
+.mando:hover { color: #fff; background: rgba(255,255,255,.14); }
+.mando[aria-pressed="true"] { background: #fff; color: var(--escenario); border-color: #fff; }
+
+.marco {
+  border-radius: var(--r-l);
+  overflow: hidden;
+  box-shadow: 0 20px 50px -24px rgba(0,0,0,.6);
+}
+.marco.es-movil { max-width: 390px; margin: 0 auto; border-radius: 30px; }
+
+/* ══ EL PROTOTIPO ══════════════════════════════════════════════════════════
+   Todo lo de aquí abajo va prefijado `ap-` y no toca nada del documento.
+   Es el lenguaje nuevo entero: lienzo frío, caja con canto, teselas, escala
+   de panel. Si algo de aquí no se puede escribir con los tokens de la casa,
+   está mal pensado. */
+.ap {
+  --lienzo: #f1f2f5;
+  --caja: #ffffff;
+  --canto: #e3e6eb;
+  --canto-2: #d3d8e0;
+  --hundido: #f4f5f8;
+  --tinta: #12151a;
+  --tinta-2: #4a525e;
+  --tinta-3: #6f7884;
+  --tinta-4: #98a0ac;
+  --senal: #3b49df;
+  --senal-suave: #eceefc;
+  --verde: #0e7a4e;
+  --verde-suave: #e4f3ea;
+  --rojo: #b8332a;
+  --ambar: #9a5a0b;
+  --ambar-suave: #fbf0e0;
+  --noche: #10151d;
+  --sombra: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .04);
+  --sombra-alta: 0 6px 18px -8px rgba(16, 24, 40, .2), 0 1px 2px rgba(16, 24, 40, .05);
+
+  background: var(--lienzo);
+  color: var(--tinta);
+  font: 400 14px/1.5 var(--ui);
+  min-height: 620px;
+  position: relative;
+}
+.ap.tipo-casa { --ui: 'Archivo', sans-serif; }
+
+/* ── La cinta oscura: el ancla que hoy no existe ────────────────────────── */
+.ap-cinta {
+  background: var(--noche);
+  color: rgba(255,255,255,.62);
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  padding: 0 22px;
+  height: 52px;
+}
+.ap-marca {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 700 12.5px/1 var(--cifra);
+  font-stretch: 118%;
+  letter-spacing: .1em;
+  color: #fff;
+  text-transform: uppercase;
+}
+.ap-logo {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+}
+.ap-logo i {
+  width: 11px; height: 11px;
+  background:
+    linear-gradient(to top, var(--noche) 40%, transparent 40%) 0 0/3px 100% no-repeat,
+    linear-gradient(to top, var(--noche) 72%, transparent 72%) 4px 0/3px 100% no-repeat,
+    linear-gradient(to top, var(--noche) 100%, transparent 100%) 8px 0/3px 100% no-repeat;
+}
+.ap-nav { display: flex; gap: 2px; margin-left: 8px; }
+.ap-nav button {
+  font: 500 13px/1 var(--ui);
+  color: rgba(255,255,255,.58);
+  background: none;
+  border: 0;
+  padding: 8px 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: .16s var(--ease);
+}
+.ap-nav button:hover { color: #fff; background: rgba(255,255,255,.08); }
+.ap-nav button[aria-current="page"] { color: var(--noche); background: #fff; font-weight: 600; }
+.ap-cinta-fin { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.ap-avatar {
+  width: 28px; height: 28px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.14);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .04em;
+}
+.ap-campana {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border-radius: 999px;
+  color: rgba(255,255,255,.62);
+  position: relative;
+}
+.ap-campana::after {
+  content: '';
+  position: absolute;
+  top: 4px; right: 5px;
+  width: 6px; height: 6px;
+  border-radius: 999px;
+  background: #6f7cf0;
+  border: 1.5px solid var(--noche);
+}
+
+/* ── La hoja, una sola medida para las seis ─────────────────────────────── */
+.ap-hoja { max-width: 1360px; margin: 0 auto; padding: 24px 22px 46px; }
+.ap-titulo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 0 0 18px;
+  flex-wrap: wrap;
+}
+.ap-titulo h2 {
+  font: 700 23px/1.2 var(--cifra);
+  font-stretch: 104%;
+  letter-spacing: -.02em;
+  margin: 0;
+  color: var(--tinta);
+}
+.ap-titulo .ap-fecha {
+  font: 500 12px/1 var(--ui);
+  color: var(--tinta-3);
+  margin: 0 0 7px;
+  letter-spacing: .01em;
+}
+.ap-saludo { font: 700 30px/1.15 var(--cifra); font-stretch: 106%; letter-spacing: -.026em; margin: 0; }
+
+/* ── La rejilla de 12 ───────────────────────────────────────────────────── */
+.ap-rejilla { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
+/* Dos o tres cajas de la MISMA fila igualan altura; columnas distintas no se
+   fuerzan. Es lo que arregla E-11 —la rejilla que deja huérfanos— sin estirar
+   nada que no lo necesite. */
+.ap-rejilla.iguala { align-items: stretch; }
+.ap-rejilla.iguala > * > .ap-caja,
+.ap-rejilla.iguala > .ap-caja { height: 100%; display: flex; flex-direction: column; }
+/* El que baja es el PIE, no el contenido. Estirar el cuerpo repartía el hueco
+   entre las filas de la tabla y separaba «Tortilla» de «Pan de centeno» con
+   60 px de nada: la caja igualaba y el contenido se descosía. */
+.ap-rejilla.iguala .ap-caja > .ap-caja-pie { margin-top: auto; }
+.c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c5 { grid-column: span 5; }
+.c6 { grid-column: span 6; } .c7 { grid-column: span 7; } .c8 { grid-column: span 8; }
+.c9 { grid-column: span 9; } .c12 { grid-column: span 12; }
+
+/* ── LA CAJA. Canto, radio, sombra de 1 px. La pieza del estudio ──────────
+   SEGUNDA VUELTA (14 sep, tarde): el dueño vio la primera y dijo «veo las
+   boxes demasiado cuadradas, poco amistosa la app», y señaló el estudio del
+   teléfono del 13 —`docs/estudio-la-app-del-cliente.html`— como el que sí le
+   gustaba: «cajas más redondas, más amistoso, mejor diseñado».
+
+   Aquel usa `--r-l: 20px` en la tarjeta, 14 en lo de dentro y un botón
+   principal de 50 px de alto con radio 25, o sea PASTILLA. Aquí se adopta esa
+   escala: caja 18, pieza interior 12, píldora y botón primario redondos del
+   todo. El canto y el lienzo no se tocan — lo que era cuadrado era el radio,
+   no el sistema. */
+.ap-caja {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: 18px;
+  box-shadow: var(--sombra);
+  overflow: hidden;
+}
+.ap-caja-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--canto);
+}
+.ap-caja-cab h3 { font: 600 14px/1.2 var(--ui); margin: 0; letter-spacing: -.005em; color: var(--tinta); }
+.ap-caja-cab .ap-enlace { font: 500 12.5px/1 var(--ui); color: var(--senal); cursor: pointer; }
+.ap-caja-cab .ap-meta { font: 500 12px/1 var(--ui); color: var(--tinta-3); }
+.ap-caja-cuerpo { padding: 18px; }
+.ap-caja-pie {
+  padding: 13px 18px;
+  border-top: 1px solid var(--canto);
+  background: var(--hundido);
+  font: 500 12.5px/1 var(--ui);
+  color: var(--tinta-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* ── LA TESELA. La firma: la cifra sube antes que nada ──────────────────── */
+.ap-teselas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 0 16px; }
+/* Una tesela de 430 px para un número es la misma avería que este estudio le
+   reprocha a la app de hoy (E-04). La tira de tres se ciñe. */
+.ap-teselas.de-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 1020px; }
+.ap-teselas.de-5 { grid-template-columns: repeat(5, 1fr); }
+.ap-tesela {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: 18px;
+  box-shadow: var(--sombra);
+  padding: 15px 17px 16px;
+  display: grid;
+  gap: 4px;
+}
+.ap-tesela .rot {
+  font: 600 10.5px/1 var(--ui);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ap-tesela .val {
+  font: 700 27px/1.05 var(--cifra);
+  font-stretch: 108%;
+  letter-spacing: -.024em;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.ap-tesela .val small { font: 500 12.5px/1 var(--ui); color: var(--tinta-3); letter-spacing: 0; }
+.ap-tesela .pie { font: 500 12px/1.3 var(--ui); color: var(--tinta-3); }
+
+.ap-delta {
+  font: 600 11.5px/1 var(--ui);
+  padding: 5px 9px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  letter-spacing: .01em;
+}
+.ap-delta.baja { background: var(--verde-suave); color: var(--verde); }
+.ap-delta.sube { background: #fbe9e7; color: var(--rojo); }
+.ap-delta.quieta { background: var(--hundido); color: var(--tinta-3); }
+
+/* ── Píldoras de estado ─────────────────────────────────────────────────── */
+/* Una píldora es una píldora. A radio 6 era una etiqueta de archivador. */
+.ap-pildora {
+  font: 600 11.5px/1 var(--ui);
+  padding: 5px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.ap-pildora.ok { background: var(--verde-suave); color: var(--verde); }
+.ap-pildora.espera { background: var(--ambar-suave); color: var(--ambar); }
+.ap-pildora.nada { background: var(--hundido); color: var(--tinta-3); }
+.ap-pildora.viva { background: var(--senal-suave); color: var(--senal); }
+
+/* ── Filas dentro de la caja ────────────────────────────────────────────── */
+.ap-filas { display: grid; }
+.ap-fila {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--canto);
+  cursor: pointer;
+  transition: background .12s var(--ease);
+}
+.ap-fila:last-child { border-bottom: 0; }
+.ap-fila:hover { background: var(--hundido); }
+.ap-fila .icono {
+  width: 34px; height: 34px;
+  border-radius: 12px;
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  display: grid; place-items: center;
+  color: var(--tinta-2);
+  flex: none;
+}
+.ap-fila .cuerpo { min-width: 0; flex: 1; }
+.ap-fila .rotulo { font: 500 13.5px/1.35 var(--ui); color: var(--tinta); }
+.ap-fila .frase { font: 400 12.5px/1.4 var(--ui); color: var(--tinta-3); }
+.ap-fila .fin { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+.ap-fila .cifra { font: 600 13.5px/1 var(--cifra); color: var(--tinta); }
+.ap-chevron { color: var(--tinta-4); flex: none; }
+
+/* ── Tablas dentro de la caja ───────────────────────────────────────────── */
+.ap-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.ap-tabla th {
+  text-align: left;
+  font: 600 10.5px/1 var(--ui);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+  padding: 10px 16px;
+  background: var(--hundido);
+  border-bottom: 1px solid var(--canto);
+  white-space: nowrap;
+}
+.ap-tabla td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--canto);
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.ap-tabla tr:last-child td { border-bottom: 0; }
+.ap-tabla tbody tr { cursor: pointer; }
+.ap-tabla tbody tr:hover td { background: var(--hundido); }
+.ap-tabla td.nom { color: var(--tinta); font-weight: 500; width: 99%; white-space: normal; }
+.ap-tabla td.num { text-align: right; font: 500 13px/1 var(--cifra); color: var(--tinta); }
+.ap-tabla th.num { text-align: right; }
+
+/* ── Botones ────────────────────────────────────────────────────────────── */
+/* El botón es una PASTILLA, como el del estudio del teléfono que le gustó
+   (50 px de alto, radio 25). El secundario se queda en rectángulo redondeado
+   para que los dos no pesen lo mismo. */
+.ap-btn {
+  font: 600 13px/1 var(--ui);
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--canto-2);
+  background: var(--caja);
+  color: var(--tinta);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: .14s var(--ease);
+  white-space: nowrap;
+}
+.ap-btn:hover { background: var(--hundido); }
+.ap-btn.pri {
+  background: var(--senal);
+  border-color: var(--senal);
+  color: #fff;
+  border-radius: 999px;
+  height: 40px;
+  padding: 0 20px;
+}
+.ap-btn.pri:hover { background: #2f3ac2; border-color: #2f3ac2; }
+.ap-btn.grande { height: 48px; padding: 0 24px; font-size: 14.5px; border-radius: 999px; }
+.ap-btn.plana { border-color: transparent; background: none; color: var(--senal); padding: 0 8px; height: auto; }
+
+/* ── Segmentado ─────────────────────────────────────────────────────────── */
+.ap-seg {
+  display: inline-flex;
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.ap-seg button {
+  font: 500 12.5px/1 var(--ui);
+  color: var(--tinta-3);
+  background: none;
+  border: 0;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.ap-seg button[aria-pressed="true"] {
+  background: var(--caja);
+  color: var(--tinta);
+  font-weight: 600;
+  box-shadow: var(--sombra);
+}
+
+/* ── La barra de aviso ──────────────────────────────────────────────────── */
+.ap-aviso {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid #d4d9f7;
+  background: var(--senal-suave);
+  border-radius: 18px;
+  margin: 0 0 16px;
+}
+.ap-aviso .icono {
+  width: 34px; height: 34px;
+  border-radius: 12px;
+  background: var(--senal);
+  color: #fff;
+  display: grid; place-items: center;
+  flex: none;
+}
+.ap-aviso .cuerpo { flex: 1; min-width: 0; }
+.ap-aviso .rotulo { font: 600 13.5px/1.3 var(--ui); display: block; }
+.ap-aviso .frase { font: 400 12.5px/1.4 var(--ui); color: var(--tinta-2); display: block; }
+
+/* ── Lo que NO merece una caja ──────────────────────────────────────────────
+   Una frase de cortesía bajo un botón y un aviso de cuatro semanas abiertas
+   no son contenido de tarjeta: son notas al pie. Meterlas en una caja es lo
+   que convirtió Revisión en nueve cajas para un mandado que es uno. */
+.ap-pie-frase {
+  margin: 12px 4px 0;
+  font: 400 12.5px/1.5 var(--ui);
+  color: var(--tinta-3);
+}
+.ap-renglon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 22px 0 0;
+  padding: 14px 18px;
+  border: 1px dashed var(--canto-2);
+  border-radius: 16px;
+  font: 400 13px/1.4 var(--ui);
+  color: var(--tinta-2);
+}
+.ap-renglon b { color: var(--tinta); font-weight: 600; }
+
+/* ── Migas ──────────────────────────────────────────────────────────────── */
+.ap-migas {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 500 12.5px/1 var(--ui);
+  color: var(--tinta-3);
+  margin: 0 0 14px;
+}
+.ap-migas b { color: var(--tinta); font-weight: 600; }
+.ap-migas .sep { color: var(--tinta-4); }
+
+/* ── Pastillas de sesión ────────────────────────────────────────────────── */
+.ap-sesiones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 0 0 16px; }
+.ap-sesion {
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  box-shadow: var(--sombra);
+  transition: .14s var(--ease);
+  text-align: left;
+  font-family: var(--ui);
+}
+.ap-sesion:hover { border-color: var(--canto-2); }
+.ap-sesion[aria-pressed="true"] { border-color: var(--senal); box-shadow: 0 0 0 1px var(--senal), var(--sombra); }
+.ap-sesion .nom { font: 600 13px/1.2 var(--ui); color: var(--tinta); }
+.ap-sesion .est { display: flex; align-items: center; gap: 6px; }
+.ap-sesion .barra { height: 3px; border-radius: 999px; background: var(--canto); overflow: hidden; }
+.ap-sesion .barra i { display: block; height: 100%; background: var(--senal); border-radius: 999px; }
+.ap-sesion.nueva { border-style: dashed; background: none; box-shadow: none; color: var(--senal); }
+.ap-sesion.nueva .nom { color: var(--senal); }
+
+/* ── EL HERO DE ENTRENO: qué te toca y el verbo, y nada más ─────────────── */
+.ap-hero {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: var(--caja);
+  border: 1px solid var(--canto);
+  border-radius: 20px;
+  box-shadow: var(--sombra);
+  padding: 20px 22px;
+  margin: 0 0 16px;
+}
+.ap-hero-txt { flex: 1; min-width: 220px; }
+.ap-hero .rot {
+  font: 600 11px/1 var(--ui);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+.ap-hero .tit { font: 700 30px/1.1 var(--cifra); font-stretch: 106%; letter-spacing: -.028em; margin: 8px 0 5px; }
+.ap-hero .frase { font: 400 13.5px/1.4 var(--ui); color: var(--tinta-2); }
+
+/* ── LA SESIÓN: el aparato en modo hacer ────────────────────────────────── */
+.ap-sesion-cab {
+  background: var(--noche);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 22px 15px;
+}
+.ap-sesion-cab .ap-btn {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.16);
+  color: rgba(255,255,255,.82);
+}
+.ap-sesion-cab .ap-btn:hover { background: rgba(255,255,255,.16); }
+.ap-sesion-tit { flex: 1; min-width: 0; text-align: center; }
+.ap-sesion-tit .rot {
+  font: 500 11px/1 var(--ui);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.45);
+}
+.ap-sesion-tit .tit { font: 700 20px/1.2 var(--cifra); font-stretch: 106%; letter-spacing: -.02em; margin-top: 6px; }
+.ap-sesion-cuenta { font: 500 12.5px/1 var(--ui); color: rgba(255,255,255,.6); white-space: nowrap; }
+.ap-sesion-cuenta b { color: #fff; font: 700 15px/1 var(--cifra); }
+.ap-sesion-regla { display: flex; gap: 3px; padding: 0 22px 14px; background: var(--noche); }
+.ap-sesion-regla i { flex: 1; height: 4px; border-radius: 999px; }
+
+/* La columna de trabajo de la sesión. Estrecha a propósito: una serie es un
+   renglón corto y estirarla a 1.360 px fue el error de la primera versión. */
+.ap-columna { max-width: 620px; margin: 0 auto; padding: 24px 22px 46px; display: grid; gap: 14px; }
+
+/* ── El ejercicio como CAJA (el robo a Hevy y a Efort) ──────────────────── */
+/* UNO DEBAJO DE OTRO. La primera versión los ponía de dos en dos para bajar
+   la pantalla de 2.018 px a 1.129; el dueño lo tumbó y tiene razón: en una
+   sesión el orden importa —primero banca, luego militar— y dos columnas
+   obligan a leer en zigzag. */
+.ap-ejercicios { display: grid; gap: 12px; align-items: start; }
+.ap-ej-n {
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  display: grid; place-items: center;
+  font: 600 11.5px/1 var(--cifra);
+  color: var(--tinta-3);
+  flex: none;
+}
+.ap-ej { background: var(--caja); border: 1px solid var(--canto); border-radius: 18px; box-shadow: var(--sombra); overflow: hidden; }
+.ap-ej-cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--canto);
+}
+.ap-ej-cab .nom { font: 600 14px/1.2 var(--ui); }
+.ap-ej-cab .meta { font: 500 12px/1 var(--ui); color: var(--tinta-3); }
+.ap-ej-cab .fin { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.ap-series { display: grid; }
+.ap-serie {
+  display: grid;
+  grid-template-columns: 56px 56px minmax(0, 1fr) minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--canto);
+}
+.ap-serie:last-child { border-bottom: 0; }
+.ap-serie .n { font: 500 12px/1 var(--ui); color: var(--tinta-3); }
+.ap-serie .pide { font: 500 12.5px/1 var(--ui); color: var(--tinta-3); }
+.ap-serie .campo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--hundido);
+  border: 1px solid var(--canto);
+  border-radius: 10px;
+  padding: 7px 10px;
+  font: 600 13px/1 var(--cifra);
+  color: var(--tinta);
+}
+.ap-serie .campo span { font: 500 11px/1 var(--ui); color: var(--tinta-4); }
+/* El fantasma: lo que levantaste la vez anterior, en voz baja y sin caja.
+   Es la firma de la hoja del producto y hoy en el portal no está. */
+.ap-serie .antes { font: 500 12px/1 var(--cifra); color: var(--tinta-4); white-space: nowrap; }
+.ap-serie .campo.vacio { color: var(--tinta-4); font-weight: 500; }
+.ap-serie .tic {
+  width: 24px; height: 24px;
+  border-radius: 999px;
+  border: 1.5px solid var(--canto-2);
+  display: grid; place-items: center;
+  color: transparent;
+  cursor: pointer;
+}
+.ap-serie.hecha .tic { background: var(--verde); border-color: var(--verde); color: #fff; }
+.ap-serie.hecha .campo { background: var(--caja); border-color: var(--canto-2); }
+.ap-cab-series {
+  display: grid;
+  grid-template-columns: 56px 56px minmax(0, 1fr) minmax(0, 1fr) 34px;
+  gap: 10px;
+  padding: 9px 14px;
+  background: var(--hundido);
+  border-bottom: 1px solid var(--canto);
+  font: 600 10.5px/1 var(--ui);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+/* ── Gráficas de mentira, honestas: SVG a mano ──────────────────────────── */
+.ap-grafica { width: 100%; display: block; }
+.ap-leyenda { display: flex; gap: 16px; flex-wrap: wrap; font: 500 12px/1 var(--ui); color: var(--tinta-3); padding: 0 16px 14px; }
+.ap-leyenda i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; margin-right: 6px; vertical-align: -1px; }
+
+/* ── Comidas ────────────────────────────────────────────────────────────── */
+.ap-macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.ap-macro {
+  border: 1px solid var(--canto);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--hundido);
+}
+.ap-macro .rot { font: 600 10.5px/1 var(--ui); letter-spacing: .09em; text-transform: uppercase; color: var(--tinta-3); }
+.ap-macro .val { font: 700 20px/1.1 var(--cifra); margin: 5px 0 6px; }
+.ap-macro .val small { font: 500 11.5px/1 var(--ui); color: var(--tinta-3); }
+.ap-macro .barra { height: 4px; border-radius: 999px; background: var(--canto); overflow: hidden; }
+.ap-macro .barra i { display: block; height: 100%; border-radius: 999px; }
+
+/* ── El teléfono ────────────────────────────────────────────────────────── */
+.ap.es-movil { min-height: 720px; padding-bottom: 62px; }
+.ap.es-movil .ap-hoja { padding: 16px 16px 26px; }
+.ap.es-movil .ap-rejilla { grid-template-columns: 1fr; }
+.ap.es-movil .c3, .ap.es-movil .c4, .ap.es-movil .c5,
+.ap.es-movil .c6, .ap.es-movil .c7, .ap.es-movil .c8,
+.ap.es-movil .c9 { grid-column: span 12; }
+.ap.es-movil .ap-teselas { grid-template-columns: repeat(2, 1fr); }
+/* Dos ejercicios por fila son del monitor. En 390 px vuelve a ser uno, y el
+   renglón de la serie pierde la columna del fantasma: ahí no cabe. */
+.ap.es-movil .ap-ejercicios { grid-template-columns: 1fr; }
+.ap.es-movil .ap-sesiones { grid-template-columns: 1fr; }
+.ap-movil-cab {
+  background: var(--noche);
+  color: #fff;
+  padding: 14px 16px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ap-movil-cab .tit { font: 700 19px/1.2 var(--cifra); font-stretch: 106%; letter-spacing: -.02em; }
+.ap-movil-cab .fecha { font: 500 11.5px/1 var(--ui); color: rgba(255,255,255,.55); margin-bottom: 5px; }
+.ap-pulgar {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 58px;
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--canto);
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+}
+.ap-pulgar button {
+  background: none;
+  border: 0;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  font: 500 10px/1 var(--ui);
+  color: var(--tinta-3);
+  cursor: pointer;
+  padding: 0;
+}
+.ap-pulgar button[aria-current="page"] { color: var(--senal); font-weight: 600; }
+/* En sesión la barra del pulgar deja de ser un menú y pasa a ser UN verbo.
+   Es el mismo sitio de la pantalla —donde llega el dedo— con otro trabajo. */
+.ap-pulgar-verbo { display: block; height: auto; padding: 9px 16px 11px; }
+.ap-pulgar .punto {
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--ambar);
+  position: absolute;
+  margin: -2px 0 0 16px;
+}
+
+/* ── Reducción de movimiento y foco ─────────────────────────────────────── */
+:focus-visible { outline: 2px solid var(--senal); outline-offset: 2px; border-radius: 4px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+@media (max-width: 1120px) {
+  .ap-teselas, .ap-teselas.de-3, .ap-teselas.de-5 { grid-template-columns: repeat(2, 1fr); }
+  .ap-rejilla > .c8, .ap-rejilla > .c9, .ap-rejilla > .c7 { grid-column: span 12; }
+  .ap-rejilla > .c4, .ap-rejilla > .c3, .ap-rejilla > .c5 { grid-column: span 6; }
+  .ap-sesiones { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header class="portada">
+  <div class="col">
+    <p class="kicker">Estudio · 14 de septiembre de 2026</p>
+    <h1>Cajas</h1>
+    <p class="bajada">El portal del cliente deja de ser <b>una hoja con cosas escritas encima</b> y pasa a ser <b>una rejilla de cajas</b>: cada una con su canto, su rótulo y un solo trabajo. Seis pantallas, una medida, y las cifras arriba antes que nada.</p>
+  </div>
+</header>
+
+<section id="tesis">
+  <div class="col">
+    <h4>01 · De qué va esto</h4>
+    <h2>Lo que se tira</h2>
+    <p class="sub">Y por qué el dueño tiene razón al tirarlo.</p>
+
+    <p>El estudio de ayer —<b>«La mesa»</b>— proponía lo contrario exacto de esto: matar la caja, dejar la hoja fija y levantar <b>una sola</b> cosa por pantalla, la que puedes tocar ahora. La frase era «de 31 cajas a 4». El dueño lo vio y dijo <b>no me gusta nada</b>. Queda anulado entero: la tesis, las cuatro reglas y el prototipo.</p>
+
+    <p>Y tenía razón, porque aquella propuesta contestaba a una pregunta que nadie había hecho. El problema del portal nunca fue <em>cuántas cajas hay</em>; fue que <b>lo que hay no se lee como una caja</b>. Se puede comprobar en una línea de <code>tokens.css</code>:</p>
+
+    <div class="alerta">
+      <b>Hoy la tarjeta del producto no tiene borde.</b> <code>--edge-card: transparent</code>, con el porqué escrito al lado: «un borde no debe rodear una pantalla entera». Así que una caja blanca sobre lienzo crema está sostenida <em>solo por una sombra de un píxel</em>. Eso no es una caja: es un trozo de papel un poco más blanco sobre otro papel.
+    </div>
+
+    <p>Quitar cajas a un sistema en el que la caja no se ve era llevar el diagnóstico al sitio equivocado. Lo que hay que hacer es el movimiento contrario: <b>que la caja se vea, que haya más, y que cada una sea más pequeña</b>.</p>
+  </div>
+</section>
+
+<section id="diagnostico">
+  <div class="col">
+    <h4>02 · El antes</h4>
+    <h2>Las doce averías</h2>
+    <p class="sub">Medidas contra la app real, con la cuenta de Marta a 1600 × 1000. No son opiniones de estilo: cada una tiene un número.</p>
+  </div>
+
+  <div class="capturas">
+    <figure class="captura">
+      <img src="../capturas/pc-cliente-14sep/inicio.png" alt="Mi inicio, hoy">
+      <figcaption><b>Mi inicio.</b> La última tinta cae en <b>y=730</b> de 1000. La tarjeta «Empuje» mide 1170 × 250 px para un título, una frase y un botón.</figcaption>
+    </figure>
+    <figure class="captura">
+      <img src="../capturas/pc-cliente-14sep/lo-tuyo.png" alt="Lo tuyo, hoy">
+      <figcaption><b>Lo tuyo.</b> Cinco renglones en cajas de <b>1496 px de ancho</b>. La página se acaba en y=545: el 45 % de la pantalla.</figcaption>
+    </figure>
+    <figure class="captura">
+      <img src="../capturas/pc-cliente-14sep/progreso.png" alt="Mi progreso, hoy">
+      <figcaption><b>Mi progreso.</b> «Cómo vas» es una caja de 770 × 260 px con <em>una línea de texto dentro</em>. Y cinco matices distintos en la misma pantalla.</figcaption>
+    </figure>
+    <figure class="captura">
+      <img src="../capturas/pc-cliente-14sep/dieta.png" alt="Mi dieta, hoy">
+      <figcaption><b>Mi dieta.</b> Tres comidas en una rejilla de dos: «Cena» se queda sola en su fila con <b>900 px</b> de nada al lado.</figcaption>
+    </figure>
+  </div>
+
+  <div class="col">
+    <dl class="averias">
+      <div class="averia"><dt>E‑01</dt><dd><b>Tres anchos para seis pantallas.</b> <span class="dato">1560</span> en inicio, dieta, progreso y Lo tuyo; <span class="dato">1320</span> en revisión (<code>.layout-portal:has(.revision-cliente)</code>); <span class="dato">880</span> en la rutina (<code>:has(.rutina-cuerpo.es-hoja)</code>). Cada pantalla arranca en una x distinta, así que la cinta de secciones parece moverse al navegar.</dd></div>
+      <div class="averia"><dt>E‑02</dt><dd><b>La caja no tiene canto.</b> <code>--edge-card: transparent</code>. Lo único que separa la tarjeta del lienzo es <code>--shadow-sm</code>, y sobre crema esa sombra es casi invisible.</dd></div>
+      <div class="averia"><dt>E‑03</dt><dd><b>La pantalla más importante es la más estrecha.</b> «Mi rutina» mide <span class="dato">805 px</span> de tinta centrados en 1586, con <b>390 px de margen a cada lado</b>, y <span class="dato">2018 px</span> de alto. La única pantalla que no usa el ancho es la que más filas tiene.</dd></div>
+      <div class="averia"><dt>E‑04</dt><dd><b>Cajas del ancho de la página para dos datos.</b> «Tu peso y tus medidas · 61,0 kg» ocupa 1400 px de renglón. El ojo tiene que viajar de un canto al otro para juntar el rótulo con su cifra.</dd></div>
+      <div class="averia"><dt>E‑05</dt><dd><b>Ninguna pantalla abre con cifras.</b> Las seis abren con un titular y un párrafo. Los números —el peso, las sesiones, las kcal, lo que falta por entregar— están enterrados dentro de las cajas o en el costado.</dd></div>
+      <div class="averia"><dt>E‑06</dt><dd><b>La enfermedad vertical.</b> «Cómo vas» mide 260 px de alto para 20 px de contenido; «Desde que empezaste» 250 para tres cifras. Una caja alta y vacía se lee como «aquí falta algo», no como respiro.</dd></div>
+      <div class="averia"><dt>E‑07</dt><dd><b>Cinco matices en «Mi progreso».</b> Tonelaje en violeta, volumen en verde azulado, la banda de pasos en magenta, el peso en azul de acento y los deltas en verde. La ley del color de la casa dice <em>azul invita, semáforo juzga, discos distinguen</em>; aquí los tres carriles se cruzan en una pantalla.</dd></div>
+      <div class="averia"><dt>E‑08</dt><dd><b>Gráficas con un punto.</b> La curva de «Tu cuerpo» dibuja un eje de 68,2 a 53,6 para <em>un solo pesaje</em>, y la banda de pasos sale como una franja rosa plana. Una gráfica de un dato no es una gráfica: es un dato mal vestido.</dd></div>
+      <div class="averia"><dt>E‑09</dt><dd><b>Dos vocabularios en la misma pantalla.</b> La cinta dice «Mis revisiones» y el titular debajo dice «Tu revisión». La barra del teléfono dice «Hoy · Entreno · Dieta · Revisión · Tú» y la del PC «Mi inicio · Mi rutina · Mi dieta…». Tres posesivos para el mismo sitio.</dd></div>
+      <div class="averia"><dt>E‑10</dt><dd><b>La escala es de lectura, no de panel.</b> El cuerpo está a <span class="dato">16 px</span> (<code>--fs-base</code>). Coachway y Efort escriben su interfaz a 12–13. A 16 px cabe menos en pantalla, las filas engordan y el resultado es el documento que el dueño está viendo.</dd></div>
+      <div class="averia"><dt>E‑11</dt><dd><b>Rejillas que dejan huérfanos.</b> Tres comidas en <code>auto-fill</code> de dos columnas dejan «Cena» sola; las tarjetas no igualan altura, así que el canto de abajo va a tres alturas distintas.</dd></div>
+      <div class="averia"><dt>E‑12</dt><dd><b>El estado es texto gris.</b> «a medias», «anotada», «sin anotar» se escriben en la misma tinta que el resto de la tabla. No hay forma de barrer la columna y ver qué falta.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section id="medido">
+  <div class="col">
+    <h4>03 · El hallazgo</h4>
+    <h2>El papel no es el color</h2>
+    <p class="sub">Histograma de píxeles de las capturas de referencia. Esta medición cambió el estudio entero.</p>
+
+    <p>La primera versión de este documento daba por hecho lo obvio: que el lienzo crema <code>#f7f6f2</code> es lo que hace que la app parezca una hoja impresa, y que había que pasarse al gris frío de Efort. Antes de escribirlo se midió, contando los píxeles de las capturas que ya teníamos guardadas:</p>
+
+    <div class="envoltorio">
+      <table class="tabla">
+        <thead><tr><th>Producto</th><th>Lienzo</th><th>% de píxeles</th><th>Tarjeta</th><th>Escalón</th><th>Ancla oscura</th></tr></thead>
+        <tbody>
+          <tr><td>Coachway</td><td><code>#f9f7f3</code> cálido</td><td>44,2 %</td><td><code>#ffffff</code></td><td>1,07</td><td class="si">#0b192a · 7,9 %</td></tr>
+          <tr><td>Efort</td><td><code>#f4f5f7</code> frío</td><td>6,5 %</td><td><code>#ffffff</code></td><td>1,09</td><td class="si">barra lateral</td></tr>
+          <tr><td>Caveman Hub</td><td><code>#f7f6f2</code> cálido</td><td>—</td><td><code>#ffffff</code></td><td>1,08</td><td class="no">ninguna</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:22px"><b>El lienzo de Coachway es más cálido y más claro que el nuestro</b>, y su escalón hasta la tarjeta es <em>menor</em>. Si el crema fuera la enfermedad, su captura tendría que vernos peor que la nuestra. Así que la diferencia está en otra parte, y la tabla la señala:</p>
+
+    <ol>
+      <li><b>El canto.</b> Cada tarjeta suya lleva un filete gris de 1 px. Las nuestras no llevan ninguno.</li>
+      <li><b>El tamaño.</b> Su caja más ancha en la ficha del cliente mide 680 px; la nuestra, 1496.</li>
+      <li><b>La cuenta.</b> Su pantalla de desarrollo tiene <b>seis teselas + cuatro cajas</b> en 750 px de alto. Nuestro «Lo tuyo» tiene dos cajas en 1000.</li>
+      <li><b>El ancla.</b> Casi el 8 % de su pantalla es una barra azul marino casi negra. El portal del cliente nuestro no tiene ni un píxel oscuro: es blanco sobre crema de canto a canto, y nada sujeta la página.</li>
+    </ol>
+
+    <div class="nota">El lienzo se enfría igual —<code>#f7f6f2</code> → <code>#f1f2f5</code>—, porque el dueño lo ha pedido y porque con canto y radio ya no hay riesgo de volver al gris de hoja de cálculo que se retiró en junio. Pero conviene saber que <b>enfriar el lienzo, solo, no habría arreglado nada</b>.</div>
+  </div>
+</section>
+
+<section id="referencias">
+  <div class="col">
+    <h4>04 · Lo que hacen los punteros</h4>
+    <h2>Qué se copia y qué no</h2>
+    <p class="sub">Seis estructuras que ya están resueltas fuera. De cada una se coge una cosa concreta, no la estética.</p>
+  </div>
+
+  <div class="col envoltorio">
+    <table class="tabla">
+      <thead><tr><th>Producto</th><th>La estructura</th><th>Lo que se copia</th><th>Lo que no</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Stripe</td>
+          <td>Fila de teselas de métrica arriba —rótulo, cifra, delta, minigráfica— y debajo el detalle.</td>
+          <td><b>La tira de teselas.</b> Es la firma del rediseño: las seis pantallas abren con tres o cuatro.</td>
+          <td class="no">La minigráfica dentro de la tesela: con un pesaje por semana miente más de lo que dice.</td>
+        </tr>
+        <tr>
+          <td>Linear</td>
+          <td>Cinta superior que carga todo el contexto; el cuerpo empieza siempre en el mismo sitio.</td>
+          <td><b>Una sola medida.</b> 1360 sobre rejilla de 12 en las seis pantallas, sin excepciones por página.</td>
+          <td class="no">La densidad extrema y las listas sin caja: aquí el cliente entra dos veces por semana, no vive dentro.</td>
+        </tr>
+        <tr>
+          <td>Coachway</td>
+          <td>Barra oscura de ancla, seis teselas, y el contenido en dos columnas de cajas con canto.</td>
+          <td><b>El canto, el ancla oscura y la barra de aviso tintada</b> con su verbo pegado al canto derecho.</td>
+          <td class="no">Su verde bosque y su cursiva de acento: es su identidad, no la nuestra.</td>
+        </tr>
+        <tr>
+          <td>Efort</td>
+          <td>Rótulo de sección en versalitas con icono; cajas de altura igualada; historial en bloques con carril de fechas.</td>
+          <td><b>El carril de fechas</b> para los microciclos y las revisiones, y el rótulo con icono.</td>
+          <td class="no">El semáforo sobre los macros: juzga la dieta, y aquí la app no receta.</td>
+        </tr>
+        <tr>
+          <td>Hevy · Strong</td>
+          <td>La sesión es <b>una tarjeta por ejercicio</b>, con sus series dentro, no una tabla única.</td>
+          <td><b>El ejercicio como caja.</b> Es el cambio más grande del prototipo y el que arregla E‑03 solo.</td>
+          <td class="no">El cronómetro que arranca solo, ya descartado, y el foco en el peso pautado: aquí se pautan series y reps.</td>
+        </tr>
+        <tr>
+          <td>iOS · Ajustes</td>
+          <td>Listas agrupadas en bloques redondeados, dentro de una columna acotada.</td>
+          <td><b>La columna acotada</b> para «Tú»: 560 px, no 1496.</td>
+          <td class="no">El chevron en todas las filas: aquí solo lo lleva lo que de verdad abre otra pantalla.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <div class="nota">Los dos primeros renglones de la tabla están <b>medidos</b> sobre las capturas que guardamos en <code>capturas/referencias/</code>; los cuatro siguientes son estructura conocida de producto, no medición. Se dice para que nadie cite un hex de esta tabla como si estuviera contado.</div>
+  </div>
+</section>
+
+<section id="tokens">
+  <div class="col">
+    <h4>05 · El plan</h4>
+    <h2>Cinco decisiones</h2>
+    <p class="sub">Todo lo demás del prototipo se deriva de estas cinco. Ningún componente inventa un valor.</p>
+
+    <h3>1 · La caja tiene canto</h3>
+    <p><code>--edge-card</code> deja de ser <code>transparent</code> y pasa a <code>#e3e6eb</code>. Radio 12 —no 20, que es radio de escaparate—, sombra de 1 px y cabecera con filete propio. Una caja es <b>cabecera + cuerpo + pie opcional</b>, y el pie es donde vive el verbo.</p>
+
+    <h3>2 · El lienzo pierde la temperatura</h3>
+    <div class="muestras">
+      <div class="muestra"><div class="tono" style="background:#f1f2f5"></div><div class="pie"><div class="nom">Lienzo</div><div class="hex">#f1f2f5</div></div></div>
+      <div class="muestra"><div class="tono" style="background:#ffffff"></div><div class="pie"><div class="nom">Caja</div><div class="hex">#ffffff</div></div></div>
+      <div class="muestra"><div class="tono" style="background:#f4f5f8"></div><div class="pie"><div class="nom">Hundido</div><div class="hex">#f4f5f8</div></div></div>
+      <div class="muestra"><div class="tono" style="background:#e3e6eb"></div><div class="pie"><div class="nom">Canto</div><div class="hex">#e3e6eb</div></div></div>
+      <div class="muestra"><div class="tono" style="background:#10151d"></div><div class="pie"><div class="nom">Ancla</div><div class="hex">#10151d</div></div></div>
+      <div class="muestra"><div class="tono" style="background:#3b49df"></div><div class="pie"><div class="nom">Señal</div><div class="hex">#3b49df</div></div></div>
+    </div>
+    <p style="margin-top:16px">Escalón lienzo → caja: <b>1,12</b>, algo mayor que el 1,08 de hoy. Las sombras dejan el sepia <code>rgba(38,32,20)</code> y pasan a <code>rgba(16,24,40)</code>, que es lo que hace que un sistema de superficies claras no parezca montado de dos sitios. <b>El acento no se toca</b>: <code>#3b49df</code> sigue siendo la única señal y sigue sin decorar nada.</p>
+
+    <h3>3 · La cinta es el ancla</h3>
+    <p>El portal del cliente pasa a llevar la cinta en <code>#10151d</code>. No es un adorno: es la pieza que a Coachway le ocupa el 8 % de la pantalla y a nosotros el 0 %. Además ya existe la decisión hermana —la barra lateral del entrenador es oscura en los dos temas, «el ancla que deja el contenido iluminado»—, así que esto <b>no abre un lenguaje nuevo: extiende uno que ya está aprobado</b> al único sitio del producto que no lo tenía.</p>
+
+    <h3>4 · Dos voces y una escala de panel</h3>
+    <p>Interfaz a <b>13–14 px</b> en vez de 16. Rótulos de columna a 10,5 en versalitas. Cifras y titulares en Archivo, que es la voz de la casa y no se pierde. Lo que sí se va es <b>la cursiva del saludo</b>: «Hola, <em>Marta</em>» en Archivo cursiva a 42 px es exactamente el gesto de una portada de revista.</p>
+    <p>Queda una decisión abierta, y es la única del estudio que cuesta dinero: si la interfaz va en <b>Inter</b> —un <code>woff2</code> más, que es lo que se aprobó en el prototipo del 12 de septiembre— o se queda en Archivo con la escala nueva, que no cuesta nada. <b>El prototipo trae un interruptor para verlo de las dos formas</b>; se decide mirando.</p>
+
+    <h3>5 · La tira de teselas</h3>
+    <p>Cada pantalla abre con tres o cuatro cajas pequeñas: rótulo en versalitas, cifra en Archivo a 27 px, y un delta tintado si lo hay. Es lo único del rediseño que es <em>información nueva</em> y no maquetación: hoy esas cifras existen, pero están dentro de una tarjeta, detrás de un desplegable o en el costado.</p>
+
+    <div class="alerta"><b>La regla que impide que esto se vaya de las manos:</b> ninguna caja pasa de 8 de las 12 columnas, salvo una tabla de verdad. Y la altura de una caja la decide su contenido, nunca su vecina — dos cajas en la misma fila igualan altura, tres no se fuerzan.</div>
+  </div>
+</section>
+
+<section id="prototipo">
+  <div class="col">
+    <h4>06 · El después</h4>
+    <h2>El prototipo</h2>
+    <p class="sub">Las seis pantallas, clicables, con los datos reales de Marta: 61,0 kg, bloque 1 · microciclo 10 de 10, Empuje a medias con una serie de veintiuna.</p>
+  </div>
+
+  <div class="escenario">
+    <div class="escenario-cab">
+      <h4>El PC · 1360 sobre rejilla de 12</h4>
+      <div class="mandos" id="mandos-pc">
+        <button class="mando" data-pantalla="hoy" aria-pressed="true">Hoy</button>
+        <button class="mando" data-pantalla="entreno" aria-pressed="false">Entreno</button>
+        <button class="mando" data-pantalla="sesion" aria-pressed="false">↳ En sesión</button>
+        <button class="mando" data-pantalla="dieta" aria-pressed="false">Dieta</button>
+        <button class="mando" data-pantalla="revision" aria-pressed="false">Revisión</button>
+        <button class="mando" data-pantalla="progreso" aria-pressed="false">Progreso</button>
+        <button class="mando" data-pantalla="tu" aria-pressed="false">Tú</button>
+        <button class="mando" id="tipo" aria-pressed="false" style="margin-left:10px">Con Archivo</button>
+      </div>
+    </div>
+    <div class="marco"><div class="ap" id="pc"></div></div>
+  </div>
+
+  <div class="escenario">
+    <div class="escenario-cab">
+      <h4>El teléfono · 390</h4>
+      <div class="mandos" id="mandos-movil">
+        <button class="mando" data-pantalla="hoy" aria-pressed="true">Hoy</button>
+        <button class="mando" data-pantalla="entreno" aria-pressed="false">Entreno</button>
+        <button class="mando" data-pantalla="sesion" aria-pressed="false">↳ En sesión</button>
+        <button class="mando" data-pantalla="dieta" aria-pressed="false">Dieta</button>
+      </div>
+    </div>
+    <div class="marco es-movil"><div class="ap es-movil" id="movil"></div></div>
+  </div>
+
+  <div class="col">
+    <h3>Medido en el prototipo</h3>
+    <p>Contado con el mismo banco que el diagnóstico, para que la comparación valga:</p>
+
+    <div class="envoltorio">
+      <table class="tabla">
+        <thead><tr><th>Pantalla</th><th>Hoy</th><th>En el prototipo</th><th class="num">Cajas</th></tr></thead>
+        <tbody>
+          <tr><td>Hoy</td><td>última tinta en y=730 de 1000</td><td class="si">933 px, llenos</td><td>9</td></tr>
+          <tr><td>Entreno · ver</td><td rowspan="2">2.018 px de alto en 805 de ancho, con los campos y el programa en la misma pantalla</td><td class="si">880 px, sin un solo campo</td><td>9</td></tr>
+          <tr><td>Entreno · hacer</td><td class="si">columna de 620, solo el entreno de hoy</td><td>6</td></tr>
+          <tr><td>Dieta</td><td>una tarjeta huérfana en su fila</td><td class="si">comidas en columna, una opción visible</td><td>8</td></tr>
+          <tr><td>Revisión</td><td>seis cajas y 1.320 de ancho por excepción</td><td class="si">634 px, <b>dos cajas</b> y un renglón</td><td>2</td></tr>
+          <tr><td>Progreso</td><td>cinco matices de dato</td><td class="si">dos</td><td>8</td></tr>
+          <tr><td>Tú</td><td>última tinta en y=545 de 1000</td><td class="si">620 px</td><td>5</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:22px">Los dos titulares son <b>Entreno</b> y <b>Revisión</b>, y por motivos contrarios. Entreno baja de 2.018 px a 880 porque <b>deja de hacer dos cosas a la vez</b>: la pantalla de la sección enseña el programa y no tiene un solo campo; poner kilos y repeticiones es otra pantalla, con su propia cabecera y sin la cinta de secciones. Revisión baja de seis cajas a <b>dos y un renglón</b>: lo que se fue —la curva, «Cómo pesarte», las cuatro semanas abiertas— no se ha perdido, está en Progreso o detrás de su propio verbo.</p>
+
+    <p>Y el contraste con el estudio de ayer. Allí las seis pantallas de la app real daban <b>31 cajas</b> —contando solo <code>.card</code>— y la propuesta las bajaba a <b>4</b>. Aquí salen <b>47</b> en siete pantallas, contando todo lo que tiene canto: tarjeta, tesela, pastilla de sesión y caja de ejercicio. <b>Las dos cuentas no son la misma</b> y no se pueden restar; lo que sí dicen es que van en direcciones opuestas.</p>
+  </div>
+</section>
+
+<section id="segunda">
+  <div class="col">
+    <h4>07 · Segunda vuelta</h4>
+    <h2>Lo que cambió al verlo</h2>
+    <p class="sub">El dueño juzgó la primera versión el mismo día. Inicio y Progreso los dio por buenos; lo demás son cinco correcciones, y dos de ellas son de producto, no de forma.</p>
+
+    <dl class="averias">
+      <div class="averia"><dt>1</dt><dd><b>«Veo las boxes demasiado cuadradas, poco amistosa la app.»</b> Y señaló cuál sí le gustaba: el estudio del teléfono del 13 de septiembre, <code>estudio-la-app-del-cliente.html</code> — «cajas más redondas, más amistoso, mejor diseñado». Aquel usa radio 20 en la tarjeta, 14 dentro y un botón principal de 50 px con radio 25, o sea <b>pastilla</b>. Adoptada esa escala: caja 18, pieza interior 12, píldoras y botón primario redondos del todo. <b>El canto y el lienzo no se han tocado</b>: lo que era cuadrado era el radio, no el sistema.</dd></div>
+
+      <div class="averia"><dt>2</dt><dd><b>«Diferenciar si el cliente le da a hacer el entreno, que le lleva a una visión solo con su entreno del día […] y la visión de PC, que el cliente ve sus entrenamientos.»</b> No son dos modos de una pantalla: son <b>dos pantallas con dos trabajos</b>. «Entreno» enseña el programa y <em>no tiene un solo campo</em>; «En sesión» solo tiene el entreno de hoy, con su cabecera propia, sin cinta de secciones y con el logbook a un toque por ejercicio. En el teléfono, la barra del pulgar deja de ser un menú y pasa a ser un verbo: <em>Acabar la sesión</em>.</dd></div>
+
+      <div class="averia"><dt>3</dt><dd><b>«No me gusta que los ejercicios no vayan uno debajo de otro.»</b> Cae la rejilla de dos por fila, que era el truco con el que la primera versión presumía de bajar de 2.018 px a 1.129. Tenía razón: en una sesión <b>el orden importa</b> —primero banca, luego militar— y dos columnas obligan a leer en zigzag. El alto se recupera por el otro lado, separando ver de hacer.</dd></div>
+
+      <div class="averia"><dt>4</dt><dd><b>«Con varias opciones por comida es un lío y poco amistoso; las dietas una debajo de otra mejor que en serie.»</b> Las comidas van en columna, en el orden en que se comen. Y cada una enseña <b>una sola opción</b> —la que está puesta— con el resto detrás de un mando callado en el pie: <em>Opción 1 de 3 · Cambiar</em>. Una comida con una sola opción no lleva ni mando.</dd></div>
+
+      <div class="averia"><dt>5</dt><dd><b>«En revisión —y un poco en entreno y hoy— veo demasiada información […] no entiende el cliente que al final lo que ha de hacer es subir su revisión.»</b> Revisión pasa de seis cajas a dos y un renglón, y <b>el titular deja de ser el nombre del sitio y pasa a ser el verbo</b>: «Entrega tu semana». En Hoy, «Hoy» y «Te espera» eran dos cajas contestando la misma pregunta y ahora son una.</dd></div>
+    </dl>
+
+    <div class="alerta"><b>Lo que esto le quita al estudio, y conviene decirlo:</b> la tanda 3 ya no es «el ejercicio es una caja» a secas — es <b>partir Entreno en dos rutas</b>, que toca <code>routes.jsx</code> y el estado de sesión, no solo el pintado. Sube de tanda de maquetación a tanda de producto, y es la que hay que estimar con cuidado.</div>
+  </div>
+</section>
+
+<section id="tandas">
+  <div class="col">
+    <h4>07 · Cómo se construye</h4>
+    <h2>Cuatro tandas</h2>
+    <p class="sub">Ninguna toca dominio, consultas ni RLS. Todo es forma: el portal enseña exactamente los mismos datos que hoy.</p>
+
+    <h3>Tanda 1 · El chasis y la caja <span style="color:var(--tinta-3);font-weight:400">— media jornada</span></h3>
+    <ul>
+      <li><code>--edge-card</code> deja de ser transparente; lienzo, hundido y sombras cambian de matiz en <code>tokens.css</code>. Es un cambio de tokens y se ve en toda la app a la vez, así que hay que capturar el panel del entrenador también.</li>
+      <li>Muere <code>.layout-portal:has(.rutina-cuerpo.es-hoja)</code> y <code>:has(.revision-cliente)</code>: una sola medida, <b>1360</b>.</li>
+      <li>La cinta del portal pasa a <code>#10151d</code> reutilizando el mecanismo de <code>.barra-tinta</code>, que ya existe y ya sabe redefinir tokens dentro de sí.</li>
+    </ul>
+
+    <h3>Tanda 2 · Las teselas y la escala</h3>
+    <ul>
+      <li>Pieza nueva <code>ui/Tesela</code> —rótulo, cifra, delta, pie— y la tira en las seis rutas.</li>
+      <li>La escala de panel: el portal baja a 13–14 px. Se hace con una clase en <code>.layout-portal</code>, no tocando <code>--fs-base</code>, para no mover el panel del entrenador en el mismo golpe.</li>
+      <li>Fuera la cursiva del saludo.</li>
+    </ul>
+
+    <h3>Tanda 3 · Ver y hacer son dos pantallas <span style="color:var(--rojo);font-weight:600">— la de producto</span></h3>
+    <ul>
+      <li><b>«Entreno» se queda sin campos.</b> Enseña el programa: el hero de lo que toca hoy con su verbo, la tira de sesiones, los seis ejercicios <b>uno debajo de otro</b> con lo que levantaste la vez anterior, y el logbook al costado. Medido: 2.018 px → 880.</li>
+      <li><b>Ruta nueva para la sesión.</b> Cabecera propia, sin cinta de secciones, columna de 620, campos de kg y reps, historial por ejercicio y el verbo en la barra del pulgar. Esto toca <code>routes.jsx</code> y el estado de sesión —que ya existe (<code>BarraDeSesion</code>, <code>SesionAMedias</code>, <code>FocoDeLaSesion</code>)—, así que <b>no es maquetación: es producto</b>. Es la tanda que hay que estimar con cuidado.</li>
+      <li>Entra la columna <b>«Antes»</b> —lo del microciclo anterior— en el renglón de la serie. El dato ya está guardado; hoy el portal no lo enseña en ningún sitio.</li>
+      <li>Y en la dieta: comidas <b>en columna</b>, una sola opción visible y el resto detrás de «Opción 1 de 3 · Cambiar».</li>
+    </ul>
+
+    <h3>Tanda 4 · La voz y los remates</h3>
+    <ul>
+      <li><b>Un solo vocabulario</b> (E‑09): la cinta del PC adopta el del teléfono —Hoy · Entreno · Dieta · Revisión · Tú— con rebote de rutas para los marcadores viejos.</li>
+      <li>Estados en píldora, no en texto gris (E‑12).</li>
+      <li>Una gráfica con menos de tres puntos no se dibuja: se escribe (E‑08). Y «Mi progreso» se queda con dos matices de dato, no cinco (E‑07).</li>
+    </ul>
+
+    <h3>Las tres decisiones que no son mías</h3>
+    <ol>
+      <li><b>¿La cinta del portal se va a oscuro?</b> Es el gesto más visible del estudio y el que más se parece a Coachway. <em>Recomendado: sí.</em></li>
+      <li><b>¿Inter o Archivo para la interfaz?</b> Interruptor «Con Archivo» en el prototipo. <em>Recomendado: Inter, que es lo que ya se aprobó el 12 de septiembre.</em></li>
+      <li><b>¿«Mi progreso» sobrevive como pantalla</b> o sus cifras se reparten entre las teselas de las otras cinco? Con la tira de teselas puesta, media pantalla de «Progreso» pasa a estar dicha en las demás. <em>Recomendado: sobrevive, pero solo con lo que es histórico.</em></li>
+    </ol>
+  </div>
+</section>
+
+</div><!-- /.doc -->
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   EL PROTOTIPO
+
+   Los datos son los REALES de la cuenta de Marta en la demo local, sacados de
+   las capturas del 14 de septiembre: 61,0 kg, bloque 1 · microciclo 10 de 10,
+   Empuje a medias con 1 serie de 21 y 640 kg movidos, Tirón entero con 12.092.
+   Si se tocan cifras aquí hay que cuadrarlas con esas capturas, o el prototipo
+   deja de servir para comparar.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const svg = (d, extra = '') =>
+  `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`;
+
+const I = {
+  chevron: svg('<path d="m9 18 6-6-6-6"/>'),
+  atras:   svg('<path d="m15 18-6-6 6-6"/>'),
+  pesa:    svg('<path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/>'),
+  plato:   svg('<path d="M4 4v7a4 4 0 0 0 8 0V4M8 4v16M17 4c-1.5 2-2 4-2 6s.5 3 2 3 2-1 2-3-.5-4-2-6zm0 9v7"/>'),
+  pasos:   svg('<path d="M8 4c1.5 0 2.5 1.5 2.5 4S9 14 8 14s-2-1-2-3.5S6.5 4 8 4zm8 3c1.5 0 2.5 1.5 2.5 4S17 17 16 17s-2-1-2-3.5S14.5 7 16 7z"/>'),
+  balanza: svg('<path d="M4 20h16M12 4v16M6 9h12l-3 5H9z"/>'),
+  entrega: svg('<path d="m3 11 18-8-8 18-2-8z"/>'),
+  camara:  svg('<path d="M4 8h3l2-2h6l2 2h3v11H4z"/><circle cx="12" cy="13" r="3"/>'),
+  regla:   svg('<path d="M3 9h18v6H3zM7 9v3M11 9v4M15 9v3M19 9v4"/>'),
+  calend:  svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/>'),
+  escudo:  svg('<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>'),
+  reloj:   svg('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
+  tic:     svg('<path d="m5 13 4 4L19 7"/>', 'stroke-width="2.6"'),
+  nota:    svg('<path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/>'),
+  casa:    svg('<path d="M4 11 12 4l8 7v9H4z"/>'),
+  campana: svg('<path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
+};
+
+/* ── Piezas compartidas ─────────────────────────────────────────────────── */
+const SECCIONES = [
+  ['hoy', 'Hoy'], ['entreno', 'Entreno'], ['dieta', 'Dieta'],
+  ['revision', 'Revisión'], ['progreso', 'Progreso'], ['tu', 'Tú'],
+];
+
+/* La cinta oscura: el ancla que hoy no existe en el portal. */
+const cinta = (act) => `
+  <div class="ap-cinta">
+    <div class="ap-marca"><span class="ap-logo"><i></i></span>Caveman Hub</div>
+    <nav class="ap-nav">
+      ${SECCIONES.map(([k, n]) =>
+        `<button ${k === act ? 'aria-current="page"' : ''} data-ir="${k}">${n}</button>`).join('')}
+    </nav>
+    <div class="ap-cinta-fin">
+      <span class="ap-campana">${I.campana}</span>
+      <span class="ap-avatar">ME</span>
+    </div>
+  </div>`;
+
+const tesela = ({ rot, val, uni, delta, pie }) => `
+  <div class="ap-tesela">
+    <div class="rot">${rot}</div>
+    <div class="val">${val}${uni ? `<small>${uni}</small>` : ''}
+      ${delta ? `<span class="ap-delta ${delta[0]}" style="margin-left:auto">${delta[1]}</span>` : ''}</div>
+    ${pie ? `<div class="pie">${pie}</div>` : ''}
+  </div>`;
+
+const teselas = (lista, clase = '') =>
+  `<div class="ap-teselas ${clase}">${lista.map(tesela).join('')}</div>`;
+
+const caja = ({ tit, meta, enlace, cuerpo, pie, sinRelleno }) => `
+  <div class="ap-caja">
+    ${tit ? `<div class="ap-caja-cab"><h3>${tit}</h3>
+      ${enlace ? `<span class="ap-enlace">${enlace}</span>` : meta ? `<span class="ap-meta">${meta}</span>` : ''}
+    </div>` : ''}
+    ${sinRelleno ? cuerpo : `<div class="ap-caja-cuerpo">${cuerpo}</div>`}
+    ${pie ? `<div class="ap-caja-pie">${pie}</div>` : ''}
+  </div>`;
+
+const fila = ({ icono, rotulo, frase, cifra, pildora, chevron = true }) => `
+  <div class="ap-fila">
+    ${icono ? `<span class="icono">${icono}</span>` : ''}
+    <span class="cuerpo"><span class="rotulo">${rotulo}</span>
+      ${frase ? `<br><span class="frase">${frase}</span>` : ''}</span>
+    <span class="fin">
+      ${cifra ? `<span class="cifra">${cifra}</span>` : ''}
+      ${pildora ? `<span class="ap-pildora ${pildora[0]}">${pildora[1]}</span>` : ''}
+      ${chevron ? `<span class="ap-chevron">${I.chevron}</span>` : ''}
+    </span>
+  </div>`;
+
+/* ── Gráficas. Hechas a mano para no mentir con una librería ─────────────── */
+/* Una curva de menos de tres puntos no se dibuja: se escribe. Es E-08. */
+function curva(pts, { w = 640, h = 150, area = true, color = '#1b6ea6', etiquetas = null } = {}) {
+  const min = Math.min(...pts), max = Math.max(...pts);
+  const rango = (max - min) || 1;
+  const x = (i) => 8 + (i * (w - 16)) / (pts.length - 1);
+  const y = (v) => h - 18 - ((v - min) / rango) * (h - 40);
+  const d = pts.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const grafica = `<svg class="ap-grafica" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px">
+    ${[0, 1, 2].map(i => `<line x1="0" x2="${w}" y1="${14 + i * ((h - 32) / 2)}" y2="${14 + i * ((h - 32) / 2)}"
+        stroke="#e3e6eb" stroke-width="1"/>`).join('')}
+    ${area ? `<path d="${d} L${x(pts.length - 1)} ${h - 18} L${x(0)} ${h - 18} Z" fill="${color}" opacity=".08"/>` : ''}
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${x(pts.length - 1)}" cy="${y(pts[pts.length - 1])}" r="3.5" fill="${color}"/>
+  </svg>`;
+  if (!etiquetas) return grafica;
+  /* Las cifras del eje van en HTML y no dentro del SVG: con
+     `preserveAspectRatio="none"` el trazo se estira a lo ancho —que es lo que
+     queremos— y con él se estiraría la letra. */
+  return `<div style="display:flex;gap:10px">
+    <div style="display:flex;flex-direction:column;justify-content:space-between;height:${h}px;
+                padding:9px 0 25px;font:500 11px/1 var(--ui);color:var(--tinta-3);text-align:right;min-width:28px">
+      <span>${etiquetas[0]}</span><span>${etiquetas[1]}</span>
+    </div>
+    <div style="flex:1;min-width:0">${grafica}</div>
+  </div>`;
+}
+
+function barras(valores, { w = 560, h = 140, ultima = true } = {}) {
+  const max = Math.max(...valores) || 1;
+  const paso = w / valores.length;
+  const ancho = Math.min(34, paso - 10);
+  return `<svg class="ap-grafica" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:${h}px">
+    ${valores.map((v, i) => {
+      const alto = Math.max(3, (v / max) * (h - 26));
+      const hoy = ultima && i === valores.length - 1;
+      return `<rect x="${(i * paso + (paso - ancho) / 2).toFixed(1)}" y="${(h - 18 - alto).toFixed(1)}"
+        width="${ancho}" height="${alto.toFixed(1)}" rx="3" fill="${hoy ? '#3b49df' : '#9fb8cb'}"/>`;
+    }).join('')}
+    <line x1="0" x2="${w}" y1="${h - 18}" y2="${h - 18}" stroke="#d3d8e0" stroke-width="1"/>
+  </svg>`;
+}
+
+const chispa = (pts, color = '#3b49df') => {
+  const min = Math.min(...pts), max = Math.max(...pts), r = (max - min) || 1;
+  const d = pts.map((v, i) =>
+    `${i ? 'L' : 'M'}${(i * (200 / (pts.length - 1))).toFixed(1)} ${(34 - ((v - min) / r) * 28).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 200 40" preserveAspectRatio="none" style="width:100%;height:40px;display:block">
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+};
+
+/* ── Datos de Marta ─────────────────────────────────────────────────────── */
+const SESIONES = [
+  { nom: 'Empuje',    dia: '3 sept', hechas: 1,  total: 21, kg: '640 kg',     estado: ['espera', 'a medias'] },
+  { nom: 'Tirón',     dia: '3 sept', hechas: 20, total: 20, kg: '12.092 kg',  estado: ['ok', 'anotada'] },
+  { nom: 'Pierna',    dia: '—',      hechas: 0,  total: 20, kg: '—',          estado: ['nada', 'sin anotar'] },
+  { nom: 'Full body', dia: '—',      hechas: 0,  total: 14, kg: '—',          estado: ['nada', 'sin anotar'] },
+];
+
+/* `antes` es lo que levantó en el microciclo 9, el mismo ejercicio y la misma
+   serie. No es adorno: es lo que la app YA guarda y lo que el portal no le
+   enseña hoy en ningún sitio. */
+const EJERCICIOS = [
+  { nom: 'Press banca', pide: '6-8', antes: '100×8', series: [[80, 8, true], [100, 8], [100, 8], [100, 7]], nota: '1 anotada' },
+  { nom: 'Press militar', pide: '6-8', antes: '65×11', series: [[65, 11], [65, 11], [65, 11], [80, null]] },
+  { nom: 'Press inclinado con mancuernas', pide: '6-8', antes: '46×8', series: [[48, 8], [48, 8], [48, 8], [48, 7]] },
+  { nom: 'Elevaciones laterales', pide: '10-12', antes: '30×11', series: [[30, 11], [30, 11], [30, 11]] },
+  { nom: 'Fondos en paralelas', pide: '10-12', antes: '—×10', series: [[null, 11], [null, 11], [null, 11]] },
+  { nom: 'Extensión de tríceps en polea', pide: '10-12', antes: '50×10', series: [[50, 11], [50, 11], [50, 11]] },
+];
+
+/* `opciones` es cuántas le puso el entrenador a esa comida. La primera
+   versión las repartía en un segmentado dentro de cada tarjeta y el dueño lo
+   tumbó: «con varias opciones por comida es un lío y poco amistoso». Ahora la
+   comida enseña UNA —la que está puesta— y el resto vive detrás de un mando
+   callado en el pie. Una comida con una sola opción no lleva ni mando. */
+const COMIDAS = [
+  { nom: 'Desayuno', opciones: 3, items: [['Tortilla de 3 huevos', '165 g', 256], ['Pan de centeno', '1 reb', 91]] },
+  { nom: 'Comida',   opciones: 2, items: [['Lentejas cocidas', '250 g', 261], ['Atún al natural', '2 lata', 121], ['Aceite de oliva', '1 cda', 90]] },
+  { nom: 'Cena',     opciones: 1, items: [['Merluza', '200 g', 172], ['Verdura al horno', '250 g', 87]] },
+];
+
+const comidaCaja = (c) => caja({
+  tit: c.nom,
+  meta: `${c.items.reduce((n, i) => n + i[2], 0)} kcal`,
+  sinRelleno: true,
+  cuerpo: `<table class="ap-tabla"><tbody>${c.items.map(([n, r, k]) =>
+    `<tr><td class="nom">${n}</td><td class="num" style="color:var(--tinta-3)">${r}</td><td class="num">${k}</td></tr>`).join('')}</tbody></table>`,
+  pie: c.opciones > 1
+    ? `<span>Opción 1 de ${c.opciones}</span><button class="ap-btn" style="height:30px;padding:0 12px;font-size:12.5px">Cambiar</button>`
+    : null,
+});
+
+const PESOS = [64.0, 63.6, 63.1, 62.7, 62.4, 62.0, 61.6, 61.3, 61.1, 60.9];
+
+/* ══ PANTALLAS DEL PC ═════════════════════════════════════════════════════ */
+const PC = {};
+
+PC.hoy = () => `
+  ${cinta('hoy')}
+  <div class="ap-hoja">
+    <div class="ap-titulo">
+      <div>
+        <div class="ap-fecha">Domingo 13 de septiembre</div>
+        <h2 class="ap-saludo">Hola, Marta</h2>
+      </div>
+      <button class="ap-btn">${I.calend} Tu calendario</button>
+    </div>
+
+    ${teselas([
+      { rot: `${I.balanza} Tu peso`, val: '61,0', uni: 'kg', delta: ['baja', '↓ 0,2 kg'], pie: 'media de la semana 60,9' },
+      { rot: `${I.pesa} Esta semana`, val: '1', uni: 'de 4', pie: 'sesiones anotadas' },
+      { rot: `${I.plato} Hoy te toca`, val: '1.750', uni: 'kcal', pie: 'descanso · 3 comidas' },
+      { rot: `${I.entrega} Para entregar`, val: '2', uni: 'de 3', pie: 'te faltan las medidas' },
+    ])}
+
+    <div class="ap-aviso">
+      <span class="icono">${I.nota}</span>
+      <span class="cuerpo">
+        <span class="rotulo">Cuéntanos de ti</span>
+        <span class="frase">Tu entrenador lo necesita para montarte el plan. Se hace una vez y se puede dejar a medias.</span>
+      </span>
+      <button class="ap-btn pri">Seguir ${I.chevron}</button>
+    </div>
+
+    <div class="ap-rejilla">
+      <div class="c8" style="display:grid;gap:16px">
+        ${caja({
+          tit: 'La dejaste a medias', meta: '12 sept, 09:05',
+          cuerpo: `
+            <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
+              <span style="font:700 24px/1.1 var(--cifra);letter-spacing:-.02em">Empuje</span>
+              <span style="color:var(--tinta-3);font-size:13px">1 de 21 series · 1 de 6 ejercicios</span>
+            </div>
+            <div style="display:flex;gap:3px;margin-top:12px">
+              ${Array.from({ length: 21 }, (_, i) =>
+                `<i style="flex:1;height:4px;border-radius:2px;background:${i < 1 ? 'var(--senal)' : 'var(--canto)'}"></i>`).join('')}
+            </div>`,
+          pie: `<button class="ap-btn pri">Seguir donde lo dejaste</button>
+                <span class="ap-enlace" style="color:var(--tinta-3);cursor:pointer">Descartarla y perder la serie que apuntaste</span>`,
+        })}
+        ${caja({
+          tit: 'Tu microciclo', meta: 'Bloque 1 · microciclo 10 de 10', sinRelleno: true,
+          cuerpo: `<table class="ap-tabla">
+            <thead><tr><th>Sesión</th><th>Día</th><th class="num">Series</th><th class="num">Kilos</th><th>Estado</th></tr></thead>
+            <tbody>${SESIONES.map(s => `<tr>
+              <td class="nom">${s.nom}</td>
+              <td>${s.dia}</td>
+              <td class="num">${s.hechas} de ${s.total}</td>
+              <td class="num">${s.kg}</td>
+              <td><span class="ap-pildora ${s.estado[0]}">${s.estado[1]}</span></td>
+            </tr>`).join('')}</tbody></table>`,
+          pie: `<span>75 series por microciclo</span><span class="ap-enlace">Ver el bloque entero</span>`,
+        })}
+      </div>
+
+      <div class="c4" style="display:grid;gap:16px">
+        <!-- «Hoy» y «Te espera» eran dos cajas contestando la misma pregunta
+             —qué toca hoy—, y el dueño avisó de que en esta pantalla también
+             ve de más. Son una. -->
+        ${caja({
+          tit: 'Lo de hoy', sinRelleno: true,
+          cuerpo: `<div class="ap-filas">
+            ${fila({ icono: I.plato, rotulo: 'Descanso', frase: '1.750 kcal · 3 comidas' })}
+            ${fila({ icono: I.pasos, rotulo: 'Pasos', frase: 'objetivo del día', cifra: '9.000', chevron: false })}
+            ${fila({ icono: I.balanza, rotulo: 'Apuntar tu peso', frase: '2 pesajes esta semana' })}
+            ${fila({ icono: I.entrega, rotulo: 'Entregar tu revisión', frase: 'te faltan las medidas', pildora: ['espera', '2 de 3'] })}
+          </div>`,
+        })}
+        ${caja({
+          tit: 'Tu peso', enlace: 'Ver a fondo',
+          cuerpo: `
+            <div style="display:flex;align-items:baseline;gap:8px">
+              <span style="font:700 30px/1 var(--cifra);letter-spacing:-.03em">61,0</span>
+              <span style="color:var(--tinta-3);font-size:13px">kg</span>
+              <span class="ap-delta baja" style="margin-left:auto">↓ 3,0 kg</span>
+            </div>
+            <div style="margin:12px -4px 0">${chispa(PESOS)}</div>`,
+          pie: `<span>Empezaste en 64,0</span><span>Objetivo 58,0</span>`,
+        })}
+      </div>
+    </div>
+  </div>`;
+
+/* ══ ENTRENO, PARTIDO EN DOS ══════════════════════════════════════════════
+   Corrección del dueño en la segunda vuelta, y es de producto, no de forma:
+
+   «de entrenamiento lo que creo que debería hacerse es diferenciar si el
+   cliente está en la app y le da a hacer el entreno, que le lleva a una
+   visión solo con su entreno del día y pone los kg y repes y puede ver su
+   logbook; y la visión de pc, que el cliente ve sus entrenamientos. No me
+   gusta que los ejercicios no vayan uno debajo de otro.»
+
+   O sea: son DOS pantallas con dos trabajos, no una con dos modos.
+     · `PC.entreno` → VER. El programa, en lectura. Ningún campo.
+     · `PC.sesion`  → HACER. Solo el entreno de hoy, columna estrecha, campos
+                      grandes y el logbook a un toque. Sin cinta de secciones:
+                      mientras entrenas no hay más app.
+
+   Y cae la rejilla de dos ejercicios por fila que traía la primera versión.
+   Era el truco que bajaba la pantalla de 2.018 px a 1.129, y el dueño lo
+   tumbó con razón: en una sesión el orden IMPORTA —primero banca, luego
+   militar— y dos columnas obligan a leer en zigzag. El alto se recupera por
+   otro lado: separando ver de hacer, ninguna de las dos pantallas lleva ya
+   las dos cosas. */
+PC.entreno = () => `
+  ${cinta('entreno')}
+  <div class="ap-hoja">
+    <div class="ap-migas">
+      <span class="ap-chevron">${I.atras}</span><b>Bloque 1</b>
+      <span class="sep">·</span><span>microciclo 10 de 10</span>
+    </div>
+
+    <div class="ap-hero">
+      <div class="ap-hero-txt">
+        <div class="rot">Hoy te toca · la dejaste a medias el 12 sept</div>
+        <div class="tit">Empuje</div>
+        <div class="frase">6 ejercicios · 21 series · llevas 1 anotada</div>
+      </div>
+      <button class="ap-btn pri grande" data-ir="sesion">Seguir el entreno ${I.chevron}</button>
+    </div>
+
+    <div class="ap-sesiones">
+      ${SESIONES.map((s, i) => `
+        <button class="ap-sesion" aria-pressed="${i === 0}">
+          <span class="nom">${s.nom}</span>
+          <span class="est"><span class="ap-pildora ${s.estado[0]}">${s.hechas}/${s.total}</span></span>
+          <span class="barra"><i style="width:${(s.hechas / s.total) * 100}%"></i></span>
+        </button>`).join('')}
+      <button class="ap-sesion nueva">
+        <span class="nom">+ Microciclo 11</span>
+        <span class="est" style="color:var(--tinta-3);font-size:12px">se copia de este</span>
+      </button>
+    </div>
+
+    <div class="ap-rejilla">
+      <div class="c8">
+        ${caja({
+          tit: 'Empuje', meta: '6 ejercicios · 21 series', sinRelleno: true,
+          cuerpo: `<div class="ap-filas">
+            ${EJERCICIOS.map(e => {
+              const [kg, reps] = e.antes.split('×');
+              return fila({
+                rotulo: e.nom,
+                frase: `${e.series.length} series · ${e.pide} reps`,
+                cifra: kg === '—' ? `tu peso × ${reps}` : `${kg} kg × ${reps}`,
+              });
+            }).join('')}
+          </div>`,
+          pie: `<span>La cifra de la derecha es lo que levantaste la vez anterior</span>`,
+        })}
+      </div>
+
+      <div class="c4" style="display:grid;gap:16px">
+        ${caja({
+          tit: 'Cómo va el bloque', enlace: 'A fondo', sinRelleno: true,
+          cuerpo: `<div class="ap-filas">
+            ${fila({ rotulo: 'Microciclos escritos', cifra: '10 de 10', chevron: false })}
+            ${fila({ rotulo: 'Series por microciclo', cifra: '75', chevron: false })}
+            ${fila({ rotulo: 'Sesiones anotadas', cifra: '38', chevron: false })}
+          </div>`,
+          pie: `<span>Sin semana siguiente escrita</span>`,
+        })}
+        ${caja({
+          tit: 'Tu logbook', enlace: 'Verlo entero', sinRelleno: true,
+          cuerpo: `<div class="ap-filas">
+            ${fila({ rotulo: 'Press banca', frase: 'tu mejor serie', cifra: '100 × 8' })}
+            ${fila({ rotulo: 'Press militar', frase: 'tu mejor serie', cifra: '80 × 6' })}
+            ${fila({ rotulo: 'Sentadilla', frase: 'tu mejor serie', cifra: '95 × 5' })}
+          </div>`,
+        })}
+      </div>
+    </div>
+  </div>`;
+
+/* HACER. No lleva cinta de secciones a propósito: mientras entrenas, la app
+   es esta pantalla y nada más. La columna es estrecha —560— porque se lee
+   con el móvil en la mano o con el portátil apoyado, y porque una serie es
+   un renglón corto: estirarla a 1.360 fue el error de la primera versión. */
+PC.sesion = () => `
+  <div class="ap-sesion-cab">
+    <button class="ap-btn" data-ir="entreno">${I.atras} Salir</button>
+    <div class="ap-sesion-tit">
+      <div class="rot">Microciclo 10 de 10 · empezada el 12 sept</div>
+      <div class="tit">Empuje</div>
+    </div>
+    <div class="ap-sesion-cuenta"><b>1</b> de 21 series · 640 kg</div>
+  </div>
+  <div class="ap-sesion-regla">
+    ${Array.from({ length: 21 }, (_, i) =>
+      `<i style="background:${i < 1 ? 'var(--senal)' : 'rgba(255,255,255,.18)'}"></i>`).join('')}
+  </div>
+
+  <div class="ap-columna">
+    <div class="ap-ejercicios">
+      ${EJERCICIOS.map((e, n) => `
+        <div class="ap-ej">
+          <div class="ap-ej-cab">
+            <span class="ap-ej-n">${n + 1}</span>
+            <span style="min-width:0">
+              <span class="nom" style="display:block">${e.nom}</span>
+              <span class="meta">${e.series.length} series · te pide ${e.pide} reps</span>
+            </span>
+            <span class="fin">
+              <button class="ap-btn" style="height:32px;padding:0 12px;font-size:12.5px">${I.reloj} Historial</button>
+            </span>
+          </div>
+          <div class="ap-cab-series">
+            <span></span><span>Antes</span><span>Kg</span><span>Reps</span><span></span>
+          </div>
+          <div class="ap-series">
+            ${e.series.map(([kg, reps, hecha], i) => `
+              <div class="ap-serie${hecha ? ' hecha' : ''}">
+                <span class="n">Serie ${i + 1}</span>
+                <span class="antes">${e.antes}</span>
+                <span class="campo${kg == null ? ' vacio' : ''}">${kg == null ? '—' : kg}<span>kg</span></span>
+                <span class="campo${reps == null ? ' vacio' : ''}">${reps == null ? '—' : reps}<span>reps</span></span>
+                <span class="tic">${I.tic}</span>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+    </div>
+    <button class="ap-btn pri grande" style="width:100%;justify-content:center;margin-top:6px">Acabar la sesión</button>
+  </div>`;
+
+PC.dieta = () => `
+  ${cinta('dieta')}
+  <div class="ap-hoja">
+    <div class="ap-titulo">
+      <div>
+        <div class="ap-fecha">Domingo 13 · te toca descanso</div>
+        <h2>Dieta</h2>
+      </div>
+      <div class="ap-seg">
+        <button aria-pressed="true">El día</button>
+        <button aria-pressed="false">Tus dietas</button>
+      </div>
+    </div>
+
+    ${teselas([
+      { rot: `${I.plato} Hoy te toca`, val: '1.750', uni: 'kcal', pie: 'con lo abierto suman 1.078' },
+      { rot: 'Proteína', val: '140', uni: 'g', pie: '114 abiertos' },
+      { rot: 'Carbos', val: '150', uni: 'g', pie: '75 abiertos' },
+      { rot: 'Grasas', val: '62', uni: 'g', pie: '36 abiertos' },
+    ])}
+
+    <div class="ap-rejilla">
+      <!-- Las comidas, UNA DEBAJO DE OTRA. En columna se leen en el orden en
+           que se comen; en serie de tres había que saltar de canto a canto y
+           la última se quedaba huérfana. -->
+      <div class="c8" style="display:grid;gap:14px">
+        ${COMIDAS.map(comidaCaja).join('')}
+      </div>
+
+      <div class="c4" style="display:grid;gap:16px">${caja({
+        tit: 'Tu plan', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ rotulo: 'Entreno', frase: '4 días', cifra: '2.150', chevron: false })}
+          ${fila({ rotulo: 'Descanso', frase: '3 días', cifra: '1.750', chevron: false })}
+          ${fila({ rotulo: 'Media del ciclo', cifra: '1.979', chevron: false })}
+          ${fila({ rotulo: 'Pasos al día', cifra: '9.000', chevron: false })}
+        </div>`,
+        pie: `<span>Definición · −0,3 kg por semana</span>`,
+      })}</div>
+    </div>
+  </div>`;
+/* Aquí había una caja de 12 columnas, «Reparte como quieras», con las tres
+   barras de macro. Se cayó al mirar la captura: repetía las tres teselas de
+   arriba y era exactamente la avería E-04 —una caja del ancho de la página
+   para tres cifras— cometida dentro del estudio que la denuncia. */
+
+/* ══ REVISIÓN: UNA SOLA COSA ══════════════════════════════════════════════
+   Segunda corrección del dueño, y la más dura: «en revisión —y también un
+   poco en entreno y hoy— veo demasiada información, es un poco lioso y no
+   entiende el cliente que al final lo que ha de hacer es subir su revisión».
+
+   La primera versión traía cuatro teselas, el campo del peso, la lista de lo
+   que falta, la curva semana a semana, «Cómo pesarte» y las cuatro semanas
+   abiertas: nueve cajas para un mandado que es uno. Aquí se queda con DOS
+   cajas y un renglón. Lo que se va no se pierde — la curva está entera en
+   Progreso y las semanas abiertas viven detrás de su propio verbo.
+
+   Y el titular deja de ser «Revisión», que es el nombre del sitio, y pasa a
+   ser el VERBO: lo que hay que hacer, escrito en la portada de la pantalla. */
+PC.revision = () => `
+  ${cinta('revision')}
+  <div class="ap-hoja">
+    <div class="ap-titulo">
+      <div>
+        <div class="ap-fecha">Semana 1 · del 7 al 13 de septiembre</div>
+        <h2 class="ap-saludo">Entrega tu semana</h2>
+      </div>
+      <button class="ap-btn">${I.reloj} Semanas anteriores</button>
+    </div>
+
+    <div class="ap-rejilla">
+      <div class="c7">
+        ${caja({
+          tit: 'Te faltan las medidas', meta: '2 de 3 hechas', sinRelleno: true,
+          cuerpo: `<div class="ap-filas">
+            ${fila({ icono: I.balanza, rotulo: 'Tu peso', frase: '2 pesajes · de media 60,9 kg', pildora: ['ok', 'hecho'], chevron: false })}
+            ${fila({ icono: I.regla, rotulo: 'Tus medidas', frase: 'cintura, cadera y muslo', pildora: ['espera', 'te toca'] })}
+            ${fila({ icono: I.camara, rotulo: 'Tus fotos', frase: 'las 3, hechas', pildora: ['ok', 'hecho'], chevron: false })}
+          </div>`,
+          pie: `<button class="ap-btn pri grande" style="width:100%;justify-content:center">${I.entrega} Entregar mi semana</button>`,
+        })}
+        <p class="ap-pie-frase">No hace falta que sea el domingo exacto, y llegar tarde no te salta la revisión.</p>
+      </div>
+
+      <div class="c5">
+        ${caja({
+          tit: 'Tu peso de hoy', meta: 'el jueves 61,0',
+          cuerpo: `
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1;display:flex;align-items:baseline;gap:6px;background:var(--hundido);
+                          border:1px solid var(--canto);border-radius:14px;padding:12px 16px">
+                <span style="font:700 28px/1 var(--cifra);letter-spacing:-.03em">61,0</span>
+                <span style="color:var(--tinta-3);font-size:13px">kg</span>
+              </div>
+              <button class="ap-btn pri grande">Apuntar</button>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:18px 4px 0">
+              ${['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => `
+                <span style="display:grid;justify-items:center;gap:7px;font:600 11px/1 var(--ui);
+                             color:${i === 6 ? 'var(--senal)' : i === 1 || i === 3 ? 'var(--tinta)' : 'var(--tinta-4)'}">
+                  ${d}<i style="width:7px;height:7px;border-radius:999px;background:${
+                    i === 1 || i === 3 ? 'var(--senal)' : i === 6 ? 'transparent' : 'var(--canto-2)'};
+                    ${i === 6 ? 'border:1.5px solid var(--senal)' : ''}"></i>
+                </span>`).join('')}
+            </div>
+            <p style="margin:16px 0 0;color:var(--tinta-3);font-size:12.5px;line-height:1.5">
+              Por la mañana, en ayunas. Lo que cuenta es la media de la semana, no el número de un día.</p>`,
+          pie: `<span>Media de esta semana 60,9 kg</span><span>la anterior 61,1</span>`,
+        })}
+      </div>
+    </div>
+
+    <div class="ap-renglon">
+      <span>Se quedaron <b>4 semanas</b> sin entregar — la del 31, 24, 17 y 10 de agosto.</span>
+      <button class="ap-btn">Verlas</button>
+    </div>
+  </div>`;
+
+
+PC.progreso = () => `
+  ${cinta('progreso')}
+  <div class="ap-hoja">
+    <div class="ap-titulo">
+      <div><div class="ap-fecha">Desde el 12 de julio</div><h2>Progreso</h2></div>
+      <div class="ap-seg">
+        <button aria-pressed="true">Tu cuerpo</button>
+        <button aria-pressed="false">Tu entreno</button>
+      </div>
+    </div>
+
+    ${teselas([
+      { rot: `${I.balanza} Desde que empezaste`, val: '−3', uni: 'kg', pie: 'de 64,0 a 61,0' },
+      { rot: `${I.pesa} Sesiones anotadas`, val: '38', pie: 'en 10 microciclos' },
+      { rot: 'A tu ritmo', val: '−0,34', uni: 'kg/sem', pie: 'de las últimas 8 semanas' },
+      { rot: `${I.tic} Registradas`, val: '28', uni: '%', pie: '75 series por microciclo' },
+    ])}
+
+    <div class="ap-rejilla iguala">
+      <div class="c8">${caja({
+        tit: 'Tu peso', meta: '10 semanas', sinRelleno: true,
+        cuerpo: `<div style="padding:16px 10px 0">${curva(PESOS, { w: 800, h: 210, etiquetas: ['64,0', '60,9'] })}</div>
+          <div class="ap-leyenda" style="padding-top:10px">
+            <span><i style="background:#1b6ea6"></i>Media semanal</span>
+            <span style="margin-left:auto">S1 · · · S10</span>
+          </div>`,
+        pie: `<span>Empezaste en 64,0 kg</span><span>Objetivo 58,0 kg</span>`,
+      })}</div>
+
+      <div class="c4">${caja({
+        tit: 'Tu plan', enlace: 'Tu dieta', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ rotulo: 'Objetivo', frase: '−0,3 kg por semana', cifra: 'Definición', chevron: false })}
+          ${fila({ rotulo: 'Calorías', frase: 'P 140 · C 201 · G 60', cifra: '1.979', chevron: false })}
+          ${fila({ rotulo: 'Pasos', frase: 'al día', cifra: '9.000', chevron: false })}
+          ${fila({ rotulo: 'Entreno', frase: '4 sesiones por microciclo', cifra: '75 series', chevron: false })}
+        </div>`,
+      })}</div>
+
+      <div class="c6" style="margin-top:0">${caja({
+        tit: 'Tonelaje por microciclo', meta: 'bloque 1', sinRelleno: true,
+        cuerpo: `<div style="padding:16px 10px 0">${barras([28, 31, 33, 36, 38, 41, 44, 46, 49, 12])}</div>
+          <div class="ap-leyenda" style="padding-top:10px"><span>M1</span><span style="margin-left:auto">M10 · en curso</span></div>`,
+      })}</div>
+
+      <div class="c6">${caja({
+        tit: 'Volumen del bloque', meta: 'series por grupo', sinRelleno: true,
+        cuerpo: `<div style="padding:14px 16px 16px;display:grid;gap:10px">
+          ${[['Espalda', 14], ['Pecho', 12], ['Pierna', 11], ['Hombro', 9], ['Brazo', 8]].map(([n, v]) => `
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:70px;font:500 12.5px/1 var(--ui);color:var(--tinta-2)">${n}</span>
+              <span style="flex:1;height:6px;border-radius:999px;background:var(--hundido);overflow:hidden">
+                <i style="display:block;height:100%;width:${(v / 14) * 100}%;background:#1b6ea6;border-radius:999px"></i>
+              </span>
+              <span style="font:600 13px/1 var(--cifra);width:22px;text-align:right">${v}</span>
+            </div>`).join('')}
+        </div>`,
+      })}</div>
+    </div>
+  </div>`;
+
+PC.tu = () => `
+  ${cinta('tu')}
+  <div class="ap-hoja">
+    <div class="ap-titulo">
+      <div><div class="ap-fecha">Cliente desde el 12 de julio</div><h2>Tú</h2></div>
+    </div>
+
+    ${teselas([
+      { rot: `${I.balanza} Tu peso`, val: '61,0', uni: 'kg', pie: 'apuntado el domingo' },
+      { rot: `${I.entrega} Revisiones entregadas`, val: '6', pie: '4 se quedaron abiertas' },
+      { rot: `${I.camara} Fotos`, val: '18', pie: 'en 6 semanas' },
+    ], 'de-3')}
+
+    <div class="ap-rejilla">
+      <div class="c5">${caja({
+        tit: 'Tu rastro', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ icono: I.regla, rotulo: 'Tu peso y tus medidas', frase: 'lo que anotas cada semana', cifra: '61,0 kg' })}
+          ${fila({ icono: I.entrega, rotulo: 'Tus revisiones', frase: 'lo que le fuiste entregando' })}
+          ${fila({ icono: I.calend, rotulo: 'Tu calendario', frase: 'lo que tienes por delante' })}
+        </div>`,
+      })}</div>
+
+      <div class="c4">${caja({
+        tit: 'Tu cuenta', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ icono: I.escudo, rotulo: 'Tus datos y tu privacidad', frase: 'qué se guarda de ti, y cómo llevártelo' })}
+          ${fila({ icono: I.casa, rotulo: 'marta@ejemplo.invalid', frase: 'Cliente' })}
+        </div>`,
+        pie: `<span class="ap-enlace">Cerrar sesión</span>`,
+      })}</div>
+    </div>
+  </div>`;
+
+/* ══ PANTALLAS DEL TELÉFONO ═══════════════════════════════════════════════
+   No es la misma escritura repartida por CSS: monta piezas distintas. La
+   tira de teselas baja a dos columnas y la tabla del microciclo se convierte
+   en filas, que es lo que cabe en 390. */
+const MOVIL = {};
+
+const pulgar = (act) => `
+  <nav class="ap-pulgar">
+    ${[['hoy', 'Hoy', I.casa], ['entreno', 'Entreno', I.pesa], ['dieta', 'Dieta', I.plato],
+       ['revision', 'Revisión', I.entrega], ['tu', 'Tú', I.escudo]].map(([k, n, ic]) => `
+      <button ${k === act ? 'aria-current="page"' : ''} data-ir="${k}">${ic}${n}</button>`).join('')}
+  </nav>`;
+
+MOVIL.hoy = () => `
+  <div class="ap-movil-cab">
+    <div><div class="fecha">Domingo 13 de septiembre</div><div class="tit">Hola, Marta</div></div>
+    <span class="ap-campana" style="color:rgba(255,255,255,.7)">${I.campana}</span>
+  </div>
+  <div class="ap-hoja">
+    ${teselas([
+      { rot: 'Tu peso', val: '61,0', uni: 'kg', delta: ['baja', '↓ 0,2'] },
+      { rot: 'Esta semana', val: '1', uni: 'de 4', pie: 'sesiones' },
+    ])}
+    <div style="display:grid;gap:14px">
+      ${caja({
+        tit: 'La dejaste a medias', meta: '12 sept',
+        cuerpo: `
+          <div style="font:700 22px/1.1 var(--cifra);letter-spacing:-.02em">Empuje</div>
+          <div style="color:var(--tinta-3);font-size:12.5px;margin-top:3px">1 de 21 series</div>
+          <div style="display:flex;gap:2px;margin-top:11px">
+            ${Array.from({ length: 21 }, (_, i) =>
+              `<i style="flex:1;height:4px;border-radius:2px;background:${i < 1 ? 'var(--senal)' : 'var(--canto)'}"></i>`).join('')}
+          </div>`,
+        pie: `<button class="ap-btn pri" style="width:100%;justify-content:center">Seguir donde lo dejaste</button>`,
+      })}
+      ${caja({
+        tit: 'Hoy', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ icono: I.plato, rotulo: 'Descanso', frase: '1.750 kcal · 3 comidas' })}
+          ${fila({ icono: I.pasos, rotulo: 'Pasos', cifra: '9.000', chevron: false })}
+          ${fila({ icono: I.balanza, rotulo: 'Apuntar tu peso', frase: '2 pesajes esta semana' })}
+        </div>`,
+      })}
+      ${caja({
+        tit: 'Te espera', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ icono: I.entrega, rotulo: 'Entregar tu revisión', frase: 'te faltan las medidas', pildora: ['espera', '2 de 3'] })}
+        </div>`,
+      })}
+    </div>
+  </div>
+  ${pulgar('hoy')}`;
+
+/* En el teléfono la separación ver/hacer se nota todavía más que en el PC:
+   «Entreno» es la pestaña donde MIRAS lo que te toca, y el botón te mete en
+   la sesión, que se come la pantalla entera y pierde la barra del pulgar. */
+MOVIL.entreno = () => `
+  <div class="ap-movil-cab">
+    <div><div class="fecha">Bloque 1 · microciclo 10 de 10</div><div class="tit">Tu rutina</div></div>
+  </div>
+  <div class="ap-hoja">
+    <div class="ap-hero">
+      <div class="ap-hero-txt">
+        <div class="rot">Hoy te toca</div>
+        <div class="tit">Empuje</div>
+        <div class="frase">6 ejercicios · 21 series · llevas 1 anotada</div>
+      </div>
+      <button class="ap-btn pri grande" style="width:100%;justify-content:center" data-ir="sesion">
+        Seguir el entreno
+      </button>
+    </div>
+    <div style="display:grid;gap:14px">
+      ${caja({
+        tit: 'Tu microciclo', meta: '4 sesiones', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${SESIONES.map(s => fila({
+            rotulo: s.nom,
+            frase: s.dia === '—' ? 'sin empezar' : s.dia,
+            pildora: [s.estado[0], `${s.hechas}/${s.total}`],
+          })).join('')}
+        </div>`,
+      })}
+      ${caja({
+        tit: 'Tu logbook', enlace: 'Verlo entero', sinRelleno: true,
+        cuerpo: `<div class="ap-filas">
+          ${fila({ rotulo: 'Press banca', frase: 'tu mejor serie', cifra: '100 × 8' })}
+          ${fila({ rotulo: 'Press militar', frase: 'tu mejor serie', cifra: '80 × 6' })}
+        </div>`,
+      })}
+    </div>
+  </div>
+  ${pulgar('entreno')}`;
+
+MOVIL.sesion = () => `
+  <div class="ap-sesion-cab" style="padding:14px 16px 12px">
+    <button class="ap-btn" style="height:32px;padding:0 12px" data-ir="entreno">${I.atras}</button>
+    <div class="ap-sesion-tit"><div class="tit" style="font-size:17px;margin-top:0">Empuje</div></div>
+    <div class="ap-sesion-cuenta"><b>1</b>/21</div>
+  </div>
+  <div class="ap-sesion-regla" style="padding:0 16px 12px">
+    ${Array.from({ length: 21 }, (_, i) =>
+      `<i style="background:${i < 1 ? 'var(--senal)' : 'rgba(255,255,255,.18)'}"></i>`).join('')}
+  </div>
+  <div class="ap-hoja" style="padding-bottom:84px">
+    <div class="ap-ejercicios">
+      ${EJERCICIOS.slice(0, 3).map((e, n) => `
+        <div class="ap-ej">
+          <div class="ap-ej-cab">
+            <span class="ap-ej-n">${n + 1}</span>
+            <span style="min-width:0">
+              <span class="nom" style="display:block;font-size:13.5px">${e.nom}</span>
+              <span class="meta">${e.series.length} series · ${e.pide} reps</span>
+            </span>
+            <span class="fin"><span class="ap-chevron">${I.reloj}</span></span>
+          </div>
+          <div class="ap-series">
+            ${e.series.map(([kg, reps, hecha], i) => `
+              <div class="ap-serie${hecha ? ' hecha' : ''}" style="grid-template-columns:34px 44px 1fr 1fr 30px;gap:7px">
+                <span class="n">S${i + 1}</span>
+                <span class="antes">${e.antes}</span>
+                <span class="campo${kg == null ? ' vacio' : ''}">${kg == null ? '—' : kg}<span>kg</span></span>
+                <span class="campo${reps == null ? ' vacio' : ''}">${reps == null ? '—' : reps}<span>reps</span></span>
+                <span class="tic">${I.tic}</span>
+              </div>`).join('')}
+          </div>
+        </div>`).join('')}
+      <div style="text-align:center;color:var(--tinta-3);font-size:12.5px;padding:4px 0">
+        y 3 ejercicios más
+      </div>
+    </div>
+  </div>
+  <div class="ap-pulgar ap-pulgar-verbo">
+    <button class="ap-btn pri grande" style="width:100%;justify-content:center">Acabar la sesión</button>
+  </div>`;
+
+
+MOVIL.dieta = () => `
+  <div class="ap-movil-cab">
+    <div><div class="fecha">Domingo 13 · te toca descanso</div><div class="tit">Dieta</div></div>
+  </div>
+  <div class="ap-hoja">
+    ${teselas([
+      { rot: 'Hoy te toca', val: '1.750', uni: 'kcal', pie: '3 comidas' },
+      { rot: 'Abiertas suman', val: '1.078', uni: 'kcal', pie: 'P 114 · C 75 · G 36' },
+    ])}
+    <div style="display:grid;gap:14px">
+      ${COMIDAS.map(c => caja({
+        tit: c.nom,
+        meta: `${c.items.reduce((n, i) => n + i[2], 0)} kcal`,
+        sinRelleno: true,
+        cuerpo: `<table class="ap-tabla"><tbody>${c.items.map(([n, r, k]) =>
+          `<tr><td class="nom">${n}</td><td class="num" style="color:var(--tinta-3)">${r}</td><td class="num">${k}</td></tr>`).join('')}</tbody></table>`,
+      })).join('')}
+    </div>
+  </div>
+  ${pulgar('dieta')}`;
+
+/* ── El router del prototipo ────────────────────────────────────────────── */
+function pintar(destino, pantallas, cual, mandos) {
+  destino.innerHTML = (pantallas[cual] || pantallas.hoy)();
+  destino.querySelectorAll('[data-ir]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const k = b.dataset.ir;
+      if (!pantallas[k]) return;
+      pintar(destino, pantallas, k, mandos);
+    });
+  });
+  if (mandos) {
+    mandos.querySelectorAll('[data-pantalla]').forEach((m) =>
+      m.setAttribute('aria-pressed', String(m.dataset.pantalla === cual)));
+  }
+  destino.querySelectorAll('.ap-seg button, .ap-sesion').forEach((g) => {
+    g.addEventListener('click', () => {
+      const grupo = g.closest('.ap-seg, .ap-sesiones');
+      grupo.querySelectorAll('[aria-pressed]').forEach((o) => o.setAttribute('aria-pressed', 'false'));
+      g.setAttribute('aria-pressed', 'true');
+    });
+  });
+  destino.querySelectorAll('.ap-serie .tic').forEach((t) => {
+    t.addEventListener('click', () => t.closest('.ap-serie').classList.toggle('hecha'));
+  });
+}
+
+const pc = document.getElementById('pc');
+const movil = document.getElementById('movil');
+const mandosPC = document.getElementById('mandos-pc');
+const mandosMovil = document.getElementById('mandos-movil');
+
+pintar(pc, PC, 'hoy', mandosPC);
+pintar(movil, MOVIL, 'hoy', mandosMovil);
+
+mandosPC.querySelectorAll('[data-pantalla]').forEach((b) =>
+  b.addEventListener('click', () => pintar(pc, PC, b.dataset.pantalla, mandosPC)));
+mandosMovil.querySelectorAll('[data-pantalla]').forEach((b) =>
+  b.addEventListener('click', () => pintar(movil, MOVIL, b.dataset.pantalla, mandosMovil)));
+
+/* El interruptor de la decisión abierta: la interfaz con Archivo o con Inter. */
+const tipo = document.getElementById('tipo');
+tipo.addEventListener('click', () => {
+  const conArchivo = tipo.getAttribute('aria-pressed') !== 'true';
+  tipo.setAttribute('aria-pressed', String(conArchivo));
+  tipo.textContent = conArchivo ? 'Con Inter' : 'Con Archivo';
+  pc.classList.toggle('tipo-casa', conArchivo);
+  movil.classList.toggle('tipo-casa', conArchivo);
+});
+</script>
+</body>
+</html>

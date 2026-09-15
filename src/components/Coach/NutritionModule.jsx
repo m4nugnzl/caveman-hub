@@ -27,10 +27,10 @@ import { piezaDePlato, platoFoods, platoKcals, scalePlatoTo } from '@/domain/pla
 import { comoLista } from '@/domain/cajon';
 import { MAX_GRUPOS, buildGrupo, gruposOf } from '@/domain/gruposEquiv';
 import { mergeCatalog } from '@/domain/catalog';
-import { clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
+import { ajusteDe, clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
 import { toNum0 } from '@/lib/num';
 import { norm } from '@/lib/texto';
-import { SaveIndicator } from '@/components/ui/primitives';
+import { SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { Destino } from '@/components/ui/Portapapeles';
 import { useGuardarEnPlantillas } from '@/components/Coach/guardarEnPlantillas';
@@ -47,7 +47,7 @@ import { DiaPopup } from '@/components/nutrition/DiaPopup';
 import { GoalCard } from '@/components/nutrition/GoalCard';
 import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
 import { PlanDia } from '@/components/nutrition/PlanDia';
-import { ReescalarMenu } from '@/components/nutrition/ReescalarMenu';
+import { RepartoComparado } from '@/components/nutrition/RepartoComparado';
 import { TiraDeLaDieta } from '@/components/nutrition/TiraDeLaDieta';
 import { ClientSettingsSheet, PieDeProtocolo } from './ClientSettings';
 import { PastePlanDialog } from './Import/PastePlanDialog';
@@ -148,6 +148,7 @@ export const NutritionModule = () => {
     updateMealName,
     updateMealNote,
     updateMealTarget,
+    toggleMealFijo,
     moveMeal,
     moveFood,
     duplicateOption,
@@ -161,12 +162,14 @@ export const NutritionModule = () => {
     updateFoodGrams,
     swapFood,
     setFoodDisplay,
+    setFoodFixed,
     editFood,
     upsertLibraryFood,
     importDiet,
     importRoutine,
     ensureNutrition,
     saveClientException,
+    updateClientPreferences,
     setFoodEquivalences,
   } = useApp();
 
@@ -208,10 +211,6 @@ export const NutritionModule = () => {
      su título y guarda sobre ese día, no sobre el que esté delante cuando se
      pulse «Guardar». */
   const [objetivoAbierto, setObjetivoAbierto] = useState(null);
-  /* El reescalado ofrecido tras cambiar el objetivo de kcal: {variant, from, to}.
-     Se ofrece, no se aplica: el objetivo ya quedó guardado y esta ventana solo
-     pone encima la aritmética de recuadrar el menú (ver `ReescalarMenu`). */
-  const [reescala, setReescala] = useState(null);
   /* La opción abierta en cada comida, por id: el resumen del día suma con ellas. */
   const [elegidas, setElegidas] = useState({});
   /* Quitar un día pregunta antes, y enseña lo que se lleva: ver `QuitarElDia`. */
@@ -279,6 +278,18 @@ export const NutritionModule = () => {
     cuadra fila a fila. Ver `MacroTargetCard`, forma «mesa».
   */
   const objetivoEnLaMesa = !cerrado && !repartoVisible;
+
+  /*
+    ── «Un día | Todos»: el reparto de todos los días en la misma mesa ─────────
+    Comparar la comida del día de descanso con la del de entreno era cambiar de
+    pestaña y acordarse de las cifras. Con «Todos» la mesa es `RepartoComparado`
+    y se escribe en cualquier día sin salir. Solo existe donde hay algo que
+    comparar: por macros, con reparto y con más de un día. Pulsar un día de la
+    cinta vuelve a «Un día» con ese día abierto.
+  */
+  const [comparar, setComparar] = useState(false);
+  const puedeComparar = !cerrado && repartoVisible && variosDias;
+  const comparando = comparar && puedeComparar;
 
   /*
     Tu biblioteca y el catálogo común, en una sola lista. Ver `domain/catalog.js`:
@@ -735,38 +746,86 @@ export const NutritionModule = () => {
     return puntos.length > 0 ? puntos[puntos.length - 1].date : null;
   }, [registrosDeLaDieta]);
 
+  /*
+    ── LO QUE LA VENTANA DEL OBJETIVO NECESITA PARA ENSEÑAR EL MENÚ ──────────
+    El menú del día, el catálogo —de él sale la CESTA, o sea de dónde se
+    recorta: sin categorías el recorte vuelve a la densidad del macro y la fruta
+    baja con el arroz— y de dónde salieron las calorías la última vez con esta
+    persona. Con el plan por macros no hay menú y la ventana es el formulario de
+    siempre. Ver `EditarObjetivo`.
+
+    En un memo porque de él cuelga el reescalado entero: un objeto nuevo en cada
+    render volvería a recorrer las veinte opciones del menú en cada tecla.
+  */
+  /*
+    Y va TAMBIÉN con el plan por macros, donde no hay un gramo que mover. Aquí
+    estuvo un `cerrado ?` que lo dejaba en `null`, y con él se iba el piso de en
+    medio: un plan por macros es reparto y nada más —es literalmente lo único
+    que se pauta—, así que era justo el que más falta le hacía que el reparto
+    siguiera al objetivo. Sin menú, el paso del menú sigue sin aparecer solo.
+  */
+  const reajusteDelObjetivo = useMemo(
+    () => ({
+      meals: mealsForVariant(plan, objetivoAbierto || variant),
+      catalog: alimentosDisponibles,
+      ajuste: ajusteDe(protocolo),
+    }),
+    [plan, objetivoAbierto, variant, alimentosDisponibles, protocolo]
+  );
+
   /**
-   * Guardar el objetivo de una variante y, si sus kcal cambiaron y hay menú,
-   * OFRECER el reescalado. Ofrecer: el objetivo ya está guardado pase lo que
-   * pase, y cerrar la ventana deja el menú intacto para cuadrarlo a mano.
+   * Guardar el objetivo de una variante y, con él, el menú reajustado si la
+   * ventana traía uno.
+   *
+   * ══ Antes eran dos gestos y ahora es uno ═══════════════════════════════════
+   *
+   * Esto guardaba el objetivo y OFRECÍA el reescalado en una segunda ventana:
+   * el objetivo quedaba escrito pasara lo que pasara, así que cerrar aquella
+   * ventana dejaba el objetivo nuevo con el menú viejo sin que nada lo dijera.
+   * Ahora la decisión entera se toma en una sola ventana —el objetivo, de dónde
+   * sale y qué gramos se mueven— y aquí solo se escribe lo que traiga.
+   *
+   * @param extra  `{ meals, ajuste }` de `EditarObjetivo`. `meals` es el menú ya
+   *   reajustado —o `null` si no hay nada que aplicar, incluido el caso de haber
+   *   apartado todas las filas— y `ajuste`, el ancla a recordar para la próxima
+   *   vez con esta persona.
    */
-  const guardarObjetivo = (v) => (fields) => {
+  const guardarObjetivo = (v) => (fields, extra = null) => {
     const antes = targetsFor(plan, v);
     updateNutritionTargets(activeClient.id, v, fields);
-    if (!cerrado || mealsForVariant(plan, v).length === 0) return;
 
     /*
-      ── Y ahora hay DOS reescalados, no uno ────────────────────────────────
-      El de siempre es por kcal: cambias 3.100 por 2.900 y bajan hidratos y
-      grasas. El nuevo es por HIDRATOS, y es la operación real de un ciclado:
-      duplicas «Alto», le quitas cien gramos de hidratos y quieres que se muevan
-      los hidratos y NADA más —ni el aceite, ni el pescado—. Sobre kcal, ese
-      mismo ajuste tocaría los dos.
-
-      Manda el de hidratos cuando los dos cambian a la vez, porque es el más
-      específico: si has tecleado los gramos de hidratos, es eso lo que estás
-      moviendo, y las kcal han cambiado como consecuencia.
+      Y lo elegido se queda para la próxima. Por `updateClientPreferences` y NO
+      por `saveClientException`, al revés que las equivalencias de aquí al lado:
+      `ajuste` está en `NOT_COMPARED_KEYS`, así que no hay nada que proteger de
+      «poner al día» — y marcar a alguien como excepción a la plantilla por haber
+      contestado una pregunta dentro de una ventana sería escribirle una
+      consecuencia que no ha pedido. Ver `AJUSTES` en `domain/protocol`.
     */
-    const carbsAntes = toNum0(antes.carbsGrams);
-    const carbsDespues = toNum0(fields.carbsGrams);
-    if (carbsAntes && carbsDespues && carbsAntes !== carbsDespues) {
-      return setReescala({ variant: v, medida: 'carbs', from: carbsAntes, to: carbsDespues });
+    if (extra?.ajuste) {
+      updateClientPreferences(activeClient.id, 'protocol', { ajuste: extra.ajuste });
     }
 
-    const kcalAntes = toNum0(antes.targetKcals);
-    const kcalDespues = toNum0(fields.targetKcals);
-    if (kcalAntes && kcalDespues && kcalAntes !== kcalDespues) {
-      setReescala({ variant: v, medida: 'kcals', from: kcalAntes, to: kcalDespues });
+    if (extra?.meals) {
+      const viejas = mealsForVariant(plan, v);
+      applyRescaledMeals(activeClient.id, v, extra.meals);
+      /* Un gesto, un paso: deshacer devuelve las dos cosas, porque las dos las
+         ha escrito el mismo «Guardar». Ver [[deshacer-el-plan]]. */
+      toast({
+        /* Y se dice lo que se ha escrito de verdad: el objetivo puede mover
+           solo el reparto por comida sin tocar un gramo del menú. Decir
+           «menú reajustado» ahí sería contar un trabajo que no se ha hecho. */
+        text: extra.menu
+          ? 'Objetivo guardado y menú reajustado.'
+          : 'Objetivo guardado y reparto ajustado.',
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            updateNutritionTargets(activeClient.id, v, antes);
+            applyRescaledMeals(activeClient.id, v, viejas);
+          },
+        },
+      });
     }
   };
 
@@ -965,7 +1024,23 @@ export const NutritionModule = () => {
     de una comida. Con él se va también lo de traer de fuera, que es otra forma
     de meter comidas en la lista.
   */
-  const masComida = (
+  /* Con «Todos», una comida nueva entra en TODOS los días: una fila que solo
+     existe en uno descuadra el emparejado por posición de la mesa comparada.
+     Pegar y traer se quedan en «Un día», que es donde se sabe en cuál caen. */
+  const masComida = comparando ? (
+    <MenuAcciones
+      label="+ comida"
+      sinFlecha
+      ariaLabel="Añadir comida"
+      items={[
+        {
+          icon: Plus,
+          label: 'Nueva comida en todos los días',
+          run: () => dias.forEach((d) => addMeal(activeClient.id, d.id)),
+        },
+      ]}
+    />
+  ) : (
     <MenuAcciones
       label="+ comida"
       sinFlecha
@@ -1113,8 +1188,11 @@ export const NutritionModule = () => {
             */}
             <TiraDeLaDieta
               dias={dias}
-              activo={variant}
-              onDia={setDietView}
+              activo={comparando ? null : variant}
+              onDia={(id) => {
+                setComparar(false);
+                setDietView(id);
+              }}
               /* Dónde cae la comida que llevas: encima del día al que vaya. Ver
                  «Y LAS PESTAÑAS DE LOS DÍAS SON DONDE CAE». Nunca sobre el día
                  abierto —pegar una comida en el menú que ya se está mirando es
@@ -1159,12 +1237,27 @@ export const NutritionModule = () => {
               */
               derecha={
                 <>
+                  {puedeComparar && (
+                    <SegmentedControl
+                      label="Días del reparto a la vista"
+                      value={comparando ? 'todos' : 'uno'}
+                      onChange={(v) => setComparar(v === 'todos')}
+                      options={[
+                        { id: 'uno', label: 'Un día' },
+                        { id: 'todos', label: 'Todos', hint: 'El reparto de todos los días, comida a comida' },
+                      ]}
+                    />
+                  )}
                   <span className="tira-dato">{cerrado ? 'dieta cerrada' : 'por macros'}</span>
                   <SaveIndicator
                     status={save.status}
                     error={save.error}
                     onRetry={() => retrySave('nutrition', activeClient.id)}
                   />
+                  {/* Con «Todos» no hay día abierto, y duplicar o quitar «el
+                      abierto» actuaría sobre uno que no se ve. */}
+                  {!comparando && (
+                  <>
                   {/* Duplicar el día abierto con su menú. `CopyPlus` y no
                       `Copy`: la ley del dibujo de la casa —`Copy` es siempre
                       «al portapapeles» y `CopyPlus` siempre «otra igual aquí»—.
@@ -1182,6 +1275,8 @@ export const NutritionModule = () => {
                   >
                     <CopyPlus size={15} />
                   </button>
+                  </>
+                  )}
                   {/* Copiar el menú del día entero: es del DÍA y no de ninguna
                       comida, así que va en la cinta que lleva los días. Es la
                       pareja de «Traer», que cuelga del «+ comida» del pie: uno
@@ -1259,7 +1354,7 @@ export const NutritionModule = () => {
 
                       Y solo existe si queda otro día: un plan sin ninguno no es
                       un plan vacío, es una pantalla sin sitio donde escribir. */}
-                  {variosDias && (
+                  {variosDias && !comparando && (
                     <button
                       type="button"
                       className="btn btn-icon btn-icon-compact btn-icon-danger"
@@ -1405,13 +1500,30 @@ export const NutritionModule = () => {
                   <div className="dieta-reparto-asa">
                     <span className="section-label">El reparto</span>
                     <span className="dieta-reparto-dice">
-                      {meals.length === 0
-                        ? 'Ponle a cada comida sus kcal y sus macros'
-                        : `${meals.length} ${meals.length === 1 ? 'comida' : 'comidas'}`}
+                      {comparando
+                        ? `${dias.length} días · se compara con ${dias[0].name.toLowerCase()}`
+                        : meals.length === 0
+                          ? 'Ponle a cada comida sus kcal y sus macros'
+                          : `${meals.length} ${meals.length === 1 ? 'comida' : 'comidas'}`}
                     </span>
                   </div>
 
-                  {repartoVisible && (
+                  {comparando && (
+                    <RepartoComparado
+                      /* Por cliente: qué comidas están separadas es de esta
+                         dieta, no de la del siguiente cliente que se abra. */
+                      key={activeClient.id}
+                      dias={dias}
+                      elegidas={elegidas}
+                      onTarget={(dayId, mealIndex, field, value) =>
+                        updateMealTarget(activeClient.id, dayId, mealIndex, field, value)
+                      }
+                      onFijar={(dayId, mealIndex) => toggleMealFijo(activeClient.id, dayId, mealIndex)}
+                      onEditarObjetivo={(dayId) => setObjetivoAbierto(dayId)}
+                    />
+                  )}
+
+                  {repartoVisible && !comparando && (
                     <PlanDia
                       meals={meals}
                       targets={targetsFor(plan, variant)}
@@ -1424,6 +1536,9 @@ export const NutritionModule = () => {
                          se lee. Y la papelera es la pareja del «+ comida» del pie:
                          sin ella, una fila añadida por error no se puede quitar. */
                       onRename={(mealIndex, name) => updateMealName(activeClient.id, variant, mealIndex, name)}
+                      /* El candado del reparto: esta comida no se mueve cuando
+                         cambie el objetivo del día. Ver `repartoAlObjetivo`. */
+                      onFijar={(mealIndex) => toggleMealFijo(activeClient.id, variant, mealIndex)}
                       onRemove={(mealIndex) => {
                         const comida = meals[mealIndex];
                         removeMeal(activeClient.id, variant, mealIndex);
@@ -1595,6 +1710,11 @@ export const NutritionModule = () => {
                     onSetDisplay={(optIndex, foodId, mode) =>
                       setFoodDisplay(activeClient.id, variant, mealIndex, optIndex, foodId, mode)
                     }
+                    /* Lo que la cesta no acierte: el plátano de después de
+                       entrenar, el aceite de la ensalada. Ver `setFoodFixed`. */
+                    onSetFixed={(optIndex, foodId, fijo) =>
+                      setFoodFixed(activeClient.id, variant, mealIndex, optIndex, foodId, fijo)
+                    }
                     onEditFood={(optIndex, food, cambios) =>
                       editFood(activeClient.id, variant, mealIndex, optIndex, food, cambios)
                     }
@@ -1691,6 +1811,17 @@ export const NutritionModule = () => {
             targets={targetsFor(plan, objetivoAbierto || variant)}
             onSave={guardarObjetivo(objetivoAbierto || variant)}
             avanzado={avanzado}
+            /*
+              Y las comidas del día, para que la ventana enseñe qué le hace el
+              objetivo nuevo antes de escribir nada: primero al reparto —lo que
+              se le pide a cada comida— y después a los gramos del menú. Con el
+              plan por macros solo hay lo primero.
+
+              El catálogo va con él porque de él sale la CESTA —de dónde se
+              recorta—: sin categorías, el recorte vuelve a la densidad del macro
+              y la fruta baja con el arroz. Ver `CESTAS` en `domain/nutrition`.
+            */
+            reajuste={reajusteDelObjetivo}
           />
 
           {/*
@@ -1708,45 +1839,16 @@ export const NutritionModule = () => {
               targets={targetsFor(plan, diaAbierto)}
               elegidas={elegidas}
               onTarget={(mealIndex, field, value) => updateMealTarget(activeClient.id, diaAbierto, mealIndex, field, value)}
+              dias={dias}
+              onTargetDia={(dayId, mealIndex, field, value) =>
+                updateMealTarget(activeClient.id, dayId, mealIndex, field, value)
+              }
               onIrA={(i) => {
                 setDietView(diaAbierto);
                 const id = mealsForVariant(plan, diaAbierto)[i]?.id;
                 window.setTimeout(() => document.getElementById(`comida-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
               }}
               onClose={() => setDiaAbierto(null)}
-            />
-          )}
-
-          {/*
-            La vista previa del reescalado, si se acaba de cambiar el objetivo.
-            Lee el plan YA guardado —por eso no recibe el campo tecleado— y no
-            escribe nada hasta «Aplicar», que lleva su «Deshacer»: el menú
-            anterior se captura entero y volver es reponerlo.
-          */}
-          {reescala && (
-            <ReescalarMenu
-              plan={plan}
-              variant={reescala.variant}
-              medida={reescala.medida}
-              from={reescala.from}
-              to={reescala.to}
-              onClose={() => setReescala(null)}
-              onApply={(mealsNuevas) => {
-                const viejas = mealsForVariant(plan, reescala.variant);
-                const { variant: v, to, medida } = reescala;
-                applyRescaledMeals(activeClient.id, v, mealsNuevas);
-                setReescala(null);
-                toast({
-                  text:
-                    medida === 'carbs'
-                      ? `Menú reajustado a ${to} g de hidratos.`
-                      : `Menú reajustado al objetivo de ${to} kcal.`,
-                  action: {
-                    label: 'Deshacer',
-                    onClick: () => applyRescaledMeals(activeClient.id, v, viejas),
-                  },
-                });
-              }}
             />
           )}
 

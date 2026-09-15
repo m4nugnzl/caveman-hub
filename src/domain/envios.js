@@ -530,6 +530,20 @@ export const origenDice = (fila) => origenDe(fila)?.nombre || 'Tú';
 export const vigente = (fila, hoy = iso(new Date())) => !fila?.due || fila.due <= hoy;
 
 /**
+ * Cuántas cosas están escritas y todavía no le tocan a nadie.
+ *
+ * Es la cifra del tramo «Lo que sale» y la única de esa puerta que caduca. Vive
+ * aquí y no en la pantalla porque ahora se lee desde los dos tramos, y dos
+ * copias de un corte acabarían discrepando: el día que discreparan, una diría
+ * que quedan cuatro cosas por salir mientras el cliente ya las tiene delante.
+ *
+ * El corte lo hace `vigente`, la misma función con la que el portal decide qué
+ * enseñar. Una sola respuesta a «¿esto ya está fuera?».
+ */
+export const cuantasPorSalir = (filas = []) =>
+  filas.filter((f) => f.due && !vigente(f) && !f.submitted_at).length;
+
+/**
  * Las filas agrupadas en envíos, que es como se leen en la pantalla.
  *
  * Un envío no es una fila de la base: es lo que se mandó de una vez. Se agrupa

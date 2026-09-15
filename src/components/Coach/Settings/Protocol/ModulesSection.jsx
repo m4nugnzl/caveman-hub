@@ -1,6 +1,3 @@
-import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-
 import { MODULES, isModuleOn, isServiceOn, toggleModule } from '@/domain/protocol';
 import { Panel, Switch } from '@/components/ui/primitives';
 
@@ -14,22 +11,36 @@ import { Panel, Switch } from '@/components/ui/primitives';
  * hacía nada en ningún sitio. Lo guardado no se toca —vuelve a aparecer tal
  * cual si se recupera el servicio—, solo deja de ofrecerse.
  *
- * ── Y en el carril, plegadas ───────────────────────────────────────────────
- * Con `plegable` el bloque se resume en una línea que dice lo que hay
- * encendido, y se abre para tocarlo. No es esconder: el resumen NOMBRA lo que
- * está apagado, que es lo único que se necesita saber de un vistazo. Se usa
- * donde estos interruptores son el contexto y no el trabajo (la pantalla de
- * protocolos, cuyo trabajo son las acciones).
+ * ── Y aquí hubo un modo PLEGADO, que ya no hace falta ──────────────────────
+ * Existía para caber en el carril de la pantalla de protocolos, donde estos
+ * interruptores eran el contexto y no el trabajo. Ese carril ya no los lleva:
+ * lo que un protocolo incluye se abre en su propia capa desde la cabecera, y el
+ * banco se queda solo con lo que es —las acciones y su premisa—. Un resumen
+ * plegado dentro de una capa que se abre a propósito sería un pliegue de más.
+ *
+ * (De paso se fue su peor renglón: el resumen NOMBRABA lo apagado —«Apagado:
+ * Calentamiento y movilidad, RIR objetivo por serie…»—, así que para saber qué
+ * llevaba el protocolo había que restar.)
  */
-export const ModulesSection = ({ protocol, onSave, plegable = false }) => {
-  const [abierto, setAbierto] = useState(false);
-
-  const piezas = MODULES.filter((mod) => isServiceOn(protocol, mod.area));
-  const apagadas = piezas.filter((mod) => !isModuleOn(protocol, mod.id));
-
-  const lista = (
+/**
+ * ── Y SIN SUBTÍTULO DE DEFINICIÓN ──────────────────────────────────────────
+ * Debajo del rótulo iba «Enciende solo lo que vayas a usar. Se puede cambiar
+ * después.», y en el alta una segunda variante más larga. Las dos decían lo
+ * que hace un interruptor, que es lo que ya sabe cualquiera que vea uno. Un
+ * rótulo que necesita una frase para explicarse sobra él o sobra la frase.
+ *
+ * Lo mismo vale para las líneas de cada módulo: son una frase corta que dice
+ * QUÉ ES la pieza, no un párrafo que explique cómo funciona por dentro ni a
+ * quién le llega. Máximo un renglón, sin «tu cliente ve», sin «puedes».
+ *
+ * @param desnudo Sin la caja. Dentro de una ventana el envoltorio sobra: la
+ *   ventana YA es la tarjeta, y dos tarjetas apiladas dentro de ella se leen
+ *   como dos pantallas metidas en una. Lo mismo que ya hacía `ServicesSection`.
+ */
+export const ModulesSection = ({ protocol, onSave, sub = null, desnudo = false }) => (
+  <Panel title="Las piezas" sub={sub} desnudo={desnudo}>
     <ul className="proto-modules">
-      {piezas.map((mod) => (
+      {MODULES.filter((mod) => isServiceOn(protocol, mod.area)).map((mod) => (
         <li key={mod.id}>
           <Switch
             label={mod.label}
@@ -40,42 +51,5 @@ export const ModulesSection = ({ protocol, onSave, plegable = false }) => {
         </li>
       ))}
     </ul>
-  );
-
-  if (!plegable) {
-    return (
-      <Panel title="Las piezas, una a una" sub="Enciende solo lo que vayas a usar.">
-        {lista}
-      </Panel>
-    );
-  }
-
-  return (
-    <div className="col gap-2">
-      <button
-        type="button"
-        className="proto-toggle"
-        aria-expanded={abierto}
-        onClick={() => setAbierto((v) => !v)}
-      >
-        {abierto ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-        <span className="grow">Las piezas</span>
-        <span className="t-xs t-tertiary">
-          {apagadas.length === 0
-            ? `las ${piezas.length}`
-            : `${piezas.length - apagadas.length} de ${piezas.length}`}
-        </span>
-      </button>
-
-      {abierto ? (
-        lista
-      ) : (
-        apagadas.length > 0 && (
-          <p className="t-xs t-tertiary">
-            Apagado: {apagadas.map((m) => m.label).join(', ')}.
-          </p>
-        )
-      )}
-    </div>
-  );
-};
+  </Panel>
+);

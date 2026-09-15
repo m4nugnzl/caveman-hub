@@ -13,7 +13,7 @@ import { LegalPage } from '@/components/legal/LegalPage';
 import { LandingPage } from '@/components/marketing/LandingPage';
 import { CoachLayout } from '@/components/Coach/CoachLayout';
 import { IntencionDePlan } from '@/components/Coach/IntencionDePlan';
-import { ClientLayout } from '@/components/Client/ClientLayout';
+import { ClientLayout, HojaDePortal } from '@/components/Client/ClientLayout';
 import { ConsentGate } from '@/components/Client/ConsentGate';
 import { Today } from '@/components/Coach/Today';
 import { ClientPortfolio } from '@/components/Coach/ClientPortfolio';
@@ -74,9 +74,21 @@ const AnthropometryModule = lazyRoute(() => import('@/components/Coach/Anthropom
 const PhotoArchive = lazyRoute(() => import('@/components/photos/PhotoArchive').then((m) => ({ default: m.PhotoArchive })));
 const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/PhotoStudio').then((m) => ({ default: m.PhotoStudio })));
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
+const ClientSesionRoute = lazyRoute(() => import('@/components/Client/ClientSesionRoute').then((m) => ({ default: m.ClientSesionRoute })));
 const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
+/* «Tú» va en diferido como sus hermanas: no es la pantalla de entrada de nadie. */
+const ClientTu = lazyRoute(() => import('@/components/Client/ClientTu').then((m) => ({ default: m.ClientTu })));
+/* «Tu revisión» también, y por el peso: monta el asistente de revisión entero,
+   que son las medidas, las fotos y el cuestionario. Se abre un día de cada
+   siete y no tiene por qué viajar en el arranque de los otros seis. */
+const ClientRevisionRoute = lazyRoute(() => import('@/components/Client/ClientRevisionRoute').then((m) => ({ default: m.ClientRevisionRoute })));
+const ClientCalendarRoute = lazyRoute(() => import('@/components/Client/ClientCalendarRoute').then((m) => ({ default: m.ClientCalendarRoute })));
+/* El panel de progreso va en diferido porque se lleva las ocho gráficas: desde
+   que salió de la portada, quien abre el portal a mirar qué le toca hoy ya no
+   se las descarga. */
+const ClientProgresoRoute = lazyRoute(() => import('@/components/Client/ClientProgresoRoute').then((m) => ({ default: m.ClientProgresoRoute })));
 const CalendarPanel = lazyRoute(() => import('@/components/calendar/CalendarPanel').then((m) => ({ default: m.CalendarPanel })));
 const CoachCalendar = lazyRoute(() => import('@/components/calendar/CoachCalendar').then((m) => ({ default: m.CoachCalendar })));
 const IncomePanel = lazyRoute(() => import('@/components/Coach/Income/IncomePanel').then((m) => ({ default: m.IncomePanel })));
@@ -664,21 +676,24 @@ export default function App() {
               >
                 <Route index element={<InicioDelCliente />} />
 
-                {/* Su inicio ES su progreso: las cifras y los gráficos, con lo
-                    que ha cambiado condensado arriba. Ver `ClientStart`. */}
+                {/* Su portada: una decisión, una cifra y tres puertas. Ver
+                    `ClientStart`. */}
                 <Route path="inicio" element={<ClientStart />} />
+                {/* Y el panel entero, detrás de una de esas tres puertas: dejó
+                    de ser el pie de la portada el 12 de septiembre. */}
+                <Route path="progreso" element={<ClientProgresoRoute />} />
                 {/* Su análisis se abre en ventanas desde su propio panel, igual
                     que el del entrenador. La ruta rebota: estaba en su carril. */}
-                <Route path="analitica" element={<Navigate to="/mi/inicio" replace />} />
+                <Route path="analitica" element={<Navigate to="/mi/progreso" replace />} />
                 {/* «Hoy» dejó de ser una sección: lo suyo se repartió entre el
                     inicio y el check-in. La ruta sigue viva por los marcadores. */}
                 {/* Su alta: lo que entrega al empezar. Fuera del carril de
                     secciones porque se hace una vez — ver `ClientOnboarding`. */}
-                <Route path="alta" element={<ClientOnboarding />} />
+                <Route path="alta" element={<HojaDePortal><ClientOnboarding /></HojaDePortal>} />
                 {/* Lo que su entrenador le ha pedido a mano (0099). Fuera del
                     carril de secciones por lo mismo que el alta: no es una
                     sección de su plan, es un encargo que va y viene. */}
-                <Route path="formularios" element={<FormulariosDelCliente />} />
+                <Route path="formularios" element={<HojaDePortal><FormulariosDelCliente /></HojaDePortal>} />
                 <Route path="hoy" element={<Navigate to="/mi/inicio" replace />} />
                 <Route path="panel" element={<Navigate to="/mi/inicio" replace />} />
                 <Route
@@ -686,6 +701,24 @@ export default function App() {
                   element={
                     <ConServicio servicio="training">
                       <ClientRoutineRoute />
+                    </ConServicio>
+                  }
+                />
+                {/*
+                  ══ VER Y HACER SON DOS RUTAS (14 sep 2026) ═════════════════
+
+                  «Entreno» enseña el programa y no tiene un solo campo; aquí se
+                  apuntan los kilos. Es la corrección de producto que pidió el
+                  dueño al ver el prototipo de cajas, y siendo dos rutas se puede
+                  entrar a la sesión desde la portada, desde la tarjeta del
+                  teléfono y desde el hero de «Entreno» sin que ninguno tenga que
+                  saber cómo se abre una. Ver `ClientSesionRoute`.
+                */}
+                <Route
+                  path="rutina/sesion"
+                  element={
+                    <ConServicio servicio="training">
+                      <ClientSesionRoute />
                     </ConServicio>
                   }
                 />
@@ -698,16 +731,49 @@ export default function App() {
                   }
                 />
 
-                {/* Su check-in y sus fotos: el mismo gesto de la semana, y
-                    además la única puerta para subirlas. */}
-                <Route path="evolucion" element={<ReviewLayout audience="client" />}>
-                  <Route index element={<ClientCheckInsRoute />} />
-                  <Route path="fotos" element={<ClientPhotosRoute />} />
+                {/*
+                  «Tú»: la persona y su rastro. El cuarto destino de la barra
+                  desde el 12 de septiembre — recoge la entrega de la semana, sus
+                  fotos, y como filas el peso, el calendario, sus documentos, su
+                  privacidad y su cuenta. Ver `ClientTu` y `CLIENT_SECTIONS`.
+                */}
+                <Route path="tu" element={<ClientTu />} />
+
+                {/*
+                  ══ «Tu revisión»: destino otra vez, y con dos niveles ═══════
+
+                  El índice es EL RITUAL —lo que falta, las fotos de esta semana y
+                  lo que su entrenador contestó— y es el cuarto destino de la
+                  barra del pulgar desde `D-10`. Ver `ClientRevisionRoute` y
+                  `CLIENT_SECTIONS`.
+
+                  Debajo cuelgan las dos herramientas, que sí son pantallas
+                  empujadas y por eso conservan el marco con la miga:
+
+                    · `medidas` — la báscula: los nueve perímetros, los seis
+                      pliegues y el histórico. Era el índice de esta rama, y
+                      aterrizar el destino en un formulario de quince casillas
+                      habría sido convertir el ritual en papeleo.
+                    · `fotos` — el archivo, por semanas.
+
+                  La ruta vieja `/mi/evolucion` sigue valiendo igual: está en
+                  enlaces guardados y en los avisos (`domain/updates`), y ahora
+                  abre el ritual, que es a lo que esos avisos llaman.
+                */}
+                <Route path="evolucion">
+                  <Route index element={<ClientRevisionRoute />} />
+                  <Route element={<HojaDePortal><ReviewLayout audience="client" /></HojaDePortal>}>
+                    <Route path="medidas" element={<ClientCheckInsRoute />} />
+                    <Route path="fotos" element={<ClientPhotosRoute />} />
+                  </Route>
                 </Route>
                 <Route path="checkins" element={<Navigate to="/mi/evolucion" replace />} />
                 <Route path="fotos" element={<Navigate to="/mi/evolucion/fotos" replace />} />
 
-                <Route path="calendario" element={<CalendarPanel audience="client" />} />
+                {/* Su calendario y la suscripción para llevárselo al del
+                    teléfono, con la miga de vuelta a «Tú», que es desde donde se
+                    empuja. Ver `ClientCalendarRoute`. */}
+                <Route path="calendario" element={<HojaDePortal><ClientCalendarRoute /></HojaDePortal>} />
               </Route>
               <Route path="*" element={<OtherViewFallback view="client" />} />
             </>

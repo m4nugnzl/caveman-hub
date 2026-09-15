@@ -1,0 +1,1170 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El teléfono es otro aparato</title>
+<style>
+  /* ══════════════════════════════════════════════════════════════════════════
+     EL TELÉFONO ES OTRO APARATO — prototipo tocable (12 sep 2026)
+
+     Acompaña a `replanteamiento-movil-el-aparato.md`.
+
+     Los tokens son los de `src/styles/tokens.css` y la tipografía es la Archivo
+     autoalojada del proyecto: esto no es una maqueta con paleta aparte, es el
+     producto a 390 px.
+
+     Tres mandos arriba:
+       · ANTES / DESPUÉS   — el mismo teléfono con las dos versiones
+       · PAPEL / HIERRO    — porque sus capturas son del tema sin terminar
+       · La línea del PLIEGUE, a 664 px, que es la pantalla útil real de Safari
+         en un iPhone 13. Lo que cae por debajo de la raya no existe hasta que
+         alguien decide bajar.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  @font-face{font-family:'Archivo';src:url('../public/fonts/archivo-latin.woff2') format('woff2');
+    font-weight:100 900;font-display:swap;font-style:normal}
+  @font-face{font-family:'Archivo Expanded';src:url('../public/fonts/archivo-ancha-latin.woff2') format('woff2');
+    font-weight:100 900;font-display:swap;font-style:normal}
+
+  :root{
+    --canvas:#f7f6f2; --canvas-alt:#edebe3; --surface:#fff; --sunken:#f2f0e9;
+    --hairline:#e7e3d9; --hairline-strong:#cfc9bb; --fill-subtle:#f5f3ed; --fill:#eceae1;
+    --text:#191713; --t2:#514d45; --t3:#706c62; --inverse:#fff;
+    --accent:#3b49df; --accent-soft:rgba(59,73,223,.09);
+    --positive:#10774c; --positive-soft:#e3f1ea;
+    --negative:#b93429; --warning:#a4530e;
+    --r-xs:5px; --r-sm:9px; --r-md:14px; --r-lg:20px; --r-xl:26px; --r-pill:999px;
+    --sh-1:0 1px 2px rgba(38,32,20,.05);
+    --sh-2:0 1px 2px rgba(38,32,20,.05), 0 14px 30px -22px rgba(38,32,20,.55);
+    --font:'Archivo',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    --ancha:'Archivo Expanded',var(--font);
+    --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
+    --ease:cubic-bezier(.32,.72,0,1);
+    --muelle:cubic-bezier(.18,1.32,.34,1);
+  }
+  /* EL HIERRO. Es el tema de sus capturas y es el que no se ha terminado: aquí
+     se le aplica el mismo acabado que al papel para que la comparación sea de
+     ESTRUCTURA y no de temperatura. */
+  .app[data-tema="hierro"]{
+    --canvas:#121418; --canvas-alt:#0d0f12; --surface:#1a1d22; --sunken:#15181c;
+    --hairline:#282c33; --hairline-strong:#3a3f48; --fill-subtle:#1e2128; --fill:#252931;
+    --text:#f2f1ee; --t2:#a8a49c; --t3:#7d7a73;
+    --accent:#6c79ff; --accent-soft:rgba(108,121,255,.14);
+    --positive:#4fbc8b; --positive-soft:rgba(79,188,139,.14);
+    --negative:#e8776b; --warning:#d99a4e;
+    --sh-1:none; --sh-2:0 16px 32px -24px rgba(0,0,0,.9);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--canvas-alt);color:var(--text);
+    font:15px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-xs)}
+  button{font:inherit;color:inherit;cursor:pointer}
+  h1,h2,h3,p,ul,ol{margin:0}
+
+  /* ══ El documento ══════════════════════════════════════════════════════ */
+  .doc{max-width:1180px;margin:0 auto;padding:0 28px 120px}
+  header.top{padding:56px 0 28px;border-bottom:1px solid var(--hairline);margin-bottom:34px}
+  header.top .ante{font:600 11px/1 var(--font);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--t3);display:block;margin-bottom:14px}
+  header.top h1{font-family:var(--ancha);font-size:44px;font-weight:700;letter-spacing:-.02em;
+    line-height:1.05}
+  header.top p{margin-top:14px;max-width:62ch;color:var(--t2);font-size:16px}
+
+  /* ══ Los mandos ════════════════════════════════════════════════════════
+     Viven CON el teléfono, no en una franja de documento. Dos razones: es donde
+     está la cosa que gobiernan, y una franja pegajosa arriba acababa tapando la
+     primera pieza de cada pantalla en cuanto la columna del teléfono se quedaba
+     sin recorrido para fijarse — tapando justamente lo que el documento mide. */
+  .mandos{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .switch{display:inline-flex;background:var(--fill-subtle);border:1px solid var(--hairline);
+    border-radius:var(--r-pill);padding:3px;gap:2px}
+  .switch button{border:0;background:transparent;border-radius:var(--r-pill);
+    padding:7px 16px;font-size:13px;font-weight:600;color:var(--t2);
+    transition:background .18s var(--ease),color .18s var(--ease)}
+  .switch button[aria-pressed="true"]{background:var(--surface);color:var(--text);box-shadow:var(--sh-1)}
+  .switch.tinta button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  /* LA CINTA MÉTRICA del documento: mide, en el propio prototipo, a qué altura
+     cae lo primero que la pantalla tiene que decir. Es la misma regla de la
+     casa aplicada al documento — y sobre todo es una medida, no una opinión. */
+  .nota{display:block;margin-top:14px;font-size:12.5px;color:var(--t3);
+    font-variant-numeric:tabular-nums;text-align:center}
+  .nota b{font-weight:700}
+  .nota.bien b{color:var(--positive)}
+  .nota.mal b{color:var(--negative)}
+
+  /* ══ La rejilla: teléfono fijo + argumento ═════════════════════════════ */
+  /* El relleno de abajo NO es aire decorativo: es el recorrido que necesita la
+     columna pegajosa. Sin él, cuando el argumento es corto el teléfono llega al
+     fondo de la rejilla antes de poder fijarse a 82 px, se cuela DEBAJO de la
+     barra de mandos y recorta la primera pieza de cada pantalla — que es justo
+     lo que este documento mide. */
+  .escena{display:grid;grid-template-columns:430px 1fr;gap:52px;align-items:start}
+  @media (max-width:960px){.escena{grid-template-columns:1fr;gap:34px}}
+
+  .columna-tel{position:sticky;top:24px}
+  /* Si la ventana no da para el teléfono entero, la fijación estorba: deja de
+     pegarse y se desplaza con la página como cualquier otra cosa. */
+  @media (max-height:840px){.columna-tel{position:static}}
+  .marco{width:430px;max-width:100%;background:#1c1e22;border-radius:38px;padding:11px;
+    box-shadow:0 40px 80px -40px rgba(38,32,20,.6),0 0 0 1px rgba(0,0,0,.08)}
+  @media (max-width:960px){.marco{margin:0 auto}.columna-tel{position:static}}
+  .pantalla{position:relative;border-radius:28px;overflow:hidden;background:var(--canvas)}
+
+  /* ══ EL APARATO ════════════════════════════════════════════════════════
+     390 × 664 px: lo que deja Safari en un iPhone 13, medido. El alto es el
+     REAL y no uno cómodo para la lámina — con un marco más alto la barra del
+     pulgar sale donde no está y todas las distancias de este documento dejan
+     de querer decir nada. Lo que no cabe se baja, como en el teléfono. */
+  .app{position:relative;height:664px;overflow-y:auto;overflow-x:hidden;
+    background:var(--canvas);color:var(--text);font-size:15px;
+    scrollbar-width:thin}
+  .app::-webkit-scrollbar{width:0}
+  .lienzo{min-height:100%;padding-bottom:96px;display:flex;flex-direction:column}
+
+  /* ── La cabecera de escritorio que viaja al teléfono (solo en ANTES) ──── */
+  .cab{position:sticky;top:0;z-index:20;min-height:58px;display:flex;align-items:center;
+    gap:12px;padding:8px 22px;background:color-mix(in srgb,var(--surface) 88%,transparent);
+    backdrop-filter:blur(20px) saturate(1.6);border-bottom:1px solid var(--hairline)}
+  .cab .marca{display:flex;align-items:center;gap:9px;font-family:var(--ancha);
+    font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+  .cab .logo{width:26px;height:26px;border-radius:7px;background:var(--accent);
+    display:grid;place-items:center;color:#fff;font-size:13px}
+  .cab .omni{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12.5px;
+    color:var(--t3);border:1px solid var(--hairline);background:var(--fill-subtle);
+    border-radius:var(--r-pill);padding:6px 10px}
+  .cab .kbd{font-family:var(--mono);font-size:10px;font-weight:600;background:var(--fill);
+    border:1px solid var(--hairline-strong);border-radius:4px;padding:1px 4px;color:var(--t3)}
+  .cab .redondo{width:28px;height:28px;border-radius:50%;background:var(--fill);
+    border:1px solid var(--hairline);display:grid;place-items:center;font-size:11px;
+    font-weight:700;color:var(--t2)}
+
+  /* Los espaciados son los del producto, no los que le vengan bien a la lámina:
+     `--s5` (22 px) de margen de página y de separación entre bloques, que es lo
+     que usa `.stack` en el portal. Sin esto, el «Antes» sale más apretado que la
+     app real y la comparación deja de valer. */
+  .cuerpo{padding:22px;display:flex;flex-direction:column;gap:22px}
+  .cuerpo.pegado{gap:14px}
+
+  /* ── El titular de pantalla (ANTES) ───────────────────────────────────── */
+  .titular{padding-bottom:16px;border-bottom:1px solid var(--hairline)}
+  .titular h1{font-family:var(--ancha);font-size:42px;font-weight:700;letter-spacing:-.016em;
+    line-height:1.08}
+  .titular h1 em{font-family:var(--font);font-style:italic;font-weight:500;color:var(--t2)}
+  .titular p{font-size:13.5px;color:var(--t2);margin-top:6px}
+
+  /* ── La línea de estado (DESPUÉS) ─────────────────────────────────────── */
+  .estado{display:flex;align-items:baseline;gap:8px;font-size:13px;color:var(--t3);
+    padding-top:4px}
+  .estado b{color:var(--text);font-weight:600}
+  .estado .dot{width:3px;height:3px;border-radius:50%;background:var(--hairline-strong)}
+
+  /* ── Fichas de subsección (ANTES) ─────────────────────────────────────── */
+  .fichas{display:flex;gap:8px}
+  .fichas span{font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:var(--r-pill);
+    border:1px solid var(--hairline);color:var(--t2);background:var(--surface)}
+  .fichas span.on{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+
+  /* ── La caja (la primitiva de escritorio) ─────────────────────────────── */
+  .caja{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);
+    padding:16px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--sh-1)}
+  .caja .rotulo{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-size:15px;font-weight:600;letter-spacing:-.012em}
+  .caja .rotulo small{font-size:11px;color:var(--t3);font-weight:500}
+  .caja p.prosa{font-size:13.5px;color:var(--t2);line-height:1.5}
+  .caja .subcaja{background:var(--sunken);border:1px solid var(--hairline);
+    border-radius:var(--r-sm);padding:12px}
+  .caja .subcaja b{display:block;font-size:13.5px;margin-bottom:3px}
+  .caja .subcaja span{font-size:12.5px;color:var(--t2)}
+
+  /* ── El grupo de filas (la primitiva del teléfono) ────────────────────── */
+  .grupo-rotulo{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--t3);padding:0 2px 8px}
+  .grupo{background:var(--surface);border-radius:var(--r-lg);overflow:hidden;
+    box-shadow:var(--sh-1)}
+  .app[data-tema="hierro"] .grupo{box-shadow:none;border:1px solid var(--hairline)}
+  .fila{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:0;
+    background:transparent;padding:0 16px;min-height:56px;
+    border-bottom:1px solid var(--hairline);transition:background .12s var(--ease)}
+  .fila:last-child{border-bottom:0}
+  .fila:active{background:var(--fill-subtle)}
+  .fila .txt{flex:1;min-width:0}
+  .fila .txt b{display:block;font-size:15.5px;font-weight:500;letter-spacing:-.011em}
+  .fila .txt span{display:block;font-size:12.5px;color:var(--t3);margin-top:1px}
+  .fila .val{font-size:14.5px;color:var(--t3);font-variant-numeric:tabular-nums}
+  .fila .chev{color:var(--hairline-strong);font-size:17px;line-height:1}
+  .fila .punto{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
+
+  /* ── La tarjeta de hoy: la única superficie elevada ───────────────────── */
+  .hoy{background:var(--surface);border-radius:var(--r-xl);padding:20px;
+    box-shadow:var(--sh-2);display:flex;flex-direction:column;gap:14px}
+  .app[data-tema="hierro"] .hoy{border:1px solid var(--hairline-strong)}
+  .hoy .ante{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--t3)}
+  .hoy h2{font-family:var(--ancha);font-size:27px;font-weight:700;letter-spacing:-.018em;
+    line-height:1.1}
+  .hoy .sub{font-size:13px;color:var(--t2);margin-top:-8px}
+  .hoy .mandos-fila{display:flex;gap:10px;align-items:center}
+
+  .btn{border:0;border-radius:var(--r-pill);padding:0 20px;height:48px;font-size:15.5px;
+    font-weight:600;letter-spacing:-.01em;background:var(--accent);color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s var(--muelle),filter .15s var(--ease)}
+  .btn:active{transform:scale(.97)}
+  .btn.ancho{width:100%}
+  .btn.fantasma{background:transparent;color:var(--t2);border:1px solid var(--hairline-strong)}
+  .btn.pequeno{height:38px;font-size:13.5px;padding:0 14px}
+
+  /* ── LA FIRMA: la regla graduada ──────────────────────────────────────── */
+  .cifra-bloque{padding:6px 2px 2px}
+  .cifra{font-family:var(--ancha);font-size:52px;font-weight:700;letter-spacing:-.03em;
+    line-height:1;font-variant-numeric:tabular-nums}
+  .cifra u{text-decoration:none;font-size:19px;font-weight:600;color:var(--t3);
+    letter-spacing:0;margin-left:4px}
+  .cifra-pie{font-size:13px;color:var(--t2);margin-top:7px}
+
+  .regla{position:relative;height:44px;margin-top:16px}
+  .regla .canto{position:absolute;left:0;right:0;top:14px;height:1px;background:var(--hairline-strong)}
+  .regla .muescas{position:absolute;left:0;right:0;top:14px;height:9px;
+    background-image:repeating-linear-gradient(to right,var(--hairline-strong) 0 1px,transparent 1px 10%)}
+  .regla .aguja{position:absolute;top:4px;width:2px;height:21px;background:var(--accent);
+    border-radius:1px;transition:left .45s var(--muelle)}
+  .regla .aguja::after{content:"";position:absolute;left:-4px;top:-4px;width:10px;height:10px;
+    border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--canvas)}
+  .regla .rot{position:absolute;top:28px;font-size:11px;color:var(--t3);
+    font-variant-numeric:tabular-nums;white-space:nowrap}
+  .regla .rot.fin{right:0}
+  .regla .rot.aqui{color:var(--accent);font-weight:600;transform:translateX(-50%)}
+
+  /* La regla de la sesión: un tramo por ejercicio */
+  .regla-sesion{display:flex;gap:4px;padding:0 22px 12px}
+  .regla-sesion i{flex:1;height:3px;border-radius:2px;background:var(--hairline-strong);
+    position:relative;overflow:hidden}
+  .regla-sesion i.hecho{background:var(--accent)}
+  .regla-sesion i.medio::after{content:"";position:absolute;inset:0 50% 0 0;background:var(--accent)}
+
+  /* La cinta de días de la dieta: siete muescas */
+  .cinta-dias{display:flex;gap:6px;padding:2px 0 4px}
+  .cinta-dias button{flex:1;border:0;background:transparent;padding:9px 0 7px;border-radius:var(--r-sm);
+    display:flex;flex-direction:column;align-items:center;gap:7px;
+    font-size:12px;font-weight:600;color:var(--t3);transition:color .15s var(--ease)}
+  .cinta-dias button i{width:100%;height:3px;border-radius:2px;background:var(--hairline);display:block}
+  .cinta-dias button.alto i{background:var(--hairline-strong)}
+  .cinta-dias button[aria-pressed="true"]{color:var(--text)}
+  .cinta-dias button[aria-pressed="true"] i{background:var(--accent);height:4px}
+
+  /* ── Los tres macros, sin caja y sin anillos ──────────────────────────── */
+  .macros{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:18px;
+    border-top:1px solid var(--hairline);padding-top:14px}
+  .macros div{display:flex;flex-direction:column;gap:3px}
+  .macros b{font-size:21px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .macros span{font-size:11.5px;color:var(--t3);font-weight:600;letter-spacing:.05em;
+    text-transform:uppercase}
+
+  /* ── La gráfica del entrenador metida con calzador (ANTES) ────────────── */
+  .gr-vieja{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-md);
+    padding:14px;box-shadow:var(--sh-1)}
+  .gr-vieja .tres{display:flex;align-items:baseline;gap:5px;font-variant-numeric:tabular-nums;
+    margin:8px 0}
+  .gr-vieja .tres .g{font-size:30px;font-weight:700;font-family:var(--ancha);letter-spacing:-.02em}
+  .gr-vieja .tres .p{font-size:13px;color:var(--t3)}
+  .gr-vieja .tres .fl{color:var(--t3);font-size:13px}
+  .gr-vieja .mini{font-size:9px;color:var(--t3)}
+
+  /* ── Las fotos ────────────────────────────────────────────────────────── */
+  .fotos-viejas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .fotos-viejas figure{margin:0;background:var(--sunken);border:1px solid var(--hairline);
+    border-radius:var(--r-sm);padding:9px;display:flex;flex-direction:column;gap:6px}
+  .fotos-viejas b{font-size:12px}
+  .fotos-viejas span{font-size:10.5px;color:var(--t3);line-height:1.35}
+  .fotos-viejas .hueco{aspect-ratio:3/4;border-radius:4px;
+    background:linear-gradient(150deg,var(--fill) 0%,var(--fill-subtle) 100%)}
+  /* Deslizables y sangradas hasta el canto —el corte de la tercera es lo que
+     dice que hay más—, pero a 152 px: a 200 la tira medía 267 px de alto y el
+     pie de la foto se metía debajo de la barra del pulgar. */
+  .fotos-nuevas{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px;
+    scroll-snap-type:x mandatory;margin:0 -22px;padding-left:22px;padding-right:22px}
+  .fotos-nuevas figure{margin:0;flex:none;width:152px;scroll-snap-align:start;
+    display:flex;flex-direction:column;gap:8px}
+  .fotos-nuevas .hueco{aspect-ratio:3/4;border-radius:var(--r-md);
+    background:linear-gradient(150deg,var(--fill) 0%,var(--fill-subtle) 100%);
+    display:grid;place-items:center;color:var(--t3);font-size:12px}
+  .fotos-nuevas .hueco.falta{border:1px dashed var(--hairline-strong);background:transparent}
+  .fotos-nuevas figcaption{font-size:13px;font-weight:500}
+  .fotos-nuevas figcaption span{display:block;font-size:11.5px;color:var(--t3);font-weight:400}
+
+  /* ── El renglón del ejercicio ─────────────────────────────────────────── */
+  .ejercicios{display:flex;flex-direction:column}
+  .ej{display:flex;align-items:center;gap:13px;padding:13px 0;
+    border-bottom:1px solid var(--hairline);width:100%;background:transparent;border-left:0;
+    border-right:0;border-top:0;text-align:left}
+  .ej .mini{width:52px;height:52px;border-radius:var(--r-sm);flex:none;
+    background:linear-gradient(150deg,var(--fill) 0%,var(--fill-subtle) 100%);
+    display:grid;place-items:center;font-size:16px;color:var(--t3)}
+  .ej .txt{flex:1;min-width:0}
+  .ej .txt b{display:block;font-size:15.5px;font-weight:500;letter-spacing:-.012em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ej .txt span{font-size:12.5px;color:var(--t3)}
+  .ej .marca{font-size:12px;color:var(--accent);font-weight:600}
+
+  /* La serie como renglón de tabla, no como tarjeta */
+  .tabla-series{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  .tabla-series th{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--t3);text-align:right;padding:0 0 7px;font-family:var(--font)}
+  .tabla-series th:first-child{text-align:left}
+  .tabla-series td{padding:9px 0;border-top:1px solid var(--hairline);text-align:right;font-size:16px}
+  .tabla-series td:first-child{text-align:left;font-size:13px;color:var(--t3)}
+  .tabla-series td.obj{color:var(--t3);font-size:13.5px}
+  .tabla-series .ok{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
+    background:var(--accent);color:#fff;font-size:13px}
+  .tabla-series .pend{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
+    border:1px solid var(--hairline-strong);color:transparent}
+  .tabla-series input{width:56px;border:0;border-bottom:1px solid var(--hairline-strong);
+    background:transparent;text-align:right;font:inherit;font-size:16px;color:inherit;padding:2px 0}
+  .tabla-series input:focus{outline:0;border-color:var(--accent)}
+
+  /* ── La barra del pulgar ──────────────────────────────────────────────── */
+  .pulgar{position:sticky;bottom:0;margin-top:auto;display:flex;
+    background:color-mix(in srgb,var(--surface) 92%,transparent);
+    backdrop-filter:blur(20px) saturate(1.6);border-top:1px solid var(--hairline);
+    padding:7px 4px 12px;z-index:25}
+  .pulgar button{flex:1;border:0;background:transparent;display:flex;flex-direction:column;
+    align-items:center;gap:4px;padding:5px 0;font-size:10.5px;font-weight:600;color:var(--t3);
+    letter-spacing:-.01em;transition:color .15s var(--ease)}
+  .pulgar button .ic{font-size:17px;line-height:1;opacity:.75;transition:opacity .15s var(--ease)}
+  .pulgar button[aria-current="page"]{color:var(--accent)}
+  .pulgar button[aria-current="page"] .ic{opacity:1}
+  .pulgar button .avisa{position:relative}
+  .pulgar button .avisa::after{content:"";position:absolute;top:-1px;right:-5px;width:6px;height:6px;
+    border-radius:50%;background:var(--negative)}
+
+  /* ── La cabecera de la sesión: el chasis ES la sesión ─────────────────── */
+  .chasis-sesion{position:sticky;top:0;z-index:22;background:var(--surface);
+    border-bottom:1px solid var(--hairline);padding:14px 22px 0}
+  .chasis-sesion .fila1{display:flex;align-items:center;gap:12px}
+  .chasis-sesion .volver{border:0;background:transparent;font-size:19px;color:var(--t2);
+    padding:0;line-height:1}
+  .chasis-sesion .txt{flex:1;min-width:0}
+  .chasis-sesion .txt b{display:block;font-size:17px;font-weight:600;letter-spacing:-.015em}
+  .chasis-sesion .txt span{font-size:12px;color:var(--t3)}
+  .chasis-sesion .regla-sesion{padding:12px 0 10px;margin:0}
+
+  /* ── Pantallas empujadas ─────────────────────────────────────────────── */
+  .cab-empuje{position:sticky;top:0;z-index:22;display:flex;align-items:center;gap:12px;
+    padding:13px 22px;background:color-mix(in srgb,var(--surface) 90%,transparent);
+    backdrop-filter:blur(20px);border-bottom:1px solid var(--hairline)}
+  .cab-empuje button{border:0;background:transparent;color:var(--accent);font-size:14.5px;
+    font-weight:500;padding:0;display:flex;align-items:center;gap:4px}
+  .cab-empuje b{font-size:15.5px;font-weight:600;letter-spacing:-.012em}
+  .empujada{animation:entra .34s var(--ease)}
+  @keyframes entra{from{transform:translateX(26px);opacity:0}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion:reduce){.empujada{animation:none}
+    .regla .aguja,.btn{transition:none}}
+
+  .linea-curva{width:100%;height:74px;display:block;margin-top:6px}
+
+  /* ══ El argumento, a la derecha ════════════════════════════════════════ */
+  .arg h2{font-family:var(--ancha);font-size:27px;font-weight:700;letter-spacing:-.018em;
+    margin-bottom:6px;line-height:1.15}
+  .arg .lead{color:var(--t2);font-size:16px;margin-bottom:26px;max-width:56ch}
+  .arg section{padding:22px 0;border-top:1px solid var(--hairline)}
+  .arg h3{font-size:16.5px;font-weight:600;letter-spacing:-.012em;margin-bottom:8px}
+  .arg p{color:var(--t2);font-size:14.5px;max-width:60ch}
+  .arg p + p{margin-top:9px}
+  .arg ul{margin-top:10px;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+  .arg li{position:relative;padding-left:20px;color:var(--t2);font-size:14.5px;max-width:60ch}
+  .arg li::before{content:"";position:absolute;left:3px;top:9px;width:5px;height:5px;
+    border-radius:50%;background:var(--hairline-strong)}
+  .arg code{font-family:var(--mono);font-size:12.5px;background:var(--fill-subtle);
+    border:1px solid var(--hairline);border-radius:4px;padding:1px 5px;color:var(--t2)}
+  .arg b{color:var(--text)}
+  .cifra-suelta{display:flex;gap:26px;flex-wrap:wrap;margin:16px 0 4px}
+  .cifra-suelta div{min-width:110px}
+  .cifra-suelta b{display:block;font-family:var(--ancha);font-size:34px;font-weight:700;
+    letter-spacing:-.025em;line-height:1;font-variant-numeric:tabular-nums}
+  .cifra-suelta span{display:block;font-size:12px;color:var(--t3);margin-top:6px;line-height:1.35}
+  .cifra-suelta div.mal b{color:var(--negative)}
+  .cifra-suelta div.bien b{color:var(--positive)}
+  .ir{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+  .ir button{border:1px solid var(--hairline-strong);background:var(--surface);
+    border-radius:var(--r-pill);padding:8px 15px;font-size:13px;font-weight:500;color:var(--t2)}
+  .ir button:hover{border-color:var(--accent);color:var(--accent)}
+  footer.pie{margin-top:52px;padding-top:26px;border-top:1px solid var(--hairline);
+    font-size:13px;color:var(--t3);max-width:70ch}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <header class="top">
+    <span class="ante">Replanteamiento del móvil · 12 de septiembre de 2026</span>
+    <h1>El teléfono es otro aparato</h1>
+    <p>No es una pantalla estrecha donde cabe menos: es una máquina distinta, que
+    se usa con un pulgar, de pie y con prisa. Lo que hay hoy son las pantallas
+    del entrenador con una <code>prop</code>. Esto es lo otro.</p>
+  </header>
+
+  <div class="escena">
+    <div class="columna-tel">
+      <div class="mandos">
+        <div class="switch tinta" role="group" aria-label="Versión">
+          <button type="button" data-modo="antes" aria-pressed="true">Antes</button>
+          <button type="button" data-modo="despues" aria-pressed="false">Después</button>
+        </div>
+        <div class="switch" role="group" aria-label="Tema">
+          <button type="button" data-tema="papel" aria-pressed="true">Papel</button>
+          <button type="button" data-tema="hierro" aria-pressed="false">Hierro</button>
+        </div>
+      </div>
+      <div class="marco">
+        <div class="pantalla">
+          <div class="app" id="app" data-tema="papel"></div>
+        </div>
+      </div>
+      <span class="nota" id="cinta-metrica" aria-live="polite"></span>
+    </div>
+
+    <div class="arg">
+      <h2 id="arg-titulo">La portada</h2>
+      <p class="lead" id="arg-lead"></p>
+      <div id="arg-cuerpo"></div>
+      <div class="ir" id="ir"></div>
+    </div>
+  </div>
+
+  <footer class="pie">
+    El detalle, las cifras y el plan de movimientos están en
+    <code>replanteamiento-movil-el-aparato.md</code>. Las pantallas de «Antes» se
+    reproducen desde las tres capturas del dueño y desde el código
+    (<code>ClientStart</code>, <code>ClientDiet</code>,
+    <code>ClientCheckInsRoute</code>), con los espaciados del producto
+    (<code>--s5</code>) y en un marco de 390 × 664 px, que es la pantalla útil
+    real de un iPhone 13 en Safari. La cinta métrica de debajo del teléfono mide
+    los dos lados con la misma regla.
+  </footer>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   El aparato. Estado mínimo: qué versión, qué tema, qué pestaña y qué pila de
+   pantallas empujadas. La navegación de dentro FUNCIONA —las pestañas navegan
+   y las filas empujan—, porque lo que hay que enseñar aquí no es una lámina:
+   es que en el teléfono se navega empujando y no bajando.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const app = document.getElementById('app');
+let modo = 'antes';
+let tema = 'papel';
+let tab  = 'inicio';
+let pila = [];      // pantallas empujadas encima de la pestaña
+let dia  = 3;       // el día elegido en la cinta de la dieta
+
+const esc = (s) => String(s);
+
+/* ── Piezas compartidas ───────────────────────────────────────────────── */
+
+const cabeceraEscritorio = () => `
+  <div class="cab">
+    <span class="marca"><span class="logo">◨</span>Caveman</span>
+    <span class="omni">⌕ Buscar <span class="kbd">⌘K</span></span>
+    <span class="redondo">◍</span>
+    <span class="redondo">M</span>
+  </div>`;
+
+const pulgar = (items, activa) => `
+  <nav class="pulgar">
+    ${items.map((i) => `
+      <button type="button" data-tab="${i.id}" ${i.id === activa ? 'aria-current="page"' : ''}>
+        <span class="ic ${i.avisa ? 'avisa' : ''}">${i.ic}</span>${i.t}
+      </button>`).join('')}
+  </nav>`;
+
+const TABS_ANTES = [
+  {id:'inicio', ic:'⌂', t:'Inicio'}, {id:'rutina', ic:'≡', t:'Rutina'},
+  {id:'dieta', ic:'◐', t:'Dieta'}, {id:'revision', ic:'⊹', t:'Revisión'},
+  {id:'calendario', ic:'▤', t:'Calendario'},
+];
+const TABS_DESPUES = [
+  {id:'inicio', ic:'⌂', t:'Hoy', avisa:true}, {id:'rutina', ic:'≡', t:'Entreno'},
+  {id:'dieta', ic:'◐', t:'Dieta'}, {id:'tu', ic:'◔', t:'Tú'},
+];
+
+/* La curva del peso, sin ejes: una línea y dos puntos. Es lo único que baja al
+   teléfono de las ocho gráficas del escritorio. */
+const curvaLimpia = () => `
+  <svg class="linea-curva" viewBox="0 0 320 74" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,12 C46,16 66,30 104,38 C142,46 176,48 214,52 C248,56 286,60 320,63"
+      fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="214" cy="52" r="4.5" fill="var(--accent)"/>
+  </svg>`;
+
+/* ── ANTES ────────────────────────────────────────────────────────────── */
+
+const antesInicio = () => `
+  ${cabeceraEscritorio()}
+  <div class="cuerpo">
+    <div class="titular"><h1>Buenas, <em>Javier</em></h1><p>Bloque 2 · semana 10 de 10</p></div>
+
+    <div class="caja">
+      <div class="rotulo">⟳ La dejaste a medias <small>25 ago</small></div>
+      <div><b style="font-size:19px">Pull A</b>
+        <p class="prosa" style="margin-top:2px">17 de 17 series · 5 de 5 ejercicios</p></div>
+      <div style="height:4px;border-radius:2px;background:var(--accent)"></div>
+      <div class="mandos-fila" style="display:flex;gap:9px">
+        <button class="btn pequeno" data-primero="Seguir">Seguir</button>
+        <button class="btn pequeno fantasma">Descartar</button>
+      </div>
+      <p class="prosa">Descartarla borra las 17 series que apuntaste.</p>
+    </div>
+
+    <div class="caja">
+      <div class="rotulo">Tu peso <small>−2,5 kg</small></div>
+      <div><span style="font-family:var(--ancha);font-size:34px;font-weight:700">76,9</span>
+        <span style="font-size:14px;color:var(--t3)"> kg</span></div>
+      <p class="prosa">Empezaste en 79,4</p>
+    </div>
+
+    <div class="grupo-rotulo" style="padding-top:6px">Tu progreso</div>
+
+    <div class="gr-vieja">
+      <div class="rotulo" style="display:flex;justify-content:space-between">
+        <span style="font-weight:600">Cómo vas</span>
+        <span style="color:var(--accent);font-size:12.5px;font-weight:600">Tus fases</span></div>
+      <div class="tres">
+        <span class="p">80,7</span><span class="fl">→</span>
+        <span class="g">76,9</span><span class="fl">→</span><span class="p">75,9</span>
+      </div>
+      <div class="mini">al empezar · hoy · en 3 semanas, si sigue así</div>
+      <p class="prosa" style="margin-top:9px;color:var(--positive);font-size:13px">
+        ✓ En rumbo: −0,45 kg/semana</p>
+      <p class="mini">acaba +1 kg sobre el objetivo (74,9 kg)</p>
+      <svg viewBox="0 0 300 124" class="linea-curva" style="height:124px" aria-hidden="true">
+        <text x="2" y="26" font-size="9" fill="var(--t3)">81,8</text>
+        <text x="2" y="86" font-size="9" fill="var(--t3)">77,6</text>
+        <text x="252" y="104" font-size="9" fill="var(--t3)">75,9</text>
+        <line x1="36" y1="10" x2="36" y2="106" stroke="var(--hairline)"/>
+        <line x1="36" y1="106" x2="238" y2="106" stroke="var(--hairline)"/>
+        <path d="M36,24 C70,34 110,58 150,72 C180,82 208,88 214,90" fill="none"
+          stroke="var(--accent)" stroke-width="1.6"/>
+        <path d="M214,90 L238,100" fill="none" stroke="var(--accent)" stroke-width="1.4"
+          stroke-dasharray="3 3"/>
+        <circle cx="214" cy="90" r="3" fill="var(--accent)"/>
+      </svg>
+    </div>
+  </div>
+  ${pulgar(TABS_ANTES, 'inicio')}`;
+
+const antesDieta = () => `
+  ${cabeceraEscritorio()}
+  <div class="cuerpo">
+    <div class="titular"><h1>Mi dieta</h1>
+      <p>Lo que te ha pautado tu entrenador, comida a comida.</p></div>
+
+    <div class="caja"><p class="prosa">Tu plan es por macros: no hay un menú cerrado,
+      sino los objetivos de arriba. Reparte los alimentos como quieras siempre que
+      cuadres esas cifras al final del día.</p></div>
+
+    <div class="caja">
+      <div class="rotulo">✧ Pautas de tu entrenador</div>
+      <div class="subcaja"><b>Agua</b><span>Tres litros al día, y uno de ellos antes de comer.</span></div>
+      <div class="subcaja"><b>Fuera de casa</b><span>Elige siempre la proteína primero y la guarnición después.</span></div>
+    </div>
+
+    <div class="caja">
+      <div class="rotulo" style="font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--t3)">Objetivo</div>
+      <div style="font-size:15px;font-weight:600">Mi objetivo diario</div>
+      <div data-primero="2300 kcal"><span style="font-family:var(--ancha);font-size:40px;font-weight:700">2300</span>
+        <span style="font-size:15px;color:var(--t3)"> kcal</span></div>
+      <p class="prosa">Sin menú que sumar: lo que cuadra es el día entero</p>
+      <div style="display:flex;justify-content:space-between;font-size:13.5px;padding-top:10px;border-top:1px solid var(--hairline)">
+        <span style="color:var(--t2)">Proteína</span><b>185 g</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:13.5px">
+        <span style="color:var(--t2)">Carbos</span><b>240 g</b></div>
+      <div style="display:flex;justify-content:space-between;font-size:13.5px">
+        <span style="color:var(--t2)">Grasas</span><b>62 g</b></div>
+    </div>
+
+    <div class="caja">
+      <div class="rotulo">↟ Pasos diarios
+        <small style="font-size:20px;font-weight:700;color:var(--text)">11.000</small></div>
+    </div>
+  </div>
+  ${pulgar(TABS_ANTES, 'dieta')}`;
+
+const antesRevision = () => `
+  ${cabeceraEscritorio()}
+  <div class="cuerpo">
+    <div class="fichas"><span class="on">◷ Check-in</span><span>◫ Fotos</span></div>
+    <div class="titular"><h1>Mi revisión</h1><p>Semana 17 · te toca hoy</p></div>
+
+    <div class="caja">
+      <div class="rotulo">⇪ Tu semana</div>
+      <p class="prosa">Cuando la tengas lista, entrégala para que tu entrenador la revise.</p>
+      <button class="btn" data-primero="Entregar mi semana">➤ Entregar mi semana</button>
+      <p class="prosa">Confirmas el peso, subes las fotos y ya está.</p>
+      <p class="prosa" style="font-size:11.5px;color:var(--t3)">Se te quedaron sin entregar:</p>
+      <button class="btn pequeno fantasma" style="align-self:flex-start">➤ Semana del 24 ago</button>
+    </div>
+
+    <div class="caja">
+      <div class="rotulo">◫ Tus fotos <small>0 de 3</small></div>
+      <div class="fotos-viejas">
+        <figure><b>Frontal</b><span>De frente, brazos relajados</span><div class="hueco"></div></figure>
+        <figure><b>Lateral</b><span>De perfil, mismo lado siempre</span><div class="hueco"></div></figure>
+        <figure><b>Espalda</b><span>De espaldas, brazos relajados</span><div class="hueco"></div></figure>
+      </div>
+    </div>
+
+    <div class="caja">
+      <div class="rotulo">Check-in semanal
+        <span style="display:flex;gap:6px">
+          <span class="btn pequeno fantasma" style="height:32px">Anterior</span>
+          <span class="btn pequeno fantasma" style="height:32px">Siguiente</span></span></div>
+      <div style="font-size:17px;font-weight:600">Semana del 7 sept</div>
+    </div>
+  </div>
+  ${pulgar(TABS_ANTES, 'revision')}`;
+
+const antesRutina = () => `
+  ${cabeceraEscritorio()}
+  <div class="cuerpo">
+    <div class="titular"><h1>Mi rutina</h1><p>Bloque 2 · semana 10 de 10</p></div>
+    <div class="caja">
+      <div class="rotulo">Pull A <small>5 ejercicios · 17 series</small></div>
+      <div class="caja" style="box-shadow:none;background:var(--sunken)">
+        <div class="rotulo" style="font-size:14px">Jalón al pecho</div>
+        <p class="prosa">espalda · 4 series · 6-8 reps · RIR 2 · descanso 90 s</p>
+        <div style="display:flex;gap:8px">
+          <span class="subcaja" style="flex:1;text-align:center">kg</span>
+          <span class="subcaja" style="flex:1;text-align:center">reps</span>
+          <span class="subcaja" style="width:44px"></span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <span class="subcaja" style="flex:1;text-align:center">kg</span>
+          <span class="subcaja" style="flex:1;text-align:center">reps</span>
+          <span class="subcaja" style="width:44px"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+  ${pulgar(TABS_ANTES, 'rutina')}`;
+
+const antesCalendario = () => `
+  ${cabeceraEscritorio()}
+  <div class="cuerpo">
+    <div class="titular"><h1>Mi calendario</h1><p>Lo que tienes por delante.</p></div>
+    <div class="caja"><div class="rotulo">Esta semana</div>
+      <p class="prosa">Tu check-in se entrega el jueves.</p></div>
+  </div>
+  ${pulgar(TABS_ANTES, 'calendario')}`;
+
+/* ── DESPUÉS ──────────────────────────────────────────────────────────── */
+
+const despuesInicio = () => `
+  <div class="cuerpo">
+    <div class="estado"><b>Jueves 12</b><span class="dot"></span>Bloque 2, semana 10 de 10</div>
+
+    <!-- Un verbo lleno por tarjeta. «Descartarla» es la acción callada y va en
+         la línea del antetítulo, no en un botón propio: como botón sumaba
+         52 px y empujaba la última fila de la pantalla debajo de la barra del
+         pulgar, además de poner dos verbos donde solo se hace una cosa. -->
+    <div class="hoy">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+        <span class="ante">La dejaste a medias · 25 ago</span>
+        <button style="border:0;background:transparent;padding:0;font-size:12.5px;
+          color:var(--t3);text-decoration:underline;text-underline-offset:3px">Descartarla</button>
+      </div>
+      <h2>Pull A</h2>
+      <p class="sub">17 de 17 series · 5 de 5 ejercicios</p>
+      <button class="btn ancho" data-empuja="sesion" data-primero="Seguir donde lo dejaste">Seguir donde lo dejaste</button>
+    </div>
+
+    <div class="cifra-bloque">
+      <div class="cifra">76,9<u>kg</u></div>
+      <div class="cifra-pie">−2,5 kg desde que empezaste · toca para ver la curva</div>
+      <div class="regla" data-regla>
+        <div class="canto"></div><div class="muescas"></div>
+        <div class="aguja" style="left:56%"></div>
+        <span class="rot">79,4 al empezar</span>
+        <span class="rot aqui" style="left:56%">hoy</span>
+        <span class="rot fin">74,9 objetivo</span>
+      </div>
+    </div>
+
+    <div class="grupo" style="margin-top:6px">
+      <button class="fila" data-empuja="progreso">
+        <span class="txt"><b>Tu progreso</b><span>cómo va el bloque y tus fases</span></span>
+        <span class="chev">›</span></button>
+      <button class="fila" data-empuja="semana">
+        <span class="punto"></span>
+        <span class="txt"><b>Tu semana</b><span>te toca hoy</span></span>
+        <span class="chev">›</span></button>
+      <button class="fila">
+        <span class="txt"><b>De tu entrenador</b><span>te ha dejado 2 cosas</span></span>
+        <span class="val">2</span><span class="chev">›</span></button>
+    </div>
+  </div>
+  ${pulgar(TABS_DESPUES, 'inicio')}`;
+
+/*
+  ══ Entreno tiene DOS estados y el prototipo tiene que enseñar los dos ══════
+
+  · La PESTAÑA: la hoja del día dentro de la cinta, con la barra del pulgar
+    puesta y el verbo abajo. Es el 90 % de las veces que se abre.
+  · La SESIÓN VIVA (`empujeSesion`): el chasis se lo queda la sesión y la barra
+    del pulgar se retira entera, que es la regla que ya lleva el producto —
+    salir tiene que ser un gesto explícito y no un resbalón del pulgar.
+
+  La primera versión de esta lámina los tenía fundidos, así que «Entreno» se
+  pintaba siempre como sesión viva y se quedaba sin salida.
+*/
+const despuesRutina = () => `
+  <div class="cuerpo pegado">
+    <div class="estado"><b>Pull A</b><span class="dot"></span>hoy · 5 ejercicios · 17 series</div>
+    <div class="regla-sesion" style="padding:0 0 6px"><i></i><i></i><i></i><i></i><i></i></div>
+    <button class="btn ancho" data-empuja="sesion" data-primero="Empezar la sesión">Empezar la sesión</button>
+    <div style="height:4px"></div>
+    <div class="ejercicios">
+      ${[['Jalón al pecho','4 series · 6-8 · RIR 2 · 90 s',true],
+         ['Remo con barra','4 series · 8-10 · RIR 2',true],
+         ['Press militar','3 series · 8-10',false],
+         ['Curl martillo','3 series · 10-12',false],
+         ['Face pull','3 series · 12-15',false]].map(([n,m,v]) => `
+        <button class="ej"><span class="mini">▶</span>
+          <span class="txt"><b>${n}</b><span>${m}</span></span>
+          ${v ? '<span class="marca">↗</span>' : '<span class="chev" style="font-size:17px;color:var(--hairline-strong)">›</span>'}
+        </button>`).join('')}
+    </div>
+  </div>
+  ${pulgar(TABS_DESPUES, 'rutina')}`;
+
+/* La sesión viva: el chasis se lo queda ella y la barra del pulgar se retira. */
+const empujeSesion = () => `
+  <div class="chasis-sesion">
+    <div class="fila1">
+      <button class="volver" data-vuelve="1">‹</button>
+      <span class="txt"><b>Pull A</b><span>3 de 5 ejercicios · 11 de 17 series</span></span>
+      <button class="btn pequeno fantasma" style="height:34px" data-vuelve="1">Terminar</button>
+    </div>
+    <div class="regla-sesion">
+      <i class="hecho"></i><i class="hecho"></i><i class="medio"></i><i></i><i></i>
+    </div>
+  </div>
+  <div class="cuerpo pegado empujada">
+    <div class="ejercicios">
+      <button class="ej"><span class="mini">▶</span>
+        <span class="txt"><b>Jalón al pecho</b><span>4 series · 6-8 · RIR 2 · 90 s</span></span>
+        <span class="marca">↗</span></button>
+    </div>
+
+    <table class="tabla-series">
+      <thead><tr><th>Serie</th><th>Objetivo</th><th>kg</th><th>reps</th><th></th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="obj">80 × 8</td><td>80</td><td>8</td><td><span class="ok">✓</span></td></tr>
+        <tr><td>2</td><td class="obj">80 × 8</td><td>80</td><td>8</td><td><span class="ok">✓</span></td></tr>
+        <tr><td>3</td><td class="obj">80 × 6-8</td>
+          <td><input value="80" inputmode="decimal" aria-label="kg de la serie 3"></td>
+          <td><input inputmode="numeric" aria-label="reps de la serie 3"></td>
+          <td><span class="pend">✓</span></td></tr>
+        <tr><td>4</td><td class="obj">80 × 6-8</td><td class="obj">—</td><td class="obj">—</td>
+          <td><span class="pend">✓</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="ejercicios" style="margin-top:6px">
+      <button class="ej"><span class="mini">▶</span>
+        <span class="txt"><b>Remo con barra</b><span>4 series · 8-10 · RIR 2</span></span>
+        <span class="chev" style="color:var(--hairline-strong);font-size:17px">›</span></button>
+      <button class="ej"><span class="mini">▶</span>
+        <span class="txt"><b>Curl martillo</b><span>3 series · 10-12</span></span>
+        <span class="chev" style="color:var(--hairline-strong);font-size:17px">›</span></button>
+    </div>
+  </div>`;
+
+const DIAS = ['L','M','X','J','V','S','D'];
+const ALTOS = [0,2,4];
+const despuesDieta = () => `
+  <div class="cuerpo">
+    <div class="cinta-dias">
+      ${DIAS.map((d,i)=>`<button type="button" data-dia="${i}" class="${ALTOS.includes(i)?'alto':''}"
+        aria-pressed="${i===dia}">${d}<i></i></button>`).join('')}
+    </div>
+    <div class="estado">${ALTOS.includes(dia)?'<b>Día alto</b>':'<b>Día bajo</b>'}
+      <span class="dot"></span>${dia===3?'hoy':'jueves'}</div>
+
+    <div class="cifra-bloque">
+      <div class="cifra" data-primero="la cifra del día">${ALTOS.includes(dia)?'2300':'1950'}<u>kcal</u></div>
+      <div class="cifra-pie">Reparte como quieras, cuadra el día.</div>
+      <div class="macros">
+        <div><b>${ALTOS.includes(dia)?'185':'185'}<small style="font-size:13px;color:var(--t3)">g</small></b><span>Proteína</span></div>
+        <div><b>${ALTOS.includes(dia)?'240':'150'}<small style="font-size:13px;color:var(--t3)">g</small></b><span>Carbos</span></div>
+        <div><b>${ALTOS.includes(dia)?'62':'58'}<small style="font-size:13px;color:var(--t3)">g</small></b><span>Grasas</span></div>
+      </div>
+    </div>
+
+    <div class="grupo" style="margin-top:8px">
+      <button class="fila"><span class="txt"><b>Desayuno</b><span>3 alimentos</span></span>
+        <span class="val">620</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Comida</b><span>4 alimentos</span></span>
+        <span class="val">780</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Merienda</b><span>2 alimentos</span></span>
+        <span class="val">310</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Cena</b><span>3 alimentos</span></span>
+        <span class="val">590</span><span class="chev">›</span></button>
+    </div>
+
+    <div class="grupo">
+      <button class="fila" data-empuja="pautas">
+        <span class="txt"><b>Pautas de tu entrenador</b></span>
+        <span class="val">2</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Pasos</b></span>
+        <span class="val">11.000</span><span class="chev">›</span></button>
+    </div>
+  </div>
+  ${pulgar(TABS_DESPUES, 'dieta')}`;
+
+const despuesTu = () => `
+  <div class="cuerpo">
+    <div class="estado"><b>Semana 17</b><span class="dot"></span>te toca hoy</div>
+
+    <div class="hoy">
+      <span class="ante">Tu revisión</span>
+      <h2>Entregar la semana</h2>
+      <p class="sub">El peso y las tres fotos. Dos minutos.</p>
+      <button class="btn ancho" data-primero="Empezar">Empezar</button>
+    </div>
+
+    <div>
+      <div class="grupo-rotulo">Tus fotos · 0 de 3</div>
+      <div class="fotos-nuevas">
+        <figure><div class="hueco falta">+ hacer</div>
+          <figcaption>Frontal<span>la de la semana 16 debajo</span></figcaption></figure>
+        <figure><div class="hueco">semana 16</div><figcaption>Lateral<span>mismo lado</span></figcaption></figure>
+        <figure><div class="hueco">semana 16</div><figcaption>Espalda<span>brazos relajados</span></figcaption></figure>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <button class="fila"><span class="txt"><b>Tu peso y tus medidas</b></span>
+        <span class="val">76,9 kg</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Semanas anteriores</b></span>
+        <span class="val">16</span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Tu calendario</b></span><span class="chev">›</span></button>
+    </div>
+
+    <div class="grupo">
+      <button class="fila"><span class="txt"><b>Tus documentos</b></span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Tus datos y tu privacidad</b></span><span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Tu cuenta</b></span><span class="chev">›</span></button>
+    </div>
+  </div>
+  ${pulgar(TABS_DESPUES, 'tu')}`;
+
+/* ── Las pantallas empujadas: la Ley 2 en acción ──────────────────────── */
+
+const empujeProgreso = () => `
+  <div class="cab-empuje"><button type="button" data-vuelve="1">‹ Hoy</button><b>Tu progreso</b></div>
+  <div class="cuerpo empujada">
+    <div class="cifra-bloque">
+      <div class="cifra">76,9<u>kg</u></div>
+      <div class="cifra-pie">−0,45 kg por semana · acabas 1 kg sobre el objetivo</div>
+      ${curvaLimpia()}
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--t3);margin-top:2px">
+        <span>semana 1</span><span>hoy</span><span>semana 13</span></div>
+    </div>
+    <div class="grupo">
+      <button class="fila"><span class="txt"><b>Tus fases</b><span>definición · 13 semanas</span></span>
+        <span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Cómo va el bloque</b><span>17 de 17 series esta semana</span></span>
+        <span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Tus medidas</b><span>última: 4 sept</span></span>
+        <span class="chev">›</span></button>
+    </div>
+  </div>`;
+
+const empujePautas = () => `
+  <div class="cab-empuje"><button type="button" data-vuelve="1">‹ Dieta</button><b>Pautas de tu entrenador</b></div>
+  <div class="cuerpo empujada">
+    <div class="grupo">
+      <div class="fila" style="min-height:0;padding-top:14px;padding-bottom:14px;align-items:flex-start">
+        <span class="txt"><b>Agua</b><span style="white-space:normal;line-height:1.45">Tres litros al día, y uno de ellos antes de comer.</span></span></div>
+      <div class="fila" style="min-height:0;padding-top:14px;padding-bottom:14px;align-items:flex-start">
+        <span class="txt"><b>Fuera de casa</b><span style="white-space:normal;line-height:1.45">Elige siempre la proteína primero y la guarnición después.</span></span></div>
+    </div>
+  </div>`;
+
+const empujeSemana = () => `
+  <div class="cab-empuje"><button type="button" data-vuelve="1">‹ Hoy</button><b>Tu semana</b></div>
+  <div class="cuerpo empujada">
+    <div class="hoy">
+      <span class="ante">Semana 17 · te toca hoy</span>
+      <h2>Entregar la semana</h2>
+      <p class="sub">El peso y las tres fotos. Dos minutos.</p>
+      <button class="btn ancho" data-primero="Empezar">Empezar</button>
+    </div>
+    <div class="grupo">
+      <button class="fila"><span class="txt"><b>Semana del 24 ago</b><span>se te quedó sin entregar</span></span>
+        <span class="chev">›</span></button>
+      <button class="fila"><span class="txt"><b>Semanas anteriores</b></span>
+        <span class="val">16</span><span class="chev">›</span></button>
+    </div>
+  </div>`;
+
+/* ── El argumento que acompaña a cada pantalla ────────────────────────── */
+
+const ARG = {
+  inicio: {
+    t: 'La portada',
+    lead: 'Hoy son siete bloques apilados que acaban en el panel del entrenador. Debería ser una decisión y tres puertas.',
+    antes: `
+      <section><h3>Monta el panel del entrenador entero</h3>
+      <p><code>ClientStart</code> termina con <code>&lt;Dashboard audience="client" /&gt;</code>:
+      405 líneas y doce tarjetas pensadas para 1440 px. Por eso «hay demasiada
+      información» — está toda, porque no hay otro sitio donde ponerla.</p></section>
+      <section><h3>La gráfica cae bajo el pliegue</h3>
+      <p><code>Trayectoria</code> mide 124 px de alto con 98 px de ejes. En el
+      teléfono quedan <b>208 px de curva y 98 px de regla</b>: un tercio del
+      lienzo es el eje. Y llega a los ~700 px, o sea después de la raya roja.</p></section>
+      <section><h3>Cuatro planos antes del primer dato</h3>
+      <p>Cabecera de escritorio (58 px) → titular a 42 px → subtítulo → primera
+      caja. La cabecera lleva un buscador con <code>⌘K</code> para alguien que
+      no tiene teclado.</p></section>`,
+    despues: `
+      <div class="cifra-suelta">
+        <div class="bien"><b>0</b><span>titulares de pantalla</span></div>
+        <div class="bien"><b>193<small style="font-size:15px">px</small></b><span>dónde cae el único verbo</span></div>
+        <div class="bien"><b>571<small style="font-size:15px">px</small></b><span>la última fila — la pantalla entera, sin bajar</span></div>
+      </div>
+      <section><h3>Una línea de estado, no un titular</h3>
+      <p>«Jueves 12 · Bloque 2, semana 10 de 10» a 13 px. La pestaña de abajo ya
+      dice dónde estás; repetirlo a 42 px gasta el 15 % del alto.</p></section>
+      <section><h3>Una sola superficie elevada</h3>
+      <p>La tarjeta de hoy es lo único que flota y lleva el único botón lleno de
+      la pantalla. Todo lo demás son filas a ras de papel. Es lo que hace
+      Coachway con su «Start check-in» y Efort con su «Day 3».</p></section>
+      <section><h3>La firma: la regla</h3>
+      <p>El peso es una cifra a 52 px y una <b>regla graduada</b> debajo —
+      empezaste · hoy · objetivo. Es el instrumento del oficio y es lo único
+      que se repite en las cuatro pantallas. La curva está a un toque, no
+      delante.</p></section>
+      <section><h3>Lo demás se empuja, no se apila</h3>
+      <p>«Tu progreso» deja de ser el pie de la portada y pasa a ser su propia
+      pantalla. <b>Toca la fila y compruébalo</b>: la misma información, a un
+      toque en vez de a cuatro pantallas de scroll.</p></section>`,
+  },
+  rutina: {
+    t: 'El entreno',
+    lead: 'El cimiento está bien —la cinta de hojas, la sesión como estado— y se conserva. Lo que cambia es el marco y el renglón de la serie.',
+    antes: `
+      <section><h3>Un título de pantalla para entrenar</h3>
+      <p>Con la cabecera de escritorio encima, el primer ejercicio empieza
+      después de tres planos. En el gimnasio, entre serie y serie, eso son tres
+      planos de más cada vez que se desbloquea el teléfono.</p></section>
+      <section><h3>Cada serie es una tarjeta</h3>
+      <p>Dos campos con fondo hundido y un botón, por serie. Con 17 series salen
+      17 tarjetas. Efort pone una <b>tabla</b>: <code>serie · objetivo · peso ·
+      reps · RPE</code>, y cabe la sesión entera en una pantalla.</p></section>`,
+    despues: `
+      <section><h3>Dos estados, y se ven los dos</h3>
+      <p>La <b>pestaña</b> es la hoja del día con la barra del pulgar puesta y un
+      solo verbo: «Empezar la sesión». <b>Púlsalo</b> y entras en la
+      <b>sesión viva</b>, donde la barra del pulgar se retira entera — salir
+      tiene que ser un gesto explícito, no un resbalón del dedo en el borde.</p></section>
+      <section><h3>El chasis ES la sesión</h3>
+      <p>Arriba no hay cabecera de app ni titular: hay el nombre de la sesión,
+      cuántos ejercicios y <b>la regla de la sesión</b> —un tramo por ejercicio,
+      relleno según va—. Es lo que hace Coachway con su barra de progreso
+      segmentada, y aquí además es la firma de la casa.</p></section>
+      <section><h3>La serie vuelve a ser un renglón</h3>
+      <p>Objetivo a la izquierda en voz baja, lo que hiciste a la derecha en voz
+      alta, el ✓ al final. <b>El objetivo se repite en cada serie</b> a
+      propósito: cuando vas por la cuarta, el enunciado del ejercicio ya se fue
+      por arriba.</p></section>
+      <section><h3>Y la miniatura</h3>
+      <p>Es la diferencia más visible con las dos referencias, y no es de
+      estilo: una lista de nombres es un índice, una lista con cara es un
+      programa. <b>Está pendiente de tu decisión</b> — una miniatura no es un
+      vídeo, así que no choca con «el vídeo va por WhatsApp».</p></section>`,
+  },
+  dieta: {
+    t: 'La dieta',
+    lead: 'La pantalla a la que se entra a ver una cifra, y la cifra está en el último centímetro del primer pantallazo.',
+    antes: `
+      <div class="cifra-suelta">
+        <div class="mal"><b>668<small style="font-size:15px">px</small></b><span>dónde cae «2300 kcal» — en su captura, ~565</span></div>
+        <div class="mal"><b>664<small style="font-size:15px">px</small></b><span>lo que se ve sin bajar</span></div>
+        <div class="mal"><b>9</b><span>cajas en <code>ClientDiet</code></span></div>
+      </div>
+      <section><h3>La pantalla se explica cuatro veces</h3>
+      <p>La pestaña dice «Dieta». El <code>h1</code> dice «Mi dieta». El
+      subtítulo dice «Lo que te ha pautado tu entrenador». Y un párrafo de tres
+      líneas explica qué es una dieta por macros
+      (<code>ClientDiet.jsx:304</code>).</p></section>
+      <section><h3>Caja dentro de caja</h3>
+      <p>«Pautas de tu entrenador» es un panel que contiene dos tarjetas que
+      contienen un título y un texto. Tres niveles para dos frases que se leen
+      una vez en la vida.</p></section>`,
+    despues: `
+      <div class="cifra-suelta">
+        <div class="bien"><b>149<small style="font-size:15px">px</small></b><span>dónde cae ahora la cifra</span></div>
+        <div class="bien"><b>1</b><span>nivel de caja, máximo</span></div>
+        <div class="bien"><b>0</b><span>párrafos explicativos</span></div>
+      </div>
+      <section><h3>La cinta de días es el mando y la firma</h3>
+      <p>Siete muescas, la de hoy encendida, las de día alto marcadas.
+      <b>Tócalas</b>: la cifra cambia. Es el único mando de la pantalla y es la
+      misma regla graduada de la portada, puesta del derecho.</p></section>
+      <section><h3>La cifra manda y los macros son una línea</h3>
+      <p>Sin caja, sin anillos, sin donut. Ya estaba decidido que
+      <b>la dieta pauta y no contabiliza</b>: un anillo es un contador.</p></section>
+      <section><h3>Las pautas y los pasos bajan a filas</h3>
+      <p>Lo que se lee una vez no puede ser el segundo bloque de la pantalla.
+      <b>Toca «Pautas de tu entrenador»</b> y ahí están, enteras, en su
+      sitio.</p></section>`,
+  },
+  revision: {
+    t: 'La revisión',
+    lead: 'La pantalla del ritual semanal, con el panel de antropometría del entrenador al pie.',
+    antes: `
+      <div class="cifra-suelta">
+        <div class="mal"><b>236<small style="font-size:15px">px</small></b><span>de cromo antes del contenido</span></div>
+        <div class="mal"><b>342<small style="font-size:15px">px</small></b><span>dónde cae el único verbo</span></div>
+        <div class="mal"><b>36<small style="font-size:15px">%</small></b><span>de la pantalla, gastado</span></div>
+      </div>
+      <section><h3>Dos frases de manual alrededor de un botón</h3>
+      <p>«Cuando la tengas lista, entrégala para que tu entrenador la revise.» y
+      «Confirmas el peso, subes las fotos y ya está.»
+      (<code>ClientWeek.jsx:223</code> y <code>:264</code>).</p></section>
+      <section><h3>Las fotos, a 110 px y con pie de foto</h3>
+      <p>Tres columnas, cada una con título, descripción y hueco. Coachway las
+      pone <b>a pantalla casi completa y deslizables</b>, que es lo que hace que
+      alguien quiera hacérselas.</p></section>
+      <section><h3>Y al final, el panel del entrenador</h3>
+      <p><code>AnthropometryPanel audience="client"</code>: el «Check-in semanal
+      · Anterior / Siguiente» que se ve al pie de tu captura es literalmente su
+      pantalla con un permiso distinto.</p></section>`,
+    despues: `
+      <section><h3>Deja de ser una pestaña</h3>
+      <p>Y no es esconderla: <b>el ritual se convoca desde Hoy</b>, con su fila
+      marcada y su tarjeta. Una pestaña permanente para algo que importa un día
+      de cada siete está apagada seis días. Coachway hace exactamente esto.</p>
+      <p>Lo que queda —las fotos, el peso, las semanas anteriores, el
+      calendario, la cuenta— vive en <b>«Tú»</b>, que es la pantalla que hoy no
+      existe y que recoge todo lo que está tirado por el pie de Inicio.</p></section>
+      <section><h3>Las fotos, grandes</h3>
+      <p>Deslizables, con la de la semana pasada debajo de la que falta: misma
+      luz, mismo sitio. Información, no reproche.</p></section>
+      <section><h3>Dos minutos, dicho una vez</h3>
+      <p>Todo el aparato de prosa se reduce a una línea bajo el titular: «El
+      peso y las tres fotos. Dos minutos.» Lo demás lo explica el propio
+      asistente mientras se hace.</p></section>`,
+  },
+};
+/* «Tú» es el destino de lo que hoy es «Revisión», así que comparte argumento —
+   pero no nombre: en el «Después» la pantalla se llama otra cosa y el documento
+   tiene que decirlo, o parece que se ha quedado en la pestaña vieja. */
+ARG.tu = { ...ARG.revision, t: 'Tú' };
+ARG.calendario = {
+  t: 'El calendario',
+  lead: 'Una pestaña permanente para una pantalla que se abre dos veces al mes.',
+  antes: `<section><h3>Ocupa un quinto de la barra del pulgar</h3>
+    <p>Y con cinco destinos en 390 px cada uno mide 78 px. La barra del producto
+    se diseñó para cuatro y «Más».</p></section>`,
+  despues: `<section><h3>Baja a una fila dentro de «Tú»</h3>
+    <p>Con lo que la barra baja a cuatro destinos de 97 px y entra «Tú», que es
+    lo que hoy no tiene sitio: la cuenta, los documentos, la privacidad y la
+    carpeta compartida.</p></section>`,
+};
+
+/* ── Render ───────────────────────────────────────────────────────────── */
+
+const EMPUJES = { progreso: empujeProgreso, pautas: empujePautas, semana: empujeSemana,
+                  sesion: empujeSesion };
+
+const pintaApp = () => {
+  let html;
+  if (pila.length) {
+    html = EMPUJES[pila[pila.length - 1]]();
+  } else if (modo === 'antes') {
+    html = ({ inicio: antesInicio, rutina: antesRutina, dieta: antesDieta,
+              revision: antesRevision, calendario: antesCalendario }[tab] || antesInicio)();
+  } else {
+    html = ({ inicio: despuesInicio, rutina: despuesRutina, dieta: despuesDieta,
+              tu: despuesTu }[tab] || despuesInicio)();
+  }
+  app.innerHTML = `<div class="lienzo">${html}</div>`;
+};
+
+const pintaArg = () => {
+  const a = ARG[tab] || ARG.inicio;
+  document.getElementById('arg-titulo').textContent = a.t;
+  document.getElementById('arg-lead').textContent = a.lead;
+  document.getElementById('arg-cuerpo').innerHTML = modo === 'antes' ? a.antes : a.despues;
+  const tabs = modo === 'antes' ? TABS_ANTES : TABS_DESPUES;
+  document.getElementById('ir').innerHTML = tabs
+    .map((i) => `<button type="button" data-tab="${i.id}">${i.t}</button>`).join('');
+};
+
+/*
+  Mide dónde cae lo primero que la pantalla tiene que decir. El elemento lo
+  declara cada pantalla con `data-primero`, así que la medida es de la pieza
+  que importa y no del primer nodo que haya.
+
+  El umbral son 260 px: la Ley 1 del estudio. No es un número redondo elegido
+  por gusto — es aproximadamente lo que queda de pantalla por encima del alcance
+  cómodo del pulgar en un teléfono de seis pulgadas sostenido con una mano.
+*/
+const LEY = 260;
+const mideElPrimero = () => {
+  const nota = document.getElementById('cinta-metrica');
+  const el = app.querySelector('[data-primero]');
+  if (!el) { nota.className = 'nota'; nota.textContent = '390 × 664 px · un iPhone 13 en Safari'; return; }
+  const y = Math.round(el.getBoundingClientRect().top - app.getBoundingClientRect().top + app.scrollTop);
+  nota.className = 'nota ' + (y <= LEY ? 'bien' : 'mal');
+  nota.innerHTML = `«${el.dataset.primero}» cae a <b>${y} px</b> · la ley son ${LEY} · caben ${app.clientHeight}`;
+};
+
+const pinta = () => { pintaApp(); pintaArg(); mideElPrimero(); };
+
+/* Los mandos de arriba */
+document.querySelectorAll('[data-modo]').forEach((b) => b.addEventListener('click', () => {
+  modo = b.dataset.modo;
+  document.querySelectorAll('[data-modo]').forEach((o) =>
+    o.setAttribute('aria-pressed', String(o === b)));
+  /* Las dos versiones no tienen las mismas pestañas: al cruzar, se cae a la
+     portada en vez de dejar una pestaña que en el otro lado no existe. */
+  if (modo === 'despues' && (tab === 'revision' || tab === 'calendario')) tab = 'tu';
+  if (modo === 'antes' && tab === 'tu') tab = 'revision';
+  pila = [];
+  app.scrollTop = 0;
+  pinta();
+}));
+
+document.querySelectorAll('[data-tema]').forEach((b) => b.addEventListener('click', () => {
+  tema = b.dataset.tema;
+  document.querySelectorAll('[data-tema]').forEach((o) =>
+    o.setAttribute('aria-pressed', String(o === b)));
+  app.dataset.tema = tema;
+}));
+
+/* La navegación de dentro del teléfono */
+app.addEventListener('click', (e) => {
+  const irTab = e.target.closest('[data-tab]');
+  if (irTab) { tab = irTab.dataset.tab; pila = []; app.scrollTop = 0; pinta(); return; }
+
+  const empuja = e.target.closest('[data-empuja]');
+  if (empuja) { pila.push(empuja.dataset.empuja); app.scrollTop = 0; pinta(); return; }
+
+  const vuelve = e.target.closest('[data-vuelve]');
+  if (vuelve) { pila.pop(); app.scrollTop = 0; pinta(); return; }
+
+  const muesca = e.target.closest('[data-dia]');
+  if (muesca) { dia = Number(muesca.dataset.dia); pintaApp(); return; }
+});
+
+pinta();
+</script>
+</body>
+</html>

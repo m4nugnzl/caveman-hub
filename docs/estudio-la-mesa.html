@@ -1,0 +1,1177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La mesa — el PC del cliente</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,75..125,400..800;1,75..125,400..700&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · La mesa — el PC del cliente · 14 sep 2026
+
+   No sustituye a «La app del cliente»: se monta encima. De aquel estudio
+   sobreviven la tesis (tu historial es el producto), las tres leyes y el
+   teléfono entero. Lo que cae es su PC —la parrilla de diez microciclos y la
+   frase «el PC compara»—, rechazado por el dueño el 13 de septiembre.
+
+   ── El plan de tokens, antes de escribir nada ─────────────────────────────
+   COLOR   Los del producto SIN TOCAR un hex, y esta vez leídos del fichero:
+           hoja #f7f6f2, mesa #edebe3, tarjeta #fff, hundido #f2f0e9, filete
+           #e7e3d9 / #cfc9bb, tinta #191713 / #514d45 / #706c62, señal #3b49df.
+           El dueño ya descartó una paleta nueva y tenía razón: el problema del
+           PC no es de qué color es una caja, es cuántas hay.
+   TIPO    Archivo, la de la casa, con su ancha para cifras y titulares. La
+           escala del producto tal cual: 11 · 12 · 14 · 16 · 18 · 22 · 30 · 42.
+   LAYOUT  Prosa a 720 sobre hoja; prototipos a todo lo ancho sobre grafito,
+           igual que el estudio del teléfono, porque una hoja crema sobre papel
+           crema no se ve. Descartado: enseñar solo el «después». Lo que hay
+           que juzgar es un cambio de mueble, y un mueble se juzga contra el
+           que estaba puesto — por eso van las capturas REALES al lado.
+   FIRMA   La única caja. En cada pantalla se levanta UNA cosa —la que puedes
+           tocar ahora— y todo lo demás es tinta sobre la hoja. Deja de ser un
+           estilo y pasa a ser información: lo que sobresale, se hace.
+
+   ── Segunda pasada ────────────────────────────────────────────────────────
+   Primera versión: secciones numeradas 01…05 y un «antes y después» por
+   pantalla. Se cayeron las dos cosas. Los números porque esto no es una
+   secuencia —es un diagnóstico, una ley y un aparato—, y seis antes/después
+   porque repiten seis veces el mismo argumento; va uno, el peor, y las otras
+   cinco se ven funcionando en el prototipo.
+
+   Y una alerta que el estudio lleva dentro, no en el chat: el 6 de septiembre
+   el dueño DESANDUVO una superficie única sin cajas en el puesto del
+   entrenador —«quizás fuese mejor que las boxes fuesen como boxes y no todo
+   junto»—. Está escrito en tokens.css. Esto no es aquello: aquí la caja no
+   desaparece, se gana. Pero hay que decirlo por delante.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  --papel: #f1efe8;
+  --hoja: #f7f6f2;
+  --mesa: #edebe3;
+  --tarjeta: #ffffff;
+  --hundido: #f2f0e9;
+  --grafito: #1b1a17;
+  --grafito-2: #26241f;
+  --tinta: #191713;
+  --tinta-2: #514d45;
+  --tinta-3: #706c62;
+  --tinta-4: #8a857a;
+  --filete: #e7e3d9;
+  --filete-2: #cfc9bb;
+  --senal: #3b49df;
+  --senal-suave: rgba(59, 73, 223, .08);
+  --verde: #10774c;
+  --verde-suave: #e3f1ea;
+  --rojo: #b93429;
+  --sombra-s: 0 1px 2px rgba(38, 32, 20, .06), 0 14px 30px -22px rgba(38, 32, 20, .5);
+  --sombra-m: 0 8px 24px -10px rgba(38, 32, 20, .18), 0 1px 3px rgba(38, 32, 20, .06);
+  --sombra-l: 0 40px 80px -30px rgba(0, 0, 0, .5), 0 8px 20px -8px rgba(0, 0, 0, .3);
+  --r-xs: 6px; --r-s: 10px; --r-m: 14px; --r-l: 20px;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: Archivo, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+.seccion { padding: 92px 32px; }
+.seccion.hoja { background: var(--hoja); }
+.seccion.oscura { background: var(--grafito); color: #efece5; }
+.col { max-width: 720px; margin: 0 auto; }
+.ancho { max-width: 1340px; margin: 0 auto; }
+
+.rotulo {
+  font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--tinta-3); margin-bottom: 14px;
+}
+.oscura .rotulo { color: #9b948a; }
+
+h1 {
+  font-stretch: 122%; font-size: 60px; font-weight: 800;
+  line-height: .96; letter-spacing: -.035em; margin: 0 0 20px;
+}
+h2 {
+  font-stretch: 115%; font-size: 34px; font-weight: 780;
+  line-height: 1.08; letter-spacing: -.028em; margin: 0 0 18px;
+}
+h3 { font-size: 20px; font-weight: 700; letter-spacing: -.012em; margin: 38px 0 10px; }
+p { margin: 0 0 16px; color: var(--tinta-2); }
+.oscura p { color: #b9b2a7; }
+.entradilla { font-size: 20px; line-height: 1.5; color: var(--tinta-2); }
+b, strong { color: var(--tinta); font-weight: 680; }
+.oscura b, .oscura strong { color: #fff; }
+a { color: var(--senal); }
+
+.tesis {
+  border-left: 3px solid var(--senal);
+  padding: 4px 0 4px 22px; margin: 34px 0;
+  font-stretch: 112%; font-size: 26px; font-weight: 720;
+  line-height: 1.24; letter-spacing: -.02em; color: var(--tinta);
+}
+.oscura .tesis { color: #fff; }
+.tesis small {
+  display: block; margin-top: 12px;
+  font-stretch: 100%; font-size: 15px; font-weight: 400;
+  line-height: 1.6; letter-spacing: 0; color: var(--tinta-2);
+}
+.oscura .tesis small { color: #b9b2a7; }
+
+table { width: 100%; border-collapse: collapse; margin: 26px 0; font-size: 14.5px; }
+th {
+  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--tinta-3);
+  border-bottom: 1px solid var(--filete-2); padding: 0 12px 8px 0;
+}
+td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--filete); vertical-align: top; color: var(--tinta-2); }
+td.ref { color: var(--tinta); font-weight: 620; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.mal { color: var(--rojo); font-weight: 640; }
+
+.nota {
+  background: var(--hundido); border-radius: var(--r-m); padding: 20px 24px;
+  font-size: 14.5px; line-height: 1.62; color: var(--tinta-2); margin: 28px 0;
+}
+.nota.aviso { background: #fbf3ea; }
+
+.averias { list-style: none; padding: 0; margin: 30px 0; counter-reset: a; }
+.averias li {
+  counter-increment: a; position: relative; padding: 18px 0 18px 52px;
+  border-top: 1px solid var(--filete); font-size: 15.5px; color: var(--tinta-2);
+}
+.averias li::before {
+  content: counter(a, decimal-leading-zero); position: absolute; left: 0; top: 19px;
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--tinta-3);
+}
+.averias li b { display: block; color: var(--tinta); font-weight: 700; font-size: 16.5px; margin-bottom: 3px; }
+
+.capturas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; }
+.capturas figure { margin: 0; }
+.capturas img {
+  width: 100%; display: block; border-radius: var(--r-s);
+  border: 1px solid rgba(255,255,255,.1); background: #fff;
+  aspect-ratio: 8 / 5; object-fit: cover; object-position: top center;
+}
+.capturas figcaption { font-size: 12.5px; color: #9b948a; margin-top: 9px; }
+.capturas figcaption b { color: #fff; font-weight: 640; }
+@media (max-width: 900px) { .capturas { grid-template-columns: 1fr 1fr; } }
+
+/* ══ EL APARATO ════════════════════════════════════════════════════════════
+   El prototipo. Es el producto en 1280 px, con el lenguaje nuevo: una hoja
+   fija, el rótulo colgado en el margen, el filete en lugar del canto y UNA
+   sola caja levantada por pantalla. */
+
+.pc {
+  color: var(--tinta);
+  max-width: 1280px; margin: 0 auto; border-radius: 14px; overflow: hidden;
+  box-shadow: var(--sombra-l); background: var(--hoja);
+}
+.pc .chrome {
+  display: flex; align-items: center; gap: 8px; padding: 11px 16px;
+  background: var(--mesa); border-bottom: 1px solid var(--filete-2);
+}
+.pc .chrome i { width: 10px; height: 10px; border-radius: 50%; background: #c8c2b4; display: block; }
+.pc .chrome .url {
+  margin-left: 14px; font-size: 12px; color: var(--tinta-3);
+  background: var(--hoja); border-radius: 99px; padding: 4px 16px; border: 1px solid var(--filete);
+}
+
+/* ── La cinta de destinos. Una línea, sin caja, y con el mismo vocabulario
+      que la barra del teléfono. ── */
+.cinta {
+  display: flex; align-items: center; gap: 26px;
+  padding: 0 34px; height: 58px;
+  background: var(--tarjeta); border-bottom: 1px solid var(--filete);
+}
+.cinta .marca {
+  font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+}
+.cinta nav { display: flex; gap: 4px; margin-left: 10px; }
+.cinta nav button {
+  appearance: none; background: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 14px; font-weight: 560; color: var(--tinta-3);
+  padding: 8px 12px; border-radius: var(--r-xs); transition: color .12s var(--ease), background .12s var(--ease);
+}
+.cinta nav button:hover { color: var(--tinta); background: var(--hundido); }
+.cinta nav button[aria-current="page"] { color: var(--tinta); font-weight: 680; }
+.cinta nav button[aria-current="page"]::after {
+  content: ""; display: block; height: 2px; background: var(--senal);
+  border-radius: 2px; margin: 6px -4px -10px;
+}
+.cinta .der { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.cinta .yo {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--verde-suave);
+  color: var(--verde); font-size: 11px; font-weight: 720; display: grid; place-items: center;
+}
+
+/* ── LA HOJA. La misma reja en las cinco pantallas: margen de rótulos,
+      trabajo, carril. Aquí es donde muere la caja. ── */
+.pant { display: none; }
+.pant.on { display: block; }
+.hoja-pc {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr) 292px;
+  column-gap: 38px;
+  padding: 34px 34px 46px;
+  min-height: 592px;
+  align-content: start;
+}
+.banda { grid-column: 1 / 3; padding-bottom: 26px; }
+.banda .fecha { font-size: 12.5px; color: var(--tinta-3); letter-spacing: .02em; }
+.banda h4 {
+  margin: 4px 0 0; font-size: 30px; font-weight: 780; font-stretch: 115%;
+  letter-spacing: -.028em; line-height: 1.05;
+}
+.banda h4 span { font-weight: 500; font-style: italic; color: var(--tinta-2); }
+.banda .pie { font-size: 13.5px; color: var(--tinta-3); margin-top: 6px; }
+
+.rot {
+  grid-column: 1; padding-top: 25px;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tinta-3); line-height: 1.35;
+}
+.rot small { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px; margin-top: 5px; color: var(--tinta-4); }
+.bloque { grid-column: 2; border-top: 1px solid var(--filete); padding: 22px 0 26px; }
+.bloque.primero { border-top: 0; padding-top: 0; }
+.rot.primero { padding-top: 3px; }
+
+/* El carril: contexto, nunca trabajo. Un filete lo separa; ni una caja. */
+.carril {
+  grid-column: 3; grid-row: 1 / span 30; align-self: stretch;
+  border-left: 1px solid var(--filete); padding-left: 30px;
+}
+.carril .grupo { padding: 20px 0; border-bottom: 1px solid var(--filete); }
+.carril .grupo:first-child { padding-top: 2px; }
+.carril .grupo:last-child { border-bottom: 0; }
+.carril .rotc {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--tinta-3); margin-bottom: 12px;
+}
+.carril .cifra {
+  font-size: 30px; font-weight: 780; font-stretch: 112%; letter-spacing: -.028em; line-height: 1;
+}
+.carril .cifra small { font-size: 14px; font-weight: 600; color: var(--tinta-3); margin-left: 3px; }
+.carril .pie { font-size: 12.5px; color: var(--tinta-3); margin-top: 8px; }
+.carril .linea { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; padding: 6px 0; }
+.carril .linea b { font-weight: 620; }
+.carril .linea span { color: var(--tinta-3); }
+
+/* ── LA ÚNICA CAJA. Lo que está a medias o lo que toca ahora. Si no hay nada
+      que hacer, la pantalla no tiene ninguna: eso también es información. ── */
+.unica {
+  background: var(--tarjeta); border-radius: var(--r-m); box-shadow: var(--sombra-m);
+  padding: 22px 26px; display: flex; align-items: center; gap: 26px;
+}
+.unica .txt { min-width: 0; flex: 1; }
+.unica .estado {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--senal);
+}
+.unica h5 {
+  margin: 5px 0 0; font-size: 26px; font-weight: 780; font-stretch: 112%;
+  letter-spacing: -.026em; line-height: 1.1;
+}
+.unica .sub { font-size: 13.5px; color: var(--tinta-3); margin-top: 5px; }
+.unica .prog { display: flex; gap: 3px; margin-top: 14px; }
+.unica .prog i { height: 4px; flex: 1; border-radius: 2px; background: var(--filete); display: block; }
+.unica .prog i.hecha { background: var(--senal); }
+
+.boton {
+  appearance: none; border: 0; cursor: pointer; font: inherit;
+  background: var(--senal); color: #fff; font-weight: 660; font-size: 14.5px;
+  height: 42px; padding: 0 22px; border-radius: 99px; white-space: nowrap;
+  transition: background .12s var(--ease), transform .12s var(--ease);
+}
+.boton:hover { background: #2f3ac2; }
+.boton:active { transform: translateY(1px); }
+.boton.plano { background: none; color: var(--senal); padding: 0 6px; height: auto; }
+.boton.plano:hover { background: none; text-decoration: underline; }
+
+/* ── LA REJA. Una tabla sin caja: filetes, cifras a la derecha, tabulares. ── */
+.reja { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.reja th {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--tinta-3);
+  font-weight: 700; text-align: left; padding: 0 0 9px; border-bottom: 1px solid var(--filete-2);
+}
+.reja th.d, .reja td.d { text-align: right; }
+.reja td { padding: 12px 0; border-bottom: 1px solid var(--filete); color: var(--tinta-2); }
+.reja tr:last-child td { border-bottom: 0; padding-bottom: 0; }
+.reja td.n { color: var(--tinta); font-weight: 620; }
+.reja td.gris { color: var(--tinta-4); }
+.reja tr.tocable { cursor: pointer; }
+.reja tr.tocable:hover td { background: var(--hundido); }
+.reja tr.tocable:hover td.n { color: var(--senal); }
+.reja .apagada td { color: var(--tinta-3); }
+
+/* Los dos carriles: lo que te pidieron y lo que hiciste. La firma del
+   producto, y aquí es lo que se lleva el ancho del monitor. */
+.dos { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.dos thead th {
+  font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700;
+  color: var(--tinta-3); text-align: right; padding: 0 0 9px; border-bottom: 1px solid var(--filete-2);
+}
+.dos thead th.izq { text-align: left; }
+.dos thead th.corte { border-left: 1px solid var(--filete-2); padding-left: 18px; }
+.dos thead tr.grupos th {
+  border-bottom: 0; padding-bottom: 3px; text-align: center;
+  color: var(--tinta); letter-spacing: .14em;
+}
+.dos thead tr.grupos th.izq { border-left: 0; }
+.dos td { padding: 6px 0; line-height: 1.4; border-bottom: 1px solid var(--filete); text-align: right; color: var(--tinta-2); }
+.dos td.izq { text-align: left; }
+.dos td.corte { border-left: 1px solid var(--filete); padding-left: 18px; }
+.dos td.hecho { color: var(--tinta); font-weight: 640; }
+.dos .ejercicio td {
+  padding-top: 17px; border-bottom: 0; color: var(--tinta);
+  font-size: 16px; font-weight: 700; letter-spacing: -.01em;
+}
+.dos .ejercicio td small { font-weight: 500; font-size: 12.5px; color: var(--tinta-3); margin-left: 8px; letter-spacing: 0; }
+.dos tr:last-child td { border-bottom: 0; }
+.tic { color: var(--verde); font-weight: 700; }
+.pdte { color: var(--tinta-4); }
+.pc b, .pc strong { color: var(--tinta); }
+
+/* La lista de «Tú»: renglones, no menú de teléfono estirado. */
+.renglones { border-top: 1px solid var(--filete); }
+.renglones a {
+  display: flex; align-items: baseline; gap: 16px; text-decoration: none; color: inherit;
+  padding: 14px 10px 14px 0; border-bottom: 1px solid var(--filete);
+}
+.renglones a:hover { background: var(--hundido); }
+.renglones a:hover .q { color: var(--senal); }
+.renglones .q { font-size: 16px; font-weight: 640; color: var(--tinta); width: 210px; flex: none; }
+.renglones .d { font-size: 13.5px; color: var(--tinta-3); flex: 1; }
+.renglones .v { font-size: 14px; color: var(--tinta-2); font-weight: 600; }
+
+.cifras-fila { display: flex; gap: 44px; }
+.cifras-fila div .g { font-size: 42px; font-weight: 800; font-stretch: 115%; letter-spacing: -.035em; line-height: 1; }
+.cifras-fila div .g small { font-size: 15px; font-weight: 600; color: var(--tinta-3); margin-left: 4px; }
+.cifras-fila div .p { font-size: 12.5px; color: var(--tinta-3); margin-top: 7px; }
+
+.eje { display: flex; justify-content: space-between; font-size: 11px; color: var(--tinta-3); margin-top: 8px; }
+.pie-pant { grid-column: 1 / 3; font-size: 12.5px; color: var(--tinta-3); padding-top: 8px; }
+
+/* El antes y el después, a la misma escala. */
+.duelo { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 34px; }
+.duelo figure { margin: 0; }
+.duelo .marco {
+  border-radius: var(--r-s); overflow: hidden; border: 1px solid rgba(255,255,255,.12);
+  background: var(--hoja); aspect-ratio: 16 / 10;
+}
+.duelo .marco img { width: 100%; display: block; object-fit: cover; object-position: top center; height: 100%; }
+.duelo figcaption { font-size: 12.5px; color: #9b948a; margin-top: 10px; }
+.duelo figcaption b { color: #fff; font-weight: 640; display: block; font-size: 14px; margin-bottom: 2px; }
+@media (max-width: 860px) { .duelo { grid-template-columns: 1fr; } }
+
+/* FIN-PARTE */
+</style>
+</head>
+<body>
+
+<!-- ══ PORTADA ═══════════════════════════════════════════════════════════ -->
+<section class="seccion hoja">
+  <div class="col">
+    <div class="rotulo">Estudio · 14 de septiembre de 2026 · el PC del cliente</div>
+    <h1>La mesa</h1>
+    <p class="entradilla">
+      El teléfono ya es otro aparato y está resuelto. El PC no: es la misma app
+      con los muebles del teléfono puestos en una habitación cuatro veces más
+      grande. Esto no propone pantallas nuevas ni destinos nuevos ni una paleta
+      nueva. Propone <b>una sola cosa: qué es una página</b>.
+    </p>
+
+    <div class="tesis">
+      Hoy una página es un montón de cajas. A partir de aquí es una hoja con
+      una sola caja encima.
+      <small>
+        La caja blanca deja de significar «aquí hay contenido» —que no
+        significa nada, porque todo es contenido— y pasa a significar
+        <b>esto es lo que puedes hacer ahora</b>. Lo que sobresale, se toca. Lo
+        demás es tinta sobre el papel: filete, aire y escala. Y si en una
+        pantalla no hay nada que hacer, esa pantalla no tiene ninguna caja.
+      </small>
+    </div>
+
+    <p>
+      Lo que sigue en pie del estudio del 13 de septiembre: la tesis (<em>tu
+      historial es el producto</em>), las tres leyes y el teléfono entero. Lo
+      que cae es su PC —la parrilla de diez microciclos y la frase «el PC
+      compara»—, rechazado. Aquí la premisa es la contraria y más aburrida:
+      <b>el PC no hace nada distinto; hace lo mismo mejor puesto</b>.
+    </p>
+  </div>
+</section>
+
+<!-- ══ EL DIAGNÓSTICO ════════════════════════════════════════════════════ -->
+<section class="seccion">
+  <div class="col">
+    <div class="rotulo">Lo que hay puesto</div>
+    <h2>Seis pantallas, tres anchos y treinta y una cajas</h2>
+    <p>
+      Medido el 14 de septiembre con la cuenta de cliente de la demo local
+      (<em>marta@ejemplo.invalid</em>), en un monitor de 1600 × 1000 y con el
+      movimiento desactivado. No es una impresión: es el chasis real.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Pantalla</th>
+          <th class="num">Ancho</th>
+          <th class="num">Empieza en</th>
+          <th class="num">Cajas</th>
+          <th class="num">Última tinta</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="ref">Mi inicio</td><td class="num">1560</td><td class="num">20</td><td class="num">5</td><td class="num">765 de 1000</td></tr>
+        <tr><td class="ref">Mi rutina</td><td class="num mal">880</td><td class="num mal">360</td><td class="num">3</td><td class="num">2018</td></tr>
+        <tr><td class="ref">Mi dieta</td><td class="num">1560</td><td class="num">20</td><td class="num mal">8</td><td class="num">875</td></tr>
+        <tr><td class="ref">Mi progreso</td><td class="num">1560</td><td class="num">20</td><td class="num">6</td><td class="num">1544</td></tr>
+        <tr><td class="ref">Mis revisiones</td><td class="num mal">1320</td><td class="num mal">140</td><td class="num">7</td><td class="num">1276</td></tr>
+        <tr><td class="ref">Lo tuyo</td><td class="num">1560</td><td class="num">20</td><td class="num">2</td><td class="num mal">596 de 1000</td></tr>
+      </tbody>
+    </table>
+
+    <ol class="averias">
+      <li>
+        <b>El papel no es fijo.</b>
+        Las seis llevan la misma clase —<em>layout layout-narrow
+        layout-portal</em>— y salen con tres anchos: 1560, 1320 y 880. Al
+        cambiar de destino se mueve el papel debajo del contenido. La ley de
+        que la hoja es fija está escrita desde el 8 de septiembre y el portal
+        no la cumple.
+      </li>
+      <li>
+        <b>«Mi rutina» es el teléfono estirado.</b>
+        Una columna de 880 px centrada en un monitor de 1600, con 360 px de
+        crema muerta a cada lado, y 2018 px de scroll para leer una sesión que
+        cabe entera en la pantalla si se usa el ancho.
+      </li>
+      <li>
+        <b>La caja blanca es el único recurso que hay.</b>
+        Treinta y una en seis pantallas, del mismo peso, el mismo radio y la
+        misma sombra. Sirve igual para «esto es una cosa», «esto es una
+        sección» y «esto es una lista». Cuando todo pesa lo mismo no hay
+        jerarquía: hay inventario.
+      </li>
+      <li>
+        <b>El monitor no se usa, se sobrevive.</b>
+        «Lo tuyo» son cinco renglones de menú de teléfono estirados a 1490 px:
+        el 40 % de la pantalla es papel en blanco y cada fila es un viaje de
+        1400 px entre el rótulo y su flecha.
+      </li>
+      <li>
+        <b>Dos vocabularios para la misma app.</b>
+        La cinta del PC dice <em>Mi inicio · Mi rutina · Mi dieta · Mi progreso ·
+        Mis revisiones · Lo tuyo</em>; la barra del teléfono dice <em>Hoy ·
+        Entreno · Dieta · Revisión · Tú</em>. Seis destinos contra cinco, y una
+        pantalla cuyo h1 dice «Tu revisión» debajo de una pestaña que dice «Mis
+        revisiones».
+      </li>
+      <li>
+        <b>«Mi progreso» es el panel del entrenador trasplantado.</b>
+        Barras moradas, banda rosa, barras verde azulado y línea azul en la
+        misma pantalla, con «Ver a fondo» dos veces. Es otra caja de pinturas
+        dentro de la app, y se salta la ley del color —azul invita, semáforo
+        juzga— que el resto del producto sí cumple.
+      </li>
+    </ol>
+
+    <div class="nota">
+      Las seis son de forma. Ninguna es de estructura: los destinos están bien
+      partidos, el trabajo a la izquierda y el contexto a la derecha está bien
+      elegido, y las consultas, el dominio y las políticas no pintan nada aquí.
+      Por eso esto no es un replanteamiento del portal — es un cambio de mueble.
+    </div>
+  </div>
+</section>
+
+<!-- ══ LAS CAPTURAS ══════════════════════════════════════════════════════ -->
+<section class="seccion oscura">
+  <div class="ancho">
+    <div class="rotulo">Sin retocar</div>
+    <h2 style="max-width:18ch">Las seis, como están hoy</h2>
+    <p style="max-width:62ch">
+      Capturadas contra la base local con datos de verdad. Mirándolas seguidas
+      se ve lo que la tabla solo insinúa: no parecen seis pantallas de la misma
+      app, parecen seis maquetas de seis semanas distintas.
+    </p>
+    <div class="capturas">
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/inicio.png" alt="Mi inicio">
+        <figcaption><b>Mi inicio</b> · cinco cajas y 235 px en blanco debajo</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/rutina.png" alt="Mi rutina">
+        <figcaption><b>Mi rutina</b> · 880 px de columna en 1600 de monitor</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/dieta.png" alt="Mi dieta">
+        <figcaption><b>Mi dieta</b> · ocho cajas, tres de ellas con dos filas</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/progreso.png" alt="Mi progreso">
+        <figcaption><b>Mi progreso</b> · morado, rosa, verde azulado y azul</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/revision.png" alt="Mis revisiones">
+        <figcaption><b>Mis revisiones</b> · la mejor de las seis, y empieza 120 px más adentro que las demás</figcaption>
+      </figure>
+      <figure>
+        <img src="../capturas/pc-cliente-14sep/lo-tuyo.png" alt="Lo tuyo">
+        <figcaption><b>Lo tuyo</b> · cinco renglones y el 40 % del monitor vacío</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA LEY ════════════════════════════════════════════════════════════ -->
+<section class="seccion hoja">
+  <div class="col">
+    <div class="rotulo">La mesa</div>
+    <h2>Cuatro reglas, y ninguna es un color</h2>
+
+    <h3>1 · La hoja es fija</h3>
+    <p>
+      Un solo papel para las cinco pantallas: margen de rótulos de 148,
+      trabajo, carril de 292 separado por un filete. Empiezan en la misma x,
+      acaban en la misma x y el título va siempre en el mismo sitio. Cambiar de
+      destino tiene que cambiar el contenido, no el mueble.
+    </p>
+
+    <h3>2 · Una sección no es una caja: es un filete con su rótulo colgado</h3>
+    <p>
+      El rótulo se sale al margen izquierdo y se queda colgando a la altura de
+      lo que nombra. Eso convierte el margen —que hoy es papel muerto— en el
+      índice de la página: se lee en vertical qué hay en la pantalla sin leer la
+      pantalla. Y el filete hace el trabajo de separar que hoy hacen cuatro
+      bordes, un radio y una sombra.
+    </p>
+
+    <h3>3 · Solo se levanta lo que puedes tocar ahora</h3>
+    <p>
+      Una caja blanca por pantalla, con sombra, y siempre la misma cosa: lo que
+      está a medias o lo que toca ahora. La sesión que dejaste sin acabar, la
+      comida que no has marcado, el peso de hoy sin apuntar. Si no hay nada
+      pendiente, la pantalla no tiene caja — y esa ausencia se lee de un golpe
+      desde la puerta, que es justo lo que hoy no pasa.
+    </p>
+
+    <h3>4 · El ancho se gasta en los dos carriles, no en márgenes</h3>
+    <p>
+      Lo único que ningún competidor puede copiarnos es que guardamos la pauta
+      junto al registro. Ese <em>pedido → hecho</em> es lo que se lleva el ancho
+      del monitor en las cuatro pantallas donde existe: la rutina, la dieta, el
+      peso y la revisión. En el teléfono está apilado porque no cabe de otra
+      forma; en el monitor va al lado, que es donde significa algo.
+    </p>
+
+    <div class="nota aviso">
+      <b>Aviso, por delante.</b> El 6 de septiembre desandaste una superficie
+      única sin cajas en el puesto del entrenador: «quizás fuese mejor que las
+      boxes fuesen como boxes y no todo junto». Está escrito en
+      <em>tokens.css</em> y es una decisión tuya, no un descuido. Esto no es
+      aquello. Allí la tarjeta blanca se fundía con la hoja blanca y se perdía
+      la rejilla; aquí la hoja se queda en crema, la tarjeta se queda en blanco
+      con su sombra, y el escalón entre las dos <b>no se toca</b>. Lo único que
+      cambia es cuántas veces se usa: de treinta y una a cinco.
+    </div>
+  </div>
+</section>
+
+<!-- ══ EL APARATO ════════════════════════════════════════════════════════ -->
+<section class="seccion oscura">
+  <div class="ancho" style="text-align:center">
+    <div class="rotulo">El aparato</div>
+    <h2 style="max-width:16ch;margin-inline:auto">El PC, con la mesa puesta</h2>
+    <p style="max-width:58ch;margin-inline:auto">
+      Funciona: la cinta cambia de destino y la URL con ella. Los datos son los
+      de la demo —los mismos que salen en las capturas de arriba—, así que se
+      puede comparar cifra a cifra. Fíjate en dos cosas al cambiar de pantalla:
+      el papel no se mueve, y en cada una solo hay una cosa levantada.
+    </p>
+  </div>
+
+  <div class="ancho" style="margin-top:40px">
+    <div class="pc" id="pc">
+      <div class="chrome">
+        <i></i><i></i><i></i>
+        <span class="url" id="url">caveman.app/mi/hoy</span>
+      </div>
+
+      <div class="cinta">
+        <span class="marca">Caveman Hub</span>
+        <nav id="nav">
+          <button data-p="hoy" aria-current="page">Hoy</button>
+          <button data-p="entreno">Entreno</button>
+          <button data-p="dieta">Dieta</button>
+          <button data-p="revision">Revisión</button>
+          <button data-p="tu">Tú</button>
+        </nav>
+        <div class="der"><span class="yo">ME</span></div>
+      </div>
+
+      <!-- ── HOY ─────────────────────────────────────────────────────────── -->
+      <div class="pant on" data-pant="hoy">
+        <div class="hoja-pc">
+          <div class="banda">
+            <div class="fecha">Domingo 13 de septiembre</div>
+            <h4>Hola, <span>Marta</span></h4>
+          </div>
+
+          <div class="rot primero">Ahora<small>12 sept, 09:05</small></div>
+          <div class="bloque primero">
+            <div class="unica">
+              <div class="txt">
+                <div class="estado">La dejaste a medias</div>
+                <h5>Empuje</h5>
+                <div class="sub">1 de 21 series · 1 de 6 ejercicios · 640 kg movidos</div>
+                <div class="prog">
+                  <i class="hecha"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <button class="boton" data-ir="entreno">Seguir donde lo dejaste</button>
+            </div>
+          </div>
+
+          <div class="rot">Tu microciclo<small>Bloque 1 · 10 de 10</small></div>
+          <div class="bloque">
+            <table class="reja">
+              <thead>
+                <tr><th>Sesión</th><th>Día</th><th class="d">Series</th><th class="d">Kilos movidos</th><th class="d">Estado</th></tr>
+              </thead>
+              <tbody>
+                <tr class="tocable" data-ir="entreno"><td class="n">Empuje</td><td>3 sept</td><td class="d">1 de 21</td><td class="d">640 kg</td><td class="d">a medias</td></tr>
+                <tr class="tocable"><td class="n">Tirón</td><td>3 sept</td><td class="d">20 de 20</td><td class="d">12.092 kg</td><td class="d">anotada</td></tr>
+                <tr class="tocable apagada"><td class="n">Pierna</td><td>—</td><td class="d">0 de 20</td><td class="d">—</td><td class="d">sin anotar</td></tr>
+                <tr class="tocable apagada"><td class="n">Full body</td><td>—</td><td class="d">0 de 14</td><td class="d">—</td><td class="d">sin anotar</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="rot">Esta semana<small>Semana 1</small></div>
+          <div class="bloque">
+            <table class="reja">
+              <tbody>
+                <tr><td class="n">Tu peso</td><td>2 pesajes · de media 60,9 kg</td><td class="d tic">hecho</td></tr>
+                <tr class="tocable" data-ir="revision"><td class="n">Tus medidas</td><td>sin tomar todavía</td><td class="d"><span style="color:var(--senal);font-weight:640">Tomarlas</span></td></tr>
+                <tr><td class="n">Tus fotos</td><td>las 3, hechas</td><td class="d tic">hecho</td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:16px"><button class="boton plano" data-ir="revision">Entregar tu semana →</button></div>
+          </div>
+
+          <aside class="carril">
+            <div class="grupo">
+              <div class="rotc">Tu peso</div>
+              <div class="cifra">61,0<small>kg</small></div>
+              <div class="pie">−3,0 kg desde el 12 de julio · de media 60,9 esta semana</div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Hoy te toca</div>
+              <div class="linea"><b>Descanso</b><span>1.750 kcal</span></div>
+              <div class="linea"><b>Comidas</b><span>3</span></div>
+              <div class="linea"><b>Pasos</b><span>9.000</span></div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Desde que empezaste</div>
+              <div class="linea"><b>Sesiones anotadas</b><span>38</span></div>
+              <div class="linea"><b>Semanas entregadas</b><span>1</span></div>
+              <div class="linea"><b>Microciclos</b><span>10</span></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ── ENTRENO ─────────────────────────────────────────────────────── -->
+      <div class="pant" data-pant="entreno">
+        <div class="hoja-pc">
+          <div class="banda">
+            <div class="fecha">Bloque 1 · microciclo 10 de 10</div>
+            <h4>Empuje</h4>
+            <div class="pie">6 ejercicios · 21 series · te quedan 20</div>
+          </div>
+
+          <div class="rot primero">Ahora<small>12 sept, 09:05</small></div>
+          <div class="bloque primero">
+            <div class="unica">
+              <div class="txt">
+                <div class="estado">A medias</div>
+                <h5>1 <span style="font-size:15px;font-weight:500;color:var(--tinta-3)">de 21 series</span></h5>
+                <div class="sub">Press banca, serie 1 · 80 kg × 8</div>
+              </div>
+              <button class="boton">Seguir apuntando</button>
+            </div>
+          </div>
+
+          <div class="rot">La hoja<small>pedido → hecho</small></div>
+          <div class="bloque">
+            <table class="dos">
+              <thead>
+                <tr class="grupos">
+                  <th class="izq"></th>
+                  <th colspan="2">Te pide</th>
+                  <th colspan="3" class="corte">Has hecho</th>
+                </tr>
+                <tr>
+                  <th class="izq">Ejercicio</th>
+                  <th>Kg</th><th>Reps</th>
+                  <th class="corte">Kg</th><th>Reps</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="ejercicio"><td class="izq" colspan="6">Press banca <small>4 series · 1 anotada</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>6-8</td><td class="corte hecho">80</td><td class="hecho">8</td><td class="tic">✓</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>6-8</td><td class="corte">100</td><td>8</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>6-8</td><td class="corte">100</td><td>8</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 4</td><td>—</td><td>6-8</td><td class="corte">100</td><td>7</td><td class="pdte">·</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="6">Press militar <small>4 series</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>6-8</td><td class="corte">65</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>6-8</td><td class="corte">65</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>6-8</td><td class="corte">65</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 4</td><td>—</td><td>6-8</td><td class="corte">80</td><td>—</td><td class="pdte">·</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="6">Press inclinado con mancuernas <small>4 series</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>6-8</td><td class="corte">48</td><td>8</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>6-8</td><td class="corte">48</td><td>8</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>6-8</td><td class="corte">48</td><td>8</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 4</td><td>—</td><td>6-8</td><td class="corte">48</td><td>7</td><td class="pdte">·</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="6">Elevaciones laterales <small>3 series</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>10-12</td><td class="corte">30</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>10-12</td><td class="corte">30</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>10-12</td><td class="corte">30</td><td>11</td><td class="pdte">·</td></tr>
+                <tr class="ejercicio"><td class="izq" colspan="6">Fondos en paralelas <small>3 series</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>10-12</td><td class="corte">—</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>10-12</td><td class="corte">—</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>10-12</td><td class="corte">—</td><td>11</td><td class="pdte">·</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="6">Extensión de tríceps en polea <small>3 series</small></td></tr>
+                <tr><td class="izq">Serie 1</td><td>—</td><td>10-12</td><td class="corte">50</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 2</td><td>—</td><td>10-12</td><td class="corte">50</td><td>11</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Serie 3</td><td>—</td><td>10-12</td><td class="corte">50</td><td>11</td><td class="pdte">·</td></tr>
+              </tbody>
+            </table>
+            <div class="eje"><span>Los 6 ejercicios y las 21 series en 1.474 px · hoy la misma sesión ocupa 2.018</span><span>640 de 12.732 kg previstos</span></div>
+          </div>
+
+          <aside class="carril">
+            <div class="grupo">
+              <div class="rotc">El microciclo</div>
+              <div class="linea"><b style="color:var(--senal)">Empuje</b><span>1/21</span></div>
+              <div class="linea"><b>Tirón</b><span>20/20</span></div>
+              <div class="linea"><b>Pierna</b><span>0/20</span></div>
+              <div class="linea"><b>Full body</b><span>0/14</span></div>
+              <div class="pie">Al acabar los cuatro se abre el microciclo 11.</div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Tu récord en press banca</div>
+              <div class="cifra">100<small>kg × 8</small></div>
+              <div class="pie">El 24 de agosto, microciclo 7. Hoy vas por 80 × 8.</div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Lo que llevas</div>
+              <div class="linea"><b>Sesiones anotadas</b><span>38</span></div>
+              <div class="linea"><b>Kilos movidos</b><span>412.880</span></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ── DIETA ───────────────────────────────────────────────────────── -->
+      <div class="pant" data-pant="dieta">
+        <div class="hoja-pc">
+          <div class="banda">
+            <div class="fecha">Domingo 13 · te toca Descanso</div>
+            <h4>1.750 <span style="font-style:normal;font-weight:600;font-size:17px;color:var(--tinta-3)">kcal</span></h4>
+            <div class="pie">Reparte como quieras, cuadra el día.</div>
+          </div>
+
+          <div class="rot primero">Ahora<small>sin marcar</small></div>
+          <div class="bloque primero">
+            <div class="unica">
+              <div class="txt">
+                <div class="estado">Te toca ahora</div>
+                <h5>Comida</h5>
+                <div class="sub">Lentejas cocidas, atún al natural y aceite de oliva · 472 kcal</div>
+              </div>
+              <button class="boton">Marcar la comida</button>
+            </div>
+          </div>
+
+          <div class="rot">Tu día<small>pedido → hecho</small></div>
+          <div class="bloque">
+            <table class="dos">
+              <thead>
+                <tr><th class="izq">Comida</th><th>Cantidad</th><th>kcal</th><th class="corte">Marcado</th><th></th></tr>
+              </thead>
+              <tbody>
+                <tr class="ejercicio"><td class="izq" colspan="5">Desayuno <small>347 kcal</small></td></tr>
+                <tr><td class="izq">Tortilla de 3 huevos</td><td>165 g</td><td>256</td><td class="corte hecho">165 g</td><td class="tic">✓</td></tr>
+                <tr><td class="izq">Pan de centeno</td><td>1 reb</td><td>91</td><td class="corte hecho">1 reb</td><td class="tic">✓</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="5">Comida <small>472 kcal</small></td></tr>
+                <tr><td class="izq">Lentejas cocidas</td><td>250 g</td><td>261</td><td class="corte pdte">—</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Atún al natural</td><td>2 lata</td><td>121</td><td class="corte pdte">—</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Aceite de oliva</td><td>1 cda</td><td>90</td><td class="corte pdte">—</td><td class="pdte">·</td></tr>
+
+                <tr class="ejercicio"><td class="izq" colspan="5">Cena <small>259 kcal</small></td></tr>
+                <tr><td class="izq">Merluza</td><td>200 g</td><td>172</td><td class="corte pdte">—</td><td class="pdte">·</td></tr>
+                <tr><td class="izq">Verdura al horno</td><td>250 g</td><td>87</td><td class="corte pdte">—</td><td class="pdte">·</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="rot">Los macros<small>del día entero</small></div>
+          <div class="bloque">
+            <table class="reja">
+              <thead><tr><th>Macro</th><th class="d">Pautado</th><th class="d">Marcado</th><th class="d">Te queda</th></tr></thead>
+              <tbody>
+                <tr><td class="n">Proteína</td><td class="d">140 g</td><td class="d">26 g</td><td class="d">114 g</td></tr>
+                <tr><td class="n">Carbos</td><td class="d">150 g</td><td class="d">20 g</td><td class="d">130 g</td></tr>
+                <tr><td class="n">Grasas</td><td class="d">62 g</td><td class="d">18 g</td><td class="d">44 g</td></tr>
+                <tr><td class="n">Calorías</td><td class="d">1.750</td><td class="d">347</td><td class="d">1.403</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="carril">
+            <div class="grupo">
+              <div class="rotc">Tu plan</div>
+              <div class="linea"><b>Entreno</b><span>2.150 kcal · 4 días</span></div>
+              <div class="linea"><b>Descanso</b><span>1.750 kcal · 3 días</span></div>
+              <div class="linea"><b>Media del ciclo</b><span>1.979 kcal</span></div>
+              <div class="linea"><b>Pasos</b><span>9.000 al día</span></div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Tus dietas</div>
+              <div class="linea"><b style="color:var(--senal)">Descanso</b><span>hoy</span></div>
+              <div class="linea"><b>Entreno</b><span>L · M · J · S</span></div>
+              <div class="pie">Las mismas desde el 2 de julio.</div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Cómo va el mes</div>
+              <div class="linea"><b>Días cuadrados</b><span>21 de 30</span></div>
+              <div class="linea"><b>De media</b><span>1.944 kcal</span></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ── REVISIÓN ────────────────────────────────────────────────────── -->
+      <div class="pant" data-pant="revision">
+        <div class="hoja-pc">
+          <div class="banda">
+            <div class="fecha">Semana 1 · del 7 al 13 de septiembre</div>
+            <h4>Te faltan las medidas</h4>
+            <div class="pie">El peso y las fotos ya están. No hace falta que sea el domingo exacto.</div>
+          </div>
+
+          <div class="rot primero">Ahora<small>4 minutos</small></div>
+          <div class="bloque primero">
+            <div class="unica">
+              <div class="txt">
+                <div class="estado">Sin tomar</div>
+                <h5>Tus medidas</h5>
+                <div class="sub">Nueve perímetros y seis pliegues · la última, el 31 de agosto</div>
+              </div>
+              <button class="boton">Tomarlas</button>
+            </div>
+          </div>
+
+          <div class="rot">Lo que llevas<small>de esta semana</small></div>
+          <div class="bloque">
+            <table class="reja">
+              <tbody>
+                <tr><td class="n">Tu peso</td><td>2 pesajes · de media 60,9 kg · la anterior 61,1</td><td class="d tic">hecho</td></tr>
+                <tr><td class="n">Tus medidas</td><td>sin tomar todavía</td><td class="d pdte">pendiente</td></tr>
+                <tr><td class="n">Tus fotos</td><td>las 3, hechas el jueves</td><td class="d tic">hecho</td></tr>
+              </tbody>
+            </table>
+            <div style="margin-top:16px"><button class="boton plano">Entregar mi semana →</button></div>
+          </div>
+
+          <div class="rot">Se te quedaron<small>sin entregar</small></div>
+          <div class="bloque">
+            <table class="reja">
+              <tbody>
+                <tr class="tocable"><td class="n">Semana del 31 de agosto</td><td>peso y fotos · sin medidas</td><td class="d"><span style="color:var(--senal);font-weight:640">Entregarla</span></td></tr>
+                <tr class="tocable"><td class="n">Semana del 24 de agosto</td><td>solo peso</td><td class="d"><span style="color:var(--senal);font-weight:640">Entregarla</span></td></tr>
+                <tr class="tocable"><td class="n">Semana del 17 de agosto</td><td>solo peso</td><td class="d"><span style="color:var(--senal);font-weight:640">Entregarla</span></td></tr>
+                <tr class="tocable"><td class="n">Semana del 10 de agosto</td><td>nada apuntado</td><td class="d"><span style="color:var(--senal);font-weight:640">Entregarla</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="carril">
+            <div class="grupo">
+              <div class="rotc">Tu peso, semana a semana</div>
+              <svg viewBox="0 0 244 78" width="100%" height="78" role="img" aria-label="Tu peso desde el 12 de julio: de 64,0 a 61,0 kg">
+                <polyline fill="none" stroke="#3b49df" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+                  points="2,10 26,14 50,20 74,26 98,30 122,38 146,44 170,52 194,58 218,62 242,66"></polyline>
+                <circle cx="242" cy="66" r="3.5" fill="#3b49df"></circle>
+              </svg>
+              <div class="eje"><span>12 jul · 64,0</span><span>hoy · 61,0</span></div>
+              <div class="pie">−3,0 kg en diez semanas · −0,34 kg por semana</div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Cómo pesarte</div>
+              <div class="pie" style="margin-top:0">
+                Por la mañana, en ayunas y después de ir al baño. Siempre con la
+                misma báscula: lo que cuenta es la media de la semana, no el
+                número de un día.
+              </div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Tus fotos</div>
+              <div class="linea"><b>Esta semana</b><span>3 de 3</span></div>
+              <div class="linea"><b>Guardadas</b><span>27</span></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- ── TÚ ──────────────────────────────────────────────────────────── -->
+      <div class="pant" data-pant="tu">
+        <div class="hoja-pc">
+          <div class="banda">
+            <div class="fecha">Desde el 12 de julio</div>
+            <h4>Lo tuyo</h4>
+            <div class="pie">Tu rastro, tus datos y tu cuenta. Ahora mismo no tienes nada pendiente.</div>
+          </div>
+
+          <div class="rot primero">Lo que llevas<small>anotado por ti</small></div>
+          <div class="bloque primero">
+            <div class="cifras-fila">
+              <div><div class="g">38</div><div class="p">sesiones anotadas</div></div>
+              <div><div class="g">412.880<small>kg</small></div><div class="p">movidos en total</div></div>
+              <div><div class="g">−3,0<small>kg</small></div><div class="p">desde que empezaste</div></div>
+              <div><div class="g">10</div><div class="p">microciclos</div></div>
+            </div>
+          </div>
+
+          <div class="rot">Tu rastro</div>
+          <div class="bloque">
+            <div class="renglones">
+              <a href="#"><span class="q">Tu peso y tus medidas</span><span class="d">lo que anotas cada semana</span><span class="v">61,0 kg</span></a>
+              <a href="#"><span class="q">Tus revisiones</span><span class="d">lo que le fuiste entregando</span><span class="v">1 entregada</span></a>
+              <a href="#"><span class="q">Tus fotos</span><span class="d">por semanas, desde julio</span><span class="v">27</span></a>
+              <a href="#"><span class="q">Tu calendario</span><span class="d">lo que tienes por delante</span><span class="v">—</span></a>
+            </div>
+          </div>
+
+          <div class="rot">Tus datos</div>
+          <div class="bloque">
+            <div class="renglones">
+              <a href="#"><span class="q">Tus datos y tu privacidad</span><span class="d">qué se guarda de ti, y cómo llevártelo</span><span class="v"></span></a>
+              <a href="#"><span class="q">marta@ejemplo.invalid</span><span class="d">cliente desde el 12 de julio</span><span class="v">Cerrar sesión</span></a>
+            </div>
+          </div>
+
+          <aside class="carril">
+            <div class="grupo">
+              <div class="rotc">Tu plan</div>
+              <div class="linea"><b>Objetivo</b><span>Definición</span></div>
+              <div class="linea"><b>Ritmo</b><span>−0,3 kg por semana</span></div>
+              <div class="linea"><b>Calorías</b><span>1.979 de media</span></div>
+              <div class="linea"><b>Pasos</b><span>9.000 al día</span></div>
+            </div>
+            <div class="grupo">
+              <div class="rotc">Quien te lleva</div>
+              <div class="linea"><b>Álex</b><span>desde el 12 jul</span></div>
+              <div class="pie">Si un día lo dejas, todo lo de arriba se queda.</div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <p style="max-width:64ch;margin:26px auto 0;text-align:center;font-size:14px">
+      «Tú» es la única de las cinco que no tiene caja levantada, y no es un
+      olvido: no hay nada pendiente. Compárala con la de hoy —abajo— y mira
+      cuánto tarda cada una en contestar «¿tengo algo que hacer?».
+    </p>
+
+    <div class="ancho" style="max-width:640px;margin:44px auto 0">
+      <table>
+        <thead><tr><th>Pantalla</th><th class="num">Cajas hoy</th><th class="num">Cajas aquí</th><th class="num">Alto de la hoja</th></tr></thead>
+        <tbody>
+          <tr><td class="ref" style="color:#fff">Hoy</td><td class="num">5</td><td class="num">1</td><td class="num">894</td></tr>
+          <tr><td class="ref" style="color:#fff">Entreno</td><td class="num">3</td><td class="num">1</td><td class="num">1.474 <span style="color:#8b847a">(hoy 2.018)</span></td></tr>
+          <tr><td class="ref" style="color:#fff">Dieta</td><td class="num">8</td><td class="num">1</td><td class="num">1.142</td></tr>
+          <tr><td class="ref" style="color:#fff">Revisión</td><td class="num">7</td><td class="num">1</td><td class="num">892</td></tr>
+          <tr><td class="ref" style="color:#fff">Tú</td><td class="num">2</td><td class="num">0</td><td class="num">712</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13px;text-align:center">
+        Medido en el prototipo, a 1280 px de ancho de hoja. De 25 cajas a 4, y
+        el mismo origen en las cinco.
+      </p>
+    </div>
+</section>
+
+<!-- ══ EL DUELO ══════════════════════════════════════════════════════════ -->
+<section class="seccion oscura" style="padding-top:0">
+  <div class="ancho">
+    <div class="rotulo">La peor de las seis</div>
+    <h2 style="max-width:20ch">«Lo tuyo», antes y después</h2>
+    <p style="max-width:62ch">
+      Misma pantalla, mismos datos, mismo ancho de monitor. A la izquierda,
+      cinco renglones de menú de teléfono estirados a 1490 px con el 40 % del
+      papel vacío. A la derecha, la misma información más lo que hoy está
+      enterrado en «Mi progreso», en una hoja que empieza donde empiezan las
+      otras cuatro.
+    </p>
+    <div class="duelo">
+      <figure>
+        <div class="marco"><img src="../capturas/pc-cliente-14sep/lo-tuyo.png" alt="Lo tuyo, hoy"></div>
+        <figcaption><b>Hoy</b> 2 cajas · 5 renglones · última tinta en y=596 de 1000 · 1400 px entre el rótulo y su flecha</figcaption>
+      </figure>
+      <figure>
+        <div class="marco"><img src="../capturas/pc-cliente-14sep/despues-lo-tuyo.png" alt="Lo tuyo, con la mesa" data-ir="tu" style="cursor:pointer"></div>
+        <figcaption><b>La mesa</b> 0 cajas —no hay nada pendiente— · cuatro cifras tuyas arriba · el margen dice qué hay en la página sin leerla</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LO QUE NO CAMBIA · LAS DECISIONES · EL PLAN ═══════════════════════ -->
+<section class="seccion">
+  <div class="col">
+    <div class="rotulo">El alcance</div>
+    <h2>Lo que esto no toca</h2>
+    <p>
+      Ni dominio, ni consultas, ni políticas, ni el teléfono. Tampoco los
+      tokens: no hay un hex nuevo en todo el estudio. Lo que cambia es el
+      chasis del portal en escritorio y cómo se compone cada una de sus
+      pantallas.
+    </p>
+
+    <h3>Tres decisiones antes de construir nada</h3>
+    <table>
+      <thead><tr><th style="width:34px">#</th><th>La decisión</th><th style="width:170px">Recomendado</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="ref">1</td>
+          <td>
+            <b>El vocabulario.</b> ¿La cinta del PC pasa a decir lo mismo que
+            la barra del teléfono —<em>Hoy · Entreno · Dieta · Revisión ·
+            Tú</em>— o se queda con los seis nombres en primera persona?
+          </td>
+          <td>Sí, uno solo. Las rutas viejas rebotan.</td>
+        </tr>
+        <tr>
+          <td class="ref">2</td>
+          <td>
+            <b>«Mi progreso».</b> Es el sexto destino y es el panel del
+            entrenador trasplantado. ¿Se reparte —las cifras a «Tú», la curva
+            del peso a «Revisión», el tonelaje a «Entreno»— o se queda como
+            pantalla propia y solo se le quita la caja de pinturas?
+          </td>
+          <td>Repartirlo. Cada pantalla tiene su pasado; una sección «Progreso» es donde el pasado se va a morir.</td>
+        </tr>
+        <tr>
+          <td class="ref">3</td>
+          <td>
+            <b>Apuntar desde el PC.</b> La hoja de «Entreno» sigue siendo
+            editable en el monitor, con la caja levantada diciendo «Seguir
+            apuntando». ¿Se queda así o el PC pasa a ser de solo lectura?
+          </td>
+          <td>Que se quede. El gimnasio es del teléfono, pero corregir el jueves lo del martes se hace sentado.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Las tandas</h3>
+    <table>
+      <thead><tr><th style="width:64px">Tanda</th><th>Qué</th><th style="width:132px">Qué arregla</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="ref">1 · La hoja</td>
+          <td>El papel fijo: un solo ancho, un solo origen, la reja de tres
+          columnas y el rótulo colgado en el margen. Es CSS del chasis del
+          portal, no de cada pantalla.</td>
+          <td>Averías 1 y 4</td>
+        </tr>
+        <tr>
+          <td class="ref">2 · La caja</td>
+          <td>Quitar las treinta y una y dejar cinco: la de «lo que toca
+          ahora» en cada pantalla. Lo demás pasa a filete, rótulo y aire.</td>
+          <td>Avería 3</td>
+        </tr>
+        <tr>
+          <td class="ref">3 · Los dos carriles</td>
+          <td>La hoja de «Entreno» y el día de «Dieta» a lo ancho, con el
+          pedido y el hecho al lado. Aquí muere la columna de 880.</td>
+          <td>Avería 2</td>
+        </tr>
+        <tr>
+          <td class="ref">4 · La voz y el reparto</td>
+          <td>Un solo vocabulario en las dos barras y «Mi progreso» repartido,
+          con sus gráficas vueltas a la ley del color.</td>
+          <td>Averías 5 y 6</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="nota">
+      Las cuatro son independientes y se pueden parar después de cualquiera. La
+      1 sola ya se nota: es la que hace que las cinco pantallas parezcan la
+      misma app.
+    </div>
+  </div>
+</section>
+
+<script>
+/* El prototipo de verdad: la cinta cambia de destino y la URL con ella.
+   Nada más — no hay estado que guardar, y un prototipo que finge más de lo
+   que enseña miente sobre el trabajo que queda. */
+(function () {
+  var nav = document.getElementById('nav');
+  var url = document.getElementById('url');
+  var pc = document.getElementById('pc');
+
+  function ir(destino) {
+    var botones = nav.querySelectorAll('button');
+    for (var i = 0; i < botones.length; i++) {
+      if (botones[i].dataset.p === destino) botones[i].setAttribute('aria-current', 'page');
+      else botones[i].removeAttribute('aria-current');
+    }
+    var pants = document.querySelectorAll('[data-pant]');
+    for (var j = 0; j < pants.length; j++) {
+      pants[j].classList.toggle('on', pants[j].dataset.pant === destino);
+    }
+    url.textContent = 'caveman.app/mi/' + destino;
+  }
+
+  nav.addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-p]');
+    if (b) ir(b.dataset.p);
+  });
+
+  document.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-ir]');
+    if (!t) return;
+    e.preventDefault();
+    ir(t.dataset.ir);
+    pc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+})();
+</script>
+
+</body>
+</html>

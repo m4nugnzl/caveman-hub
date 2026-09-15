@@ -34,7 +34,7 @@
 }
 
 .account-menu {
-  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  position: absolute; top: calc(100% + var(--s2)); right: 0; z-index: 60;
   min-width: 232px;
   display: flex; flex-direction: column; gap: 1px;
   background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
@@ -47,14 +47,14 @@
 
 .account-head { padding: var(--s2) var(--s3) var(--s3); }
 .account-head > .name {
-  display: block; font-size: var(--fs-sm); font-weight: 650;
+  display: block; font-size: var(--fs-sm); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .account-head > .sub { display: block; font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 .account-item {
   display: flex; align-items: center; gap: var(--s3);
-  padding: 8px var(--s3); border: 0; border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3); border: 0; border-radius: var(--r-sm);
   background: transparent; color: inherit; font: inherit; font-size: var(--fs-sm);
   text-align: left; text-decoration: none; cursor: pointer; width: 100%;
   transition: background-color var(--fast);
@@ -135,10 +135,10 @@
 }
 .settings-link > svg { color: var(--text-tertiary); flex-shrink: 0; margin-top: 1px; }
 .settings-link > .who { min-width: 0; }
-.settings-link > .who > .name { display: block; font-size: var(--fs-sm); font-weight: 650; }
+.settings-link > .who > .name { display: block; font-size: var(--fs-sm); font-weight: 600; }
 .settings-link > .who > .sub { display: block; font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
 
-@media (max-width: 860px) {
+@media (max-width: 1023.98px) {
   .settings { grid-template-columns: minmax(0, 1fr); }
   .settings-nav { flex-direction: row; overflow-x: auto; gap: var(--s2); }
   .settings-nav::-webkit-scrollbar { display: none; }
@@ -215,7 +215,7 @@
    «Integraciones» y esto es de qué va la que estás mirando. */
 .connect-title {
   font-family: var(--font-display);
-  font-size: var(--fs-lg); font-weight: 650; letter-spacing: -0.02em;
+  font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em;
   line-height: 1.25;
 }
 
@@ -236,7 +236,7 @@
 .pitch > li:last-child { padding-bottom: 0; }
 .pitch > li:not(:last-child)::before {
   content: '';
-  position: absolute; left: 11px; top: 26px; bottom: 4px;
+  position: absolute; left: 11px; top: 26px; bottom: var(--s1);
   width: 1px; background: var(--hairline);
 }
 .pitch > li > .n {
@@ -266,7 +266,7 @@
 }
 .fineprint code {
   font-family: var(--font-mono); font-size: 0.92em;
-  background: var(--fill-subtle); border-radius: var(--r-xs); padding: 1px 4px;
+  background: var(--fill-subtle); border-radius: var(--r-xs); padding: 1px var(--s1);
 }
 
 .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: var(--s3); }
@@ -291,9 +291,9 @@
 
 .provider-head { display: flex; align-items: center; gap: var(--s3); }
 .provider-head > .who { flex: 1; min-width: 0; }
-.provider-head > .who > .name { display: block; font-size: var(--fs-base); font-weight: 650; }
+.provider-head > .who > .name { display: block; font-size: var(--fs-base); font-weight: 600; }
 .provider-head > .who > .sub {
-  display: block; font-size: var(--fs-xs); font-weight: 650;
+  display: block; font-size: var(--fs-xs); font-weight: 600;
  letter-spacing: 0; color: var(--text-tertiary);
 }
 .provider-what { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.45; }
@@ -315,7 +315,7 @@
 .provider-cta {
   display: inline-flex; align-items: center; gap: 3px;
   margin-left: auto;
-  font-size: var(--fs-xs); font-weight: 650; color: var(--text-secondary);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary);
   transition: color var(--fast);
 }
 .provider-cta > svg { transition: transform var(--fast); }
@@ -393,7 +393,7 @@
 
 .step-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
 .step-head { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.step-head > strong { font-size: var(--fs-base); font-weight: 650; }
+.step-head > strong { font-size: var(--fs-base); font-weight: 600; }
 .step-head > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* Un valor largo que hay que llevarse a otra pestaña (una URL de webhook). Va en
@@ -443,7 +443,7 @@
   background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--s3);
 }
 .match-row > .who { flex: 1; min-width: 140px; }
-.match-row > .who > .name { display: block; font-size: var(--fs-base); font-weight: 650; }
+.match-row > .who > .name { display: block; font-size: var(--fs-base); font-weight: 600; }
 .match-row > .who > .sub { display: block; font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 
@@ -463,7 +463,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   background: var(--surface); border-radius: var(--r-lg);
   padding: var(--s3) var(--s4); box-shadow: var(--shadow-sm);
 }
-.studio-bar-group { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.studio-bar-group { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
 /* `margin-left: auto` empuja la descarga al extremo: es el final del proceso y
    conviene que esté lejos de las opciones para no pulsarla por inercia. */
 .studio-bar-end { display: flex; align-items: center; gap: var(--s3); margin-left: auto; flex-wrap: wrap; }
@@ -507,7 +507,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    describe con una línea de CSS. */
 .lay-picker { display: flex; flex-wrap: wrap; gap: var(--s2); }
 .lay {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s1);
   padding: var(--s2) var(--s3); border: 0; cursor: pointer;
   background: var(--fill-subtle); border-radius: var(--r-md);
   color: var(--text-secondary); font-family: inherit;
@@ -518,7 +518,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   background: var(--accent-soft); color: var(--accent);
   box-shadow: inset 0 0 0 1.5px var(--accent);
 }
-.lay-label { font-size: var(--fs-2xs); font-weight: 650; white-space: nowrap; }
+.lay-label { font-size: var(--fs-2xs); font-weight: 600; white-space: nowrap; }
 
 /* La miniatura. `currentColor` con poca opacidad para los huecos: así hereda el
    estado del botón —gris en reposo, verde al estar activo— sin una regla por
@@ -556,7 +556,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   background: var(--surface-sunken); border-radius: var(--r-md); padding: 3px;
 }
 .toolbar-group { display: flex; align-items: center; gap: 2px; }
-.toolbar-sep { width: 1px; height: 18px; background: var(--hairline-strong); margin: 0 4px; }
+.toolbar-sep { width: 1px; height: 18px; background: var(--hairline-strong); margin: 0 var(--s1); }
 
 .tool {
   width: 32px; height: 30px; flex-shrink: 0;
@@ -595,7 +595,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .legal ul { display: flex; flex-direction: column; gap: var(--s2); padding-left: 1.15em; }
 .legal li { list-style: disc; }
 .legal a { color: var(--accent); font-weight: 600; }
-.legal code { font-size: var(--fs-sm); background: var(--fill-subtle); padding: 1px 5px; border-radius: var(--r-xs); }
+.legal code { font-size: var(--fs-sm); background: var(--fill-subtle); padding: 1px var(--s1); border-radius: var(--r-xs); }
 .legal-url { font-weight: 600; color: var(--text); }
 
 /* El hueco por rellenar. Va en rojo y con fondo: tiene que ser imposible
@@ -655,11 +655,11 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    los separadores de las filas de al lado. */
 .plan-tier.is-current { background: var(--accent-soft); }
 .plan-tier-main { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
-.plan-tier-name { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 650; }
+.plan-tier-name { font-family: var(--font-display); font-size: var(--fs-md); font-weight: 600; }
 .plan-tier-cap { color: var(--text-secondary); white-space: nowrap; }
 .plan-tier-buy { display: flex; align-items: center; gap: var(--s3); justify-content: flex-end; }
 .plan-tier-money { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.plan-price { font-family: var(--font-display); font-weight: 650; white-space: nowrap; }
+.plan-price { font-family: var(--font-display); font-weight: 600; white-space: nowrap; }
 /* El cargo real y el ahorro, debajo de la cifra mensualizada. `planPrice` exige
    que el total esté a la vista al lado del importe por mes, y esta es esa línea. */
 .plan-price-note { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; }
@@ -709,7 +709,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   gap: 2px var(--s3); margin-top: 3px;
 }
 .plan-gain > li {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: var(--s1);
   font-size: var(--fs-xs); color: var(--text-secondary);
 }
 .plan-gain > li > svg { color: var(--accent); flex-shrink: 0; }
@@ -718,7 +718,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    tasado — es una condición de la compra, no una sección. */
 .plan-foot { max-width: 62ch; font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base); }
 
-@media (max-width: 700px) {
+@media (max-width: 1023.98px) {
   /* Una sola columna: el precio debajo del nombre, y el botón a lo ancho, que es
      donde llega el pulgar. */
   .plan-tier { grid-template-columns: 1fr; }
@@ -846,7 +846,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .rec-option:hover:not(:disabled) { background: var(--fill-subtle); box-shadow: inset 0 0 0 1.5px var(--accent); }
 .rec-option:disabled { opacity: 0.45; cursor: not-allowed; }
 .rec-option > svg { color: var(--data-rose); }
-.rec-option > strong { font-size: var(--fs-base); font-weight: 650; }
+.rec-option > strong { font-size: var(--fs-base); font-weight: 600; }
 .rec-option > span { font-size: var(--fs-xs); color: var(--text-secondary); line-height: 1.4; }
 
 /* Escenario de la vista previa. Fondo oscuro porque el vídeo se compone sobre
@@ -858,8 +858,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 
 .rec-hint {
   position: absolute; left: 50%; bottom: var(--s3); transform: translateX(-50%);
-  font-size: var(--fs-2xs); font-weight: 650;
-  padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); font-weight: 600;
+  padding: var(--s1) 10px; border-radius: var(--r-pill);
   background: var(--surface); box-shadow: var(--shadow-float);
   pointer-events: none; white-space: nowrap;
 }
@@ -870,7 +870,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    Semanas completas de lunes a domingo. Los días de los meses vecinos se pintan
    atenuados en vez de dejarse en blanco: un check-in que cae en uno de ellos
    pertenece a una semana que existe, y un hueco lo escondería. */
-.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--s1); }
 
 .cal-dow {
   font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase;
@@ -880,7 +880,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 
 .cal-day {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  min-height: 62px; padding: 5px 3px;
+  min-height: 62px; padding: var(--s1) 3px;
   background: var(--surface-sunken); border: 0; border-radius: var(--r-sm);
   cursor: pointer; font: inherit; color: inherit;
   transition: background-color var(--fast), box-shadow var(--fast);
@@ -890,11 +890,11 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 /* «Hoy» en brasa, como en el resto del producto. */
 .cal-day.is-today { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .cal-day.is-open { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
-.cal-day > .n { font-size: var(--fs-sm); font-weight: 650; font-variant-numeric: tabular-nums; }
+.cal-day > .n { font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
 
 .cal-checkin {
   font-size: var(--fs-2xs); font-weight: 700; line-height: 1;
-  padding: 2px 5px; border-radius: var(--r-pill);
+  padding: 2px var(--s1); border-radius: var(--r-pill);
   background: var(--accent-soft); color: var(--accent);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -909,8 +909,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    la hoja del día. Un punto anónimo obligaba a tocar para saber si el día
    importaba. */
 .cal-uno {
-  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
-  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-secondary);
+  display: inline-flex; align-items: center; gap: var(--s1); max-width: 100%;
+  font-size: var(--fs-2xs); font-weight: 600; color: var(--text-secondary);
   overflow: hidden; white-space: nowrap;
 }
 .cal-uno > .cal-dot { flex-shrink: 0; }
@@ -924,8 +924,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    por style, como en las celdas: aquí solo hay forma. */
 .cal-key { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
 .cal-key-item {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-tertiary);
+  display: inline-flex; align-items: center; gap: var(--s1);
+  font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary);
 }
 
 /* ── La tarjeta del día ────────────────────────────────────────────────────
@@ -941,9 +941,9 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   overflow: hidden;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .cal { gap: 3px; }
-  .cal-day { min-height: 52px; padding: 4px 2px; }
+  .cal-day { min-height: 52px; padding: var(--s1) 2px; }
   /* A 390 px no cabe la palabra: el punto de color basta para saber que toca. */
   .cal-checkin { font-size: 0; padding: 3px; }
   .cal-uno { font-size: 0; gap: 0; }
@@ -956,13 +956,13 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 
 .studio { display: grid; grid-template-columns: 256px minmax(0, 1fr) 288px; gap: var(--s4); align-items: start; }
 .studio-col { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
-.studio-side { position: sticky; top: calc(var(--header-h) + var(--s4)); max-height: calc(100vh - var(--header-h) - var(--s5)); overflow-y: auto; }
+.studio-side { position: sticky; top: calc(var(--header-h) + var(--s4)); max-height: calc(100vh - var(--header-h) - var(--s5)); max-height: calc(100svh - var(--header-h) - var(--s5)); overflow-y: auto; }
 
 /* Por debajo de este ancho las tres columnas no caben sin estrangular el lienzo,
    que es lo único que de verdad importa de esta pantalla. Se apilan, y las
    laterales dejan de ser pegajosas: en una sola columna, «sticky» significa que un
    panel te persigue tapando el trabajo. */
-@media (max-width: 1180px) {
+@media (max-width: 1199.98px) {
   .studio { grid-template-columns: minmax(0, 1fr); }
   .studio-side { position: static; max-height: none; overflow: visible; }
   /* El lienzo primero: en vertical, el orden de lectura es el orden de la página. */
@@ -980,14 +980,14 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 }
 .studio-tab {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 7px 4px; border: 0; cursor: pointer; position: relative;
+  padding: var(--s2) var(--s1); border: 0; cursor: pointer; position: relative;
   background: transparent; border-radius: var(--r-sm); font-family: inherit;
-  font-size: var(--fs-2xs); font-weight: 650; color: var(--text-secondary);
+  font-size: var(--fs-2xs); font-weight: 600; color: var(--text-secondary);
   transition: background-color var(--fast), color var(--fast);
 }
 .studio-tab:hover { background: var(--fill); color: var(--text); }
 .studio-tab[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-xs); }
-.studio-tab > .ev-dot { position: absolute; top: 5px; right: 5px; }
+.studio-tab > .ev-dot { position: absolute; top: var(--s1); right: var(--s1); }
 .studio-tab-count {
   position: absolute; top: 3px; right: 3px;
   min-width: 15px; height: 15px; padding: 0 3px;
@@ -997,50 +997,14 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 }
 
 .studio-canvas-wrap { background: var(--canvas-alt); border-radius: var(--r-md); padding: var(--s3); display: grid; place-items: center; overflow: hidden; }
-.studio-canvas { max-width: 100%; max-height: 66vh; width: auto; height: auto; border-radius: var(--r-sm); box-shadow: var(--shadow-lg); touch-action: none; }
+.studio-canvas { max-width: 100%; max-height: 66vh; max-height: 66svh; width: auto; height: auto; border-radius: var(--r-sm); box-shadow: var(--shadow-lg); touch-action: none; }
 .studio-canvas.mode-pan { cursor: grab; }
 .studio-canvas.mode-pan:active { cursor: grabbing; }
 .studio-canvas.mode-draw { cursor: crosshair; }
 .studio-canvas.mode-slider { cursor: ew-resize; }
 
-/* ── Cobertura del historial de fotos ──────────────────────────────────────
-   Una marca por semana con un punto por ángulo. Las semanas VACÍAS ocupan su
-   sitio: es todo el asunto de la pieza —un historial al que le faltan los huecos
-   no es un historial, es una selección— y por eso no se filtran.
-
-   Envuelve en varias líneas en vez de desplazarse: un año son 52 marcas y lo que
-   se quiere ver es el patrón de los huecos, que en un carril horizontal solo se
-   ve a trozos. */
-.coverage {
-  display: flex; flex-direction: column; gap: var(--s2);
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); padding: var(--s4);
-}
-.coverage-strip { display: flex; flex-wrap: wrap; gap: 4px; }
-
-.coverage-week {
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  min-width: 30px; padding: 5px 4px 6px;
-  border-radius: var(--r-sm); background: var(--surface-sunken);
-  border: 1px solid var(--edge);
-}
-.coverage-week > .w {
-  font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
-  font-variant-numeric: tabular-nums; color: var(--text-secondary);
-}
-.coverage-week > .dots { display: flex; gap: 2px; }
-.coverage-week > .dots > .dot {
-  width: 4px; height: 4px; border-radius: 50%;
-  background: var(--hairline-strong);
-}
-.coverage-week > .dots > .dot.is-on { background: var(--positive); }
-
-.coverage-week.is-full { border-color: var(--positive); }
-.coverage-week.is-partial { border-color: var(--warning); }
 /* La semana sin fotos es un hueco, y se dibuja como tal: discontinua y sin
    fondo. Se ve que existe y que está vacía, que es el dato. */
-.coverage-week.is-empty { background: transparent; border-style: dashed; }
-.coverage-week.is-empty > .w { color: var(--text-tertiary); opacity: 0.6; }
 
 .week-folder { border-radius: var(--r-md); overflow: hidden; background: var(--surface-sunken); }
 .week-folder-head {
@@ -1049,7 +1013,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   font-weight: 600; font-size: var(--fs-sm); cursor: pointer; text-align: left;
 }
 .week-folder-head:hover { background: var(--fill); }
-.week-folder-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(68px, 100%), 1fr)); gap: 6px; padding: 8px; }
+.week-folder-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(68px, 100%), 1fr)); gap: 6px; padding: var(--s2); }
 
 .photo-thumb {
   position: relative; border: 2px solid transparent; border-radius: var(--r-sm);
@@ -1059,7 +1023,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .photo-thumb:hover { transform: translateY(-2px); }
 .photo-thumb[aria-pressed='true'] { border-color: var(--accent); }
-.photo-thumb-tag { position: absolute; inset: auto 0 0 0; background: rgba(10, 12, 15, 0.7); color: #fff; font-size: var(--fs-3xs); font-weight: 600; padding: 2px 4px; text-align: center; }
+.photo-thumb-tag { position: absolute; inset: auto 0 0 0; background: rgba(10, 12, 15, 0.7); color: #fff; font-size: var(--fs-3xs); font-weight: 600; padding: 2px var(--s1); text-align: center; }
 .photo-thumb-slot { position: absolute; top: 3px; left: 3px; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: var(--accent-on); font-size: var(--fs-3xs); font-weight: 800; display: grid; place-items: center; }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1095,7 +1059,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .carpeta-head > svg { color: var(--text-tertiary); flex-shrink: 0; align-self: center; }
 .carpeta-head > .nombre {
   font-family: var(--font-display);
-  font-size: var(--fs-md); font-weight: 680; letter-spacing: -0.02em;
+  font-size: var(--fs-md); font-weight: 700; letter-spacing: -0.02em;
 }
 .carpeta-head > .fecha { font-size: var(--fs-xs); color: var(--text-tertiary); }
 /* Una foto de progreso sin el peso de ese día es media información. */
@@ -1146,7 +1110,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    «encima», así que allí están puestos — la misma regla que `.gym-mas`. */
 .archivo-verbos {
   position: absolute; top: 6px; right: 6px;
-  display: flex; gap: 4px;
+  display: flex; gap: var(--s1);
   opacity: 0; transition: opacity var(--fast);
 }
 .archivo-foto:hover .archivo-verbos,
@@ -1165,7 +1129,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .carpeta-bajar[aria-busy='true'] { opacity: 1; }
 @media (hover: none) { .carpeta-bajar { opacity: 1; } }
 
-.slot-tabs { display: flex; gap: 5px; flex-wrap: wrap; }
+.slot-tabs { display: flex; gap: var(--s1); flex-wrap: wrap; }
 .adjust-row { display: grid; grid-template-columns: 72px 1fr 44px; align-items: center; gap: var(--s2); font-size: var(--fs-sm); }
 .adjust-row .value { color: var(--text-tertiary); text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -1189,15 +1153,15 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .upload-card.is-error { box-shadow: inset 0 0 0 1.5px var(--negative); }
 
 .upload-state {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: var(--s1);
   font-size: var(--fs-2xs); color: var(--text-tertiary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.upload-card.is-done > .upload-state { color: var(--positive); font-weight: 650; }
+.upload-card.is-done > .upload-state { color: var(--positive); font-weight: 600; }
 .upload-card.is-error > .upload-state { color: var(--negative); white-space: normal; }
 
 .upload-drop {
-  position: absolute; top: calc(var(--s2) + 4px); right: calc(var(--s2) + 4px);
+  position: absolute; top: calc(var(--s2) + var(--s1)); right: calc(var(--s2) + var(--s1));
   width: 24px; height: 24px;
   background: var(--surface); box-shadow: var(--shadow-sm);
 }
@@ -1210,7 +1174,7 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 .compare-row {
   display: grid; grid-template-columns: minmax(0, 1fr) 78px 78px 92px;
   align-items: center; gap: var(--s2);
-  padding: 7px var(--s2);
+  padding: var(--s2) var(--s2);
   font-variant-numeric: tabular-nums;
 }
 .compare-row + .compare-row { box-shadow: inset 0 1px 0 var(--hairline); }
@@ -1220,12 +1184,12 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
   box-shadow: none;
 }
 .compare-row > .k { font-size: var(--fs-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.compare-row > .v { font-size: var(--fs-sm); font-weight: 650; text-align: right; white-space: nowrap; }
+.compare-row > .v { font-size: var(--fs-sm); font-weight: 600; text-align: right; white-space: nowrap; }
 .compare-row.is-head > .v, .compare-row.is-head > .d { font-weight: 700; }
 .compare-row > .d { display: flex; justify-content: flex-end; }
 
-@media (max-width: 640px) {
-  .compare-row { grid-template-columns: minmax(0, 1fr) 60px 60px 76px; gap: 4px; }
+@media (max-width: 639.98px) {
+  .compare-row { grid-template-columns: minmax(0, 1fr) 60px 60px 76px; gap: var(--s1); }
   .compare-row > .k, .compare-row > .v { font-size: var(--fs-xs); }
 }
 
@@ -1252,59 +1216,82 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
    modelo está en `domain/protocol.js`.
    ========================================================================== */
 
-/* ── La nota ───────────────────────────────────────────────────────────────
-   Del entrenador al cliente, y del cliente a su cuaderno. La misma forma con el
-   canto de distinto color: son el mismo gesto en direcciones opuestas, y
-   dibujarlas distinto haría pensar que son cosas diferentes. */
-.coach-note {
-  display: flex; flex-direction: column; gap: 5px;
-  padding: var(--s3) var(--s4);
-  background: var(--surface-sunken); border-radius: var(--r-md);
-  border-left: 3px solid var(--info);
-}
-.coach-note.is-client { border-left-color: var(--data-teal); }
-.coach-note > p { font-size: var(--fs-sm); color: var(--text); white-space: pre-wrap; }
-
 /* ── El bloque de feedback ─────────────────────────────────────────────── */
 .feedback-block { display: flex; flex-direction: column; gap: var(--s3); }
 .feedback-list { display: flex; flex-direction: column; gap: var(--s4); }
 
 .feedback-q { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .feedback-q > .k {
-  display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: var(--s1); flex-wrap: wrap;
   font-size: var(--fs-sm); font-weight: 600; color: var(--text);
 }
 .feedback-q > .k > .hint { font-weight: 500; color: var(--text-tertiary); font-size: var(--fs-xs); }
+/* La ayuda en su renglón. Iba dentro del enunciado detrás de un punto medio
+   —«Adherencia a la dieta · De 1 (nada) a 10 (clavada toda la semana)»—, o sea
+   el qué se pregunta y el cómo se contesta con el mismo peso y en la misma
+   línea. Abajo y a media voz se lee en el orden en que hace falta. */
+.feedback-q > .hint {
+  margin-top: -2px;
+  font-size: var(--fs-xs); color: var(--text-tertiary); line-height: var(--lh-base);
+}
+
+/* ══ LA HOJA NUMERADA ══════════════════════════════════════════════════════
+   Un carril de números a la izquierda y un filete entre pregunta y pregunta.
+   Ver el porqué en `SessionFeedback`; la gramática es la misma que la del
+   formulario suelto (`.campo-q`, en `formularios.css`), porque el cliente ve
+   los dos y no tiene por qué notar que se los pinta otro componente. */
+.feedback-list.es-hoja { gap: 0; }
+.feedback-q.es-numerada {
+  display: grid; grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: var(--s3); row-gap: var(--s1);
+  align-items: start; padding: var(--s4) 0;
+}
+.feedback-q.es-numerada > * { grid-column: 2; }
+.feedback-q.es-numerada > .feedback-n { grid-column: 1; grid-row: 1; }
+.feedback-q.es-numerada + .feedback-q.es-numerada { border-top: 1px solid var(--hairline); }
+.feedback-q.es-numerada:first-child { padding-top: 0; }
+/* El enunciado sube un escalón: en la hoja es el texto que manda. */
+.feedback-q.es-numerada > .k { font-size: var(--fs-base); }
+/* Y el control respira separado de lo que lo explica. */
+.feedback-q.es-numerada > .rampa-marco,
+.feedback-q.es-numerada > .textarea,
+.feedback-q.es-numerada > .feedback-text { margin-top: var(--s2); }
+/* Diez pasos a lo ancho de una columna de 880 px son diez losas de 85: el
+   control se lee de un vistazo, así que se le pone medida. La escala trae la
+   suya puesta (`controles.css`); aquí solo se iguala la del texto. */
+.feedback-q.es-numerada > .textarea { max-width: 30rem; }
+
+/* La cabecera pasa a ser la CEJA de la hoja: el rótulo y el recuento sobre un
+   filete, y debajo empieza el papel. Sin él, el primer renglón arrancaba pegado
+   al rótulo y la hoja no tenía por dónde empezar. */
+.feedback-block:has(> .feedback-list.es-hoja) > header {
+  padding-bottom: var(--s3); border-bottom: 1px solid var(--hairline);
+}
+
+/* EL NÚMERO. Es la única pieza de color de la hoja y por eso no lleva caja:
+   apagado es un dato más del papel, encendido es lo que ya está hecho. */
+.feedback-n {
+  padding-top: 3px;
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  transition: color var(--fast);
+}
+.feedback-n[data-hecha] { color: var(--accent); }
+
+@media (max-width: 639.98px) {
+  /* El carril se estrecha: en un teléfono lo que escasea es el ancho de la
+     pregunta, y dos cifras caben en 1,6 rem. */
+  .feedback-q.es-numerada { grid-template-columns: 1.6rem minmax(0, 1fr); column-gap: var(--s2); }
+}
 .feedback-text {
   font-size: var(--fs-sm); color: var(--text-secondary); white-space: pre-wrap;
   padding: var(--s2) var(--s3); background: var(--surface-sunken); border-radius: var(--r-sm);
 }
 
-/* ── La escala ─────────────────────────────────────────────────────────────
-   Una fila de botones y no un deslizador: en un móvil, arrastrar con precisión
-   sobre 30 px devuelve un número que nadie ha querido decir. Aquí cada valor es
-   su propio objetivo y se contesta con un toque.
-
-   `1fr` por paso en vez de un ancho fijo: la escala puede ser de 1 a 5 o de 0 a
-   10 —lo decide el entrenador— y en los dos casos tiene que ocupar el ancho
-   entero sin sobrar ni desbordar. */
-.scale-picker { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 3px; }
-
-.scale-step {
-  min-height: 42px; padding: 0 2px;
-  display: grid; place-items: center;
-  font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  background: var(--surface-sunken); color: var(--text-tertiary);
-  border: 1px solid var(--edge); border-radius: var(--r-sm);
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
-}
-button.scale-step:hover { border-color: var(--hairline-strong); color: var(--text); }
-.scale-step.is-on { color: var(--accent-on); border-color: transparent; }
-/* En lectura los pasos no elegidos son contexto, no opciones. */
-span.scale-step { cursor: default; opacity: 0.55; }
-span.scale-step.is-on { opacity: 1; }
+/* La escala vive en `controles.css` (`.rampa`): la contestan el check-in, el
+   parte y el formulario suelto, así que su sitio es la familia de mandos y no la
+   hoja de una pantalla. */
 
 /* ── Calentamiento ─────────────────────────────────────────────────────── */
 /* ── Calentamiento y movilidad ─────────────────────────────────────────────
@@ -1341,38 +1328,32 @@ span.scale-step.is-on { opacity: 1; }
 .warmup-hit.is-plain { cursor: default; }
 .warmup-hit:not(.is-plain):hover { opacity: 0.72; }
 
-/* ── La miniatura ────────────────────────────────────────────────────────
-   Un rectángulo negro con un triángulo dentro leía como el botón de YouTube:
-   una marca ajena dentro de un producto que no gasta ni una tinta en marca.
+/* ── El triángulo, y lo que sustituye ────────────────────────────────────
+   Aquí vivió `.warmup-thumb`: una caja de 44 × 30 con un disco y su play
+   encima, el «hueco donde iría el fotograma» de iOS. Pero no hay fotograma —lo
+   único que se pintaba era el hueco—, así que con tres movilidades eran ciento
+   treinta píxeles de caja vacía y el calentamiento pesaba más que el primer
+   ejercicio. El dueño lo señaló por su nombre el 13 de septiembre; el porqué
+   entero está en `WarmupBlock.jsx`.
 
-   Lo que hay que decir es «aquí hay un vídeo», y en un móvil eso se dice como lo
-   dice iOS: el hueco donde iría el fotograma, y encima un disco claro con el
-   triángulo. El play FLOTA sobre el medio, no es el medio.
-
-   Radio de tarjeta y no círculo, para que siga leyéndose como un fotograma y no
-   como un botón suelto. */
-.warmup-thumb {
-  position: relative;
-  width: 44px; height: 30px; flex-shrink: 0;
-  display: grid; place-items: center;
-  border-radius: var(--r-sm);
-  background: var(--fill-strong);
-  border: 1px solid var(--edge);
-  color: var(--text);
+   Lo que queda dice lo mismo con el tamaño del texto: el triángulo pegado al
+   nombre, como una marca de la palabra y no como un botón. El chevron de la
+   derecha sigue diciendo que se abre. */
+/* `align-self` porque `.nm` alinea por LÍNEA BASE —es texto con su dosis al
+   lado— y un SVG no tiene línea base: se colgaba por debajo del renglón. Y el
+   hueco lo pone el margen y no el `gap` del padre, que mide 8 y separaría el
+   triángulo de la palabra que está marcando. */
+.warmup-play {
+  flex-shrink: 0; align-self: center;
+  margin-right: calc(var(--s2) * -1 + 5px);
+  color: var(--text-tertiary);
 }
-/* El disco se dibuja con la sombra del propio icono: un elemento menos y
-   siempre centrado con él. */
-.warmup-thumb > svg {
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 0 0 5px var(--surface), var(--shadow-xs);
-  margin-left: 1px;
-}
+.warmup-hit:not(.is-plain):hover .warmup-play { color: var(--text); }
 
 .warmup-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .warmup-say > .nm {
   display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
-  font-size: var(--fs-sm); font-weight: 650; min-width: 0;
+  font-size: var(--fs-sm); font-weight: 600; min-width: 0;
 }
 /* La prescripción no es una píldora: es parte del nombre —«movilidad de cadera,
    2 × 10»—. Como píldora competía con él y hacía la lista más alta. */
@@ -1391,9 +1372,11 @@ span.scale-step.is-on { opacity: 1; }
    El ancho va en AUTO: el marco del reproductor trae 100 % desde su propia
    regla, y con el margen izquierdo encima el total pasaba del contenedor — el
    vídeo se salía del recuadro por la derecha. */
+/* Sin la miniatura ya no hay sangría de 42 px que respetar: el reproductor
+   arranca donde arranca el nombre, que ahora es el canto de la lista. */
 .warmup-item > .video-frame {
   width: auto;
-  margin: 0 0 var(--s2) calc(42px + var(--s3));
+  margin: 0 0 var(--s2);
 }
 
 /* ══ Lo que edita el entrenador ═════════════════════════════════════════════
@@ -1416,7 +1399,7 @@ span.scale-step.is-on { opacity: 1; }
 /* El nombre y la dosis: lo que define el ejercicio, en la primera línea. La
    dosis es corta por definición, así que no compite por el ancho. */
 .warmup-edit-name { flex: 1; min-width: 0; display: flex; gap: var(--s2); }
-.warmup-edit-name > .input { font-weight: 650; }
+.warmup-edit-name > .input { font-weight: 600; }
 .warmup-edit-name > .input.dose {
   width: 92px; flex-shrink: 0; text-align: center;
   font-family: var(--font-display); font-variant-numeric: tabular-nums;
@@ -1455,14 +1438,14 @@ span.scale-step.is-on { opacity: 1; }
 }
 
 .log-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.log-answers { display: flex; flex-wrap: wrap; gap: 5px; }
+.log-answers { display: flex; flex-wrap: wrap; gap: var(--s1); }
 
 /* La respuesta, con su etiqueta pegada al número. Una fila de cifras sueltas
    obliga a recordar el orden de las preguntas; con la etiqueta delante se lee
    sin cabecera, que es lo que hace falta en una lista larga. */
 .log-answer {
-  display: inline-flex; align-items: baseline; gap: 4px;
-  padding: 2px 8px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: baseline; gap: var(--s1);
+  padding: 2px var(--s2); border-radius: var(--r-pill);
   background: var(--fill-subtle);
   font-size: var(--fs-2xs);
 }
@@ -1474,7 +1457,7 @@ span.scale-step.is-on { opacity: 1; }
 .log-answer > .v { font-family: var(--font-display); font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
 .log-answer.is-text {
   font-size: var(--fs-xs); color: var(--text-secondary);
-  border-radius: var(--r-sm); padding: 3px 8px; max-width: 100%;
+  border-radius: var(--r-sm); padding: 3px var(--s2); max-width: 100%;
 }
 /* La píldora de escala es un BOTÓN: su pregunta entera vivía solo en `title`,
    que en una pantalla táctil no existe — «FAT 7» era indescifrable desde el
@@ -1485,7 +1468,7 @@ button.log-answer:hover { background: var(--fill); }
 .log-q { flex-basis: 100%; font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 .log-note {
-  display: flex; align-items: flex-start; gap: 5px;
+  display: flex; align-items: flex-start; gap: var(--s1);
   font-size: var(--fs-xs); color: var(--text-secondary);
   padding-left: 2px;
 }
@@ -1497,7 +1480,7 @@ button.log-answer:hover { background: var(--fill); }
   color: var(--text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 639.98px) {
   /* La fecha pasa a encabezar la entrada: en 366 px, una columna de 84 px para la
      fecha deja el resto sin sitio para las respuestas. */
   .log-entry { grid-template-columns: minmax(0, 1fr) auto; }
@@ -1542,8 +1525,8 @@ button.log-answer:hover { background: var(--fill); }
   /* A partes iguales: cinco apartados que son cinco decisiones del mismo peso,
      y repartidos no hay que apuntar a una pastilla de ancho variable. */
   flex: 1 1 0; min-width: 0;
-  padding: 7px var(--s3); border-radius: var(--r-md);
-  font-size: var(--fs-xs); font-weight: 650; text-decoration: none;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  font-size: var(--fs-xs); font-weight: 600; text-decoration: none;
   color: var(--text-tertiary); white-space: nowrap;
   transition: background-color var(--fast), color var(--fast);
 }
@@ -1557,7 +1540,7 @@ button.log-answer:hover { background: var(--fill); }
    menos que el «4». */
 .page-nav-link > .n {
   flex-shrink: 0;
-  min-width: 18px; height: 18px; padding: 0 5px;
+  min-width: 18px; height: 18px; padding: 0 var(--s1);
   display: grid; place-items: center; border-radius: var(--r-pill);
   background: var(--fill); color: var(--text-secondary);
   font-family: var(--font-mono); font-size: var(--fs-2xs); font-weight: 700;
@@ -1602,36 +1585,6 @@ button.log-answer:hover { background: var(--fill); }
    claro eso es una hoja de cálculo—; aquí separa el aire. */
 .page-section + .page-section { margin-top: var(--s3); }
 
-.proto-presets {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
-  gap: var(--s2);
-}
-.proto-preset {
-  position: relative;
-  display: flex; flex-direction: column; gap: 3px; align-items: flex-start; text-align: left;
-  padding: var(--s3) var(--s5) var(--s3) var(--s3); border-radius: var(--r-md);
-  background: var(--surface-sunken); border: 1.5px solid transparent;
-  font: inherit; color: var(--text); cursor: pointer;
-  transition: border-color var(--fast), background var(--fast);
-}
-.proto-preset:hover { border-color: var(--hairline-strong); }
-.proto-preset[aria-pressed='true'] { border-color: var(--accent); background: var(--accent-soft); }
-.proto-preset > .nm { font-size: var(--fs-sm); font-weight: 650; }
-.proto-preset > .hint { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; }
-
-/* El tic del perfil elegido. El estado lo llevaba solo el canto, y un gris
-   contra otro en una rejilla de cuatro cajas iguales es la diferencia más fácil
-   de no ver; con marca es el mismo gesto que el de las opciones (`.opt-card`). */
-.proto-preset > .mark {
-  position: absolute; top: var(--s2); right: var(--s2);
-  width: 18px; height: 18px;
-  display: grid; place-items: center; border-radius: 50%;
-  background: var(--accent); color: var(--accent-on);
-  opacity: 0; transform: scale(0.7);
-  transition: opacity var(--fast), transform var(--fast);
-}
-.proto-preset[aria-pressed='true'] > .mark { opacity: 1; transform: scale(1); }
-
 /* ── Los bloques del check-in ──────────────────────────────────────────────
    Nombre a la izquierda, las tres posiciones a la derecha y lo que significa la
    elegida debajo, cruzando las dos columnas. Era una columna apilada dentro de
@@ -1650,7 +1603,21 @@ button.log-answer:hover { background: var(--fill); }
    casilla del sistema operativo dentro. Dos formas de decir lo mismo, y la de
    dentro pintada por el navegador. Ahora cada módulo es una `.opt-card`, que ES
    el control. */
-.proto-modules { display: flex; flex-direction: column; gap: 2px; list-style: none; }
+/* ── Y CADA AJUSTE, EN SU RENGLÓN ──────────────────────────────────────────
+   Iban a 2 px de separación, que valía mientras el mando estaba delante: la
+   columna de interruptores por la izquierda hacía de raya y el ojo no se
+   perdía. Con el mando al final del renglón esa raya desaparece, y 2 px dejan
+   el pie de una fila más cerca del nombre de la SIGUIENTE que del suyo — o sea
+   que la explicación se lee como si fuera del ajuste de abajo.
+
+   El filete entre filas es el mismo recurso de la mesa de la cartera y el de
+   la hoja: una lista de cosas del mismo rango se separa con una raya de pelo,
+   no con hueco. El primero y el último no llevan relleno para que la lista
+   empiece y acabe a ras del canto de su tarjeta. */
+.proto-modules { display: flex; flex-direction: column; list-style: none; }
+.proto-modules > li { padding: var(--s3) 0; border-top: 1px solid var(--hairline); }
+.proto-modules > li:first-child { padding-top: 0; border-top: 0; }
+.proto-modules > li:last-child { padding-bottom: 0; }
 
 .proto-list { display: flex; flex-direction: column; gap: 2px; list-style: none; }
 .proto-q {
@@ -1668,7 +1635,7 @@ button.log-answer:hover { background: var(--fill); }
 .proto-toggle {
   display: flex; align-items: center; gap: var(--s2);
   width: 100%; padding: 0; border: 0; background: transparent;
-  font: inherit; font-size: var(--fs-sm); font-weight: 650; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text);
   cursor: pointer; text-align: left;
 }
 .proto-toggle:hover { color: var(--text-secondary); }
@@ -1686,7 +1653,7 @@ button.log-answer:hover { background: var(--fill); }
 .hoja-protocolo > .bloque-desnudo:first-child { border-top: 0; padding-top: 0; }
 .hoja-protocolo > .bloque-desnudo:last-child { padding-bottom: 0; }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .warmup-edit { flex-direction: column; }
   .warmup-edit-tools { flex-direction: row; align-self: flex-end; }
 
@@ -1706,9 +1673,6 @@ button.log-answer:hover { background: var(--fill); }
   /* Nombre y mandos, uno debajo del otro: el carril de tres posiciones mide
      unos 200 px y al lado no queda ancho para leer «Perímetros corporales». */
   .proto-block { grid-template-columns: minmax(0, 1fr); }
-  /* Diez pasos en 366 px salen a 33 px: se dejan caer a dos filas antes que
-     estrangularlos hasta que el número no se lea. */
-  .scale-picker { grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(min(38px, 100%), 1fr)); }
 }
 
 
@@ -1739,7 +1703,7 @@ button.log-answer:hover { background: var(--fill); }
   letter-spacing: -0.01em; font-variant-numeric: tabular-nums;
 }
 .prox-cuando > span {
-  font-size: var(--fs-2xs); font-weight: 650; letter-spacing: 0.08em;
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--text-tertiary);
 }
 /* El pie del mes: la instrucción a un lado y la leyenda de colores al otro. */

@@ -232,7 +232,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
   */
   const Marco = desnudo ? 'div' : Panel;
   /*
-    Sin fases, el hueco central ya ofrece «Crear la primera fase». Sacar además
+    Sin fases, el hueco central ya ofrece «Nueva fase». Sacar además
     este arriba deja dos botones iguales peleando por el mismo clic, y el de la
     cabecera parece pegado encima del otro.
   */
@@ -301,7 +301,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
           action={
             puedeEditar ? (
               <button type="button" className="btn btn-primary" onClick={abrirNuevo}>
-                <Plus size={15} /> Crear la primera fase
+                <Plus size={15} /> Nueva fase
               </button>
             ) : null
           }

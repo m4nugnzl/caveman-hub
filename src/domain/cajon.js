@@ -97,7 +97,7 @@ const alimentosDe = (carga) => (Array.isArray(carga?.foods) ? carga.foods : []);
  *                     tabla propia (`PlatoDentro`).
  * @property vacio     Qué se lee cuando no hay ninguno, y dónde se guarda el
  *                     primero. Un vacío es una invitación, no un aviso.
- * @property alTirar   Qué pasa con lo que ya está puesto. Siempre nada: poner
+ * @property alBorrar   Qué pasa con lo que ya está puesto. Siempre nada: poner
  *                     despliega y no enlaza, y hay que decirlo.
  */
 export const CAJONES = {
@@ -149,7 +149,7 @@ export const CAJONES = {
       mensaje:
         'Cuando un bloque te funcione, guárdalo desde su fila en la lista de bloques: se queda aquí con sus hojas y sus semanas, y lo puedes poner en cualquier cliente.',
     },
-    alTirar:
+    alBorrar:
       'El bloque desaparece de tu cajón. Los clientes que lo tienen puesto no se tocan: su programa es una copia.',
   },
 
@@ -180,7 +180,7 @@ export const CAJONES = {
       mensaje:
         'Cuando un día te quede como quieres, guárdalo desde el cajón del bloque: se queda aquí con su nombre y lo puedes poner en cualquier cliente.',
     },
-    alTirar: 'La plantilla desaparece de tu cajón. Los clientes que ya la tienen puesta no se tocan.',
+    alBorrar: 'La plantilla desaparece de tu cajón. Los clientes que ya la tienen puesta no se tocan.',
   },
 
   [TIPO.PLATO]: {
@@ -223,7 +223,7 @@ export const CAJONES = {
       mensaje:
         'Cuando una comida te quede como quieres, guárdala desde la hoja de la dieta: se queda aquí con su nombre y la puedes poner en cualquier cliente, cuadrada a su objetivo.',
     },
-    alTirar:
+    alBorrar:
       'El plato desaparece de tu vitrina. Las dietas que ya lo llevan no se tocan: sus alimentos están copiados dentro.',
   },
 };

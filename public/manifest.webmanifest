@@ -9,8 +9,8 @@
   "orientation": "portrait",
   "lang": "es",
   "dir": "ltr",
-  "background_color": "#eceef1",
-  "theme_color": "#eceef1",
+  "background_color": "#f7f6f2",
+  "theme_color": "#f7f6f2",
   "categories": ["health", "fitness", "productivity"],
   "icons": [
     {

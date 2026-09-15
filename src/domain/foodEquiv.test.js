@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { norm } from '@/lib/texto';
-import { candidatosDeGrupo, equivalencesFor, foodCategory, SWAP_MACRO } from './foodEquiv';
+import {
+  aportaElMacro,
+  candidatosDeGrupo,
+  equivalencesFor,
+  foodCategory,
+  macroPor100,
+  SWAP_MACRO,
+} from './foodEquiv';
 
 /**
  * ══ Qué protege este archivo ═══════════════════════════════════════════════
@@ -36,6 +43,25 @@ const catalogo = [
 ];
 
 const platano = { name: 'Plátano', grams: 150, proteinPer100: 1.1, carbsPer100: 20, fatsPer100: 0.3 };
+
+/* Lo que se pregunta al meter un alimento A MANO en un grupo: el mismo suelo que
+   aplica la lista, dicho antes de que el alimento no aparezca. */
+describe('aportaElMacro', () => {
+  it('con 2 g por 100 o más hay ración que calcular', () => {
+    expect(aportaElMacro({ proteinPer100: 24 }, 'protein')).toBe(true);
+    expect(aportaElMacro({ proteinPer100: '2' }, 'protein')).toBe(true);
+  });
+
+  it('por debajo, o sin el dato, no', () => {
+    expect(aportaElMacro({ proteinPer100: 1.5 }, 'protein')).toBe(false);
+    expect(aportaElMacro({ carbsPer100: 77 }, 'protein')).toBe(false);
+    expect(aportaElMacro({ proteinPer100: 20 }, 'kcal')).toBe(false);
+  });
+
+  it('macroPor100 lee el número tal cual para decirlo', () => {
+    expect(macroPor100({ carbsPer100: '7,5' }, 'carbs')).toBe(7.5);
+  });
+});
 
 describe('foodCategory', () => {
   it('resuelve el grupo por nombre, también con palabras de más', () => {

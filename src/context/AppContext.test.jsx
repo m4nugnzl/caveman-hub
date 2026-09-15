@@ -113,7 +113,7 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 284 claves', () => {
+  it('el reparto conserva las 287 claves', () => {
     montar();
     // 195 desde «Quién eres» en el alta del cliente (0091): `saveClientIdentity`,
     // el segundo camino por el que el CLIENTE escribe en su ficha. Va aparte de
@@ -424,7 +424,19 @@ describe('AppProvider', () => {
     // chapa al TECLEAR— y entran `fallosAlGuardar`, que cuenta solo lo que el
     // servidor ha rechazado, y `reintentarLoFallido`, su verbo. Neto: una más.
     // Lo pinta la franja de `ui/EstadoDeRed`, no la esquina de la cuenta.
-    expect(Object.keys(visto.app).length).toBe(284);
+    //
+    // Y 287 desde que LA SESIÓN TIENE PRINCIPIO Y FIN (0119, tanda 2 del móvil):
+    // `closeSession` estampa el fin —lo que permite decir «te ha costado 52 min»
+    // y lo que la saca de «la dejaste a medias»—, `discardSession` borra la que
+    // se dejó a medias y `logExerciseNote` guarda lo que el cliente dice de UN
+    // ejercicio. Las tres son acciones del cliente sobre una sesión que ya
+    // existe, así que las tres van por función de la base y no por `UPDATE`.
+    //
+    // Y 290 desde que EL REPARTO SIGUE AL OBJETIVO: `toggleMealFijo` pone y
+    // quita el candado de una comida —la que no se mueve cuando cambian las
+    // kcal del día—. Es del reparto y no del ajuste: se decide una vez en la
+    // mesa y vale para todos los ajustes que vengan. Ver `repartoAlObjetivo`.
+    expect(Object.keys(visto.app).length).toBe(290);
   });
 
   /*

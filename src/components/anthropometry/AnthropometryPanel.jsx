@@ -15,10 +15,17 @@ import {
 } from '@/domain/anthropometry';
 import { shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
-import { metricColor } from '@/domain/metrics';
-import { clientProtocol, weighInsTarget } from '@/domain/protocol';
+import { medidaColor, metricColor } from '@/domain/metrics';
+import { deltaDe, serieDe } from '@/domain/medidas';
+import {
+  clientProtocol,
+  medidasDelProtocolo,
+  medidasDiarias,
+  weighInsTarget,
+} from '@/domain/protocol';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
-import { MetricCard, MetricRow } from '@/components/ui/metrics';
+import { BandChart } from '@/components/ui/charts';
+import { Delta, MetricCard, MetricRow } from '@/components/ui/metrics';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useOculto } from '@/components/Client/Oculto';
 import { ReviewWizard } from './ReviewWizard';
@@ -53,6 +60,10 @@ export const AnthropometryPanel = ({
   onRetry,
   onAdd,
   onRemove,
+  /* Apuntar UNA medida de UN día, sin tocar nada más de ese día: es la casilla
+     de la rejilla de la semana. Sin ella el panel las enseña y no las escribe,
+     que es lo correcto en una pantalla de solo lectura. Ver `apuntarMedida`. */
+  onApuntarMedida = null,
   // Fotos del cliente y forma de subirlas. Si no llegan, la revisión solo cubre
   // el peso y las medidas, que es como funcionaba antes de que existieran.
   photos = null,
@@ -105,9 +116,28 @@ export const AnthropometryPanel = ({
   */
   const oculto = useOculto();
 
-  const objetivoDePesajes = useMemo(
-    () => weighInsTarget(clientProtocol(client?.preferences)),
-    [client?.preferences]
+  const protocolo = useMemo(() => clientProtocol(client?.preferences), [client?.preferences]);
+  const objetivoDePesajes = useMemo(() => weighInsTarget(protocolo), [protocolo]);
+
+  /*
+    ══ LO QUE SE MIDE CON UN APARATO ══════════════════════════════════════════
+
+    Dos ritmos y dos sitios, que es la distinción que hace `cuando`:
+
+      · Las DIARIAS bajan a la rejilla de la semana, junto al pesaje del día.
+      · Las de REVISIÓN se entregan en el asistente, con los pliegues.
+
+    Y las dos se LEEN aquí, cada una con su serie, su color y su variación desde
+    la anterior — que es lo que convierte un número apuntado en información.
+  */
+  const diarias = useMemo(() => medidasDiarias(protocolo), [protocolo]);
+  const medidas = useMemo(() => medidasDelProtocolo(protocolo).filter((m) => !m.campos), [protocolo]);
+
+  /* Solo las que tienen algo dibujado: una serie vacía es un hueco con título, y
+     con seis medidas encendidas serían seis huecos antes de la primera toma. */
+  const series = useMemo(
+    () => medidas.map((m) => ({ medida: m, puntos: serieDe(history, m.id) })).filter((s) => s.puntos.length > 0),
+    [medidas, history]
   );
 
   const weights = useMemo(() => weightSeries(history), [history]);
@@ -133,61 +163,77 @@ export const AnthropometryPanel = ({
     if (ok) onRemove(log.id);
   };
 
+  /*
+    ══ Las cuatro cifras del peso ═════════════════════════════════════════════
+
+    Las CUATRO hablan del mismo dato —el peso— y salían de cuatro colores
+    distintos: tiza, ámbar, rosa y azul. Eso no distingue nada, porque no hay
+    nada de lo que distinguirse: no son cuatro series, son cuatro lecturas de
+    una. Lo único que conseguía el reparto era que la pantalla pareciera tener
+    cuatro asuntos.
+
+    Ahora las cuatro van en el azul del peso, que es el mismo que tienen en el
+    resumen y en la analítica, y lo que las diferencia es lo que siempre debió
+    diferenciarlas: su etiqueta.
+
+    Y van en `MetricRow` para que la fila no se quede en tres: con datos a
+    medias —hay pesajes pero todavía no hay ritmo— esto pintaba tres tarjetas y
+    un hueco mudo a la derecha.
+
+    ── Del entrenador van arriba; del cliente, debajo ────────────────────────
+
+    Son las mismas cuatro lecturas y cambia a qué contestan.
+
+    El entrenador abre esta pantalla para LEER: «¿cuánto pesa, a qué ritmo, cuánto
+    lleva?» es la pregunta entera, y las cuatro cifras la contestan de un vistazo
+    antes de bajar al detalle.
+
+    El cliente la abre para HACER: anotar su pesaje del día y entregar la semana.
+    Con las cifras arriba, su revisión empezaba por cuatro tarjetas de lectura
+    —las mismas, además, que su portada ya le dice al entrar— y la casilla donde
+    de verdad escribe quedaba por debajo del pliegue. Bajan detrás de su semana:
+    siguen enteras, dejan de ser lo primero. Ver §10.2 del replanteamiento.
+  */
+  const cifras = weights.length > 0 && !oculto.weight && (
+    <MetricRow>
+      <MetricCard
+        title="Último peso"
+        subtitle={shortDate(weights[weights.length - 1].date)}
+        value={fmt(weights[weights.length - 1].value, { decimals: 1 })}
+        unit="kg"
+        color={metricColor('weight')}
+      />
+      <MetricCard
+        title="Media últimos 3"
+        subtitle={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
+        value={rolling ? fmt(rolling.average, { decimals: 1 }) : '—'}
+        unit={rolling ? 'kg' : ''}
+        color={metricColor('weight')}
+      />
+      {delta && (
+        <MetricCard
+          title="Variación total"
+          subtitle={`de ${fmt(delta.from, { decimals: 1 })} a ${fmt(delta.to, { decimals: 1 })} kg`}
+          value={`${delta.delta > 0 ? '+' : ''}${fmt(delta.delta, { decimals: 1 })}`}
+          unit="kg"
+          color={metricColor('weight')}
+        />
+      )}
+      {rate !== null && (
+        <MetricCard
+          title="Ritmo semanal"
+          subtitle="promedio por semana"
+          value={`${rate > 0 ? '+' : ''}${fmt(rate, { decimals: 2 })}`}
+          unit="kg"
+          color={metricColor('rate')}
+        />
+      )}
+    </MetricRow>
+  );
+
   return (
     <div className="stack">
-      {/*
-        ══ Las cuatro cifras del peso ═════════════════════════════════════════
-
-        Las CUATRO hablan del mismo dato —el peso— y salían de cuatro colores
-        distintos: tiza, ámbar, rosa y azul. Eso no distingue nada, porque no hay
-        nada de lo que distinguirse: no son cuatro series, son cuatro lecturas de
-        una. Lo único que conseguía el reparto era que la pantalla pareciera tener
-        cuatro asuntos.
-
-        Ahora las cuatro van en el azul del peso, que es el mismo que tienen en el
-        resumen y en la analítica, y lo que las diferencia es lo que siempre
-        debió diferenciarlas: su etiqueta.
-
-        Y van en `MetricRow` para que la fila no se quede en tres: con datos a
-        medias —hay pesajes pero todavía no hay ritmo— esto pintaba tres tarjetas
-        y un hueco mudo a la derecha.
-      */}
-      {weights.length > 0 && !oculto.weight && (
-        <MetricRow>
-          <MetricCard
-            title="Último peso"
-            subtitle={shortDate(weights[weights.length - 1].date)}
-            value={fmt(weights[weights.length - 1].value, { decimals: 1 })}
-            unit="kg"
-            color={metricColor('weight')}
-          />
-          <MetricCard
-            title="Media últimos 3"
-            subtitle={rolling ? `${rolling.count} ${rolling.count === 1 ? 'pesaje' : 'pesajes'}` : 'sin datos'}
-            value={rolling ? fmt(rolling.average, { decimals: 1 }) : '—'}
-            unit={rolling ? 'kg' : ''}
-            color={metricColor('weight')}
-          />
-          {delta && (
-            <MetricCard
-              title="Variación total"
-              subtitle={`de ${fmt(delta.from, { decimals: 1 })} a ${fmt(delta.to, { decimals: 1 })} kg`}
-              value={`${delta.delta > 0 ? '+' : ''}${fmt(delta.delta, { decimals: 1 })}`}
-              unit="kg"
-              color={metricColor('weight')}
-            />
-          )}
-          {rate !== null && (
-            <MetricCard
-              title="Ritmo semanal"
-              subtitle="promedio por semana"
-              value={`${rate > 0 ? '+' : ''}${fmt(rate, { decimals: 2 })}`}
-              unit="kg"
-              color={metricColor('rate')}
-            />
-          )}
-        </MetricRow>
-      )}
+      {!isClient && cifras}
 
       {/* El check-in semanal va PRIMERO: es la acción de cada semana. Entregar la
           revisión completa es puntual, así que es un botón suyo. */}
@@ -197,6 +243,10 @@ export const AnthropometryPanel = ({
         /* Cuántos pesajes pide su entrenador. Sin número, la semana no se juzga:
            ver `weighInsTarget` en `domain/protocol`. */
         target={objetivoDePesajes}
+        /* Y lo que se apunta cada día con un aparato: una fila más de la misma
+           rejilla, porque es el mismo gesto de la misma mañana. */
+        medidas={diarias}
+        onApuntarMedida={onApuntarMedida}
         onAddWeight={onAdd}
         onRemoveEntry={onRemove}
         /*
@@ -251,6 +301,75 @@ export const AnthropometryPanel = ({
           weeks={weeks}
           onClose={() => setAsistente(false)}
         />
+      )}
+
+      {/* Y en el portal, las cuatro cifras aquí: detrás de la casilla donde se
+          escribe el pesaje del día. Ver el porqué arriba. */}
+      {isClient && cifras}
+
+      {/*
+        ══ LO MEDIDO, cada uno con su gráfica ═════════════════════════════════
+
+        Una medida sin su serie es un número apuntado en una libreta: lo que la
+        convierte en información es poder verla en el tiempo. Misma forma que la
+        tendencia del peso —`BandChart`, su color, su unidad— porque son lo
+        mismo, y que se lean igual es medio valor de haberlas hecho.
+
+        Y NO SE INTERPRETA: no hay rango «normal» pintado, no hay rojo por
+        salirse de nada y no hay una palabra sobre lo que significa. La ley de la
+        casa, escrita en `domain/medidas.js`.
+      */}
+      {series.length > 0 && (
+        <Panel tight className="col gap-4">
+          <SectionTitle>Lo que se mide</SectionTitle>
+          <div className="col gap-5">
+            {series.map(({ medida, puntos }) => {
+              if (oculto.medidas?.[medida.id]) return null;
+              const delta = deltaDe(history, medida.id);
+              const ultimo = puntos[puntos.length - 1];
+              return (
+                <div className="col gap-2" key={medida.id}>
+                  <div className="row between wrap gap-3">
+                    <span className="section-label">
+                      {medida.grupo ? `${medida.grupo} · ` : ''}
+                      {medida.label}
+                    </span>
+                    <div className="metric-figure">
+                      <span className="metric-value" style={{ fontSize: 'var(--fs-md)' }}>
+                        {ultimo.value}
+                      </span>
+                      <span className="metric-unit">{medida.unit}</span>
+                      {delta && (
+                        <Delta
+                          value={delta.delta}
+                          unit={` ${medida.unit}`}
+                          lowerIsBetter={medida.sentido === 'lowerIsBetter'}
+                          /* Sin sentido declarado no hay bueno ni malo: el signo
+                             se dice y no se juzga. */
+                          neutral={medida.sentido === 'neutral'}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <BandChart
+                    labels={puntos.map((p) => p.date)}
+                    series={[
+                      {
+                        id: medida.id,
+                        label: medida.label,
+                        color: medidaColor(medida),
+                        unit: medida.unit ? ` ${medida.unit}` : '',
+                        decimals: medida.decimals,
+                        points: puntos.map((p) => ({ label: p.date, value: p.value })),
+                      },
+                    ]}
+                    height={92}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </Panel>
       )}
 
       {/* La tendencia ya no vive aquí: está DENTRO del check-in, con los

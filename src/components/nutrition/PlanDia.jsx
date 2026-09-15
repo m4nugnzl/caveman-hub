@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Lock, LockOpen, Trash2 } from 'lucide-react';
 
 import {
   carbsFromRest,
@@ -52,6 +52,8 @@ export const PlanDia = ({
      dos y el nombre sigue siendo la puerta a su comida. */
   onRename = null,
   onRemove = null,
+  /* El candado de una comida: solo donde el reparto se edita. */
+  onFijar = null,
   juzga = true,
 }) => {
   const [renombrando, setRenombrando] = useState(null);
@@ -165,6 +167,32 @@ export const PlanDia = ({
               })}
               <span className="is-peso">
                 {pesos[i] ? `${pct} %` : ''}
+                {/*
+                  EL CANDADO: esta comida no se mueve aunque cambie el día.
+                  Puesto, se queda a la vista —es un hecho—; quitado, aparece al
+                  pasar por encima como la papelera, porque es una oferta.
+                  Ver [[ley-del-reposo]] y `repartoAlObjetivo`.
+                */}
+                {onFijar && (
+                  <button
+                    type="button"
+                    className={`btn btn-icon btn-icon-compact plan-dia-candado${meal.fijo ? ' is-on' : ''}`}
+                    onClick={() => onFijar(i)}
+                    aria-pressed={meal.fijo === true}
+                    aria-label={
+                      meal.fijo
+                        ? `«${meal.name}» no se mueve al cambiar el objetivo`
+                        : `Dejar «${meal.name}» fija al cambiar el objetivo`
+                    }
+                    title={
+                      meal.fijo
+                        ? 'No se mueve al cambiar el objetivo del día'
+                        : 'Dejarla fija al cambiar el objetivo del día'
+                    }
+                  >
+                    {meal.fijo ? <Lock size={13} /> : <LockOpen size={13} />}
+                  </button>
+                )}
                 {onRemove && (
                   <button
                     type="button"

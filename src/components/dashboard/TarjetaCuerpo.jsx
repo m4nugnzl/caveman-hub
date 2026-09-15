@@ -112,19 +112,31 @@ export const TarjetaCuerpo = ({
 
       {conEscalera ? (
         <ReviewChart weeks={track} ancho={ancho} soloLectura banda={bandaVista} cambios={blockChanges(program)} />
-      ) : !isClient && weightPts.length === 0 ? (
-        /* El vacío con su verbo (Q-05): la curva empieza con el primer pesaje,
-           y anotarlo está a un clic — no en una frase gris que solo constata. */
+      ) : weightPts.length < 2 ? (
+        /*
+          El vacío con su verbo (Q-05): la curva empieza con el primer pesaje, y
+          anotarlo está a un clic — no en una frase gris que solo constata.
+
+          Y con UN pesaje, tampoco hay curva: se dibujaba un punto solo en mitad
+          de un lienzo con sus ejes, que es un gráfico diciendo lo que la cifra
+          grande de aquí arriba ya dice, y encima con cara de no tener datos. Dos
+          puntos son lo mínimo que hace una línea. Lo mismo vale para el cliente,
+          que antes caía al gráfico incluso sin un solo pesaje: el vacío es el
+          mismo, lo que cambia es que a él no se le pide que anote nada.
+        */
         <TarjetaVacia
           accion={
+            !isClient &&
             aPesaje && (
               <Link className="cab-accion is-puerta" to={aPesaje}>
-                Anota su primer pesaje
+                {weightPts.length === 0 ? 'Anota su primer pesaje' : 'Anota otro pesaje'}
               </Link>
             )
           }
         >
-          Sin pesajes todavía. La curva empieza con el primero.
+          {weightPts.length === 0
+            ? 'Sin pesajes todavía. La curva empieza con el primero.'
+            : 'Un solo pesaje. La curva empieza con el segundo.'}
         </TarjetaVacia>
       ) : (
         <BandChart

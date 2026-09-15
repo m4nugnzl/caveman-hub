@@ -50,6 +50,31 @@ describe('mergeCatalog', () => {
     expect(pan.id).toBe('a');
   });
 
+  /* Tu copia se guarda sin categoría a propósito, y la mezcla tapaba la fila del
+     catálogo: el dato se perdía en cuanto usabas el alimento una vez. */
+  it('tu copia hereda la categoría del catálogo', () => {
+    const mezcla = mergeCatalog(
+      [{ id: 'a', name: 'Brócoli', proteinPer100: 2.8 }],
+      [{ id: 'x', name: 'Brócoli', category: 'Verdura' }]
+    );
+    expect(mezcla.find((f) => f.name === 'Brócoli').category).toBe('Verdura');
+  });
+
+  it('pero la tuya manda si la tiene puesta', () => {
+    const mezcla = mergeCatalog(
+      [{ id: 'a', name: 'Brócoli', category: 'Mis marcas' }],
+      [{ id: 'x', name: 'Brócoli', category: 'Verdura' }]
+    );
+    expect(mezcla.find((f) => f.name === 'Brócoli').category).toBe('Mis marcas');
+  });
+
+  /* Los ejercicios pasan por el mismo mezclador y no tienen categoría: nadie
+     debe salir de aquí con un `category: null` inventado. */
+  it('lo que no tiene categoría en ninguna de las dos listas sale intacto', () => {
+    const mezcla = mergeCatalog([{ id: 'a', name: 'Press banca' }], [{ id: 'x', name: 'Press banca' }]);
+    expect('category' in mezcla[0]).toBe(false);
+  });
+
   it('no cuela un duplicado del catálogo', () => {
     const panes = mergeCatalog(mios, comunes).filter((f) => f.name === 'Pan integral');
     expect(panes).toHaveLength(1);

@@ -1,0 +1,1119 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lo que separa esto de Coachway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62.5..125,400..800;1,62.5..125,400..800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Estudio · Limpieza y acabado — 11 sep 2026
+
+   Los tokens son LOS DE LA APP, copiados de src/styles/tokens.css tal y como
+   están hoy (papel templado #f7f6f2, no el gris frío de los estudios de
+   agosto). Si este documento no se ve como Caveman Hub, no prueba nada.
+
+   Las reconstrucciones de las láminas no son maquetas de memoria: los valores
+   —los pesos, los huecos en píxeles, los ficheros de cada colisión— salen del
+   árbol de trabajo y de capturas/barrido-acabado-11sep/.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  --mesa: #edebe3;
+  --canvas: #f7f6f2;
+  --surface: #ffffff;
+  --sunken: #f2f0e9;
+  --fill-subtle: #f5f3ed;
+  --fill: #eceae1;
+  --fill-strong: #dfdbcd;
+  --text: #191713;
+  --text-2: #514d45;
+  --text-3: #706c62;
+  --hairline: #e7e3d9;
+  --hairline-strong: #cfc9bb;
+  --edge: rgba(38, 32, 20, 0.11);
+  --edge-control: #8a8378;
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, 0.08);
+  --accent-wash: rgba(59, 73, 223, 0.10);
+  --accent-on: #ffffff;
+  --positive: #10774c;
+  --positive-soft: #e3f1ea;
+  --negative: #b93429;
+  --negative-soft: #fbe9e7;
+  --warning: #a4530e;
+  --warning-soft: #fbeee1;
+  --data-blue: #1b6ea6;
+  --data-teal: #0e7f73;
+  --shadow-sm: 0 1px 2px rgba(38, 32, 20, .06), 0 14px 30px -22px rgba(38, 32, 20, .55);
+  --shadow-md: 0 6px 20px -8px rgba(38, 32, 20, .16), 0 1px 3px rgba(38, 32, 20, .06);
+  --r-xs: 5px; --r-sm: 9px; --r-md: 14px; --r-lg: 20px; --r-xl: 26px;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --auto-noche: 1; }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --mesa: #090b0e;
+  --canvas: #090b0e;
+  --surface: #1c2027;
+  --sunken: #14171c;
+  --fill-subtle: rgba(214, 224, 244, 0.045);
+  --fill: rgba(214, 224, 244, 0.085);
+  --fill-strong: rgba(214, 224, 244, 0.145);
+  --text: #e9ecf2;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --hairline: rgba(214, 224, 244, 0.08);
+  --hairline-strong: rgba(214, 224, 244, 0.17);
+  --edge: rgba(214, 224, 244, 0.14);
+  --edge-control: #66707e;
+  --accent: #5b8df7;
+  --accent-soft: rgba(91, 141, 247, 0.14);
+  --accent-wash: rgba(91, 141, 247, 0.22);
+  --accent-on: #10131a;
+  --positive: #45c98c;
+  --positive-soft: rgba(69, 201, 140, .15);
+  --negative: #ec6156;
+  --negative-soft: rgba(236, 97, 86, .15);
+  --warning: #f28d4a;
+  --warning-soft: rgba(242, 141, 74, .16);
+  --data-blue: #59b4e6;
+  --data-teal: #47cdb8;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .45);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, .55);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--mesa);
+  color: var(--text);
+  font-family: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* La voz de las cifras: la misma Archivo estirada al eje de anchura. */
+.cifra {
+  font-stretch: 125%;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.rotulo {
+  font-size: 11px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--text-3);
+}
+code, .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .85em;
+}
+code { color: var(--text-2); background: var(--fill-subtle); padding: .1em .35em; border-radius: 4px; }
+a { color: var(--accent); }
+
+/* ── LA REGLA: la firma de la casa. Marcas de graduación, y solo donde de
+      verdad se mide: bajo el número de sección y en la cinta del §5. ────── */
+.regla {
+  height: 9px;
+  background-image: repeating-linear-gradient(to right,
+    var(--hairline-strong) 0 1px, transparent 1px 8px);
+  background-position: bottom left;
+  background-repeat: repeat-x;
+  background-size: 100% 5px;
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+/* ══ Chasis del documento ══════════════════════════════════════════════ */
+.doc { max-width: 1180px; margin: 0 auto; padding: 0 22px 120px; }
+.estrecho { max-width: 760px; }
+
+header.portada {
+  padding: 88px 0 48px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 56px;
+}
+.antetitulo {
+  display: inline-flex; align-items: center; gap: 8px; height: 28px;
+  padding: 0 12px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+}
+h1 {
+  font-stretch: 125%; font-weight: 700;
+  font-size: clamp(34px, 5.4vw, 62px); line-height: 1.04;
+  letter-spacing: -0.035em; margin: 22px 0 0; max-width: 16ch;
+}
+h1 em { font-style: italic; font-weight: 600; }
+.bajada { max-width: 62ch; color: var(--text-2); font-size: 18px; margin: 22px 0 0; }
+.firma-portada { margin-top: 30px; color: var(--text-3); font-size: 14px; }
+
+section { margin: 0 0 76px; }
+.cab-seccion { margin-bottom: 26px; }
+.num-seccion {
+  display: flex; align-items: baseline; gap: 14px;
+  font-size: 12px; color: var(--text-3); font-weight: 600; letter-spacing: .08em;
+}
+.num-seccion .regla { flex: 1; }
+h2 {
+  font-stretch: 112%; font-weight: 700; font-size: clamp(24px, 3vw, 34px);
+  letter-spacing: -0.028em; line-height: 1.14; margin: 12px 0 0; max-width: 22ch;
+}
+h3 { font-size: 19px; font-weight: 700; letter-spacing: -0.015em; margin: 34px 0 10px; }
+p { margin: 14px 0; max-width: 72ch; color: var(--text-2); }
+p strong, li strong { color: var(--text); font-weight: 700; }
+ul { color: var(--text-2); max-width: 72ch; padding-left: 20px; }
+li { margin: 7px 0; }
+
+.card {
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm); padding: 26px;
+}
+:root[data-theme="dark"] .card { border: 1px solid var(--edge); }
+
+/* ══ Los seis números ══════════════════════════════════════════════════ */
+.numeros {
+  display: grid; gap: 1px; background: var(--hairline);
+  grid-template-columns: repeat(auto-fit, minmax(min(215px, 100%), 1fr));
+  border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden;
+}
+.numeros > div { background: var(--surface); padding: 22px 20px 20px; }
+.numeros .cifra { font-size: 40px; display: block; }
+.numeros .cifra small { font-size: 17px; font-weight: 600; color: var(--text-3); margin-left: 3px; }
+.numeros p { margin: 10px 0 0; font-size: 13.5px; line-height: 1.45; }
+.numeros .rotulo { margin-bottom: 12px; display: block; }
+
+/* ══ Interruptor antes/después ═════════════════════════════════════════ */
+.mando {
+  display: inline-flex; gap: 2px; padding: 3px; background: var(--fill);
+  border-radius: 999px; margin: 0 0 18px;
+}
+.mando[hidden] { display: none; }
+.mando button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--text-2);
+  padding: 6px 16px; border-radius: 999px; transition: background 140ms var(--ease), color 140ms var(--ease);
+}
+.mando button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+.mando button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lamina { background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-xl); padding: 30px; }
+.lamina-pie { margin-top: 18px; font-size: 13.5px; color: var(--text-3); max-width: 76ch; }
+.par { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; }
+.par > figure { margin: 0; }
+.par figcaption {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 12px;
+}
+.chapa {
+  display: inline-block; padding: 1px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: none;
+}
+.chapa.mal { background: var(--negative-soft); color: var(--negative); }
+.chapa.bien { background: var(--positive-soft); color: var(--positive); }
+
+/* ══ El estado de cada movimiento, añadido el 12 sep ═══════════════════
+   La chapa va DENTRO de la fila del movimiento y no al lado del título: lo
+   que se pregunta leyendo esta tabla no es «¿qué proponía el estudio?» sino
+   «¿qué de esto está puesto?», y esa respuesta tiene que estar en la misma
+   línea que la pregunta. Tres estados y ninguno más: puesto, puesto con un
+   recorte que se explica, y no puesto. */
+.mov { position: relative; }
+.mov-estado {
+  display: inline-block; margin-left: 8px; vertical-align: 2px;
+  padding: 1px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .02em;
+  text-transform: uppercase; white-space: nowrap;
+}
+.mov-estado.si { background: var(--positive-soft); color: var(--positive); }
+.mov-estado.medio { background: var(--fill-strong); color: var(--text-2); }
+.mov-estado.no { background: var(--fill); color: var(--text-3); }
+.mov.es-no b, .mov.es-no p { opacity: .62; }
+
+/* ══ Lámina A · los pesos ══════════════════════════════════════════════ */
+.pesos { display: grid; gap: 0; }
+.peso-fila {
+  display: grid; grid-template-columns: 62px 1fr 78px; align-items: center; gap: 14px;
+  padding: 7px 0; border-bottom: 1px solid var(--hairline);
+}
+.peso-fila:last-child { border-bottom: 0; }
+.peso-fila .mono { font-size: 12px; color: var(--text-3); }
+.peso-fila .muestra { font-size: 21px; letter-spacing: -0.015em; }
+.peso-fila.canon .mono { color: var(--accent); font-weight: 700; }
+.peso-num { font-size: 12px; color: var(--text-3); text-align: right; }
+
+/* ══ Lámina B · la tarjeta El plan ═════════════════════════════════════ */
+.mini {
+  background: var(--surface); border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm); padding: 18px; max-width: 330px;
+}
+:root[data-theme="dark"] .mini { border: 1px solid var(--edge); }
+.mini > .rotulo { display: block; margin-bottom: 4px; }
+.mini h4 { margin: 0 0 10px; font-size: 17px; font-weight: 700; letter-spacing: -0.015em; }
+.palanca { display: flex; flex-direction: column; gap: 1px; padding: 9px 0; border-top: 1px solid var(--hairline); }
+.palanca:first-of-type { border-top: 0; }
+.palanca-k { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.palanca-v { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.palanca-v small { font-size: 12px; font-weight: 500; color: var(--text-3); }
+.palanca-s { font-size: 12px; color: var(--text-3); }
+.invita { color: var(--accent); font-weight: 600; }
+/* El defecto: el rótulo de toda fila-puerta pintado en acento, en reposo. */
+.is-antes .palanca-k { color: var(--accent); }
+
+/* ══ Lámina C · el agujero ═════════════════════════════════════════════ */
+.caja-dieta {
+  background: var(--surface); border-radius: var(--r-md); box-shadow: var(--shadow-sm);
+  overflow: hidden; transition: height 260ms var(--ease);
+}
+:root[data-theme="dark"] .caja-dieta { border: 1px solid var(--edge); }
+.caja-cab {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--hairline);
+  font-size: 14px; font-weight: 700;
+}
+.caja-cuerpo { padding: 16px; }
+.hueco {
+  background-image: repeating-linear-gradient(135deg,
+    var(--negative-soft) 0 9px, transparent 9px 18px);
+  border-top: 1px dashed var(--negative);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--negative);
+  letter-spacing: .04em;
+}
+.verbo { color: var(--accent); font-weight: 600; font-size: 14px; }
+
+/* ══ Lámina D · la cinta métrica ═══════════════════════════════════════ */
+.cinta { position: relative; height: 132px; margin-top: 10px; }
+.cinta-eje {
+  position: absolute; left: 0; right: 0; top: 62px; height: 1px; background: var(--hairline-strong);
+}
+.marca { position: absolute; top: 62px; transform: translateX(-50%); text-align: center; }
+.marca i { display: block; width: 1px; margin: 0 auto; background: var(--hairline-strong); }
+.marca span { display: block; font-size: 11px; margin-top: 4px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.marca.escala i { height: 20px; background: var(--text); width: 2px; }
+.marca.escala span { color: var(--text); font-weight: 700; }
+.marca.fuera { top: auto; bottom: 70px; }
+.marca.fuera i { height: 18px; background: var(--negative); }
+.marca.fuera span { color: var(--negative); font-weight: 600; margin-top: 0; margin-bottom: 4px; }
+.marca.fuera .veces { font-size: 10px; color: var(--text-3); font-weight: 500; }
+/* Por debajo de 12 px las marcas caen a menos de 25 px unas de otras y las
+   etiquetas se pisan. Se alternan en dos alturas: la marca sigue exactamente
+   donde esta —la distancia es el argumento— y solo sube su rotulo. */
+.marca.fuera.alta { bottom: 94px; }
+.marca.fuera.alta i { height: 42px; }
+
+/* ══ Lámina E · las colisiones ═════════════════════════════════════════ */
+.colision { display: grid; grid-template-columns: 88px 1fr; gap: 14px; align-items: center; margin: 11px 0; }
+.colision .clase { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; font-weight: 700; }
+.hojas { display: flex; flex-wrap: wrap; gap: 4px; }
+.hojas span {
+  font-size: 11px; padding: 2px 7px; border-radius: 999px;
+  background: var(--fill); color: var(--text-2);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.hojas span.rojo { background: var(--negative-soft); color: var(--negative); }
+
+/* ══ Lámina F · profundidad ════════════════════════════════════════════ */
+.mosaico { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.mosaico .caja {
+  border-radius: var(--r-md); padding: 14px; min-height: 84px;
+  background: var(--surface); border: 1px solid transparent; box-shadow: var(--shadow-sm);
+}
+:root[data-theme="dark"] .mosaico .caja { border-color: var(--edge); box-shadow: none; }
+.mosaico .caja .rotulo { display: block; margin-bottom: 6px; }
+.mosaico .caja .cifra { font-size: 24px; }
+/* El después: la jerarquía la hace la superficie, y la firma se queda el canto. */
+.mosaico.is-despues .caja { border-color: transparent; background: var(--sunken); box-shadow: none; }
+.mosaico.is-despues .caja.firma {
+  grid-column: span 2; background: var(--surface);
+  border-color: var(--edge); box-shadow: var(--shadow-md);
+}
+.mosaico.is-despues .caja.firma .cifra { font-size: 40px; }
+
+/* ══ Lámina G · el peso ════════════════════════════════════════════════ */
+.barra-peso { display: flex; height: 34px; border-radius: var(--r-sm); overflow: hidden; background: var(--fill); }
+.barra-peso > i { display: block; font-style: normal; }
+.barra-peso .app { background: var(--text-3); flex: 375; }
+.barra-peso .lp { background: var(--accent); flex: 97; }
+.leyenda { display: flex; gap: 20px; margin-top: 10px; font-size: 12.5px; color: var(--text-3); flex-wrap: wrap; }
+.leyenda b { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+
+/* ══ §9 · los dos temas ════════════════════════════════════════════════ */
+.temas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 18px; }
+.muestra-tema { border-radius: var(--r-md); padding: 20px; border: 1px solid var(--edge); }
+.muestra-tema.papel { background: #f7f6f2; color: #191713; }
+.muestra-tema.papel .caja-m { background: #fff; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(38,32,20,.06), 0 14px 30px -22px rgba(38,32,20,.55); }
+.muestra-tema.papel .s { color: #514d45; }
+.muestra-tema.papel .a { color: #3b49df; }
+.muestra-tema.hierro { background: #090b0e; color: #e9ecf2; }
+.muestra-tema.hierro .caja-m { background: #1c2027; border: 1px solid rgba(214,224,244,.14); }
+.muestra-tema.hierro .s { color: #a2a9b7; }
+.muestra-tema.hierro .a { color: #5b8df7; }
+.caja-m { border-radius: 10px; padding: 14px; margin-top: 14px; }
+.muestra-pie { font-size: 12.5px; margin-top: 12px; }
+
+/* ══ §10 · los movimientos ═════════════════════════════════════════════ */
+.tanda { margin: 26px 0; }
+.tanda-cab { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.tanda-cab .n { font-stretch: 125%; font-weight: 700; font-size: 26px; color: var(--text-3); line-height: 1; }
+.tanda-cab h3 { margin: 0; font-size: 19px; }
+.tanda-cab .coste { margin-left: auto; font-size: 12px; color: var(--text-3); }
+.movs { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden; }
+.mov { background: var(--surface); padding: 15px 18px; display: grid; grid-template-columns: 58px 1fr; gap: 14px; }
+.mov .id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; font-weight: 700; color: var(--accent); padding-top: 2px; }
+.mov b { display: block; font-size: 15px; margin-bottom: 3px; }
+.mov p { margin: 0; font-size: 13.5px; line-height: 1.5; }
+
+.aviso {
+  border-left: 3px solid var(--negative); background: var(--negative-soft);
+  padding: 18px 22px; border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.aviso p { color: var(--text); }
+.aviso .rotulo { color: var(--negative); }
+
+.pregunta { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 18px 22px; border-radius: 0 var(--r-md) var(--r-md) 0; }
+/* La misma caja cuando la pregunta YA tiene respuesta: el azul dice «esto está
+   abierto» y una decisión tomada no lo está. Verde de veredicto, y la pregunta
+   se queda arriba para que se pueda leer contra qué se decidió. */
+.pregunta.contestada { border-left-color: var(--positive); background: var(--positive-soft); }
+
+/* ══ El mando del tema, arriba a la derecha ════════════════════════════ */
+.tema-mando { position: fixed; top: 16px; right: 18px; z-index: 20; }
+@media (max-width: 720px) { .tema-mando { position: static; margin: 16px 0 0; } }
+
+footer { border-top: 1px solid var(--hairline); padding-top: 26px; color: var(--text-3); font-size: 13.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="tema-mando">
+  <div class="mando" role="group" aria-label="Tema del documento">
+    <button type="button" data-tema="light" aria-pressed="true">Papel</button>
+    <button type="button" data-tema="dark" aria-pressed="false">Hierro</button>
+  </div>
+</div>
+
+<div class="doc">
+
+<header class="portada">
+  <span class="antetitulo">Estudio · 11 sep 2026</span>
+  <h1>Lo que separa esto de <em>Coachway</em></h1>
+  <p class="bajada">
+    Diagnóstico medido del acabado visual y de la limpieza del código de estilo,
+    con trece movimientos en cuatro tandas. Nada de esto está construido.
+  </p>
+  <p class="firma-portada">
+    Todo lo que sigue sale del árbol de trabajo de hoy y de
+    <code>capturas/barrido-acabado-11sep/</code>. Las reconstrucciones de las
+    láminas usan los tokens de la propia aplicación — puedes cambiar el tema
+    arriba a la derecha, y en el §9 eso deja de ser un adorno.
+  </p>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>00</span><span class="regla"></span><span>Antes de nada</span></div>
+    <h2>Hay una avería viva</h2>
+  </div>
+
+  <div class="aviso">
+    <span class="rotulo">npm run verify · falla ahora mismo</span>
+    <p style="margin-top:10px">
+      <code>BarraDeSesion.jsx</code> no está en git, está montada en
+      <code>ClientLayout.jsx:91</code>, y <strong>ninguna de sus quince clases
+      existe en ningún CSS</strong>. La barra de sesión del portal se pinta
+      desnuda.
+    </p>
+    <p>
+      Es la tanda del móvil a medias. Va aparte de este estudio, pero se
+      arregla antes que nada de lo de abajo: mientras esté así, el verificador
+      no sirve de red para el resto.
+    </p>
+  </div>
+
+  <p>
+    Lo demás del verificador está limpio —0 tokens sin definir, 0 usos de la
+    paleta de datos como cromo, 0 iconos fuera de escala, 0 anchos fuera de
+    escala— y <code>eslint</code> pasa sin una queja. <strong>El sistema que
+    está escrito se cumple.</strong> El problema es todo lo que no está escrito
+    en ninguna comprobación.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>01</span><span class="regla"></span><span>Diagnóstico</span></div>
+    <h2>Seis números</h2>
+  </div>
+
+  <div class="numeros">
+    <div>
+      <span class="rotulo">Pesos de fuente</span>
+      <span class="cifra">16</span>
+      <p>valores distintos en el CSS: 400, 500, 550, 560, 600, 640, 650, 660,
+         680, 700, 720, 730, 740, 750, 800. Coachway usa tres.</p>
+    </div>
+    <div>
+      <span class="rotulo">Clases de CSS</span>
+      <span class="cifra">2.413</span>
+      <p>repartidas en <strong>426 prefijos</strong>, de los cuales 179 tienen
+         una sola clase. No hay sistema de nombres: hay 426.</p>
+    </div>
+    <div>
+      <span class="rotulo">Colisiones</span>
+      <span class="cifra">354</span>
+      <p>clases definidas en más de un fichero. <code>.btn</code> en diez hojas,
+         <code>.input</code> en ocho. Es lo que produjo la trampa del
+         <code>.rail</code> y la de <code>.tira</code>.</p>
+    </div>
+    <div>
+      <span class="rotulo">Espaciado</span>
+      <span class="cifra">1<small> de cada 3</small></span>
+      <p>fuera de la escala: ~700 literales en px contra 1.599 usos de
+         <code>var(--sN)</code>.</p>
+    </div>
+    <div>
+      <span class="rotulo">revision.css</span>
+      <span class="cifra">6.348</span>
+      <p>líneas y 91 secciones. Dentro están Entreno, Dieta, la cartera y el pie
+         de la barra lateral. El nombre miente.</p>
+    </div>
+    <div>
+      <span class="rotulo">CSS que se descarga</span>
+      <span class="cifra">472<small> KB</small></span>
+      <p>en una sola hoja, que carga también la portada pública. Ahí se usan 97
+         clases de las 2.413.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>02</span><span class="regla"></span><span>Lámina A</span></div>
+    <h2>Dieciséis pesos no son una escala</h2>
+  </div>
+
+  <p>
+    Archivo es una fuente variable, así que inventar un 730 no cuesta nada. Por
+    eso hay 550, 560, 640, 660, 680, 720, 730, 740 y 750: cada uno lo puso
+    alguien una tarde que quería «un pelín más». Ninguno es reproducible, y
+    juntos son la razón de que dos rótulos del mismo rango no se vean iguales.
+  </p>
+
+  <div class="lamina">
+    <div class="pesos" id="pesos"></div>
+  </div>
+  <p class="lamina-pie">
+    En azul, los tres que sobrevivirían: <strong>400 cuerpo · 500 rótulo ·
+    700 cifra y titular</strong>. Los trece restantes se colapsan al más
+    cercano. A la derecha, cuántas veces aparece cada uno.
+    <br>
+    Los <em>tamaños</em>, en cambio, están disciplinados: todos salen de
+    <code>--fs-*</code> y no hay un solo literal suelto. El problema es solo
+    el peso.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>03</span><span class="regla"></span><span>Lámina B</span></div>
+    <h2>El acento titula, y tiene prohibido titular</h2>
+  </div>
+
+  <p>
+    La cabecera de <code>tokens.css</code> lo dice en su segunda ley: la señal
+    solo aparece donde se puede tocar, y <strong>«nunca decora una superficie,
+    nunca titula»</strong>. Y sin embargo, en <code>revision.css:4798</code>:
+  </p>
+
+  <pre style="background:var(--sunken);padding:14px 18px;border-radius:var(--r-sm);overflow-x:auto;font-size:13px;margin:0 0 22px"><code style="background:none;padding:0">.palanca.is-puerta > .palanca-k { color: var(--accent); }</code></pre>
+
+  <p>
+    Toda fila que sea puerta pinta <strong>su rótulo</strong> en azul, en
+    reposo. En «El plan» las cinco filas son puertas, así que los rótulos
+    le ganan en número a los dos verbos que sí ofrecen algo.
+  </p>
+
+  <div class="lamina">
+    <div class="mando" role="group" aria-label="Antes y después">
+      <button type="button" data-par="plan" data-v="antes" aria-pressed="true">Como está</button>
+      <button type="button" data-par="plan" data-v="despues" aria-pressed="false">Como quedaría</button>
+    </div>
+    <div class="par">
+      <figure>
+        <figcaption>Hoy <span class="chapa mal">cinco rótulos en azul</span></figcaption>
+        <div class="mini is-antes" id="plan-antes"></div>
+      </figure>
+      <figure>
+        <figcaption>Con L-03 <span class="chapa bien">solo los dos verbos</span></figcaption>
+        <div class="mini" id="plan-despues"></div>
+      </figure>
+    </div>
+  </div>
+  <p class="lamina-pie">
+    Siete azules en una tarjeta de cinco filas: los cinco rótulos compiten con los dos verbos que de verdad piden
+    algo. El azul deja de significar «aquí se toca» y pasa a ser el color de la
+    tarjeta. Es además lo contrario de la ley del reposo:
+    <em>una oferta que no se apaga es mobiliario</em>. El arreglo son dos
+    líneas: el rótulo en gris siempre, y el azul solo en el hueco y en el hover.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>04</span><span class="regla"></span><span>Lámina C</span></div>
+    <h2>El vacío es un agujero, no un estado</h2>
+  </div>
+
+  <p>
+    Medido sobre las capturas de hoy: <strong>Dieta sin comidas, ~700 px</strong>
+    de caja con una frase gris arriba del todo. Clientes, ~350 px bajo seis
+    filas. «Cómo va» en Resumen, ~190 px. Inicio, ~60 px.
+  </p>
+
+  <div class="lamina">
+    <div class="mando" role="group" aria-label="Antes y después">
+      <button type="button" data-par="hueco" data-v="antes" aria-pressed="true">Como está</button>
+      <button type="button" data-par="hueco" data-v="despues" aria-pressed="false">Como quedaría</button>
+    </div>
+    <div class="par">
+      <figure>
+        <figcaption>Hoy <span class="chapa mal">~700 px de nada</span></figcaption>
+        <div class="caja-dieta">
+          <div class="caja-cab"><span>Dieta única</span><span class="verbo">+ día</span></div>
+          <div class="caja-cuerpo">
+            <p style="margin:0 0 12px;font-size:13.5px">Empieza por «+ comida», tráele la dieta de un Excel o un PDF y se monta sola.</p>
+            <span class="verbo">+ comida</span>
+          </div>
+          <div class="hueco" id="hueco-antes" style="height:250px">EL AGUJERO</div>
+        </div>
+      </figure>
+      <figure>
+        <figcaption>Con L-04 y L-05 <span class="chapa bien">la caja mide lo que tiene</span></figcaption>
+        <div class="caja-dieta">
+          <div class="caja-cab"><span>Dieta única</span><span class="verbo">+ día</span></div>
+          <div class="caja-cuerpo" style="padding:34px 18px 30px;text-align:center">
+            <p style="margin:0 auto 4px;font-size:15px;font-weight:700;color:var(--text);max-width:36ch">Aquí van sus comidas</p>
+            <p style="margin:0 auto 16px;font-size:13.5px;max-width:40ch">Cada comida con sus alimentos y sus gramos. Puedes traerla de un Excel, de un PDF, o copiarle la de otro cliente.</p>
+            <span class="verbo">+ comida</span>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+      </figure>
+    </div>
+  </div>
+  <p class="lamina-pie">
+    Y no es un fallo de redacción: es que no hay <strong>una</strong> gramática
+    de vacío. Existe el primitivo <code>EmptyState</code> —33 usos— y conviven
+    con él diez vacíos ad hoc: <code>vacio-invita</code>,
+    <code>biblioteca-vacio</code>, <code>cartera-vacio</code>,
+    <code>hoja-vacia</code>, <code>hoja-calentamiento-vacio</code>,
+    <code>auto-vacia</code>, <code>food-vacia</code>,
+    <code>sidebar-vacio</code>, <code>selector-etiquetas-vacio</code>,
+    <code>cierre.is-vacio</code>. Cada pantalla resolvió el suyo.
+    <br><br>
+    Una pantalla que es 40 % gris vacío no se lee como sobria: se lee como sin
+    terminar. <strong>Es lo que más separa esto de Coachway, por encima de
+    cualquier token.</strong>
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>05</span><span class="regla"></span><span>Lámina D</span></div>
+    <h2>La escala de espacio, y lo que se sale de ella</h2>
+  </div>
+
+  <div class="lamina">
+    <div class="cinta" id="cinta"></div>
+  </div>
+  <p class="lamina-pie">
+    Arriba y en rojo, los literales de píxel que se escriben a mano en
+    <code>padding</code>, <code>gap</code> y <code>margin</code>, con las veces
+    que aparecen. Abajo y en negro, la escala real
+    (<code>--s1</code>…<code>--s7</code>). 4, 8, 12 y 22 coinciden con la escala
+    y se escriben a mano igual; <strong>5, 6, 7, 9, 10, 11, 14 y 30 no están en
+    ninguna parte</strong>. 1–3 px son ópticos —canto, sombra, desplazamiento— y se
+    quedan como excepción declarada.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>06</span><span class="regla"></span><span>Lámina E</span></div>
+    <h2>Ocho clases de una letra en el espacio global</h2>
+  </div>
+
+  <p>
+    354 clases están definidas en más de un fichero. No son accidentes: son la
+    consecuencia aritmética de tener nombres genéricos sin prefijo sueltos en
+    una hoja global de 26.245 líneas.
+  </p>
+
+  <div class="lamina">
+    <div id="colisiones"></div>
+  </div>
+  <p class="lamina-pie">
+    Esto es exactamente lo que ya se ha pagado tres veces: el <code>.rail</code>
+    que hacía invisibles los menús, la colisión de <code>.tira</code> —que sigue
+    viva en Revisión— y la de <code>.tira-semana</code>.
+    <br><br>
+    El propio código lo confiesa. <code>ui/Hoja.jsx</code>, en su cabecera:
+    <em>«<code>.hoja</code> YA ES OTRA COSA en esta casa […] Dos vocabularios
+    distintos compartiendo prefijo es exactamente el fallo del que se
+    viene»</em> — y aun así la pieza nueva se llamó <code>.sheet</code> para
+    esquivarlo, que es el tercer idioma.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>07</span><span class="regla"></span><span>Lámina F</span></div>
+    <h2>Todo pesa lo mismo</h2>
+  </div>
+
+  <p>
+    <code>tokens.css</code> asigna <strong>una firma a cada pantalla</strong> y
+    propone una prueba: taparla con la mano y ver el resto tranquilo. Hoy no
+    pasa. Inicio son seis cajas del mismo peso, mismo canto, mismo radio y mismo
+    rótulo; Resumen son ocho. Ninguna manda, así que el ojo no tiene por dónde
+    entrar y la pantalla se lee como un formulario.
+  </p>
+
+  <div class="lamina">
+    <div class="mando" role="group" aria-label="Antes y después">
+      <button type="button" data-par="fondo" data-v="antes" aria-pressed="true">Como está</button>
+      <button type="button" data-par="fondo" data-v="despues" aria-pressed="false">Como quedaría</button>
+    </div>
+    <div class="par">
+      <figure>
+        <figcaption>Hoy <span class="chapa mal">cuatro cajas idénticas</span></figcaption>
+        <div class="mosaico" id="mosaico-a"></div>
+      </figure>
+      <figure>
+        <figcaption>Con L-07 y L-08 <span class="chapa bien">una firma</span></figcaption>
+        <div class="mosaico is-despues" id="mosaico-b"></div>
+      </figure>
+    </div>
+  </div>
+  <p class="lamina-pie">
+    La profundidad la tiene que hacer la <strong>superficie</strong>, no el
+    canto. Coachway escalona cinco superficies y casi no usa sombras; aquí los
+    escalones ya existen —<code>--surface</code>,
+    <code>--surface-raised</code>, <code>--surface-sunken</code>,
+    <code>--canvas-alt</code>— y no se usan para jerarquizar: las ocho cajas de
+    Resumen llevan el mismo canto al mismo alfa. Eso es lo que lee «robótico».
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>08</span><span class="regla"></span><span>Lámina G</span></div>
+    <h2>La portada descarga la hoja de entreno</h2>
+  </div>
+
+  <div class="lamina">
+    <div class="barra-peso" role="img" aria-label="De 472 KB de CSS, unos 97 KB corresponden a la portada y el resto a la aplicación">
+      <i class="app"></i><i class="lp"></i>
+    </div>
+    <div class="leyenda">
+      <span><b style="background:var(--text-3)"></b>CSS de la aplicación — no se usa ni una clase en la portada</span>
+      <span><b style="background:var(--accent)"></b>Las ~97 clases <code>lp-*</code> que la portada sí necesita</span>
+    </div>
+  </div>
+  <p class="lamina-pie">
+    472 KB en una sola hoja (77,6 KB en gzip), que se sirve entera en la web
+    pública. Y al lado, <code>index.js</code> de 672 KB con solo
+    <strong>4 <code>React.lazy</code> en 267 componentes</strong>.
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>09</span><span class="regla"></span><span>La decisión</span></div>
+    <h2>¿Cuál de los dos temas es la cara del producto?</h2>
+  </div>
+
+  <p>
+    <code>index.html</code> arranca con <code>data-theme="dark"</code>: la noche
+    es lo que ve todo el mundo. Y sin embargo, la vuelta de tuerca del 11 sep
+    —papel templado <code>#f7f6f2</code>, sombras teñidas con la tinta del
+    papel, contraste del secundario subido a 7,8:1— <strong>se dio solo en el
+    tema claro</strong>.
+  </p>
+
+  <div class="temas">
+    <div class="muestra-tema papel">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;opacity:.6">Papel · acabado en sept</span>
+      <div class="caja-m">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase" class="s">Desde que empezó</div>
+        <div class="cifra" style="font-size:34px;margin:6px 0 2px">−1,9<span style="font-size:15px"> kg</span></div>
+        <div style="font-size:13px" class="a">Sus fases</div>
+      </div>
+      <p class="muestra-pie s">Templado, sombra de contacto, sin canto. Se hizo en septiembre y casi nadie lo ve.</p>
+    </div>
+    <div class="muestra-tema hierro">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;opacity:.6">Hierro · el que arranca</span>
+      <div class="caja-m">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase" class="s">Desde que empezó</div>
+        <div class="cifra" style="font-size:34px;margin:6px 0 2px">−1,9<span style="font-size:15px"> kg</span></div>
+        <div style="font-size:13px" class="a">Sus fases</div>
+      </div>
+      <p class="muestra-pie s">Negro azulado #090b0e con acento cobalto. Es el default de IA que CLAUDE.md §25.2 manda evitar.</p>
+    </div>
+  </div>
+
+  <div class="pregunta" style="margin-top:26px">
+    <p style="margin:0 0 10px"><strong>Hay tres salidas y solo una la puedes decidir tú:</strong></p>
+    <ul style="margin:0">
+      <li><strong>La noche es la cara</strong> → el hierro se lleva el mismo trabajo que se llevó el papel: sacarlo del negro azulado genérico hacia un grafito con temperatura propia, y revisar el cobalto contra él.</li>
+      <li><strong>El papel es la cara</strong> → <code>index.html</code> arranca en claro, y la noche pasa a ser lo que es en Linear o Stripe: una preferencia bien hecha, no el default.</li>
+      <li><strong>Se queda como está</strong> → entonces es deuda asumida, y conviene escribirlo en <code>tokens.css</code> para que dentro de tres meses nadie lo vuelva a descubrir.</li>
+    </ul>
+    <p style="margin:12px 0 0">No hay respuesta técnica. Las tres son defendibles; lo que no lo es es que sean dos productos distintos según la hora.</p>
+  </div>
+
+  <div class="pregunta contestada" style="margin-top:18px">
+    <p style="margin:0 0 8px">
+      <span class="chapa bien">contestada · 12 sep 2026</span>
+      <strong style="margin-left:8px">El papel es la cara.</strong>
+    </p>
+    <p style="margin:0">
+      <code>index.html</code> arranca en <code>data-theme="light"</code>,
+      <code>ThemeProvider</code> cae en claro cuando no hay preferencia
+      guardada, el <code>theme-color</code> sin <code>media</code> pasa al papel
+      y el <code>manifest.webmanifest</code> se pone al día —llevaba el
+      <code>#eceef1</code> de la paleta de dos vueltas atrás—. La noche no se
+      retira: pasa a ser una preferencia en Ajustes → Apariencia, y que está sin
+      trabajar queda escrito en <code>tokens.css</code> para que nadie lo
+      descubra dentro de tres meses.
+    </p>
+    <p style="margin:10px 0 0">
+      Y algo que solo se ve montándolo: la barra lateral es oscura en los dos
+      temas por diseño, y con el lienzo de papel al lado por fin hace el trabajo
+      para el que se escribió —ser el ancla que deja el contenido iluminado—.
+      Contra el hierro era una columna oscura sobre otra.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>10</span><span class="regla"></span><span>El plan</span></div>
+    <h2>Trece movimientos, cuatro tandas</h2>
+  </div>
+
+  <div class="tanda">
+    <div class="tanda-cab"><span class="n">1</span><h3>La ley del peso</h3><span class="coste">se nota en todas las pantallas</span></div>
+    <div class="movs">
+      <div class="mov"><span class="id">L-01</span><div><b>Tres pesos, no dieciséis<span class="mov-estado si">hecho · salieron 5, ver §12</span></b><p>400 cuerpo · 500 rótulo · 700 cifra y titular. Los trece intermedios se colapsan al más cercano, y <code>verify-styles.mjs</code> pasa a fallar con cualquier otro. Sin la comprobación vuelven en un mes.</p></div></div>
+      <div class="mov"><span class="id">L-02</span><div><b>La escala de espacio manda<span class="mov-estado medio">hecho a medias</span></b><p>Todo literal de ≥4 px pasa a su token. Se declara la excepción de 1–3 px (canto, sombra, desplazamiento óptico) y se comprueba lo demás. Son ~200 sustituciones mecánicas.</p></div></div>
+      <div class="mov"><span class="id">L-03</span><div><b>El acento vuelve a su sitio<span class="mov-estado si">hecho</span></b><p>Cae el rótulo azul de la fila-puerta. El rótulo es gris siempre; el azul se queda en el hueco y en el <code>:hover</code>. «El plan» pasa de siete azules a dos, y los dos que quedan son los que piden algo.</p></div></div>
+    </div>
+  </div>
+
+  <div class="tanda">
+    <div class="tanda-cab"><span class="n">2</span><h3>El vacío deja de ser un agujero</h3><span class="coste">mata los cuatro huecos medidos</span></div>
+    <div class="movs">
+      <div class="mov"><span class="id">L-04</span><div><b>Un solo vacío<span class="mov-estado si">hecho</span></b><p>Los diez vacíos ad hoc pasan por <code>EmptyState</code>, rehecho con la gramática de la casa: una frase que dice <em>qué va a aparecer ahí</em> y el verbo en azul. Sin icono decorativo grande y sin disculpa.</p></div></div>
+      <div class="mov"><span class="id">L-05</span><div><b>La caja mide lo que tiene<span class="mov-estado medio">hecho, acotado</span></b><p>«La lista es una caja que llena el alto» se matiza: llena el alto cuando hay contenido que desplazar; con menos filas, la caja acaba en su última fila y el lienzo queda debajo.</p></div></div>
+      <div class="mov es-no"><span class="id">L-06</span><div><b>Las tarjetas de una fila dejan de estirarse<span class="mov-estado no">no — ya se probó, ver §12</span></b><p><code>align-items: start</code> en las rejillas donde hoy el <code>stretch</code> fabrica el hueco de «Cómo va».</p></div></div>
+    </div>
+  </div>
+
+  <div class="tanda">
+    <div class="tanda-cab"><span class="n">3</span><h3>La firma, de verdad</h3><span class="coste">es la que sube el nivel</span></div>
+    <div class="movs">
+      <div class="mov"><span class="id">L-07</span><div><b>Una firma por pantalla, aplicada<span class="mov-estado medio">parcial</span></b><p>Para cada una de las seis pantallas de la tabla de <code>tokens.css</code>: la pieza firma sube un escalón de tamaño y peso, y todo lo demás baja uno. La prueba es la que ya está escrita: taparla con la mano y ver la pantalla plana.</p></div></div>
+      <div class="mov"><span class="id">L-08</span><div><b>La profundidad la hace la superficie<span class="mov-estado si">hecho</span></b><p>Las tarjetas de segundo nivel pierden el canto y se apoyan en <code>--surface-sunken</code>; el canto y la luz se reservan a la firma.</p></div></div>
+      <div class="mov"><span class="id">L-09</span><div><b>La entrada se coreografía, una vez<span class="mov-estado si">hecho</span></b><p>Al montar una pantalla, la columna principal entra en cuatro escalones de 40 ms y el costado en uno. Con <code>--ease</code> y bajo <code>prefers-reduced-motion</code>, que ya están. ~30 líneas, y es la diferencia entre «pintado» y «vivo».</p></div></div>
+    </div>
+  </div>
+
+  <div class="tanda">
+    <div class="tanda-cab"><span class="n">4</span><h3>La limpieza que no se ve</h3><span class="coste">se paga sola</span></div>
+    <div class="movs">
+      <div class="mov es-no"><span class="id">L-10</span><div><b>Un nombre por cosa<span class="mov-estado no">pendiente</span></b><p>Mueren las clases genéricas sin prefijo, y con ellas la mayor parte de las 354 colisiones. Comprobación nueva: una clase de menos de cuatro caracteres, o sin guion, es un fallo.</p></div></div>
+      <div class="mov es-no"><span class="id">L-11</span><div><b>Los ficheros, por materia<span class="mov-estado no">pendiente</span></b><p><code>revision.css</code> se parte por sus 91 secciones conservando el orden de cascada exacto, con el método ya verificado byte a byte. Ningún fichero por encima de ~1.200 líneas y el nombre igual a lo que hay dentro.</p></div></div>
+      <div class="mov es-no"><span class="id">L-12</span><div><b>La portada no carga la aplicación<span class="mov-estado no">no — y con motivo, ver §12</span></b><p>Las ~97 clases <code>lp-*</code> salen a su propia hoja, que importa <code>LandingPage</code>.</p></div></div>
+      <div class="mov es-no"><span class="id">L-13</span><div><b>El barrido de lo muerto<span class="mov-estado no">pendiente</span></b><p>368 candidatas sin uso literal. En una cata de ocho, cinco estaban muertas de verdad. Lo que se compone en ejecución se declara como excepción; el resto se va.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section class="estrecho">
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>11</span><span class="regla"></span><span>El límite</span></div>
+    <h2>Qué no propongo</h2>
+  </div>
+  <ul>
+    <li><strong>Tocar la paleta.</strong> Los 116 tokens están medidos, razonados, y solo cinco no se leen nunca. El problema no son los valores: es que la estructura no los usa. Rediseñar no es cambiar tokens.</li>
+    <li><strong>Cambiar de tipografía.</strong> Archivo + Archivo Expanded ya es una voz propia y está bien repartida —la ancha solo en cifras y portadillas—. Lo que falta no es otra letra: son menos pesos.</li>
+    <li><strong>Copiar el verde de Coachway ni los anillos de Efort.</strong> Lo que hay que copiarles es el método —escalones de superficie, tres pesos, una coreografía de entrada—, no el aspecto.</li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section>
+  <div class="cab-seccion">
+    <div class="num-seccion"><span>12</span><span class="regla"></span><span>El remate</span></div>
+    <h2>Lo que se construyó, y los tres desvíos</h2>
+  </div>
+
+  <p>
+    12 sep 2026. Nueve de los trece movimientos están puestos; cuatro no, y tres
+    de esos cuatro no por falta de tiempo sino porque al ir a hacerlos se vio
+    que el plan estaba equivocado. Eso es lo que hay debajo — el resto está en
+    §6 de <code>docs/estudio-limpieza-y-acabado.md</code>, con las cifras.
+  </p>
+
+  <div class="movs" style="margin-top:22px">
+    <div class="mov">
+      <span class="id">L-01</span>
+      <div>
+        <b>Son cinco pesos, no tres<span class="mov-estado si">desvío</span></b>
+        <p>
+          400 cuerpo · 500 rótulo · 600 fuerte · 700 cifra, y 800 acotado por
+          escrito a la portada. Colapsar las 298 declaraciones de 600 contra
+          las 238 de 700 —que es lo que pedían los tres— dejaba media aplicación
+          en negrita, que es otra forma de que todo pese lo mismo; y la cifra es
+          la firma de cuatro de las seis pantallas, así que necesita un escalón
+          propio por encima del nombre de fila. Coachway usa tres porque su
+          producto casi no tiene cifras.
+        </p>
+      </div>
+    </div>
+    <div class="mov">
+      <span class="id">L-06</span>
+      <div>
+        <b>No se hace: ya se probó y lo devolviste<span class="mov-estado no">desvío</span></b>
+        <p>
+          <code>revision.css</code> documenta que <code>align-items: start</code>
+          en ese mosaico se probó y dejaba el agujero en la caja de al lado
+          —«sigue sin corregirse, hay espacio vacío ahí»—. Estirar la fila es
+          correcto. Lo corregible era <em>adónde</em> iba el alto sobrante: los
+          190 px bajo «Cómo va» se acumulaban abajo, que es lo que se lee como
+          «falta algo». Repartidos arriba y abajo, la pregunta queda en el
+          centro de su caja y el aire deja de tener forma de agujero.
+        </p>
+      </div>
+    </div>
+    <div class="mov">
+      <span class="id">L-12</span>
+      <div>
+        <b>No es gratis: se cambia un peso por un defecto visible<span class="mov-estado no">desvío</span></b>
+        <p>
+          <code>portada.css</code> lleva también el acceso
+          (<code>.acceso*</code>, <code>.login*</code>) y
+          <code>LandingPage</code> se importa en firme desde
+          <code>App.jsx</code>, así que la hoja entraría igual en el paquete
+          principal. Para ganar los 77 KB habría que volver perezosas la portada
+          y el acceso — y la portada está <strong>prerrenderizada</strong>: su
+          CSS en un trozo diferido es un destello sin estilo en la página
+          pública, que es el único sitio donde no se puede permitir. Merece su
+          propia decisión.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:24px">
+    Lo que sigue pendiente: <strong>L-07</strong> entero —subir un escalón la
+    pieza firma de cada pantalla y bajar uno todo lo demás es un repintado
+    transversal que pide tu ojo pantalla por pantalla, no un
+    <code>replace</code>—, <strong>L-10</strong>, <strong>L-11</strong> y
+    <strong>L-13</strong>, que son las tres masivas y van solas.
+  </p>
+
+  <p>
+    Y dos guardianes nuevos en <code>verify-styles.mjs</code>, que es lo que
+    impide que esto se deshaga en un mes: un <code>font-weight</code> numérico
+    fuera de los cinco es un fallo, y un literal de espacio que ya tiene token
+    es un fallo. Los 328 que no tienen token (6, 9, 10, 11, 14…) salen como
+    aviso a propósito: arreglarlos es mirarlos uno a uno.
+  </p>
+</section>
+
+<footer>
+  <p style="margin:0">
+    Estudio escrito el 11 sep 2026; construido y anotado el 12. La versión en
+    texto, con las cifras y las rutas completas, está en
+    <code>docs/estudio-limpieza-y-acabado.md</code> —§6 cuenta lo que se hizo—.
+    Las capturas de después, en <code>capturas/tras-limpieza-12sep/</code>.
+  </p>
+</footer>
+
+</div>
+
+<script>
+/* ══ El tema ═══════════════════════════════════════════════════════════
+   El documento arranca en papel porque es el tema en el que se hizo el
+   acabado; el mando existe porque el §9 pregunta justamente por eso, y una
+   pregunta sobre dos temas se contesta mirándolos. */
+const raiz = document.documentElement;
+document.querySelectorAll('[data-tema]').forEach((b) => {
+  b.addEventListener('click', () => {
+    raiz.setAttribute('data-theme', b.dataset.tema);
+    document.querySelectorAll('[data-tema]').forEach((o) =>
+      o.setAttribute('aria-pressed', String(o === b)));
+  });
+});
+
+/* ══ Los pares antes/después ═══════════════════════════════════════════
+   En pantalla ancha se ven los dos a la vez y el mando no hace falta; por
+   debajo de 900 px la lámina se apila y el mando enseña uno cada vez, que es
+   lo que hace que una comparación siga siendo una comparación en el móvil. */
+const estrecho = window.matchMedia('(max-width: 899px)');
+const pares = {};
+document.querySelectorAll('[data-par]').forEach((b) => {
+  (pares[b.dataset.par] ||= []).push(b);
+  b.addEventListener('click', () => {
+    pares[b.dataset.par].forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    aplicarPar(b.dataset.par);
+  });
+});
+function aplicarPar(nombre) {
+  const mando = pares[nombre][0].closest('.mando');
+  const fig = mando.parentElement.querySelectorAll('.par > figure');
+  const v = pares[nombre].find((b) => b.getAttribute('aria-pressed') === 'true').dataset.v;
+  fig.forEach((f, i) => {
+    f.hidden = estrecho.matches && ((v === 'antes') !== (i === 0));
+  });
+}
+function repintarPares() { Object.keys(pares).forEach(aplicarPar); }
+estrecho.addEventListener('change', repintarPares);
+document.querySelectorAll('.mando[role="group"]').forEach((m) => {
+  if (m.querySelector('[data-par]')) m.hidden = !estrecho.matches;
+});
+estrecho.addEventListener('change', () => {
+  document.querySelectorAll('.mando[role="group"]').forEach((m) => {
+    if (m.querySelector('[data-par]')) m.hidden = !estrecho.matches;
+  });
+});
+repintarPares();
+
+/* ══ Lámina A · los dieciséis pesos ════════════════════════════════════
+   Las cuentas salen de contar `font-weight:` en src/styles/*.css. */
+const PESOS = [
+  [400, 15], [500, 71], [550, 31], [560, 1], [600, 155], [640, 5], [650, 128],
+  [660, 1], [680, 6], [700, 216], [720, 9], [730, 1], [740, 4], [750, 2], [800, 14],
+];
+const CANON = new Set([400, 500, 700]);
+document.getElementById('pesos').innerHTML = PESOS.map(([w, n]) => `
+  <div class="peso-fila${CANON.has(w) ? ' canon' : ''}">
+    <span class="mono">${w}</span>
+    <span class="muestra" style="font-weight:${w}">Series por microciclo
+</span>
+    <span class="peso-num">${n} ${n === 1 ? 'uso' : 'usos'}</span>
+  </div>`).join('');
+
+/* ══ Lámina B · la tarjeta «El plan», calcada de 10-resumen.png ════════ */
+const PALANCAS = [
+  ['Objetivo', '<span class="invita">Ponle objetivo</span>', null],
+  ['Calorías', '1800<small> kcal</small>', 'P 117 · C 189 · G 54 g'],
+  ['Pasos', '9000<small> al día</small>', null],
+  ['Cardio', '<span class="invita">Ponle cardio</span>', null],
+  ['Entreno', '4<small> días a la semana</small>', null],
+];
+const tarjetaPlan = (id) => {
+  document.getElementById(id).innerHTML =
+    '<span class="rotulo">El plan</span>' +
+    PALANCAS.map(([k, v, s]) => `
+      <div class="palanca">
+        <span class="palanca-k">${k}</span>
+        <span class="palanca-v">${v}</span>
+        ${s ? `<span class="palanca-s">${s}</span>` : ''}
+      </div>`).join('');
+};
+tarjetaPlan('plan-antes');
+tarjetaPlan('plan-despues');
+
+/* ══ Lámina D · la cinta métrica ═══════════════════════════════════════
+   Arriba los literales que se escriben a mano (con sus veces), abajo la
+   escala. Se posicionan por su valor en píxeles, así que la distancia entre
+   marcas ES la distancia de la que se habla. */
+const FUERA = [[2, 163], [3, 102], [4, 98], [5, 85], [6, 98], [7, 32], [8, 23],
+               [9, 9], [10, 9], [11, 3], [12, 4], [14, 3], [22, 4], [30, 3]];
+const ESCALA = [[4, 's1'], [8, 's2'], [12, 's3'], [16, 's4'], [22, 's5'], [32, 's6'], [44, 's7']];
+const X = (px) => 2 + (px / 46) * 96;
+document.getElementById('cinta').innerHTML =
+  '<div class="cinta-eje"></div>' +
+  FUERA.map(([px, n], i) => `
+    <div class="marca fuera${i % 2 ? ' alta' : ''}" style="left:${X(px)}%">
+      <span>${px}<span class="veces"> ×${n}</span></span><i></i>
+    </div>`).join('') +
+  ESCALA.map(([px, tk]) => `
+    <div class="marca escala" style="left:${X(px)}%">
+      <i></i><span>${px}</span>
+      <span style="font-size:10px;font-weight:500;color:var(--text-3)">--${tk}</span>
+    </div>`).join('');
+
+/* ══ Lámina E · las colisiones ═════════════════════════════════════════ */
+const HOJAS = ['ajustes', 'base', 'chasis', 'controles', 'formularios', 'jornada',
+  'piezas', 'portada', 'responsive', 'revision', 'superficies', 'taller', 'trabajo'];
+const COLISIONES = [
+  ['.btn', ['ajustes', 'chasis', 'controles', 'jornada', 'piezas', 'responsive', 'revision', 'superficies', 'taller', 'trabajo']],
+  ['.input', ['ajustes', 'controles', 'piezas', 'responsive', 'revision', 'superficies', 'taller', 'trabajo']],
+  ['.name', ['ajustes', 'base', 'piezas', 'responsive', 'revision', 'superficies', 'trabajo']],
+  ['.k', ['ajustes', 'base', 'jornada', 'piezas', 'revision', 'superficies', 'trabajo']],
+  ['.n', ['ajustes', 'controles', 'jornada', 'piezas', 'revision', 'superficies', 'trabajo']],
+  ['.v', ['ajustes', 'base', 'piezas', 'responsive', 'revision', 'superficies', 'trabajo']],
+  ['.d', ['ajustes', 'piezas', 'revision']],
+];
+document.getElementById('colisiones').innerHTML = COLISIONES.map(([c, hs]) => `
+  <div class="colision">
+    <span class="clase">${c}</span>
+    <span class="hojas">${HOJAS.map((h) =>
+      `<span class="${hs.includes(h) ? 'rojo' : ''}" style="${hs.includes(h) ? '' : 'opacity:.38'}">${h}</span>`
+    ).join('')}</span>
+  </div>`).join('') +
+  `<p style="margin:16px 0 0;font-size:13px;color:var(--text-3)">En rojo, los ficheros donde esa misma clase está declarada. Cuál gana depende del orden de los <code>@import</code> en <code>index.css</code> — y ese orden lleva años conservándose a mano porque moverlo cambia lo que se ve.</p>`;
+
+/* ══ Lámina F · el mosaico ═════════════════════════════════════════════ */
+const CAJAS = [
+  ['Sin señales', '6', 'llevan días sin entrenar'],
+  ['Sin semana siguiente', '5', 'no hay hoja después'],
+  ['Lo que viene', '0', 'se quedan sin hoja'],
+  ['Esta semana', '3', 'apuntado'],
+];
+const pintaMosaico = (id, conFirma) => {
+  document.getElementById(id).innerHTML = CAJAS.map(([r, c, s], i) => `
+    <div class="caja${conFirma && i === 0 ? ' firma' : ''}">
+      <span class="rotulo">${r}</span>
+      <span class="cifra">${c}</span>
+      <span style="font-size:12px;color:var(--text-3);margin-left:6px">${s}</span>
+    </div>`).join('');
+};
+pintaMosaico('mosaico-a', false);
+pintaMosaico('mosaico-b', true);
+</script>
+
+</body>
+</html>

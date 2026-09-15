@@ -143,7 +143,11 @@ export const LoQueSale = () => {
               <th scope="col">A quién</th>
               <th scope="col">Qué</th>
               <th scope="col">Quién lo manda</th>
-              <th scope="col" aria-label={futura ? 'Cancelar' : 'Cómo va'} />
+              {/* El rótulo de la columna dice el MISMO verbo que el botón que
+                lleva dentro —«Quitar de la cola»—. Decía «Cancelar», que es una
+                cuarta palabra para este gesto y solo la oía quien navega a
+                ciegas. Ver `docs/producto.md` §5.8. */}
+            <th scope="col" aria-label={futura ? 'Quitar de la cola' : 'Cómo va'} />
             </tr>
           </thead>
           <tbody>

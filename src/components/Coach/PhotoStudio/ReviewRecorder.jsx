@@ -681,7 +681,7 @@ export const ReviewRecorder = ({ client, canvasRef }) => {
                       copy(outcome.url, review.path);
                     }}
                   >
-                    <Share2 size={13} /> Crear enlace
+                    <Share2 size={13} /> Generar enlace
                   </button>
                 )}
 

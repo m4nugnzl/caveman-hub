@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { Panel } from '@/components/ui/primitives';
+import { Panel, Switch } from '@/components/ui/primitives';
 import { traeALaVista } from '@/lib/motion';
 import { useDeslizar } from '@/lib/useDeslizar';
 import { tramoDeHojas } from './hojas';
@@ -155,16 +155,48 @@ const CintaDeHojas = ({ hojas, indice, onIr, etiquetaCorta, etiquetaLarga }) => 
  *
  * Aquí es a donde llegas al pasar la última hoja: acabas la última sesión,
  * deslizas una vez más y lo que hay es esto. No hay que encontrarlo.
+ *
+ * ── Y también sale en la portada, con otro rótulo ──────────────────────────
+ * El día que se cierra el microciclo, esto mismo abre su inicio: allí el rótulo
+ * dice de dónde viene la oferta —«Has cerrado el microciclo 2»— y la tarjeta se
+ * levanta, porque es lo único de la pantalla que espera una decisión suya. Es
+ * la MISMA pieza y no una copia: la frase de lo que se copia, el verbo y lo que
+ * pasa al pulsarlo tienen que decir lo mismo en los dos sitios.
+ *
+ * ── Y la casilla de que se abra solo ───────────────────────────────────────
+ * Solo donde la tarjeta DECIDE, que es la portada. La oferta y el ajuste dicen
+ * lo mismo con distinto alcance —«ábrelo» y «ábrelos siempre»—, así que el
+ * sitio de la segunda es debajo de la primera, en el momento en que la pregunta
+ * tiene sentido. En la cinta no está: allí esto es una hoja más del programa y
+ * un ajuste permanente dentro de una hoja sería un panel de preferencias
+ * escondido en mitad de la rutina.
+ *
+ * @param rotulo  Lo que va encima del nombre. Por defecto, «Lo que viene».
+ * @param decide  Levanta la tarjeta. Solo donde es la decisión de la pantalla.
+ * @param seguirSolo    Si ya lo tiene pedido. Ver `abreSoloElCiclo`.
+ * @param onSeguirSolo  Sin él no hay casilla.
  */
-export const HojaNueva = ({ unidad, numero, onContinuar }) => {
+export const HojaNueva = ({
+  unidad,
+  numero,
+  onContinuar,
+  rotulo = 'Lo que viene',
+  decide = false,
+  seguirSolo = false,
+  onSeguirSolo = null,
+}) => {
   const nombre = `${unidad.toLowerCase()} ${numero}`;
 
   return (
-    <Panel className="col gap-4 hoja-nueva">
+    <Panel className={`col gap-4 hoja-nueva${decide ? ' card-aviso' : ''}`}>
       <div className="col gap-1">
-        <span className="section-label">Lo que viene</span>
+        <span className="section-label">{rotulo}</span>
+        {/* En la cinta, el nombre de la hoja: es una hoja más y se llama como
+            las otras. En la portada es una OFERTA, y una oferta se dice con un
+            verbo — «Te toca el microciclo 3», que es lo que el prototipo pone
+            de titular. El mismo dato, dicho como lo que es en cada sitio. */}
         <h3 className="day-name">
-          {unidad} {numero}
+          {decide ? `Te toca el ${nombre}` : `${unidad} ${numero}`}
         </h3>
       </div>
       <p className="t-sm t-secondary">
@@ -174,6 +206,15 @@ export const HojaNueva = ({ unidad, numero, onContinuar }) => {
       <button type="button" className="btn btn-primary btn-block" onClick={onContinuar}>
         Empezar el {nombre}
       </button>
+      {/* Un interruptor y no una casilla de tarea: esto no es algo que se marque
+          hecho, es un ajuste que queda puesto a partir de ahora. Ver `Switch`. */}
+      {decide && onSeguirSolo && (
+        <Switch
+          label="Que el siguiente se abra solo al cerrar este"
+          checked={seguirSolo}
+          onChange={onSeguirSolo}
+        />
+      )}
     </Panel>
   );
 };

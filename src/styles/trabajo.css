@@ -25,9 +25,9 @@
 }
 .table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .table th {
-  color: var(--text-tertiary); font-weight: 650; font-size: var(--fs-2xs);
+  color: var(--text-tertiary); font-weight: 600; font-size: var(--fs-2xs);
   text-transform: uppercase; letter-spacing: var(--tracking-stencil);
-  text-align: left; padding: 0 10px 8px; white-space: nowrap;
+  text-align: left; padding: 0 10px var(--s2); white-space: nowrap;
 }
 .table td { padding: 9px 10px; border-top: 1px solid var(--hairline); }
 .table .num { text-align: center; }
@@ -53,7 +53,7 @@
 .th-orden {
   font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit;
   background: none; border: 0; padding: 0; margin: 0;
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--s1);
   cursor: pointer;
   transition: color var(--fast);
 }
@@ -64,21 +64,11 @@
 .table th[aria-sort='descending'] > .th-orden { color: var(--text); }
 .table th[aria-sort='ascending'] > .th-orden > svg,
 .table th[aria-sort='descending'] > .th-orden > svg { opacity: 1; }
-.table tfoot td { border-top: 1px solid var(--hairline-strong); font-weight: 650; color: var(--text); }
+.table tfoot td { border-top: 1px solid var(--hairline-strong); font-weight: 600; color: var(--text); }
 
 /* ==========================================================================
    Editor de rutina
    ========================================================================== */
-
-/* La fecha del microciclo, en voz baja: sin caja hasta que se toca. Es un dato
-   que se corrige de vez en cuando, no un formulario permanente. */
-.mcb-fecha { align-items: center; }
-.mcb-fecha .input {
-  background: transparent; border-color: transparent;
-  transition: border-color var(--fast), background-color var(--fast);
-}
-.mcb-fecha .input:hover { border-color: var(--edge); }
-.mcb-fecha .input:focus { background: var(--surface-sunken); border-color: var(--hairline-strong); }
 
 /* La barra de la sesión: una FILA del panel, no una caja hundida dentro de la
    tarjeta del día. La regla es la misma que en la barra lateral: dentro de una
@@ -95,26 +85,6 @@
    reparto muscular y las métricas — tinta y dato, no cromo. (El `overflow`
    tiene que quedarse visible: aquí dentro vive el menú ⋮, que es un
    `position: absolute` y se cortaría.) */
-/* ── Dónde estaba la veta ──────────────────────────────────────────────────
-   Aquí vivía una tira de 3 px con el degradado del color de marca, encabezando
-   la cabecera del día, el saludo del cliente y la tarjeta de acceso. Se ha
-   retirado por dos motivos, y el segundo es el que importa:
-
-   1. Ya no puede existir: era el acento tumbado, y el acento dejó de tener
-      color. En acromático quedaba una barra gris sin significado.
-   2. Encabezaba esas tres piezas «porque son las que abren cada contexto», que
-      es una razón de composición, no del oficio. La firma nueva —LA REGLA, las
-      marcas de graduación de una cinta métrica— solo aparece donde de verdad se
-      mide algo: el canto de la cabecera y el carril de días de «Hoy». Un adorno
-      que solo sale cuando significa algo deja de ser adorno.
-
-   Las tres piezas se distinguen ahora por su canto, que es lo que hace un
-   instrumento. */
-.day-head {
-  display: flex; justify-content: space-between; align-items: center;
-  flex-wrap: wrap; gap: var(--s4);
-  position: relative;
-}
 
 /* El icono, sin caja: una pastilla con sombra dentro del panel era la tercera
    superficie apilada de la misma cabecera. */
@@ -124,46 +94,6 @@
 }
 
 /* Grupo de métricas del día (ejercicios / series / tonelaje). */
-/* ── El reparto del día ────────────────────────────────────────────────────
-   Una barra proporcional y su leyenda, con los colores de músculo de la
-   analítica. Antes eran distintivos sueltos: había que leerlos todos y sumar
-   mentalmente para saber si el día estaba equilibrado. La barra contesta eso sin
-   leer nada, y la leyenda da la cifra exacta a quien la necesite. */
-.day-volume { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 420px; }
-/* En el teléfono la cabecera del día se queda con lo que se decide ahí —el
-   nombre, moverlo, su menú—. El reparto por músculo y los contadores son
-   lectura de programación fina: en 390 px eran media pantalla de cifras antes
-   del primer ejercicio, y el índice ya dice el músculo de cada uno. */
-@media (max-width: 640px) {
-  .day-head .day-icon { display: none; }
-  .day-volume { display: none; }
-}
-.day-volume > .bar {
-  display: flex; height: 6px; border-radius: var(--r-pill); overflow: hidden;
-  background: var(--fill-subtle);
-}
-/* Una hebra de 1 px no se ve como un color, se ve como suciedad en el borde. */
-.day-volume > .bar > span { min-width: 3px; }
-
-.day-vol-item {
-  display: inline-flex; align-items: center; gap: 5px;
-  font-size: var(--fs-2xs); color: var(--text-secondary); white-space: nowrap;
-}
-.day-vol-item > .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.day-vol-item > strong { color: var(--text); font-variant-numeric: tabular-nums; }
-
-.day-stats {
-  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s5);
-  background: var(--surface); border-radius: var(--r-md);
-  padding: var(--s2) var(--s4);
-  box-shadow: var(--shadow-xs);
-}
-.day-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.day-stat > .v { line-height: 1.1; }
-/* En el teléfono los contadores sobran (ver el bloque de `.day-volume`): el
-   completado ya lo dice la franja de la sesión, justo debajo. DESPUÉS de la
-   base a propósito — antes perdía el empate de cascada y no escondía nada. */
-@media (max-width: 640px) { .day-stats { display: none; } }
 
 /* Fila de ejercicio: superficie propia con sombra, no un relleno plano. Con
    ocho ejercicios seguidos, el relleno plano los fundía en un bloque. */
@@ -183,7 +113,7 @@
 
 .drag-handle {
   cursor: grab; color: var(--text-tertiary); display: grid; place-items: center;
-  flex-shrink: 0; background: none; border: 0; padding: 4px; touch-action: none;
+  flex-shrink: 0; background: none; border: 0; padding: var(--s1); touch-action: none;
 }
 .drag-handle:hover { color: var(--text); }
 .drag-handle:active { cursor: grabbing; }
@@ -207,7 +137,7 @@
    (≤640): ninguna celda libre mide más de 26 px, así que reclaman una tercera
    fila para ellos. Solo la ve el entrenador editando en táctil; en la rejilla
    ancha de escritorio un hijo extra rompería la colocación automática. */
-@media (hover: none) and (max-width: 640px) {
+@media (hover: none) and (max-width: 639.98px) {
   .food-row > .touch-reorder { display: inline-flex; grid-area: 3 / 1 / 4 / 6; justify-self: start; }
   .food-row > .drag-handle { display: none; }
   .food-row > .name { padding-left: 0; }
@@ -296,7 +226,7 @@
 .rmap-item.is-past > .rmap-card { opacity: 0.62; }
 
 .rmap-head { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
-.rmap-head > strong { font-size: var(--fs-base); font-weight: 650; }
+.rmap-head > strong { font-size: var(--fs-base); font-weight: 600; }
 .rmap-when { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* Las acciones aparecen al pasar por encima o al enfocar con el teclado, en la
@@ -399,7 +329,7 @@
   font-weight: 600;
   color: var(--text-secondary);
 }
-.rmap-road-name { font-size: var(--fs-base); font-weight: 650; }
+.rmap-road-name { font-size: var(--fs-base); font-weight: 600; }
 
 /* La invitación al final del carril. Punteada y sin relleno: lo que ofrece no
    existe todavía, y un botón sólido aquí competiría con las fases de arriba. */
@@ -435,7 +365,7 @@
   box-shadow: inset 0 0 0 1px var(--edge);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .rmap-item { grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); }
   .rmap-item:not(:last-child)::before { left: 11px; top: 26px; }
   .rmap-node { width: 24px; height: 24px; }
@@ -457,7 +387,7 @@
 }
 /* La superserie SÍ distingue —dos ejercicios que se alternan sin descanso— y se
    distingue por peso, que es lo que la marca «A1 / A2» ya estaba diciendo. */
-.exercise-index.is-ss { color: var(--text); font-weight: 750; }
+.exercise-index.is-ss { color: var(--text); font-weight: 700; }
 
 /* Identidad del ejercicio: nombre arriba, y debajo el músculo y el objetivo de
    repeticiones en la misma línea, en gris pequeño.
@@ -547,9 +477,9 @@
 
    Programando es un campo; entrenando es una cita, con el mismo canto de color
    que `.coach-note` para que se reconozca como «esto lo dice tu entrenador». */
-.exercise-note { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.exercise-note { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
 .exercise-note.is-read {
-  flex-direction: row; align-items: flex-start; gap: 7px;
+  flex-direction: row; align-items: flex-start; gap: var(--s2);
   padding: var(--s2) var(--s3);
   background: var(--surface-sunken); border-radius: var(--r-sm);
   border-left: 3px solid var(--info); color: var(--info);
@@ -565,24 +495,11 @@
   border: 0; background: transparent; cursor: pointer; font: inherit;
   font-size: var(--fs-xs); font-weight: 700; color: var(--text-tertiary);
  letter-spacing: 0;
-  padding: 1px 5px; border-radius: var(--r-sm); white-space: nowrap;
+  padding: 1px var(--s1); border-radius: var(--r-sm); white-space: nowrap;
   transition: color var(--fast), background var(--fast);
 }
 .note-add::before { content: '· '; }
 .note-add:hover { color: var(--accent); background: var(--accent-soft); }
-.exercise-meta .target-summary { font-weight: 650; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
-
-/* Botón de igualar objetivos. Discreto y con el valor escrito dentro: un atajo que
-   reescribe las tres series tiene que decir a qué las va a poner ANTES de pulsarlo,
-   no después. */
-.target-level {
-  border: 0; background: transparent; cursor: pointer; font: inherit;
-  font-size: var(--fs-2xs); font-weight: 650; color: var(--accent);
-  padding: 1px 5px; border-radius: var(--r-sm);
-  text-decoration: underline; text-underline-offset: 2px;
-}
-.target-level:hover { background: var(--accent-soft); text-decoration: none; }
-.exercise-meta > .target-fixed { color: var(--info); font-weight: 650; white-space: nowrap; }
 
 /* ── El carril de series: ENVUELVE, no se desplaza ─────────────────────────
    Era un `overflow-x: auto` con celdas de 168 px fijos. Cuatro series son 700 px,
@@ -619,7 +536,7 @@
 .exercise-row:active { background: var(--fill-subtle); }
 .exercise-row-name { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .exercise-row-name > .name {
-  font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .exercise-row-name > .sum { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .exercise-row > .chevron { color: var(--text-tertiary); flex-shrink: 0; }
@@ -639,7 +556,7 @@
 /* Por debajo de esto la fila deja de ser una fila: el nombre pasa arriba a todo
    el ancho y las series ocupan la línea siguiente. Es el ancho al que el nombre
    fijo de 208 px empieza a estrangular las celdas. */
-@media (max-width: 760px) {
+@media (max-width: 1023.98px) {
   /* `flex-wrap` ya está en la base, por la nota del ejercicio. Aquí lo que
      cambia es que el nombre suelte su ancho fijo, que es lo que hace bajar de
      línea a las series. */
@@ -657,15 +574,15 @@
    tres valores que se registran. El campo del ejercicio sigue existiendo como
    atajo para rellenar todas de golpe. */
 .set-cell {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: var(--s1);
   background: var(--surface-sunken); border-radius: var(--r-md);
-  padding: 6px 8px 8px;
+  padding: 6px var(--s2) var(--s2);
   /* Ver `.set-lane`: la base es el ancho de diseño, sin encoger. En el carril de
      registro del cliente, que es una rejilla, las propiedades flex se ignoran y
      manda la plantilla de columnas. */
   flex: 1 0 168px; width: auto;
 }
-.set-cell-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; min-height: 20px; }
+.set-cell-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); min-height: 20px; }
 
 /* La cabecera envuelve: con el módulo de RIR encendido hay DOS objetivos —el
    rango y el esfuerzo— y en una tarjeta de 168 px no caben en una línea junto al
@@ -675,15 +592,15 @@
 
 .set-cell-target { display: flex; align-items: center; gap: 3px; min-width: 0; }
 
-.set-cell-target > .tag { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 650; }
+.set-cell-target > .tag { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 600; }
 .set-cell-target .input {
   width: 48px; padding: 1px 3px;
-  font-size: var(--fs-xs); font-weight: 650; text-align: center;
+  font-size: var(--fs-xs); font-weight: 600; text-align: center;
   color: var(--info); background: var(--info-soft);
   border: 1.5px solid transparent; border-radius: var(--r-xs);
 }
 .set-cell-target .input:focus { border-color: var(--info); box-shadow: none; }
-.set-cell-target > .fixed { font-size: var(--fs-xs); font-weight: 650; color: var(--info); }
+.set-cell-target > .fixed { font-size: var(--fs-xs); font-weight: 600; color: var(--info); }
 
 /* La equis de quitar la serie. `.btn.set-x` y no `.set-x` a secas: los mínimos
    táctiles del chasis se declaran sobre `.btn` más abajo, y con la misma
@@ -696,18 +613,18 @@
    los kg/reps/rir con alto de dedo. */
 @media (hover: none) {
   .btn.set-x { width: 34px; height: 34px; min-height: 34px; }
-  .set-cell-target .input { width: 64px; padding: 5px 4px; }
+  .set-cell-target .input { width: 64px; padding: var(--s1) var(--s1); }
   .set-cell-col .input { min-height: 40px; }
 }
-.set-cell-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.set-cell-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s1); }
 .set-cell-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .set-cell-col > .unit {
   font-size: var(--fs-xs); letter-spacing: 0;
-  font-weight: 650; color: var(--text-tertiary); text-align: center;
+  font-weight: 600; color: var(--text-tertiary); text-align: center;
 }
 .set-cell-col .input {
-  width: 100%; padding: 7px 2px; text-align: center;
-  font-size: var(--fs-base); font-weight: 650; border-radius: var(--r-xs);
+  width: 100%; padding: var(--s2) 2px; text-align: center;
+  font-size: var(--fs-base); font-weight: 600; border-radius: var(--r-xs);
   background: var(--surface); border: 1.5px solid transparent;
   box-shadow: var(--shadow-xs);
 }
@@ -816,7 +733,7 @@
    El objetivo es referencia: va en gris, y lo que se toca vuelve a ser lo único
    con color. Ver `ley del color` en tokens.css. */
 .set-row-target {
-  text-align: center; font-size: var(--fs-xs); font-weight: 650;
+  text-align: center; font-size: var(--fs-xs); font-weight: 600;
   color: var(--text-secondary); font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
@@ -829,28 +746,19 @@
   margin: 2px 0 0 34px; font-size: var(--fs-2xs); font-weight: 600;
   color: var(--text-tertiary); font-variant-numeric: tabular-nums;
 }
-.set-row.is-sub > .set-row-target { color: var(--text-tertiary); font-weight: 550; font-size: var(--fs-2xs); }
-.set-row.is-sub > .input { min-height: 34px; }
+.set-row.is-sub > .set-row-target { color: var(--text-tertiary); font-weight: 500; font-size: var(--fs-2xs); }
+.set-row.is-sub .input { min-height: 34px; }
 .set-row.is-sub > .set-row-tag { background: transparent; }
 /* El RIR pedido, dentro de la misma celda del objetivo y un punto más apagado:
    es la parte opcional de «lo que te pido», y quien no programa por RIR nunca la
    ve (ver el módulo `rir` en `domain/protocol.js`). */
-.set-row-target > .rir { font-weight: 550; opacity: 0.75; }
+.set-row-target > .rir { font-weight: 500; opacity: 0.75; }
 
 
 /* 42 px de alto: es un campo que se rellena de pie, con una mano y a veces con
    el dedo mojado. El mínimo táctil recomendado es 44 y aquí el objetivo real es
    toda la celda de la rejilla, que es más alta que el propio borde. */
-.set-row > .input { min-height: 42px; padding: 8px 4px; font-weight: 650; }
-
-/* ── Barra de progreso de la sesión ────────────────────────────────────────
-   Cuántas series llevas, sin una cifra más: la cifra exacta ya está en la
-   píldora de al lado y lo que aporta la barra es la proporción de un vistazo. */
-.progress { height: 5px; border-radius: var(--r-pill); background: var(--fill); overflow: hidden; }
-.progress > span {
-  display: block; height: 100%; border-radius: inherit;
-  background: var(--accent); transition: width var(--normal);
-}
+.set-row .input { min-height: 42px; padding: var(--s2) var(--s1); font-weight: 600; }
 
 /* ── La tira de la semana ──────────────────────────────────────────────────
    Las sesiones de la semana, con su día, su nombre entero y cuánto llevas de
@@ -860,15 +768,10 @@
 
    Rejilla con `auto-fit` y no `flex`: con cuatro sesiones en tres columnas, la
    cuarta se queda en su columna en vez de estirarse a lo ancho de la fila. */
-.day-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr));
-  gap: var(--s2);
-}
 
 .day-pill {
   display: flex; flex-direction: column; gap: 1px; align-items: flex-start;
-  min-width: 0; padding: 8px var(--s3); text-align: left;
+  min-width: 0; padding: var(--s2) var(--s3); text-align: left;
   background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-md);
   font: inherit; color: var(--text); cursor: pointer;
   transition: border-color var(--fast), box-shadow var(--fast);
@@ -877,7 +780,7 @@
 .day-pill[aria-pressed='true'] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 
 .day-pill > .lead {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: var(--s1);
   font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   text-transform: uppercase; letter-spacing: var(--tracking-stencil);
   color: var(--text-tertiary);
@@ -889,11 +792,12 @@
 .day-pill.is-today > .lead > .dot { background: var(--accent); }
 
 .day-pill > .nm {
-  max-width: 100%; font-size: var(--fs-sm); font-weight: 650;
+  max-width: 100%; font-size: var(--fs-sm); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .day-pill > .pg { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.day-pill.is-done > .pg { color: var(--positive); font-weight: 650; }
+.day-pill.is-done > .pg { color: var(--positive); font-weight: 600; }
+
 
 
 /* ══ LA CINTA DE HOJAS (portal del cliente, teléfono) ═══════════════════════
@@ -948,7 +852,7 @@
   flex: 0 0 auto; display: flex; align-items: center; justify-content: center;
   padding: 0 var(--s3); min-width: 44px;
   background: var(--fill); border: 1px solid transparent; border-radius: var(--r-md);
-  font: inherit; font-size: var(--fs-xs); font-weight: 650; font-variant-numeric: tabular-nums;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; font-variant-numeric: tabular-nums;
   color: var(--text-secondary); cursor: pointer; white-space: nowrap;
   transition: border-color var(--fast), color var(--fast);
 }
@@ -966,15 +870,57 @@
 .hoja-nueva { align-items: flex-start; }
 .hoja-nueva > .btn { margin-top: var(--s2); }
 
-.split-grid { display: grid; grid-template-columns: repeat(7, minmax(90px, 1fr)); gap: var(--s2); }
-.split-day { display: flex; flex-direction: column; gap: 5px; }
-.split-day > .name { font-size: var(--fs-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: var(--tracking-stencil); color: var(--text-tertiary); text-align: center; }
-.split-day > .value {
-  border-radius: var(--r-sm); padding: 9px 5px;
-  font-size: var(--fs-sm); font-weight: 600; text-align: center;
-  background: var(--fill-subtle); color: var(--text-tertiary);
+/* ── EL AVISO DEL CICLO NUEVO, EN LA PORTADA: una tarjeta de acento ────────
+   La misma pieza que cierra la cinta de hojas, pero en la portada NO es una
+   caja más de la pila: es lo único que espera una decisión, y el prototipo lo
+   dibuja como una tarjeta azul llena con el botón en blanco
+   (`docs/portal-dos-aparatos.html`, `.aviso`).
+
+   ── Por qué se rellena de acento y no se levanta como `card-decide` ───────
+   Porque compite contra sí misma. `card-decide` es la elevación que distingue
+   una tarjeta de otras tarjetas; aquí la pantalla es una PILA DE LISTAS
+   blancas, y una tarjeta blanca un poco más levantada que las listas blancas
+   de debajo no se ve a un brazo de distancia. Rellena de acento, es lo primero
+   que se lee al abrir, que es exactamente su trabajo: quien cerró su ciclo
+   anoche tiene que encontrarse esto, no buscarlo.
+
+   Es UNA aparición por pantalla y solo cuando existe la oferta — en reposo no
+   está, así que el azul nunca se vuelve mobiliario. */
+.hoja-nueva.card-aviso {
+  background: var(--accent); border-color: transparent; color: var(--accent-on);
+  box-shadow: var(--shadow-md);
 }
-.split-day > .value.is-training { background: var(--accent-soft); color: var(--accent); }
+.hoja-nueva.card-aviso > .col > .section-label,
+.hoja-nueva.card-aviso > .col > .day-name,
+.hoja-nueva.card-aviso > p { color: inherit; }
+/* El rótulo y la explicación, un escalón por debajo del titular. No hay tinta
+   secundaria sobre acento: se baja la opacidad, que es lo que mantiene el
+   contraste en las dos pieles sin inventar dos tokens más. */
+.hoja-nueva.card-aviso > .col > .section-label { opacity: 0.72; }
+.hoja-nueva.card-aviso > p { opacity: 0.86; }
+/* El verbo se invierte: papel sobre el azul. */
+.hoja-nueva.card-aviso > .btn-primary {
+  background: var(--accent-on); color: var(--accent); box-shadow: none;
+}
+.hoja-nueva.card-aviso > .btn-primary:hover:not(:disabled) {
+  background: var(--accent-on); filter: brightness(0.94);
+}
+/* ── La casilla de «que el siguiente se abra solo», sobre el azul ──────────
+   El interruptor de la casa se dibuja con `--fill-strong` apagado y `--accent`
+   encendido: los dos sobre acento son invisibles —el segundo, literalmente el
+   mismo color que la tarjeta—. Aquí se invierte la pareja, que es lo mismo que
+   ya se hace con el verbo: el papel hace de tinta. */
+.hoja-nueva.card-aviso > .switch-row > .body > .nm { color: inherit; opacity: 0.92; }
+.hoja-nueva.card-aviso > .switch-row > .track {
+  background: color-mix(in srgb, var(--accent-on) 30%, transparent);
+}
+.hoja-nueva.card-aviso > .switch-row:hover:not(.is-on) > .track {
+  background: color-mix(in srgb, var(--accent-on) 44%, transparent);
+}
+.hoja-nueva.card-aviso > .switch-row > .track::before { background: var(--accent-on); }
+.hoja-nueva.card-aviso > .switch-row.is-on > .track { background: var(--accent-on); }
+.hoja-nueva.card-aviso > .switch-row.is-on > .track::before { background: var(--accent); }
+.hoja-nueva.card-aviso > .switch-row:focus-within > .track { outline-color: var(--accent-on); }
 
 /* ── La cadena de un ciclo rotativo ─────────────────────────────────────────
    Empuje → Tirón → Descanso ↺. No es una rejilla de siete columnas porque un
@@ -998,28 +944,18 @@
   background: var(--accent-soft); color: var(--accent);
 }
 .cycle-slot > .lead {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: var(--s1);
   font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700;
  letter-spacing: 0;
   opacity: 0.75;
 }
 .cycle-slot > .nm {
-  font-size: var(--fs-sm); font-weight: 650;
+  font-size: var(--fs-sm); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* El descanso, apagado y sin tinta de acento: es parte de la estructura, pero no
    es a lo que se viene. */
 .cycle-slot.is-rest { background: var(--fill-subtle); color: var(--text-tertiary); }
-
-/* La misma rejilla cuando se EDITA: el código de color no cambia porque no es
-   decoración —dice qué días tienen algo programado—, solo cambia el soporte, de
-   un rótulo a una casilla. Estaba resuelto con un `style` escrito a mano en el
-   editor, que además tenía su propia idea de qué es descanso. */
-.split-value {
-  font-size: var(--fs-sm);
-  background: var(--surface-sunken); border-color: var(--hairline); color: var(--text-secondary);
-}
-.split-value.is-training { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
 /* ── Franja de resumen nutricional ──────────────────────────────────────────
    Anillo con las kcal en el centro y, al lado, una barra por macro con sus
@@ -1031,7 +967,7 @@
    macros en renglones a plomo con «El día» (`MacroLista`). Antes esa cifra
    venía encabezando una barra tricolor con leyenda de iconos; la barra se
    quedó donde de verdad trabaja, que es el editor. Ver `MacroTargetCard`. */
-.objetivo-cifra { display: flex; align-items: baseline; gap: 5px; }
+.objetivo-cifra { display: flex; align-items: baseline; gap: var(--s1); }
 .objetivo-cifra > .v { font-variant-numeric: tabular-nums; line-height: 1; }
 .objetivo-cifra > .u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary); }
 
@@ -1041,7 +977,7 @@
 .macro-summary { display: flex; flex-direction: column; gap: var(--s3); }
 
 .macro-summary-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; }
-.macro-summary-head > .figure { display: flex; align-items: baseline; gap: 5px; }
+.macro-summary-head > .figure { display: flex; align-items: baseline; gap: var(--s1); }
 /* Tamaño, peso e interletraje: en la voz de una cifra, arriba. */
 .macro-summary-head > .figure > .v { font-variant-numeric: tabular-nums; line-height: 1; }
 .macro-summary-head > .figure > .u { font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary); }
@@ -1058,9 +994,9 @@
    trabajo era repetir en dibujo la palabra que tenían al lado. */
 .macro-legend-item > i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .macro-legend-item > .k { color: var(--text-secondary); }
-.macro-legend-item > .g { font-weight: 650; font-variant-numeric: tabular-nums; }
+.macro-legend-item > .g { font-weight: 600; font-variant-numeric: tabular-nums; }
 .macro-legend-item > .p {
-  font-size: var(--fs-xs); font-weight: 650; color: var(--text-tertiary);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary);
   background: var(--fill); border-radius: var(--r-pill); padding: 1px 6px;
   font-variant-numeric: tabular-nums;
 }
@@ -1095,7 +1031,7 @@
   box-shadow: inset 1.5px 0 0 var(--hairline);
 }
 .macro-cell > .k {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: var(--s1);
   font-size: var(--fs-xs); font-weight: 700;
   letter-spacing: 0; color: var(--text-tertiary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1104,7 +1040,7 @@
 .macro-cell > .g { font-variant-numeric: tabular-nums; line-height: 1.1; }
 .macro-cell > .p { font-size: var(--fs-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .macro-summary-head > .figure > .v { font-size: var(--fs-xl); letter-spacing: -0.028em; }
   .macro-legend { gap: var(--s2) var(--s4); }
   .macro-legend-item { font-size: var(--fs-xs); }
@@ -1145,7 +1081,7 @@
 
 /* La sugerencia de hidratos: se ve que HAY un número propuesto y que todavía no
    está escrito. Sin esto, un `placeholder` gris se lee como un hueco vacío. */
-.input.is-suggested::placeholder { color: var(--accent); opacity: 0.85; font-weight: 650; }
+.input.is-suggested::placeholder { color: var(--accent); opacity: 0.85; font-weight: 600; }
 
 /* La pauta escrita de una comida —«esto cocínalo a la plancha», «el yogur, de
    la marca X»—.
@@ -1191,7 +1127,7 @@
   grid-template-columns: 20px minmax(132px, 1fr) 112px repeat(3, 42px) 60px 26px;
   align-items: center;
   gap: var(--s2);
-  padding: 8px var(--s3);
+  padding: var(--s2) var(--s3);
   /*
     ── Por qué `max-content` y no basta con el mínimo de la columna ──────────
     La fila es hija de un contenedor flex EN COLUMNA, y ahí el ancho lo impone
@@ -1240,7 +1176,7 @@
 .food-row > .name {
   min-width: 0;
   display: flex; align-items: center; gap: 2px;
-  font-size: var(--fs-base); font-weight: 550;
+  font-size: var(--fs-base); font-weight: 500;
 }
 .food-row > .name > .txt {
   min-width: 0;
@@ -1252,11 +1188,28 @@
    pulsa» sin ocupar más sitio. Vale para los dos: equivalencias y editar. */
 .food-row > .name > .btn-icon { color: var(--text-tertiary); flex-shrink: 0; }
 .food-row > .name > .btn-icon:hover { color: var(--accent); }
-/* El alimento al que el entrenador le quitó las equivalencias: el icono sigue
-   —es su herramienta y el diálogo es donde se revierte— pero apagado, para ver
+/* ── EL ≈ Y CUÁNTAS, pegado al nombre ───────────────────────────────────────
+   Una chapa de 22 px con el signo y el número: la geometría de los botones de
+   la fila (`--h-control-sm` de alto) y la tinta terciaria de lo que es puerta y
+   no dato. Desplegada se queda encendida en acento, que es lo que ata las filas
+   de abajo a este alimento. */
+.equiv-marca {
+  flex: none; display: inline-flex; align-items: center; gap: 3px;
+  height: var(--h-control-sm); margin-left: var(--s1); padding: 0 6px 0 5px;
+  background: transparent; border: 0; border-radius: var(--r-xs);
+  font: inherit; font-size: var(--fs-2xs); font-weight: 700; line-height: 1;
+  color: var(--text-tertiary); cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: background-color var(--fast), color var(--fast), opacity var(--fast);
+}
+.equiv-marca:hover { background: var(--fill); color: var(--text); }
+.equiv-marca[aria-expanded='true'] { background: var(--accent-soft); color: var(--accent); }
+.equiv-marca:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* El alimento al que el entrenador le quitó las equivalencias: la chapa sigue
+   —es su herramienta y el diálogo es donde se revierte— pero apagada, para ver
    de un barrido a cuáles les quitó el margen. Solo lo ve él: al cliente ese
    botón directamente no se le pinta. */
-.equiv-btn.is-off { opacity: 0.35; }
+.equiv-marca.is-off { opacity: 0.35; }
 /* ══ LA CELDA DE LA CANTIDAD: UNA SOLA CAJA ═══════════════════════════════
    Llevaba DOS piezas —la casilla y la medida— pegadas al borde derecho, y dos
    elementos de ancho variable en el mismo borde no forman columna nunca: el
@@ -1271,7 +1224,7 @@
    Así que la medida se mete DENTRO del campo con `.input-suffix`, que es el
    patrón que esta misma pantalla ya usa dos tarjetas más arriba («9000 pasos»).
    Una caja por fila, del mismo ancho siempre: no queda nada que desalinear. */
-.food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.food-row > .grams { display: flex; align-items: center; justify-content: flex-end; gap: var(--s1); }
 .food-row > .grams > .unit { font-size: var(--fs-2xs); color: var(--text-tertiary); }
 
 /* El ancho es fijo y no del contenido: es lo que mantiene la columna de cifras
@@ -1353,7 +1306,7 @@
 
 /* La cifra al consultar ocupa el hueco de la casilla y se alinea a la derecha,
    que es donde termina el número de las filas que sí se editan. */
-.food-row > .grams > .fixed { font-size: var(--fs-sm); font-weight: 650; text-align: right; }
+.food-row > .grams > .fixed { font-size: var(--fs-sm); font-weight: 600; text-align: right; }
 .food-row > .n { text-align: right; font-size: var(--fs-sm); color: var(--text-secondary); }
 .food-row > .kcal {
   text-align: right;
@@ -1369,35 +1322,87 @@
 .food-head.sin-cifras { grid-template-columns: 20px minmax(132px, 1fr) 112px; }
 
 /* ── Las equivalencias de un alimento, en su diálogo ────────────────────────
-   La lista de intercambios de consulta: cada fila es una ración («250 g» o
-   «1,5 manzanas») con sus kcal debajo del nombre. La cantidad es el dato que se
-   viene a buscar, así que va en el peso fuerte y en cifras tabulares; las kcal
-   en el gris del subtítulo, presentes pero sin competir.
+   Una igualdad dibujada: el alimento de partida en su losa (`.equiv-fuente`),
+   el ≈ con lo que es la lista (`.equiv-signo`) y debajo las raciones como
+   renglones de UNA lista, con filete entre ellos. Eran doce cajas hundidas con
+   su botón cada una, y una lista que se ojea no necesita doce recuadros.
+
+   La cantidad es el dato que se viene a buscar, así que va en el peso fuerte y
+   en cifras tabulares; macro y kcal en el gris del subtítulo.
 
    Con tope de alto y su propio desplazamiento: la fruta tiene una docena de
    intercambios y el diálogo no puede crecer más que la pantalla del móvil. */
+.equiv-fuente {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+}
+.equiv-fuente > .who,
+.equiv-row > .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.equiv-fuente > .who > .name,
+.equiv-row > .who > .name {
+  display: block; min-width: 0;
+  font-size: var(--fs-base); font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.equiv-fuente > .who > .name { font-weight: 600; }
+.equiv-fuente > .who > .sub,
+.equiv-row > .who > .sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.equiv-fuente > .who > .sub > .sep { padding: 0 var(--s1); opacity: 0.5; }
+.equiv-fuente > .amount,
+.equiv-row > .amount {
+  flex-shrink: 0;
+  font-size: var(--fs-sm); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.equiv-fuente > .amount { font-size: var(--fs-base); }
+
+/* El signo y su rótulo: el único adorno de la ventana, y no es adorno — es la
+   relación entre la losa de arriba y la lista de abajo. */
+.equiv-lista { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.equiv-signo {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: 0; padding: 0 var(--s1) var(--s1);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary);
+}
+.equiv-signo > svg { flex: none; color: var(--accent); }
+
 .equiv-list {
-  list-style: none; margin: 0; padding: 2px;
-  display: flex; flex-direction: column; gap: 6px;
-  max-height: 52vh; overflow-y: auto;
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column;
+  max-height: 52vh; max-height: 52svh; overflow-y: auto;
 }
 .equiv-row {
   display: flex; align-items: center; gap: var(--s3);
-  padding: 8px var(--s3);
-  background: var(--surface-sunken); border-radius: var(--r-md);
+  padding: var(--s2) var(--s1);
+  border-top: 1px solid var(--hairline);
+  transition: background-color var(--fast);
 }
-.equiv-row > .who { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.equiv-row > .who > .name {
-  display: block; min-width: 0;
-  font-size: var(--fs-base); font-weight: 550;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.equiv-row:first-child { border-top-color: transparent; }
+.equiv-row:hover { background: var(--fill-subtle); }
+
+/* «Usar»: en reposo no está, con la fila sí — y en táctil siempre. Ocupa su
+   sitio aunque no se vea, para que la cantidad no baile al pasar. */
+.equiv-row-usar {
+  flex: none; padding: 3px var(--s2);
+  background: transparent; border: 0; border-radius: var(--r-sm);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+  cursor: pointer; opacity: 0;
+  transition: opacity var(--fast), background-color var(--fast);
 }
-.equiv-row > .who > .sub { font-size: var(--fs-2xs); color: var(--text-tertiary); }
-.equiv-row > .amount {
-  flex-shrink: 0;
-  font-size: var(--fs-sm); font-weight: 650;
-  font-variant-numeric: tabular-nums;
+.equiv-row:hover > .equiv-row-usar,
+.equiv-row:focus-within > .equiv-row-usar,
+.equiv-row-usar:focus-visible { opacity: 1; }
+.equiv-row-usar:hover { background: var(--accent-soft); }
+.equiv-row-usar:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (hover: none) {
+  .equiv-row-usar { opacity: 1; }
 }
+
+/* «+ alimento» y su buscador, al pie de la lista. */
+.equiv-alta { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding-top: var(--s1); }
+.equiv-alta > div { align-self: stretch; }
+.equiv-alta > p { margin: 0; padding: 0 var(--s1); }
 
 /* ── MARCANDO: la misma lista, con una casilla delante ──────────────────────
    Montar un grupo tuyo es PODAR la lista que ya estás leyendo, así que la fila
@@ -1409,11 +1414,11 @@
   display: inline-block;
   accent-color: var(--accent);
 }
-.equiv-row.es-fuera { opacity: 0.55; }
-/* El alimento del que sale el grupo: es el ancla, no un candidato. Sin casilla
-   y con el canto de un dato puesto, no de una opción por decidir. */
-.equiv-row.es-ancla { background: var(--accent-soft); }
-.equiv-row.es-ancla > .who > .sub { color: var(--accent); opacity: 0.85; }
+.equiv-row.es-fuera > .who,
+.equiv-row.es-fuera > .amount { opacity: 0.55; }
+/* El que acabas de meter a mano: una marca de acento en el canto, para verlo
+   entrar arriba de la lista. El ancla ya no es una fila: es `.equiv-fuente`. */
+.equiv-row.es-nuevo { box-shadow: inset 2px 0 0 var(--accent); }
 /* La salida, al canto contrario de la acción: `.modal-footer` alinea todo a la
    derecha y quitar un grupo no compite con guardarlo. */
 .equiv-quitar { margin-right: auto; }
@@ -1421,12 +1426,12 @@
 /* Sin sitio para siete columnas: dos filas. Arriba el nombre y las kcal, abajo
    la cantidad y los macros. Al desaparecer el encabezado, cada cifra recupera su
    letra —pero solo aquí, donde hace falta para no dejarla huérfana. */
-@media (max-width: 640px) {
+@media (max-width: 639.98px) {
   .food-head { display: none; }
 
   .food-row {
     grid-template-columns: repeat(4, minmax(0, 1fr)) 26px;
-    row-gap: 5px;
+    row-gap: var(--s1);
     /* `width: max-content` es de la tabla ancha de escritorio, donde la fila
        exige su sitio y el contenedor se desplaza. Aquí la fila ya se replegó a
        dos líneas: heredarlo convertía cada comida en su propio scroll
@@ -1437,7 +1442,7 @@
   /* El asa comparte celda con el nombre, delante de él: en dos filas no hay
      columna que dedicarle, y al lado del nombre es donde se busca. */
   .food-row > .drag-handle { grid-area: 1 / 1 / 2 / 2; }
-  .food-row > .name { grid-area: 1 / 1 / 2 / 4; padding-left: 22px; }
+  .food-row > .name { grid-area: 1 / 1 / 2 / 4; padding-left: var(--s5); }
   .food-row > .kcal { grid-area: 1 / 4 / 2 / 5; }
   .food-row > .del { grid-area: 1 / 5 / 2 / 6; }
   .food-row > .grams { grid-area: 2 / 1 / 3 / 2; justify-content: flex-start; }
@@ -1447,7 +1452,7 @@
      ninguna columna que defender—. */
   .cantidad { width: 74px; }
   .cantidad > .input { padding-right: 30px; }
-  .cantidad > .ud { right: 4px; padding-inline: 5px; }
+  .cantidad > .ud { right: var(--s1); padding-inline: var(--s1); }
   .food-row > .n.is-p { grid-area: 2 / 2 / 3 / 3; }
   .food-row > .n.is-c { grid-area: 2 / 3 / 3 / 4; }
   .food-row > .n.is-f { grid-area: 2 / 4 / 3 / 5; }
@@ -1463,37 +1468,6 @@
   }
   .food-row.sin-cifras > .name { grid-area: auto; padding-left: 0; }
   .food-row.sin-cifras > .grams { grid-area: auto; justify-content: flex-end; }
-
-  /* ── LAS EQUIVALENCIAS EN EL TELÉFONO ────────────────────────────────────
-     Aquí no había ni una regla, y las filas hijas heredaban las áreas del
-     alimento: el nombre a la fila 1 columnas 1-3, la ración a la fila 2… y las
-     cifras pidiendo `grid-column: 4 / span 4` en una rejilla que en el
-     teléfono tiene CINCO columnas. Dos columnas implícitas y la fila desbordada
-     a lo ancho — justo en la pantalla donde esto se usa de verdad: el cliente
-     en la frutería mira el teléfono, no un portátil.
-
-     La equivalencia no se repliega como su padre porque no tiene sus cuatro
-     cifras: es NOMBRE + RACIÓN en una línea, y lo que se paga debajo. Las áreas
-     del alimento se deshacen una por una, que es lo que cuesta heredar una
-     rejilla que se diseñó para otra fila. */
-  .food-row.is-equiv {
-    grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 2px;
-    width: auto; min-width: 0;
-  }
-  .food-row.is-equiv > .name { grid-area: 1 / 1 / 2 / 2; padding-left: 0; }
-  .food-row.is-equiv > .grams { grid-area: 1 / 2 / 2 / 3; justify-content: flex-end; }
-  .food-row.is-equiv > .equiv-cifras {
-    grid-area: 2 / 1 / 3 / 3;
-    text-align: left; white-space: normal;
-  }
-  /* Los huecos que en el escritorio reservan la columna del asa y la de la
-     equis: aquí no hay ninguna de las dos columnas que reservar. */
-  .food-row.is-equiv > .equiv-hueco { display: none; }
-
-  /* Y la sangría, más corta: en 390 px, 24 + 12 de margen es el 9 % del ancho
-     dedicado a decir «esto cuelga de lo de arriba». El filete ya lo dice. */
-  .equiv-hijas { margin-left: var(--s3); padding-left: var(--s2); }
 }
 
 
@@ -1518,20 +1492,34 @@
    la ración bajo la columna de cantidad y el nombre bajo el nombre, así que la
    comida se sigue leyendo como UNA tabla y no como dos.
 
-   Sangradas y sin caja: son hijas de la fila de arriba, no filas del menú. La
-   línea de la izquierda es lo que las ata a su padre. */
+   Eran sangradas con un filete a la izquierda, y la sangría las sacaba de las
+   columnas del padre: la ración no caía bajo la cantidad. Ahora continúan la
+   LOSA del alimento —la fila abierta pierde el redondeo de abajo y las hijas
+   lo recogen— y cada una lleva el ≈ en la columna del asa. Una sola pieza: el
+   alimento y lo que vale por él. */
+.food-row.con-equiv-abiertas { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .equiv-hijas {
-  display: flex; flex-direction: column; gap: 1px;
-  margin: 1px 0 2px var(--s5);
-  padding-left: var(--s3);
-  border-left: 2px solid var(--hairline-strong);
+  display: flex; flex-direction: column; gap: 0;
+  width: max-content; min-width: 100%;
+  margin-top: -3px; /* el `gap` de `.food-table`: pegadas a su alimento */
+  padding: 2px 0 var(--s1);
+  background: var(--surface-sunken);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  box-shadow: inset 0 1px 0 var(--hairline);
+}
+.equiv-signo-fila { display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); }
+.equiv-hijas-pie {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1);
+  /* Bajo la columna del nombre: el relleno de la fila + el asa + su hueco,
+     menos el relleno propio del verbo. */
+  padding: 2px var(--s3) 0 calc(var(--s3) + 20px);
 }
 /* Y más apretadas que las del menú: son una consulta, no el plan. La losa de
    `.food-row` da 44 px de alto por fila y tres seguidas abultaban más que el
    alimento del que cuelgan. */
 .food-row.is-equiv {
   min-height: 0; padding-top: 3px; padding-bottom: 3px;
-  background: transparent;
+  background: transparent; border-radius: 0;
   font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
@@ -1542,7 +1530,7 @@
    a propósito —una fila hija no se arrastra ni se borra—; en el teléfono
    desaparecen, que es donde esas dos columnas no existen. */
 .food-row.is-equiv > .equiv-hueco { min-width: 0; }
-.food-row.is-equiv > .grams > .fixed { font-weight: 550; color: var(--text-secondary); }
+.food-row.is-equiv > .grams > .fixed { font-weight: 500; color: var(--text-secondary); }
 /* ── EL VERBO DE LA FILA HIJA ───────────────────────────────────────────────
    En reposo no está, que es la ley: una oferta que no se apaga es mobiliario, y
    aquí hay tres por alimento y hasta diecisiete alimentos. Se enciende con la
@@ -1551,7 +1539,7 @@
 .equiv-usar {
   flex: none; margin-left: var(--s2); padding: 1px 6px;
   background: transparent; border: 0; border-radius: var(--r-sm);
-  font: inherit; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
   cursor: pointer; opacity: 0;
   transition: opacity var(--fast), background-color var(--fast);
 }
@@ -1572,15 +1560,14 @@
   font-size: var(--fs-xs); color: var(--text-tertiary);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.food-row.is-equiv > .equiv-cifras > .sep { padding: 0 5px; opacity: 0.5; }
+.food-row.is-equiv > .equiv-cifras > .sep { padding: 0 var(--s1); opacity: 0.5; }
 .food-row.is-equiv > .equiv-cifras > .dif { font-weight: 700; margin-left: 3px; }
 .food-row.is-equiv > .equiv-cifras > .dif.is-mas { color: var(--negative); }
 .food-row.is-equiv > .equiv-cifras > .dif.is-menos { color: var(--warning); }
 /* El verbo del pie: la ventana, que es donde se elige una de verdad y donde se
    decide si el cliente ve la lista. En azul, como cualquier verbo de la casa. */
 .equiv-hijas-mas {
-  align-self: flex-start;
-  margin-top: 2px; padding: 3px var(--s2);
+  padding: var(--s1) var(--s2);
   background: transparent; border: 0; border-radius: var(--r-sm);
   font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
   cursor: pointer; transition: background-color var(--fast);
@@ -1590,3 +1577,36 @@
 /* Dentro del margen, la diferencia se escribe pero no juzga: la información no
    se esconde y el semáforo se calla. Ver `Desvio` en `MealCard`. */
 .food-row.is-equiv > .equiv-cifras > .dif.is-dentro { color: var(--text-tertiary); font-weight: 600; }
+
+/* ── LAS EQUIVALENCIAS EN EL TELÉFONO ──────────────────────────────────────
+   Aquí no había ni una regla, y las filas hijas heredaban las áreas del
+   alimento: el nombre a la fila 1 columnas 1-3, la ración a la fila 2… y las
+   cifras pidiendo `grid-column: 4 / span 4` en una rejilla que en el teléfono
+   tiene CINCO columnas. La equivalencia no se repliega como su padre porque no
+   tiene sus cuatro cifras: es ≈ + NOMBRE + RACIÓN en una línea, y lo que se
+   paga debajo.
+
+   Al FINAL del archivo y no en el bloque del teléfono de más arriba: las
+   reglas de escritorio de las filas hijas van después con la misma
+   especificidad, y allí perdían — la `grid-column: 4 / span 4` de las cifras
+   se comía el área del teléfono. */
+@media (max-width: 639.98px) {
+  .food-row.is-equiv {
+    grid-template-columns: var(--s4) minmax(0, 1fr) auto;
+    row-gap: 2px;
+    width: auto; min-width: 0;
+  }
+  .food-row.is-equiv > .equiv-signo-fila { grid-area: 1 / 1 / 2 / 2; }
+  .food-row.is-equiv > .name { grid-area: 1 / 2 / 2 / 3; padding-left: 0; }
+  .food-row.is-equiv > .grams { grid-area: 1 / 3 / 2 / 4; justify-content: flex-end; }
+  .food-row.is-equiv > .equiv-cifras {
+    grid-area: 2 / 2 / 3 / 4;
+    text-align: left; white-space: normal;
+  }
+  /* El hueco que en el escritorio reserva la columna de la equis: aquí no hay
+     columna que reservar. El del ≈ se queda, en su columna de `--s4`. */
+  .food-row.is-equiv > .equiv-hueco:not(.equiv-signo-fila) { display: none; }
+
+  .equiv-hijas { width: auto; }
+  .equiv-hijas-pie { padding-left: calc(var(--s3) + var(--s4)); }
+}

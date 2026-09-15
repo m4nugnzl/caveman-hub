@@ -5,7 +5,6 @@ import {
   Camera,
   Check,
   MessageSquare,
-  Plus,
   Ruler,
   Save,
   Scale,
@@ -21,20 +20,26 @@ import {
   foldsSum,
   weeklyCheckIn,
 } from '@/domain/anthropometry';
-import { ANGLE_IDS, angleLabel, photoWeek, weekFromStart } from '@/domain/photos';
+import { photoWeek, weekFromStart } from '@/domain/photos';
 import {
   asksBlock,
   checkinQuestions,
   clientProtocol,
+  hayRespuesta,
+  medidasDeRevision,
   requiredBlocks,
   requiresBlock,
 } from '@/domain/protocol';
+import { compactMedidas, problemaDeMedida } from '@/domain/medidas';
 import { todayISO } from '@/lib/dates';
 import { toNum } from '@/lib/num';
-import { Field, Notice, SaveIndicator } from '@/components/ui/primitives';
+import { Field, HUECO_CIFRA, Notice, SaveIndicator } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
-import { GuiaDeMedidas } from '@/components/Coach/Taller/GuiaDeMedidas';
+import { CarrilDePasos } from '@/components/ui/Asistente';
+import { MedirConGuia } from './MedirConGuia';
 import { PhotoPicker } from '@/components/photos/PhotoPicker';
+import { RejillaDeMedidas } from './RejillaDeMedidas';
+import { TresAngulos } from './TresAngulos';
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { useOculto } from '@/components/Client/Oculto';
@@ -60,8 +65,8 @@ import { useOculto } from '@/components/Client/Oculto';
  *
  * ══ Cuántos pasos hay lo decide el protocolo ═══════════════════════════════
  *
- * Ni tres fijos ni uno por tabla. Si el entrenador apagó pliegues y perímetros,
- * el paso de medidas NO EXISTE —no aparece vacío ni deshabilitado—, y si no hay
+ * Ni tres fijos ni uno por tabla. Si el entrenador apagó los pliegues, el paso
+ * de los pliegues NO EXISTE —no aparece vacío ni deshabilitado—, y si no hay
  * forma de subir fotos, tampoco el suyo. Un paso que no se puede rellenar es un
  * paso que solo sirve para hacer la tarea más larga.
  *
@@ -78,28 +83,6 @@ import { useOculto } from '@/components/Client/Oculto';
  * condiciones raras y su criterio manda sobre la media—.
  */
 
-/** Rejilla de campos numéricos etiquetados (pliegues y perímetros). */
-const MeasureGrid = ({ labels, values, unit, onChange }) => (
-  <div className="measure-grid">
-    {Object.entries(labels).map(([key, label]) => (
-      <div className="card-inset row between gap-2 measure-cell" key={key}>
-        <label className="t-sm t-secondary" htmlFor={`m-${key}`}>
-          {label}
-        </label>
-        <input
-          id={`m-${key}`}
-          type="text"
-          inputMode="decimal"
-          className="input input-center input-measure"
-          value={values[key] ?? ''}
-          onChange={(e) => onChange(key, e.target.value)}
-          aria-label={`${label} en ${unit}`}
-        />
-      </div>
-    ))}
-  </div>
-);
-
 /**
  * @param onSubmitWeek  Entrega la semana al terminar. Solo lo pasa el portal del
  *   CLIENTE: el entrenador usa este mismo asistente para anotar una medición
@@ -111,6 +94,11 @@ const MeasureGrid = ({ labels, values, unit, onChange }) => (
  *   la que se promedian los pesajes para proponer el peso, y tiene que ser la
  *   misma con la que se entrega: si no, se propone el promedio de una ventana y
  *   se guarda el de otra.
+ * @param ensayo  EL ENSAYO DEL ENTRENADOR: este mismo asistente montado desde el
+ *   constructor del check-in, con un cliente de mentira hecho del lienzo que hay
+ *   delante. Cambia dos cosas y ninguna más —lo dice el pie y terminar no
+ *   escribe—, porque lo que se viene a ver es exactamente esto. Ver
+ *   `Coach/Taller/VistaPreviaFormulario`.
  */
 export const ReviewWizard = ({
   client,
@@ -126,6 +114,8 @@ export const ReviewWizard = ({
   onSubmitWeek = null,
   weekStart = null,
   weeks = 1,
+  pasoInicial = null,
+  ensayo = false,
   onClose,
 }) => {
   const isClient = audience === 'client';
@@ -175,20 +165,87 @@ export const ReviewWizard = ({
 
   /* Los pasos que de verdad tiene ESTE cliente. El peso salvo que esté oculto;
      los demás, solo si hay algo que rellenar en ellos. */
+  /*
+    ══ Y LAS MEDIDAS QUE EL ENTRENADOR HAYA PEDIDO ═══════════════════════════
+
+    Un número con unidad tomado con un aparato —una glucosa en ayunas, una
+    temperatura basal—, que hasta ahora no cabía en ninguna parte: el
+    cuestionario las habría capado a enteros de 0 a 10 sin unidad.
+
+    Tienen SU PASO, detrás del plicómetro y de la cinta: es el orden en que se
+    hace y no es el mismo gesto —ni se toma con las manos ni sale de la lámina de
+    medición—. Las de a diario no salen aquí — su
+    sitio es la rejilla de la semana, que es donde se anota cada día. Ver
+    `domain/medidas.js`.
+
+    Lo que el protocolo apaga NO EXISTE: no aparece vacío ni deshabilitado.
+  */
+  const medidas = useMemo(() => medidasDeRevision(protocol), [protocol]);
+  const medidasObligatorias = useMemo(
+    () => medidas.filter((m) => requiresBlock(protocol, m.id)),
+    [medidas, protocol]
+  );
+
+  /*
+    ══ UN PASO POR TÉCNICA, y no uno llamado «Las medidas» ════════════════════
+
+    Era uno solo con todo dentro: el aviso de la fórmula del % graso, la guía
+    detrás de un enlace, seis pliegues, nueve perímetros y las medidas de
+    aparato. Quince casillas idénticas en cinco columnas debajo de una lámina
+    que explicaba seis sitios: los dos trozos no se conocían y la guía se leía
+    como algo pegado encima del formulario.
+
+    El pellizco y la cinta son dos gestos distintos, con dos aparatos distintos
+    y dos láminas distintas, y se hacen uno después del otro. Son dos pasos. Y
+    lo que se toma con un aparato —una glucosa, una tensión— es un tercero: ni
+    se mide con las manos ni sale de la lámina.
+
+    Partirlo además deja caer dos estados: los bloques opcionales ya no empiezan
+    recogidos detrás de un «+ pliegues» —el paso ES el bloque, y el que no lo
+    quiera rellenar pasa de largo— ni hay que elegir qué guía está abierta,
+    porque cada paso tiene la suya. Ver `MedirConGuia`.
+  */
   const pasos = useMemo(
     () => {
       const lista = [
         !sinPeso && { id: 'peso', titulo: 'El peso', icono: Scale },
-        (pideFolds || pidePerimetros) && { id: 'medidas', titulo: 'Las medidas', icono: Ruler },
+        pideFolds && { id: 'pliegues', titulo: 'Los pliegues', icono: Ruler },
+        pidePerimetros && { id: 'perimetros', titulo: 'Los perímetros', icono: Ruler },
+        medidas.length > 0 && { id: 'aparatos', titulo: 'Los aparatos', icono: Ruler },
         puedeSubirFotos && { id: 'fotos', titulo: 'Las fotos', icono: Camera },
         preguntas.length > 0 && { id: 'cuestionario', titulo: 'Tu semana', icono: MessageSquare },
       ].filter(Boolean);
       return lista.length > 0 ? lista : [{ id: 'entrega', titulo: 'Tu semana', icono: Check }];
     },
-    [sinPeso, pideFolds, pidePerimetros, puedeSubirFotos, preguntas.length]
+    [sinPeso, pideFolds, pidePerimetros, medidas.length, puedeSubirFotos, preguntas.length]
   );
 
-  const [indice, setIndice] = useState(0);
+  /*
+    ══ POR QUÉ PUEDE ABRIRSE POR UN PASO ══════════════════════════════════════
+
+    «Lo que te falta para entregar» lleva un verbo por renglón: te falta la foto
+    de espalda y pulsas «Subirla». Si el asistente abriera siempre por el peso,
+    ese verbo mentiría — arreglar una cosa costaría pasar por las tres que ya
+    estaban bien, que es exactamente lo que la lista vino a quitar.
+
+    Es el estado INICIAL y no un control: se puede seguir avanzando y retrocediendo
+    con los mandos de siempre. Un paso que este cliente no tiene —medidas, cuando
+    su entrenador no se las pide— cae a 0 en vez de dejar el asistente en blanco.
+    Ver `PasosDeLaEntrega`.
+  */
+  const [indice, setIndice] = useState(() => {
+    /* «Tus medidas» sigue siendo UN renglón en la lista de lo que falta —lo que
+       le falta al cliente es medirse, no visitar dos pantallas—, así que su
+       verbo pide un paso que desde que esto se partió ya no existe con ese
+       nombre. Cae en el primero de los tres que lo sustituyen en vez de
+       devolverlo al peso. Ver `PasosDeLaEntrega`. */
+    const alias =
+      pasoInicial === 'medidas'
+        ? ['pliegues', 'perimetros', 'aparatos'].find((id) => pasos.some((p) => p.id === id))
+        : pasoInicial;
+    const i = pasos.findIndex((p) => p.id === alias);
+    return i >= 0 ? i : 0;
+  });
   const paso = pasos[indice];
   const ultimo = indice === pasos.length - 1;
 
@@ -196,16 +253,9 @@ export const ReviewWizard = ({
   const [weight, setWeight] = useState('');
   const [folds, setFolds] = useState(emptyFolds);
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
-  /*
-    Los bloques OPCIONALES empiezan recogidos. Quince campos de medidas que casi
-    nunca se rellenan alargaban el paso para todo el mundo, y un formulario largo
-    se entrega menos (es el hallazgo del informe de estado: 0 % de uso). Quien sí
-    mide, lo abre con un toque; lo obligatorio sale siempre abierto.
-  */
-  const [abiertos, setAbiertos] = useState({ folds: false, perimeters: false });
-  /* Qué guía de medición está desplegada, si alguna. Una sola a la vez: las dos
-     abiertas son dos siluetas seguidas y el formulario queda debajo del todo. */
-  const [guia, setGuia] = useState(null);
+  /* Lo apuntado con aparato, por id de medida. Como los pliegues: texto mientras
+     se escribe, número al guardar (ver `compactMedidas`). */
+  const [valores, setValores] = useState({});
   const [answers, setAnswers] = useState({});
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -259,7 +309,9 @@ export const ReviewWizard = ({
     ...yaSubidas.map((p) => p.angle),
     ...lote.items.map((i) => i.angle),
   ]);
-  const faltanAngulos = ANGLE_IDS.filter((id) => !cubiertos.has(id));
+  /* Lo elegido en el selector cuenta como cubierto aunque todavía no haya
+     subido: quien acaba de marcar «esta es la lateral» no tiene que ver que le
+     sigue faltando. Ver `TresAngulos`. */
 
   const sum = foldsSum(folds);
   const pct = fatPercent(folds, client.gender);
@@ -284,7 +336,7 @@ export const ReviewWizard = ({
       return null;
     }
 
-    if (id === 'medidas') {
+    if (id === 'pliegues' || id === 'perimetros') {
       /*
         Un bloque obligatorio se pide ENTERO.
 
@@ -297,15 +349,35 @@ export const ReviewWizard = ({
         casillas idénticas encontrar la vacía a ojo es el trabajo que debería
         hacer la aplicación.
       */
-      for (const bloque of obligatorios) {
-        const esPliegues = bloque.id === 'folds';
-        const faltan = sinRellenar(
-          esPliegues ? folds : perimeters,
-          esPliegues ? FOLDS_LABELS : PERIMETER_LABELS
-        );
-        if (faltan.length > 0) {
-          return `${isClient ? 'Tu entrenador pide' : 'Este cliente tiene como obligatorio'} ${bloque.label.toLowerCase()} en cada revisión. Falta${faltan.length === 1 ? '' : 'n'}: ${faltan.join(', ')}.`;
+      const esPliegues = id === 'pliegues';
+      const bloque = obligatorios.find((b) => b.id === (esPliegues ? 'folds' : 'perimeters'));
+      if (!bloque) return null;
+
+      const faltan = sinRellenar(
+        esPliegues ? folds : perimeters,
+        esPliegues ? FOLDS_LABELS : PERIMETER_LABELS
+      );
+      if (faltan.length > 0) {
+        return `${isClient ? 'Tu entrenador pide' : 'Este cliente tiene como obligatorio'} ${bloque.label.toLowerCase()} en cada revisión. Falta${faltan.length === 1 ? '' : 'n'}: ${faltan.join(', ')}.`;
+      }
+      return null;
+    }
+
+    if (id === 'aparatos') {
+      /* Una medida obligatoria se pide entera, como un bloque: media serie de
+         glucosas no es una serie menos precisa, es una serie con huecos. */
+      for (const medida of medidasObligatorias) {
+        if (toNum(valores[medida.id]) === null) {
+          return `${isClient ? 'Tu entrenador pide' : 'Este cliente tiene como obligatorio'} ${medida.label.toLowerCase()} en cada revisión.`;
         }
+      }
+
+      /* Y el filtro de dedazos: un 950 de glucosa es un dedo de más, no una
+         hipoglucemia. No juzga el valor — solo que quepa. Ver la ley de la casa
+         en `domain/medidas.js`. */
+      for (const medida of medidas) {
+        const problema = problemaDeMedida(medida, valores[medida.id]);
+        if (problema) return problema;
       }
       return null;
     }
@@ -363,6 +435,15 @@ export const ReviewWizard = ({
    * salvo, lo único que no ha ocurrido es el aviso.
    */
   const terminar = async () => {
+    /* En el ensayo no hay nada que terminar: no hay registro, no hay fotos que
+       subir y no hay semana de nadie que entregar. Se cierra, y el pie ya venía
+       diciendo que esto no se guarda. Validar tampoco: el entrenador está
+       mirando su formulario, no entregando su revisión. */
+    if (ensayo) {
+      onClose();
+      return;
+    }
+
     for (const p of pasos) {
       const problema = problemaDe(p.id);
       if (problema) {
@@ -388,6 +469,9 @@ export const ReviewWizard = ({
       weight: pesoEfectivo,
       folds,
       perimeters,
+      /* Ya redondeadas a los decimales de cada una, y sin las que no se
+         rellenaron: `null` es «no medido» y no cero. */
+      medidas: compactMedidas(medidas, valores),
       /* Foto de las kcal y macros vigentes, para poder cruzar después dieta con
          evolución de peso: la tabla de nutrición no guarda histórico. Llega
          HECHA (`cycleFoto`): en un ciclado, la cifra que significa algo es la
@@ -395,7 +479,9 @@ export const ReviewWizard = ({
          sabe la pantalla, no este asistente. */
       nutritionFoto,
     });
-    if (registro.weight !== null || registro.skinFolds || registro.perimeters) onAdd(registro);
+    if (registro.weight !== null || registro.skinFolds || registro.perimeters || registro.medidas) {
+      onAdd(registro);
+    }
 
     if (lote.pendientes > 0) {
       const total = lote.pendientes;
@@ -416,9 +502,13 @@ export const ReviewWizard = ({
     if (onSubmitWeek) {
       /* Solo las contestadas. Mandar las vacías guardaría una cadena en blanco
          por pregunta, y al leerlas «no contestó» y «contestó vacío» se
-         parecerían demasiado. */
+         parecerían demasiado.
+
+         Por `hayRespuesta` y no por `String(v).trim()`: desde que una respuesta
+         puede ser una LISTA —las zonas, elegir varias—, marcar una zona y
+         quitarla dejaba un array vacío que se guardaba como «[]». */
       const dadas = Object.fromEntries(
-        Object.entries(answers).filter(([, v]) => String(v ?? '').trim() !== '')
+        Object.entries(answers).filter(([, v]) => hayRespuesta(v))
       );
 
       const res = await onSubmitWeek({
@@ -447,6 +537,13 @@ export const ReviewWizard = ({
       onClose={onClose}
       footer={
         <>
+          {/* Lo que el ensayo tiene que decir, y en el único sitio donde no se
+              puede leer tarde: al lado del botón que parece entregar. */}
+          {ensayo && (
+            <span className="wiz-ensayo">
+              Es un ensayo: lo que contestes aquí no se guarda en ningún sitio.
+            </span>
+          )}
           <button
             type="button"
             className="btn btn-secondary"
@@ -473,9 +570,12 @@ export const ReviewWizard = ({
               {/* «Entregar» y no «guardar» cuando de verdad se entrega: son dos
                   cosas distintas y el cliente tiene que saber cuál está a punto
                   de hacer. Guardar es para él; entregar te avisa a ti. */}
+              {/* En el ensayo, el verbo del CLIENTE aunque aquí no entregue
+                  nada: enseñarle al entrenador «Terminar y guardar» sería
+                  enseñarle un botón que su cliente no tiene. */}
               {guardando || lote.busy
                 ? 'Enviando…'
-                : onSubmitWeek
+                : onSubmitWeek || ensayo
                   ? 'Terminar y entregar'
                   : 'Terminar y guardar'}
             </button>
@@ -489,30 +589,11 @@ export const ReviewWizard = ({
     >
       <div className="wiz">
         {/*
-          El carril de pasos. No es decoración: dice cuántos quedan, que es lo
-          único que hace tolerable un formulario partido. Sin él, «Siguiente» es
-          una puerta a un número desconocido de pantallas.
+          El carril de pasos (`ui/Asistente`). No es decoración: dice cuántos
+          quedan, que es lo único que hace tolerable un formulario partido. Sin
+          él, «Siguiente» es una puerta a un número desconocido de pantallas.
         */}
-        <ol className="wiz-rail">
-          {pasos.map((p, i) => (
-            <li
-              className={`wiz-mark${i === indice ? ' is-on' : ''}${i < indice ? ' is-done' : ''}`}
-              key={p.id}
-              aria-current={i === indice ? 'step' : undefined}
-            >
-              <span className="wiz-mark-n" aria-hidden="true">
-                {i < indice ? <Check size={13} strokeWidth={3} /> : i + 1}
-              </span>
-              <span className="wiz-mark-k">{p.titulo}</span>
-            </li>
-          ))}
-        </ol>
-
-        {/* En estrecho los nombres de los pasos se esconden (ver `.wiz-count`):
-            esta línea mantiene dicho el total. */}
-        <p className="wiz-count">
-          Paso {indice + 1} de {pasos.length}
-        </p>
+        <CarrilDePasos pasos={pasos} indice={indice} />
 
         {error && <Notice tone="error">{error}</Notice>}
 
@@ -538,44 +619,84 @@ export const ReviewWizard = ({
                   : 'El peso es el único dato obligatorio de una revisión.'}
               </p>
 
+              {/*
+                ══ LA PLACA, y por qué tiene ANCHURA PROPIA ══════════════════
+
+                Esto eran dos campos con `grow` repartidos a mitades: la casilla
+                del peso medía media anchura del diálogo —más de 400 px— con un
+                número de 30 px flotando en el centro. Un dato de cuatro
+                caracteres pintado en una caja de cuarenta no se lee como un
+                dato: se lee como un campo estirado.
+
+                Una cifra se escribe en una caja del tamaño de la cifra. La
+                placa mide lo que mide un peso (`5ch` en cifras tabulares: hasta
+                «105,5») y lleva el «kg» PEGADO, dentro del mismo recuadro, en
+                vez de en el rótulo —la unidad es parte de lo que se está
+                escribiendo, no una aclaración de arriba—. Es la misma ley que
+                `input-suffix` aplica en el resto de la casa, aquí en la voz de
+                las cifras y con el foco viviendo en el recuadro entero.
+
+                Y la FECHA baja a su sitio. No es lo que se viene a confirmar
+                —viene puesta en hoy y casi nadie la toca—, así que deja de
+                pesar lo mismo que el peso y de ir la primera.
+
+                ══ Y LAS DOS SON LA MISMA PLACA ═════════════════════════════
+
+                Dos días con la placa al lado de un `.input` corriente: 52 px de
+                alto contra 40, con sus dos rótulos a distinta altura pidiendo
+                las dos mitades del mismo dato. La jerarquía la pone la LETRA
+                —30 px la cifra, 16 la fecha, y la fecha además en voz
+                secundaria—, no el tamaño de la caja. Ver `.placa`.
+              */}
               <div className="row-end wrap gap-4">
-                <Field label="Fecha" className="grow">
+                <Field label="Peso">
                   {(props) => (
-                    <input
-                      {...props}
-                      type="date"
-                      className="input"
-                      value={date}
-                      max={todayISO()}
-                      onChange={(e) => setDate(e.target.value)}
-                      required
-                    />
+                    <span className="placa placa-peso">
+                      <input
+                        {...props}
+                        type="text"
+                        inputMode="decimal"
+                        /*
+                          El ejemplo era «81.5», que es un peso perfectamente
+                          creíble escrito en gris y en grande. Con la casilla
+                          vacía —cuando no hay pesajes que promediar— no había
+                          forma de distinguir a simple vista si eso era lo que se
+                          iba a guardar o un hueco por rellenar. Un marcador de
+                          posición no puede parecerse al dato.
+
+                          Y el hueco es la RAYA DE CIFRA, no el guion largo que
+                          vino después: la casilla va alineada a la derecha y el
+                          guion largo mide casi dos dígitos, así que el hueco se
+                          pintaba a quince píxeles de donde luego cae el número.
+                          El porqué medido, en `HUECO_CIFRA`.
+                        */
+                        placeholder={HUECO_CIFRA}
+                        value={weight}
+                        onChange={(e) => {
+                          setTouched(true);
+                          setWeight(e.target.value);
+                        }}
+                        required
+                      />
+                      <span className="placa-u" aria-hidden="true">
+                        kg
+                      </span>
+                    </span>
                   )}
                 </Field>
 
-                <Field label="Peso (kg)" className="grow">
+                <Field label="Fecha" className="campo-fecha">
                   {(props) => (
-                    <input
-                      {...props}
-                      type="text"
-                      inputMode="decimal"
-                      className="input input-center input-hero"
-                      /*
-                        El ejemplo era «81.5», que es un peso perfectamente
-                        creíble escrito en gris y en grande. Con la casilla vacía
-                        —cuando no hay pesajes que promediar— no había forma de
-                        distinguir a simple vista si eso era lo que se iba a
-                        guardar o un hueco por rellenar. Un marcador de posición
-                        no puede parecerse al dato.
-                      */
-                      placeholder="— kg —"
-                      value={weight}
-                      onChange={(e) => {
-                        setTouched(true);
-                        setWeight(e.target.value);
-                      }}
-                      required
-                    />
+                    <span className="placa placa-fecha">
+                      <input
+                        {...props}
+                        type="date"
+                        value={date}
+                        max={todayISO()}
+                        onChange={(e) => setDate(e.target.value)}
+                        required
+                      />
+                    </span>
                   )}
                 </Field>
               </div>
@@ -601,12 +722,12 @@ export const ReviewWizard = ({
             </>
           )}
 
-          {paso.id === 'medidas' && (
+          {paso.id === 'pliegues' && (
             <>
               <p className="t-sm t-secondary">
-                {obligatorios.length > 0
+                {requiresBlock(protocol, 'folds')
                   ? 'Esto sí hace falta para cerrar la revisión.'
-                  : 'Opcional. Si esta semana no te has medido, pasa al siguiente paso.'}
+                  : 'Opcional. Si esta semana no te los has tomado, pasa al siguiente paso.'}
               </p>
 
               {/*
@@ -615,133 +736,113 @@ export const ReviewWizard = ({
                 definir se aplica **la de hombre en silencio**: el porcentaje
                 sale, parece bueno y puede estar cuatro puntos desviado. Por eso
                 el aviso cambia de tono cuando falta, y se arregla aquí mismo.
+
+                Y vive en ESTE paso y no en el de los perímetros, que es el otro
+                sitio donde podía caer: la fórmula solo afecta a los pliegues.
               */}
-              {pideFolds &&
-                (client.gender ? (
-                  <Notice tone="info">
-                    Fórmula de 6 pliegues ·{' '}
-                    {client.gender === 'Mujer'
-                      ? '% graso = 3,5803 + (Σ mm × 0,1548)'
-                      : '% graso = 2,59 + (Σ mm × 0,1051)'}{' '}
-                    · sexo registrado: {client.gender}
-                  </Notice>
-                ) : (
-                  <Notice
-                    tone="warn"
-                    action={
-                      onSetGender ? (
-                        <span className="row gap-2 shrink-0">
-                          {['Hombre', 'Mujer'].map((sexo) => (
-                            <button
-                              key={sexo}
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              onClick={() => onSetGender(sexo)}
-                            >
-                              {sexo}
-                            </button>
-                          ))}
-                        </span>
-                      ) : null
-                    }
-                  >
-                    Falta el sexo de {client.name}, y la fórmula de pliegues es distinta para hombre
-                    y mujer.{' '}
-                    {onSetGender
-                      ? 'Mientras no se defina se aplica la de hombre, así que el % graso puede estar desviado.'
-                      : 'Pídeselo a tu entrenador: mientras tanto el % graso puede estar desviado.'}
-                  </Notice>
-                ))}
+              {client.gender ? (
+                <Notice tone="info">
+                  Fórmula de 6 pliegues ·{' '}
+                  {client.gender === 'Mujer'
+                    ? '% graso = 3,5803 + (Σ mm × 0,1548)'
+                    : '% graso = 2,59 + (Σ mm × 0,1051)'}{' '}
+                  · sexo registrado: {client.gender}
+                </Notice>
+              ) : (
+                <Notice
+                  tone="warn"
+                  action={
+                    onSetGender ? (
+                      <span className="row gap-2 shrink-0">
+                        {['Hombre', 'Mujer'].map((sexo) => (
+                          <button
+                            key={sexo}
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => onSetGender(sexo)}
+                          >
+                            {sexo}
+                          </button>
+                        ))}
+                      </span>
+                    ) : null
+                  }
+                >
+                  Falta el sexo de {client.name}, y la fórmula de pliegues es distinta para hombre y
+                  mujer.{' '}
+                  {onSetGender
+                    ? 'Mientras no se defina se aplica la de hombre, así que el % graso puede estar desviado.'
+                    : 'Pídeselo a tu entrenador: mientras tanto el % graso puede estar desviado.'}
+                </Notice>
+              )}
 
-              {pideFolds &&
-                (requiresBlock(protocol, 'folds') || abiertos.folds || sum > 0 ? (
-                  <div className="col gap-3">
-                    <div className="medida-cab">
-                      <h4 className="section-label">
-                        Pliegues cutáneos (mm)
-                        {requiresBlock(protocol, 'folds') && (
-                          <span className="badge badge-warn wiz-badge">Obligatorio</span>
-                        )}
-                      </h4>
-                      <button
-                        type="button"
-                        className="link"
-                        aria-expanded={guia === 'folds'}
-                        onClick={() => setGuia((g) => (g === 'folds' ? null : 'folds'))}
-                      >
-                        {guia === 'folds' ? 'Ocultar la guía' : 'Cómo se mide'}
-                      </button>
-                    </div>
-                    {guia === 'folds' && (
-                      <div className="card-inset">
-                        <GuiaDeMedidas que="pliegue" />
-                      </div>
-                    )}
-                    <MeasureGrid
-                      labels={FOLDS_LABELS}
-                      values={folds}
-                      unit="milímetros"
-                      onChange={(k, v) => setFolds((f) => ({ ...f, [k]: v }))}
-                    />
-                    {sum > 0 && (
-                      <div className="row between wrap gap-3 folds-sum">
-                        <span className="t-sm folds-sum-k">Suma: {sum} mm</span>
-                        <strong className="folds-sum-v">% graso: {pct ?? '—'}%</strong>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm self-start"
-                    onClick={() => setAbiertos((a) => ({ ...a, folds: true }))}
-                  >
-                    <Plus size={15} /> Añadir pliegues cutáneos
-                  </button>
-                ))}
+              <MedirConGuia
+                que="pliegue"
+                labels={FOLDS_LABELS}
+                values={folds}
+                unit="milímetros"
+                unidad="mm"
+                onChange={(k, v) => setFolds((f) => ({ ...f, [k]: v }))}
+              />
 
-              {pidePerimetros &&
-                (requiresBlock(protocol, 'perimeters') ||
-                abiertos.perimeters ||
-                Object.values(perimeters).some((v) => v !== '' && v != null) ? (
-                  <div className="col gap-3">
-                    <div className="medida-cab">
-                      <h4 className="section-label">
-                        Perímetros corporales (cm)
-                        {requiresBlock(protocol, 'perimeters') && (
-                          <span className="badge badge-warn wiz-badge">Obligatorio</span>
-                        )}
-                      </h4>
-                      <button
-                        type="button"
-                        className="link"
-                        aria-expanded={guia === 'perimeters'}
-                        onClick={() => setGuia((g) => (g === 'perimeters' ? null : 'perimeters'))}
-                      >
-                        {guia === 'perimeters' ? 'Ocultar la guía' : 'Cómo se mide'}
-                      </button>
-                    </div>
-                    {guia === 'perimeters' && (
-                      <div className="card-inset">
-                        <GuiaDeMedidas que="cinta" />
-                      </div>
-                    )}
-                    <MeasureGrid
-                      labels={PERIMETER_LABELS}
-                      values={perimeters}
-                      unit="centímetros"
-                      onChange={(k, v) => setPerimeters((p) => ({ ...p, [k]: v }))}
-                    />
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm self-start"
-                    onClick={() => setAbiertos((a) => ({ ...a, perimeters: true }))}
-                  >
-                    <Plus size={15} /> Añadir perímetros
-                  </button>
-                ))}
+              {sum > 0 && (
+                <div className="row between wrap gap-3 folds-sum">
+                  <span className="t-sm folds-sum-k">Suma: {sum} mm</span>
+                  <strong className="folds-sum-v">% graso: {pct ?? '—'}%</strong>
+                </div>
+              )}
+            </>
+          )}
+
+          {paso.id === 'perimetros' && (
+            <>
+              <p className="t-sm t-secondary">
+                {requiresBlock(protocol, 'perimeters')
+                  ? 'Esto sí hace falta para cerrar la revisión.'
+                  : 'Opcional. Si esta semana no te has medido, pasa al siguiente paso.'}
+              </p>
+
+              <MedirConGuia
+                que="cinta"
+                labels={PERIMETER_LABELS}
+                values={perimeters}
+                unit="centímetros"
+                unidad="cm"
+                onChange={(k, v) => setPerimeters((p) => ({ ...p, [k]: v }))}
+              />
+            </>
+          )}
+
+          {/*
+            ══ Y lo que se toma con un aparato ═══════════════════════════════
+
+            Su propio paso, detrás de la cinta y del plicómetro, porque es el
+            orden en que se hace y porque son las que menos gente tiene
+            encendidas. Agrupadas por su rótulo cuando lo llevan —la sistólica y
+            la diastólica son dos series y una sola toma—.
+
+            Cada una dice SU unidad al lado del campo, que es lo que una pregunta
+            de escala no podía hacer y toda la razón de que esto exista. Lo que no
+            dice es si el número está bien: ver la ley en `domain/medidas.js`.
+
+            La rejilla está extraída (`RejillaDeMedidas`) porque su entrenador la
+            ensaya antes de encenderle una: dos copias de este formulario
+            divergirían, y la vieja sería la que él mira.
+          */}
+          {paso.id === 'aparatos' && (
+            <>
+              <p className="t-sm t-secondary">
+                {medidasObligatorias.length > 0
+                  ? 'Lo que tomas con un aparato. Lo marcado hace falta para cerrar la revisión.'
+                  : 'Lo que tomas con un aparato. Apunta lo que tengas; lo que no, se queda en blanco.'}
+              </p>
+
+              <RejillaDeMedidas
+                titulo={null}
+                medidas={medidas.map((m) => ({ ...m, obligatoria: requiresBlock(protocol, m.id) }))}
+                valores={valores}
+                onChange={(id, texto) => setValores((v) => ({ ...v, [id]: texto }))}
+              />
             </>
           )}
 
@@ -753,18 +854,18 @@ export const ReviewWizard = ({
                   : `Se guardarán en la semana ${semana}. Frontal, lateral y espalda: puedes elegirlas todas de una vez y decir cuál es cuál.`}
               </p>
 
-              {/* Lo que ya hay de esta semana. Sin esto, quien subió el lunes la
-                  frontal no tiene forma de saber si le falta algo. */}
-              {yaSubidas.length > 0 && (
-                <Notice tone="success">
-                  Ya tienes {yaSubidas.length} {yaSubidas.length === 1 ? 'foto' : 'fotos'} de esta
-                  semana: {ANGLE_IDS.filter((id) => yaSubidas.some((p) => p.angle === id))
-                    .map(angleLabel)
-                    .join(', ')
-                    .toLowerCase()}
-                  .
-                </Notice>
-              )}
+              {/*
+                Los tres ángulos, con la de la semana pasada debajo del que
+                falta. Sustituye a dos recuadros de aviso y a la frase de «hazlas
+                siempre igual», que era el consejo más importante del paso y el
+                único que iba en gris. Ver `TresAngulos` y `M-12`.
+              */}
+              <TresAngulos
+                photos={photos}
+                semana={semana}
+                startDate={client.startDate}
+                yaEstan={cubiertos}
+              />
 
               {lote.error && <Notice tone="error">{lote.error}</Notice>}
 
@@ -777,20 +878,14 @@ export const ReviewWizard = ({
                 compacto
               />
 
-              {faltanAngulos.length > 0 && (
-                <Notice tone={faltanAngulos.length === ANGLE_IDS.length ? 'info' : 'warn'}>
-                  {faltanAngulos.length === ANGLE_IDS.length
-                    ? 'Con los tres ángulos —frontal, lateral y espalda— se ven cambios que la báscula no cuenta. Puedes terminar sin fotos y subirlas luego.'
-                    : `Te falta ${faltanAngulos.map(angleLabel).join(' y ').toLowerCase()}.`}
-                </Notice>
-              )}
-
-              {/* Consejo, no aviso: dos recuadros de color seguidos diciendo cosas
-                  de distinta urgencia hacen que no se lea ninguno de los dos. */}
-              <p className="t-xs t-tertiary">
-                Hazlas siempre igual: misma luz, misma distancia, misma pose y a ser posible el
-                mismo día de la semana. Es lo que hace que la comparación signifique algo.
-              </p>
+              {/*
+                Aquí vivían el «te falta lateral y espalda» y el consejo de hacerlas
+                siempre igual. Los dice mejor el dibujo de arriba: el ángulo que
+                falta se ve sin contarlo, y «misma luz, misma pose» es la foto de
+                la semana pasada puesta debajo. Lo que NO se ha ido es que se
+                pueda terminar sin fotos — eso no era un aviso, era un permiso, y
+                sigue estando en el botón del pie.
+              */}
             </>
           )}
 
@@ -811,15 +906,24 @@ export const ReviewWizard = ({
                 questions={preguntas}
                 answers={answers}
                 title="Cómo ha ido tu semana"
+                /* La hoja numerada: son seis preguntas seguidas y éste es el
+                   sitio donde más falta hace saber por dónde vas sin tener que
+                   leer el contador de la cabecera. Ver `SessionFeedback`. */
+                numerado
                 onChange={(id, value) => setAnswers((prev) => ({ ...prev, [id]: value }))}
               />
             </>
           )}
         </div>
 
-        <div className="wiz-foot">
-          <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
-        </div>
+        {/* El indicador de guardado no existe en el ensayo: no hay cola, no hay
+            nada que guardar, y un «guardado ✓» ahí sería la única línea de esta
+            pantalla que miente. */}
+        {!ensayo && (
+          <div className="wiz-foot">
+            <SaveIndicator status={save.status} error={save.error} onRetry={onRetry} />
+          </div>
+        )}
       </div>
     </Modal>
   );

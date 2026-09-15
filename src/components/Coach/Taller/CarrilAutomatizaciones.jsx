@@ -21,6 +21,7 @@ import { DIAS, EVERY_MAX } from '@/domain/protocolos';
 import { pideEnlace, queById } from '@/domain/envios';
 import { cuentaElementos } from '@/domain/formulario';
 import { clampInt } from '@/lib/num';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, Field, TextInput } from '@/components/ui/primitives';
 
@@ -172,7 +173,9 @@ const Hilo = ({ auto, paso, onDia, onMas, final = false }) => {
           label={
             <>
               <Plus size={13} />
-              {final && <span>Añadir paso</span>}
+              {/* «+ paso», no «Añadir paso»: el signo ya es el verbo y lo que
+                  falta es el sustantivo. Ver `docs/producto.md` §5.8. */}
+              {final && <span>paso</span>}
             </>
           }
           items={[
@@ -413,9 +416,11 @@ const Automatizacion = ({ auto, contexto, tocado, onTocar, onGuardar, onQuitar, 
           <>
             <select
               className="input input-sm premisa-dia"
-              value={horario.day}
+              value={horario.weekday}
               aria-label="Qué día se dispara"
-              onChange={(e) => onGuardar({ ...auto, valor: { ...horario, day: Number(e.target.value) } })}
+              onChange={(e) =>
+                onGuardar({ ...auto, valor: { ...horario, weekday: Number(e.target.value) } })
+              }
             >
               {DIAS.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -425,9 +430,11 @@ const Automatizacion = ({ auto, contexto, tocado, onTocar, onGuardar, onQuitar, 
             </select>
             <select
               className="input input-sm premisa-dia"
-              value={horario.every}
+              value={horario.everyWeeks}
               aria-label="Cada cuántas semanas"
-              onChange={(e) => onGuardar({ ...auto, valor: { ...horario, every: Number(e.target.value) } })}
+              onChange={(e) =>
+                onGuardar({ ...auto, valor: { ...horario, everyWeeks: Number(e.target.value) } })
+              }
             >
               {Array.from({ length: EVERY_MAX }, (_, i) => i + 1).map((n) => (
                 <option key={n} value={n}>
@@ -634,18 +641,13 @@ export const CarrilAutomatizaciones = ({
       )}
 
       {lista.length < MAX_AUTOMATIZACIONES && (
-        <MenuAcciones
-          /* Con su «+», como «Añadir acción» justo encima: las dos listas de
-             esta columna contestan la misma pregunta y se amplían con el mismo
-             gesto, así que no pueden tener dos formas de ofrecerlo. */
-          label={
-            <>
-              <Plus size={15} />
-              Añadir algo que pase solo
-            </>
-          }
+        <BotonMas
+          /* La misma pieza que «+ acción» justo encima: las dos listas de esta
+             columna contestan la misma pregunta y se amplían con el mismo
+             gesto, así que no pueden tener dos formas de ofrecerlo. Era una
+             caja discontinua a todo el ancho; ver `docs/producto.md` §5.8. */
+          palabra="algo que pase solo"
           ariaLabel="Añadir una automatización"
-          clase="btn anadir-pregunta"
           descriptivo
           alineado="izquierda"
           items={DISPARADORES.map((d) => ({

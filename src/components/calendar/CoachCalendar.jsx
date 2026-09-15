@@ -160,7 +160,7 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
                 className="btn btn-primary btn-sm"
                 disabled={busy || !title.trim() || !clientId}
               >
-                <Plus size={15} /> Agendar
+                <Plus size={15} /> Añadir
               </button>
             </div>
           </form>

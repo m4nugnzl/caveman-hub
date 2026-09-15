@@ -8,11 +8,12 @@ import {
   weeklyWeightAverages,
 } from '@/domain/anthropometry';
 import { metricColor } from '@/domain/metrics';
+import { problemaDeMedida, valorDeMedida } from '@/domain/medidas';
 import { BandChart } from '@/components/ui/charts';
 import { shortDate, todayISO, weekStart } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
 import { Delta } from '@/components/ui/metrics';
-import { Panel } from '@/components/ui/primitives';
+import { HUECO_CIFRA, Panel } from '@/components/ui/primitives';
 import { useOculto } from '@/components/Client/Oculto';
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -53,6 +54,16 @@ export const WeeklyCheckIn = ({
   history,
   onAddWeight,
   onRemoveEntry,
+  /*
+    ── Y lo que se apunta A DIARIO ───────────────────────────────────────────
+    Las medidas de cadencia diaria —una temperatura basal, una frecuencia
+    cardíaca en reposo— son una FILA MÁS de esta misma rejilla. No una tarjeta
+    aparte: se toman en el mismo gesto y en el mismo momento que el pesaje de la
+    mañana, y partirlas en dos sitios convertiría un gesto de cinco segundos en
+    dos pantallas. Ver `domain/medidas.js`.
+  */
+  medidas = [],
+  onApuntarMedida = null,
   audience = 'client',
   action = null,
   target = 0,
@@ -71,6 +82,20 @@ export const WeeklyCheckIn = ({
     () => new Map(checkIn.entries.map((entry) => [entry.date, entry])),
     [checkIn.entries]
   );
+
+  /*
+    Lo medido de cada día, por fecha, SACADO DEL HISTORIAL ENTERO y no de
+    `checkIn.entries`: esa lista es la de los PESAJES —descarta lo que no tiene
+    peso— y un día en el que solo se tomó la temperatura no está en ella. Con
+    ella, la casilla de una medida aparecía vacía el día después de escribirla.
+  */
+  const medidasPorFecha = useMemo(() => {
+    const map = new Map();
+    for (const log of history || []) {
+      if (log?.date && log.medidas) map.set(log.date, log.medidas);
+    }
+    return map;
+  }, [history]);
 
   const today = todayISO();
   const isClient = audience === 'client';
@@ -99,6 +124,33 @@ export const WeeklyCheckIn = ({
     if (value === null) return;
     onAddWeight(buildWeightLog({ date, weight: value }));
     setDrafts((d) => ({ ...d, [date]: '' }));
+  };
+
+  /* Las diarias que este cliente tiene encendidas y se pueden escribir desde
+     aquí. Sin verbo para escribirlas —una pantalla de solo lectura— no se
+     pintan: una casilla que no guarda nada es peor que no tenerla. */
+  const diarias = onApuntarMedida ? medidas : [];
+
+  /* Lo tecleado en la fila de una medida, por fecha. Se guarda al salir del
+     campo y con Enter, como el peso: el mismo gesto en la misma rejilla. */
+  const [medidaDrafts, setMedidaDrafts] = useState({});
+
+  const commitMedida = (medida, date) => {
+    const clave = `${medida.id}:${date}`;
+    const crudo = medidaDrafts[clave];
+    if (crudo === undefined) return;
+    const limpio = String(crudo).trim();
+    /* Vaciar la casilla BORRA la medida de ese día. Es la otra mitad de la ley:
+       `null` es «no la tomé», y dejar el valor anterior convertiría una
+       corrección en un dato que nadie escribió. */
+    const valor = limpio === '' ? null : valorDeMedida(medida, limpio);
+    if (limpio !== '' && valor === null) return;
+    if (limpio !== '' && problemaDeMedida(medida, valor)) return;
+    onApuntarMedida(date, medida.id, valor);
+    setMedidaDrafts((d) => {
+      const { [clave]: _fuera, ...resto } = d;
+      return resto;
+    });
   };
 
   return (
@@ -184,7 +236,7 @@ export const WeeklyCheckIn = ({
                   inputMode="decimal"
                   enterKeyHint="done"
                   className="input input-sm input-center"
-                  placeholder="—"
+                  placeholder={HUECO_CIFRA}
                   disabled={future}
                   value={drafts[date] ?? ''}
                   onChange={(e) => setDrafts((d) => ({ ...d, [date]: e.target.value }))}
@@ -198,6 +250,66 @@ export const WeeklyCheckIn = ({
         })}
       </div>
 
+      {/*
+        ══ Y una fila por medida diaria ═══════════════════════════════════════
+
+        La MISMA rejilla de siete columnas, debajo de la del peso y con su
+        rótulo a la izquierda: se lee como lo que es, otra cosa que se anota cada
+        día, y no como una tarjeta nueva.
+
+        Cada casilla dice su unidad una vez, en el rótulo de la fila, y no siete
+        veces. Lo que la casilla enseña es el número — que es lo que hay que
+        comparar de un día a otro.
+      */}
+      {diarias.map((medida) => {
+        const escondida = oculto.medidas?.[medida.id] === true;
+        return (
+          <div className="col gap-2" key={medida.id}>
+            <span className="section-label">
+              {medida.label}
+              {medida.unit ? ` · ${medida.unit}` : ''}
+            </span>
+            <div className="checkin-week">
+              {days.map((date, index) => {
+                const clave = `${medida.id}:${date}`;
+                const guardado = medidasPorFecha.get(date)?.[medida.id];
+                const future = date > today;
+                return (
+                  <div
+                    className={`card-inset col gap-2${date === today ? ' is-today' : ''}`}
+                    key={date}
+                    style={{ opacity: future ? 0.5 : 1 }}
+                  >
+                    <span className="section-label">{DAY_NAMES[index]}</span>
+                    {escondida && guardado !== undefined ? (
+                      /* Con la medida oculta, el gesto no cambia —se anota
+                         igual— y lo que cambia es que la aplicación no la
+                         devuelve. La misma ley que el peso. Ver `Oculto.jsx`. */
+                      <span className="t-xs t-secondary">anotado</span>
+                    ) : (
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        enterKeyHint="done"
+                        className="input input-sm input-center"
+                        placeholder={HUECO_CIFRA}
+                        disabled={future}
+                        value={medidaDrafts[clave] ?? (guardado ?? '')}
+                        onChange={(e) =>
+                          setMedidaDrafts((d) => ({ ...d, [clave]: e.target.value }))
+                        }
+                        onKeyDown={(e) => e.key === 'Enter' && commitMedida(medida, date)}
+                        onBlur={() => commitMedida(medida, date)}
+                        aria-label={`${medida.label} del ${date}, en ${medida.unit}`}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {/*
         ══ La tendencia, DENTRO del check-in ══════════════════════════════════
@@ -266,8 +378,17 @@ export const WeeklyCheckIn = ({
         <div className="row between wrap gap-4" style={{ paddingTop: 'var(--s3)', borderTop: '1px solid var(--hairline)' }}>
           <div className="col gap-1">
             <span className="section-label">Promedio de la semana</span>
+            {/*
+              `is-hero` y no el cuerpo de una tarjeta más: la firma de Revisión
+              es «la cifra con su veredicto» (`tokens.css`), y esta es esa
+              cifra — la pantalla lo dice con todas las letras tres renglones
+              más abajo: «es la cifra que conviene mirar para decidir ajustes,
+              no un pesaje suelto». Estaba a 30, el mismo cuerpo que los cuatro
+              apuntes de arriba, así que el promedio era el quinto de cinco
+              números iguales y el veredicto colgaba de ninguno en particular.
+            */}
             <div className="metric-figure">
-              <span className="metric-value">{checkIn.average === null ? '—' : checkIn.average}</span>
+              <span className="metric-value is-hero">{checkIn.average === null ? '—' : checkIn.average}</span>
               <span className="metric-unit">kg</span>
               <Delta value={checkIn.delta} unit=" kg" lowerIsBetter />
             </div>

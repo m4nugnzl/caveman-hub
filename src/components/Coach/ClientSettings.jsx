@@ -221,6 +221,10 @@ export const ClientSettingsSheet = ({ client, open, onClose, mandado = true }) =
             <div className="col gap-5">
               {/* Su check-in semanal: lo que se le mide y lo que se le pregunta. */}
               <CheckinBlocksSection protocol={protocol} onSave={guardar} />
+
+              {/* Aquí hubo un «De dónde recortas al ajustar» y se retiró: la
+                  ventana del reajuste ya lo pregunta con el menú delante, y
+                  recuerda lo que elijas para esta persona. Ver `EditarObjetivo`. */}
               <QuestionEditor
                 title="Qué le preguntas al cerrar la semana"
                 intro="Es lo que la báscula no mide: si ha podido seguir el plan, si ha pasado hambre, si le siguen quedando ganas."

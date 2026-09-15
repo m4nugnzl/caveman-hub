@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
+  CalendarClock,
   Check,
   ChevronRight,
   Inbox,
@@ -19,7 +20,13 @@ import {
 } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { ACTIVITY_KINDS, activityScale, buildActivity, dayLabel } from '@/domain/today';
-import { kindMeta } from '@/domain/calendar';
+import {
+  MAX_CHECKIN_DATES,
+  MAX_CHECKIN_NOTE,
+  currentCheckInPeriod,
+  kindMeta,
+  moveCheckIn,
+} from '@/domain/calendar';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
 import { clientPath } from '@/routes';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
@@ -134,8 +141,76 @@ const Persona = ({ row, sub, badge, onOpen, children }) => (
   </div>
 );
 
-const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
+/**
+ * APLAZAR DESDE AQUÍ, que es donde ocurre de verdad.
+ *
+ * ══ Por qué este gesto no vivía donde se hace ══════════════════════════════
+ *
+ * Mover una revisión ya funcionaba —tocando ese día en el calendario del
+ * cliente—, y ése no es el gesto real. El gesto real es: hoy, en la cola de
+ * revisiones, Javier te dice que está de viaje. Obligar a abrir su ficha, buscar
+ * el calendario y contar hasta el martes es pedirle al entrenador que navegue
+ * para arreglar algo que está mirando.
+ *
+ * Es el MISMO `moveCheckIn` con otro sitio desde donde llamarlo: una fecha movida
+ * sustituye a la de su periodo y el periodo siguiente la releva sola. Y el
+ * porqué es opcional a propósito —aplazar tiene que costar un gesto— pero se
+ * ofrece, porque una fecha movida sin motivo, tres semanas después, es un día
+ * raro en el calendario.
+ */
+const Aplazar = ({ row, onAplazar, onCerrar }) => {
+  const periodo = currentCheckInPeriod(row.client.preferences, row.client.startDate);
+  /* Mañana, que es lo que se contesta el 90 % de las veces: «déjalo para
+     mañana». La fecha de pauta ya pasó — por eso esta persona está en la cola. */
+  const [fecha, setFecha] = useState(() => addDays(todayISO(), 1));
+  const [motivo, setMotivo] = useState('');
+
+  return (
+    <form
+      className="col gap-2 task-respuesta"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onAplazar(row.client, fecha, motivo);
+      }}
+    >
+      <div className="row gap-2 wrap">
+        <input
+          type="date"
+          className="input input-sm"
+          value={fecha}
+          min={todayISO()}
+          onChange={(e) => setFecha(e.target.value)}
+          aria-label={`Nueva fecha de la revisión de ${row.client.name}`}
+        />
+        <input
+          type="text"
+          className="input input-sm"
+          style={{ flex: 1, minWidth: '12ch' }}
+          maxLength={MAX_CHECKIN_NOTE}
+          placeholder="Por qué (opcional)"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          aria-label="Por qué se aplaza"
+        />
+        <button type="submit" className="btn btn-primary btn-sm" disabled={!fecha}>
+          Aplazar
+        </button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={onCerrar}>
+          Cancelar
+        </button>
+      </div>
+      <span className="t-xs t-tertiary">
+        {periodo
+          ? `Sustituye a la del ${shortDate(periodo.dueOn)}. No es una revisión extra: la siguiente sigue en su sitio.`
+          : 'Sin día de pauta no hay periodo al que mover la entrega.'}
+      </span>
+    </form>
+  );
+};
+
+const ColaRevisar = ({ lista, onOpen, onCerrar, onAplazar }) => {
   const [escribiendo, setEscribiendo] = useState(null);
+  const [aplazando, setAplazando] = useState(null);
   /* Solo hay UNA respuesta abierta a la vez, así que un estado basta para su
      botón de enviar. Ver `BotonAccion`. */
   const envio = useAccionDeBoton();
@@ -186,6 +261,20 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
                 <MessageCircle size={13} /> Recordar
               </button>
             )}
+            {/* Aplazar va PEGADO a recordar porque son las dos respuestas a la
+                misma frase —«no lo he subido»—: o se le reclama, o se le mueve
+                la fecha. Solo a quien no ha entregado: mover la cita de quien ya
+                te espera no significa nada. */}
+            {row.review_state === 'missing' && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                aria-expanded={aplazando === id}
+                onClick={() => setAplazando(aplazando === id ? null : id)}
+              >
+                <CalendarClock size={13} /> Aplazar
+              </button>
+            )}
             <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpen(id, 'semana')}>
               Revisar
             </button>
@@ -228,6 +317,15 @@ const ColaRevisar = ({ lista, onOpen, onCerrar }) => {
                 </div>
               </form>
             )}
+            {aplazando === id && (
+              <Aplazar
+                row={row}
+                onCerrar={() => setAplazando(null)}
+                onAplazar={(client, fecha, motivo) => {
+                  if (onAplazar(client, fecha, motivo)) setAplazando(null);
+                }}
+              />
+            )}
           </Persona>
         );
       })}
@@ -265,6 +363,7 @@ export const Today = () => {
     markClientPaid,
     loadEvents,
     setEventDone,
+    updateClientPreferences,
   } = useApp();
   const { profileName } = useSession();
   const navigate = useNavigate();
@@ -391,6 +490,39 @@ export const Today = () => {
     return res?.ok !== false;
   };
 
+  /**
+   * Aplazar la revisión de alguien sin salir de la cola.
+   *
+   * La regla —una fecha movida por periodo, y sustituye en vez de añadir— la
+   * guarda `moveCheckIn`, no esta pantalla. Aquí solo se escribe lo que devuelve
+   * y se dice lo que ha pasado, con su «Deshacer»: mover la cita de otra persona
+   * es de las cosas que hay que poder desandar en el sitio.
+   */
+  const aplazarRevision = (client, fecha, motivo) => {
+    const antes = client.preferences?.checkin || {};
+    const siguiente = moveCheckIn(client.preferences, client.startDate, fecha, { motivo });
+    if (!siguiente) {
+      setError(
+        `No se puede aplazar la revisión de ${client.name}: hace falta un día de pauta, y solo se guardan ${MAX_CHECKIN_DATES} fechas movidas a la vez.`
+      );
+      return false;
+    }
+    setError(null);
+    updateClientPreferences(client.id, 'checkin', siguiente);
+    toast({
+      text: `Revisión de ${client.name} aplazada al ${shortDate(fecha)}.`,
+      action: {
+        label: 'Deshacer',
+        onClick: () =>
+          updateClientPreferences(client.id, 'checkin', {
+            dates: antes.dates || [],
+            notes: antes.notes || {},
+          }),
+      },
+    });
+    return true;
+  };
+
   const handlers = {
     paid: (clientId) => {
       const res = markClientPaid(clientId);
@@ -501,11 +633,29 @@ export const Today = () => {
     <div className="stack cascada">
       <PageHead
         title={saludo(profileName)}
-        sub={[
-          capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true })),
-          `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}`,
-          pendientes === 0 ? 'nada pendiente' : `${pendientes} ${pendientes === 1 ? 'cosa por hacer' : 'cosas por hacer'}`,
-        ].join(' · ')}
+        /*
+          La firma de esta pantalla es «el saludo con su cuenta de trabajo»
+          (`tokens.css`). La cuenta iba dentro de la línea gris, en el mismo
+          cuerpo y la misma tinta que la fecha y el número de clientes: el dato
+          por el que se abre la pantalla se leía como el tercero de tres
+          apuntes. Sale a tinta plena, que es el escalón que le faltaba; la
+          fecha y los clientes se quedan donde están, que es de contexto.
+
+          Y cuando no hay nada pendiente no hay cifra que destacar: eso es una
+          buena noticia, no un dato — sigue en voz baja, como el resto.
+        */
+        sub={
+          <>
+            {[
+              capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true })),
+              `${clients.length} ${clients.length === 1 ? 'cliente' : 'clientes'}`,
+            ].join(' · ')}
+            {' · '}
+            {pendientes === 0
+              ? 'nada pendiente'
+              : <strong>{pendientes} {pendientes === 1 ? 'cosa por hacer' : 'cosas por hacer'}</strong>}
+          </>
+        }
       />
       {error && <Notice tone="error">{error}</Notice>}
       <GettingStarted />
@@ -570,7 +720,12 @@ export const Today = () => {
                 <p className="panel-head-sub">Primero quien lleva más tiempo esperando</p>
               )}
               {abierta.id === 'revisar' ? (
-                <ColaRevisar lista={abierta.lista} onOpen={open} onCerrar={cerrarRevision} />
+                <ColaRevisar
+                  lista={abierta.lista}
+                  onOpen={open}
+                  onCerrar={cerrarRevision}
+                  onAplazar={aplazarRevision}
+                />
               ) : (
                 <ColaTareas filas={abierta.filas} seccion={abierta.seccion} onOpen={open} handlers={handlers} />
               )}

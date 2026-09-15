@@ -524,6 +524,8 @@ Para poder revisar un diff sin discutir:
    es una columna mal dimensionada.
 7. Un selector de semana nuevo. Hay cinco; el objetivo es uno.
 8. La palabra «Eliminar». Ver 5.7.
+9. Las palabras «Tirar», «Agregar», «Crear» o «Agendar» como rótulo de un
+   control, y un sexto dibujo del verbo de añadir. Ver 5.8.
 
 ### 5.7 Quitar y borrar no son lo mismo
 
@@ -546,6 +548,159 @@ vuelve nunca», que es justo lo que hay que saber ANTES de pulsar.
 
 La prueba de la regla es el mensaje: si la confirmación tiene que decir «no se
 puede recuperar», el verbo es borrar. Si puede decir «Deshacer», es quitar.
+
+### 5.8 Un gesto, un dibujo, una palabra
+
+§5.7 arregló la papelera y dejó el resto del vocabulario sin ley. Medido el 11
+sep 2026 sobre la aplicación entera: **el verbo de añadir tenía siete dibujos** y
+**deshacerse de algo, cinco palabras**. Ninguna de las dos cosas es un problema
+de estilo: la misma pantalla enseñaba el mismo gesto de dos formas, y eso obliga
+a aprender la aplicación dos veces.
+
+**Añadir tiene dos formas, y solo dos.**
+
+· **«+ cosa», en azul y sin caja** (`ui/BotonMas`) — uno más de la lista que ya
+  está delante: una serie, un ejercicio, un alimento, una pregunta, una acción,
+  un paso. Va **al pie de la lista a la que añade**, porque es donde va a
+  aparecer lo que se añada, y el sustantivo va en minúscula: el signo es el
+  verbo. Es la ley de los gestos —la caja se enciende, el verbo va en azul— y la
+  del color —azul invita—.
+· **«Nuevo/Nueva cosa», botón primario en la cinta** — dar de alta una pieza que
+  no existía, en la pantalla que es su colección: un alimento, un ejercicio, un
+  formulario, un protocolo, un cliente, una etiqueta. Una por pantalla.
+
+Y un tercer caso que no es una forma nueva: **el botón que cierra un alta ya
+abierta dice «Añadir»**, a secas, porque el campo que tiene al lado ya dice qué.
+
+No existen «Agregar», «Crear», «Agendar» ni «Dar de alta» como rótulo de un
+control. Tampoco la caja discontinua a todo el ancho: era el dibujo que hacía que
+el Taller se leyera como un formulario al lado de Entreno.
+
+**Deshacerse de algo tiene cuatro palabras, una por gesto.** Las dos primeras
+son §5.7; las otras dos son lo que faltaba:
+
+| Palabra | Qué es | La prueba |
+|---|---|---|
+| **Quitar** | sacar del plan algo que pusiste tú | puede decir «Deshacer» |
+| **Borrar** | destruir lo que él anotó o subió, y lo tuyo que no vuelve —una plantilla del cajón— | tiene que decir «no se puede recuperar» |
+| **Descartar** | no quedarse con algo que ni llegó a formar parte de nada: una grabación, un aviso que te llega | no había nada puesto que sacar |
+| **Cancelar** | cerrar un formulario abierto sin guardar. El par de «Guardar» | no toca nada de lo que ya estaba |
+
+**Vaciar** no es una quinta: es «quitar todo» de un recipiente —el portapapeles,
+las anotaciones de una foto— y por eso no lleva nombre propio.
+
+Y **«Tirar» no existe**, por el mismo motivo que no existe «Eliminar»: era un
+sinónimo de borrar vivo en una sola pantalla, y un sinónimo en un producto es una
+pregunta («¿esto es otra cosa?») cada vez que aparece.
+
+### 5.9 Cada clase de pregunta tiene su mando
+
+El cuestionario de la semana es lo que el cliente contesta todos los domingos, y
+el 14 sep 2026 eran **nueve rampas idénticas de diez barras**, una debajo de
+otra, distinguidas solo por el enunciado. El tipo de pregunta ya era siete
+(`QUESTION_KINDS`), pero el tipo no es lo único que tiene que cambiar de una
+pregunta a la siguiente.
+
+**Un control por clase de pregunta, y ninguno prestado.** La escala es una rampa
+que se llena (`ui/Escala`); el sí/no son dos mandos con su visto y su aspa
+(`ui/Opciones`, `sino`) y no dos píldoras iguales; una cifra que se cuenta lleva
+sus dos botones (`ui/Contador`) y no un campo de texto; dónde duele se señala en
+el cuerpo (`ui/ZonaDelCuerpo`). Un control nuevo entra por el `switch` de
+`SessionFeedback`, que es el único sitio donde se decide esto.
+
+**Y una escala tampoco es una sola cosa: se contesta con SU INSTRUMENTO**
+(`instrumento`). Entre el 14 y el 15 sep 2026 esto se probó primero con un icono
+distinto dentro de los mismos once discos —cubiertos la adherencia, un cerebro el
+estrés—, y no era la cura: **unos cubiertos no son la adherencia, son la comida**,
+y el mismo dibujo repetido once veces en fila deja de ser un icono y pasa a ser
+textura. Seguía siendo el mismo control nueve veces, con adorno.
+
+Lo que de verdad cambia de una pregunta a otra es cómo se contesta. Son cuatro:
+
+| Instrumento | Qué clase de pregunta | Dónde |
+|---|---|---|
+| **Estrellas**, de 1 a 5 | lo que se VALORA | adherencia, sueño, digestiones |
+| **Caras**, de 1 a 5 | lo que se SIENTE | sensaciones, ganas de seguir |
+| **Depósito**, de 1 a 5 | lo que se GASTA | energía |
+| **Rampa** de discos, de 0 a 10 | la CANTIDAD | RPE, dolor, hambre, agujetas, fatiga, estrés, entrenos |
+
+Cuatro reglas: **el instrumento manda sobre el rango** —cinco estrellas son
+cinco, no diez medias estrellas, y por eso las ocho preguntas que lo estrenaron
+bajaron a 1-5 con su migración (0120) para lo ya contestado—; **la rampa es para
+lo que es una cantidad**, que es donde el 0-10 significa algo (entre un dolor de
+3 y uno de 5 hay una decisión de entrenamiento) y donde los discos siguen
+creciendo de izquierda a derecha para decirla sin leer una cifra; **ninguno lleva
+su número al lado**, porque un instrumento que necesita el número escrito al lado
+es un instrumento que no ha sabido decirlo; y **una pregunta que se inventa el
+entrenador no estrena instrumento**, porque sería decidir por él qué clase de
+cosa está preguntando: sale en la rampa.
+
+**Y el instrumento viaja con la pregunta, salga por donde salga.** Hay dos
+modelos de pregunta —el del protocolo y el de los elementos del formulario
+libre— y una estantería que lleva del primero al segundo: coges «Energía» del
+catálogo y entra en tu formulario como un elemento más. El elemento se trae lo
+que se PUEDE retocar (enunciado, ayuda, rango, opciones) y no lo que no —el
+instrumento, las puntas, el color de la serie—, y eso es correcto: copiarlo sería
+dejarlo editable. El precio, hasta el 15 sep 2026, era que por ese camino
+«Energía» y «Sensaciones generales» salían las dos como la misma rampa de cinco
+discos. Se resuelve yendo al catálogo por `origen` cada vez que se pinta
+(`catalogQuestionById`), nunca copiando. Y donde el instrumento manda, **el mando
+del rango no se enseña**: se dice por qué, igual que con una medida del
+vocabulario.
+
+**Una escala dice qué significan sus dos puntas.** «Nada» / «Clavada» debajo del
+primer y del último paso (`anclas`). Es información que vivía en la línea
+de ayuda —«de 1 (nada) a 10 (clavada toda la semana)»: una frase para explicar un
+dibujo que tenía al lado—, y donde tiene sentido es en el dibujo. Con ella, la
+adherencia y el estrés dejan de parecer la misma pregunta dos veces.
+
+**Lo que hoy no viene a cuento no se pregunta.** «¿Dónde te ha molestado?» solo
+existe la semana en la que ha dolido algo (`depende`). Una pregunta que se
+contesta dejándola en blanco no es una pregunta: es la consecuencia de la
+anterior. Y lo ya contestado no se esconde nunca, aunque su condición deje de
+cumplirse — un dato que la pantalla no enseña es un dato que nadie puede
+corregir.
+
+**Lo que contesta un cliente se pinta en UNA hoja numerada.** Sus tres
+formularios —el de alta, el cuestionario del check-in y cualquiera que le
+mandes— son el mismo papel: una columna, un renglón por pregunta, el enunciado a
+cuerpo y tinta principal, la ayuda colgando debajo de él, el control a su medida
+y un carril de números a la izquierda que **se encienden en acento al
+contestar**. Numera, separa y dice por dónde vas, las tres a la vez, y es la
+única pieza de color de la hoja. Dos formularios del mismo producto no pueden
+tener dos gramáticas.
+
+El alta —lo primero que ve un cliente de esta aplicación— tardó tres intentos en
+llegar ahí, y los tres errores están escritos porque se repiten solos:
+
+1. **Diecinueve preguntas apiladas**, cada tanda en su caja hundida. Cada caja
+   estaba bien y el conjunto no: ordenar cada pieza no ordena la pantalla cuando
+   lo que sobra es cuántas hay.
+2. **Una rejilla de dos columnas por tanda**, con ayuda debajo de unas preguntas
+   y no de otras: renglones descuadrados y un campo suelto en la última fila.
+   Formulario de administración, no la primera impresión de un producto.
+3. **Una pregunta por pantalla**, con «Atrás» y «Siguiente». Ordenado y con un
+   peaje nuevo: **trece toques para contestar trece preguntas**, cada uno sin más
+   premio que enseñar la siguiente.
+
+De ahí sale la regla: **un recorrido paginado se gana el toque cuando cada paso
+hace algo distinto**. El asistente del check-in pesa, mide y fotografía, y cada
+paso es otro aparato; una pila de preguntas cortas no. Y el alta, además, vive
+DENTRO de una pantalla que ya se baja —con su lista de tareas encima y el cajón
+de las fotos debajo—, así que paginarla por dentro serían dos maneras de avanzar
+en la misma pantalla.
+
+Las tandas siguen existiendo y son **capítulos de la hoja**: encabezan su tramo
+como un antetítulo y no como una pestaña. La cuenta de los números es una sola
+para toda la hoja —lo que dice es cuántas preguntas llevas—, y el botón principal
+de la pantalla es **Guardar**, que no compite con nada porque ya no hay
+navegación que poner al lado.
+
+**Y una cifra se pide con la caja de su tamaño.** Lo que se cuenta con los dedos
+—días que entrenas, comidas al día— lleva «−» y «+» (`ui/Contador`); lo que es
+una medida lleva su placa, y la placa mide los caracteres que va a llevar dentro
+(`digitos`, en el catálogo del perfil). Una caja de seis caracteres para un «4»
+no es un campo: es un hueco.
 
 ---
 

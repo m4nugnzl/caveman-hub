@@ -132,7 +132,30 @@ body {
   letter-spacing: -0.01em;
   background: var(--canvas);
   color: var(--text);
+  /* ══ EL ALTO DE VERDAD · la pareja vh/svh ════════════════════════════════
+     LA REGLA DE LA CASA, y el sitio donde está escrita: **ningún alto se
+     declara solo en `vh`**. Detrás va siempre su gemela en `svh`.
+
+     `100vh` es el alto de la ventana CON la barra del navegador retraída. En
+     una pestaña de Safari o Chrome de móvil la barra está desplegada casi
+     todo el rato, así que `100vh` mide unos noventa píxeles MÁS que lo que se
+     ve —medido: 664 px contra 754—, y todo lo que se ancla al canto inferior
+     cae debajo de ella: la barra del pulgar, el pie de un diálogo, el botón de
+     guardar. `100svh` es el alto pequeño, el que siempre se ve.
+
+     La pareja y no `svh` a secas porque un navegador que no entienda `svh`
+     descarta esa declaración entera y se queda con la de arriba, que es el
+     comportamiento de antes. La pareja y no `dvh` porque el alto dinámico
+     CAMBIA mientras se lee —la barra se retrae al bajar— y una página que se
+     reajusta sola bajo el dedo marea; `dvh` se reserva para las piezas del
+     chasis que sí quieren seguir a la barra (`.shell`, y está dicho allí).
+
+     Esto se supo en septiembre, se arregló en `.login` y no se generalizó: se
+     quedaron veintitrés declaraciones en `vh` repartidas por nueve archivos.
+     Un comentario en una pantalla no es una regla. Lo que la sostiene es el
+     guardián de `scripts/verify-styles.mjs`, que cuenta las que van solas. */
   min-height: 100vh;
+  min-height: 100svh;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -151,17 +174,17 @@ img, video, canvas, svg { display: block; max-width: 100%; }
    Reservarla así es lo que la mantiene como voz en vez de convertirla en la
    fuente de todo, que es justo lo que le quitaría el carácter. */
 h1, h2, h3, h4, h5,
-.section-title, .brand-name, .modal-title, .metric-title, .widget-title, .meal-title,
+.section-title, .brand-name, .modal-title, .metric-title, .widget-title,
 .metric-value, .stat-value, .widget-value, .row-value,
-.tile > .v, .day-stat > .v, .macro-cell > .g, .donut-center > .v,
-.macro-summary-head > .figure > .v, .objetivo-cifra > .v, .folio-head > .who > .name, .compare-row > .v,
-.section-label, .tray-title, .stat-label, .board-head > .k, .tile > .k, .folio-fact > .k,
+.tile > .v, .macro-cell > .g, .donut-center > .v,
+.macro-summary-head > .figure > .v, .objetivo-cifra > .v, .compare-row > .v,
+.section-label, .tray-title, .stat-label, .tile > .k,
 .macro-cell > .k, .cal-dow, .widget-sub, .food-head, .compare-row.is-head,
-.set-cell-tag, .split-day > .name, .studio-bar-group > .k, .table th, .empty > h3 {
+.set-cell-tag, .studio-bar-group > .k, .table th, .empty > h3 {
   font-family: var(--font-display);
 }
 
-h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; font-weight: 650; }
+h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; font-weight: 600; }
 
 /* Cifras tabulares: sin esto los números "bailan" al actualizarse. */
 .tnum, .metric-value, .stat-value, .row-value, .revision-hero-cifra > .v,
@@ -233,28 +256,48 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
    tipografia.css), y no es una cifra: es un titular. Esa diferencia —680
    cifra, 740 titular— es lo que los mantiene distinguibles cuando comparten
    cuerpo, que es justo lo que le pasaba al nombre del cliente.             */
-.day-stat > .v, .donut-center > .v, .macro-cell > .g,
+.donut-center > .v, .macro-cell > .g,
 .widget-value, .metric-value, .stat-value, .tile > .v, .row-value,
 .revision-hero-cifra > .v, .macro-summary-head > .figure > .v, .objetivo-cifra > .v,
 .sesion-kpi > .v, .comparativa-tope > .v, .semana-cifra > .v, .bloque-cifra > .v,
 .peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra,
-.cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v, .plan-count {
+.cola-n, .proyeccion-hito.is-hoy > .proyeccion-v, .plan-count {
   font-family: var(--font-ancha);
-  font-weight: 680;
+  font-weight: 700;
 }
-.day-stat > .v, .donut-center > .v, .macro-cell > .g {
+.donut-center > .v, .macro-cell > .g {
   font-size: var(--fs-md); letter-spacing: -0.01em;
 }
-.widget-value { font-size: var(--fs-lg); letter-spacing: -0.012em; }
+/* ── Y EL ESCALÓN SE ELIGE POR LA PANTALLA, NO POR LA PIEZA ────────────────
+   `tokens.css` nombra una firma por pantalla y añade la prueba: taparla con la
+   mano y ver el resto tranquilo. Dos cifras de esta lista no la pasaban, y las
+   dos por el mismo motivo —eran la cifra de un COSTADO, o sea lo que acompaña
+   a la firma, al mismo cuerpo que la firma o por encima—:
+
+   · `.comparativa-tope > .v` es el «102.5 kg tope» del carril de Entreno. La
+     firma de Entreno es la hoja, y la hoja no tiene ni una cifra por encima de
+     14: el número más grande de esa pantalla estaba fuera de ella. Baja al
+     escalón de un título de sección, que es el rango que le toca a un apunte
+     del costado.
+   · `.cola-n` es el «6» de una cola de Inicio. Empataba a 42 con el saludo,
+     que es la firma, así que la pantalla abría con tres picos del mismo cuerpo
+     —el saludo y dos colas— y ninguno mandaba. Las colas son el DESGLOSE de la
+     cuenta que ya dice el saludo, y a 30 siguen siendo lo más grande de su
+     propia tarjeta, que es todo lo que necesitan.
+
+   Ninguna de las dos se toca en su componente: se cambian de lista, que es lo
+   que este bloque pide que se haga. */
+.widget-value, .comparativa-tope > .v { font-size: var(--fs-lg); letter-spacing: -0.012em; }
 .metric-value, .stat-value, .tile > .v,
-.sesion-kpi > .v, .comparativa-tope > .v, .semana-cifra > .v, .bloque-cifra > .v,
-.peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra {
+.sesion-kpi > .v, .semana-cifra > .v, .bloque-cifra > .v,
+.peso-cifra, .macro.is-mayor > .v, .cobros-tarea > .cifra,
+.cola-n {
   font-size: var(--fs-xl); letter-spacing: -0.015em;
 }
 .metric-value.is-hero,
 .revision-hero-cifra > .v,
 .macro-summary-head > .figure > .v, .objetivo-cifra > .v,
-.cola-n, .comova-cifra, .proyeccion-hito.is-hoy > .proyeccion-v,
+.proyeccion-hito.is-hoy > .proyeccion-v,
 .plan-count { font-size: var(--fs-2xl); letter-spacing: -0.018em; }
 
 /* El foco de teclado va en BRASA: es literalmente «aquí estás», que es el único
@@ -307,7 +350,6 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   position: absolute; width: 1px; height: 1px; padding: 0;
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-
 
 /* ══ LA CASCADA: cómo se presenta una pantalla ═════════════════════════════
    El sistema de movimiento existía (--fast/--normal/--slow) y ninguna

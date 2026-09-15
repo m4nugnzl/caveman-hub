@@ -121,6 +121,23 @@ const cuando = (at) => {
    queda. */
 const ANUNCIO_MS = 6000;
 
+/*
+  Lo que se le da a una carga con red antes de dar la copia por ATASCADA.
+
+  Con red, estar sobre la copia casi siempre es un instante: la carga tardó más
+  de la cuenta (`ESPERA_DE_CARGA`, 3,5 s), se abrió con la foto para no dejar la
+  pantalla en blanco, y la carga de verdad llega detrás y la sustituye. Contarlo
+  en ese hueco es un cartel que aparece y se va solo en cada arranque lento —
+  ruido sobre algo que ya se está arreglando, y encima con una frase que no dice
+  nada que se pueda hacer.
+
+  Doce segundos es bastante más de lo que tarda cualquier carga que vaya a
+  llegar. Si a los doce segundos la copia sigue puesta, ya no es un arranque
+  lento: es una carga que no ha vuelto, y entonces sí hay algo que decir y algo
+  que hacer.
+*/
+const ESPERA_DE_LA_COPIA = 12000;
+
 /* Que ESTE corte ya se anunció, fuera de React a propósito: la nube se monta al
    lado del título de cada pantalla, así que se desmonta y se vuelve a montar al
    navegar. En estado del componente, el cartel reaparecería en cada pantalla
@@ -237,9 +254,17 @@ export const Nube = () => {
  *                        «Enviando» —eso es la nube—: dice CUÁNTO, que es lo
  *                        único que la chapa no cabe a contar.
  *   · SOBRE UNA COPIA  — los datos que se miran son de la última vez que hubo
- *                        red (ver `lib/instantanea`). Nunca puede faltar: sobre
- *                        datos de ayer se programa una semana entera sin
- *                        enterarse. Tampoco en el móvil, donde antes se caía.
+ *                        red (ver `lib/instantanea`). SIN RED nunca puede
+ *                        faltar: sobre datos de ayer se programa una semana
+ *                        entera sin enterarse. Tampoco en el móvil, donde antes
+ *                        se caía.
+ *                        CON RED se calla durante `ESPERA_DE_LA_COPIA`, porque
+ *                        ahí la copia es el hueco de un arranque lento y la
+ *                        carga de verdad viene detrás: anunciarlo era un cartel
+ *                        que salía y se iba solo, diciendo además la única cosa
+ *                        que no hace falta contar —que se arregla sola—. Si
+ *                        sigue puesta pasado ese rato, la carga no ha vuelto: ya
+ *                        no es contexto, es una avería, y sale con su verbo.
  *   · CONECTADA Y AL DÍA — nada. Ni un píxel: para eso está la nube.
  *
  * ── Dónde se monta ─────────────────────────────────────────────────────────
@@ -261,6 +286,21 @@ export const EstadoDeRed = () => {
   const { enEspera, fallosAlGuardar, copiaLocal } = useData();
   const { reintentarLoFallido } = useActions();
   const [explicacionLeida, setExplicacionLeida] = useState(seLeyoLaExplicacion);
+
+  /*
+    Si la copia lleva puesta, CON RED, más de lo que tarda cualquier carga que
+    vaya a llegar. Ver `ESPERA_DE_LA_COPIA`. El reloj se rearma con cada copia
+    nueva y se apaga en cuanto la carga la sustituye (`copiaLocal` a `null`), así
+    que un arranque lento no llega a enseñar nada.
+  */
+  const [copiaAtascada, setCopiaAtascada] = useState(false);
+
+  useEffect(() => {
+    setCopiaAtascada(false);
+    if (!copiaLocal || !enLinea) return undefined;
+    const reloj = setTimeout(() => setCopiaAtascada(true), ESPERA_DE_LA_COPIA);
+    return () => clearTimeout(reloj);
+  }, [copiaLocal, enLinea]);
 
   const retirarExplicacion = () => {
     setExplicacionLeida(true);
@@ -323,7 +363,11 @@ export const EstadoDeRed = () => {
     );
   }
 
-  if (enLinea && enEspera === 0 && !copiaLocal) return null;
+  /* La copia solo se cuenta cuando cambia algo para quien mira: sin red siempre,
+     y con red únicamente si la carga no ha vuelto. Ver `ESPERA_DE_LA_COPIA`. */
+  const hablaDeLaCopia = Boolean(copiaLocal) && (!enLinea || copiaAtascada);
+
+  if (enLinea && enEspera === 0 && !hablaDeLaCopia) return null;
 
   /* LA EXPLICACIÓN: lo único que la nube no cabe a decir, y lo único que se
      puede retirar. Sin el «Sin conexión» del principio, que ya está escrito a
@@ -346,13 +390,25 @@ export const EstadoDeRed = () => {
         ? `${enEspera} ${enEspera === 1 ? 'cambio espera' : 'cambios esperan'} a que vuelva la red.`
         : `${enEspera === 1 ? 'Un cambio se está enviando' : `${enEspera} cambios se están enviando`}.`;
 
-  /* Y de qué fecha es lo que se está mirando, si no es de ahora. Va detrás: es
-     contexto, no alarma — pero no se calla, tampoco en el móvil, donde antes se
-     quedaba fuera del renglón corto. */
-  const copia = copiaLocal
-    ? `Estás viendo tu copia, de ${cuando(copiaLocal.at)}.${enLinea ? ' Se pondrá al día sola.' : ''}`
-    : '';
-  const copiaCorta = copiaLocal ? `Tu copia, de ${cuando(copiaLocal.at)}.` : '';
+  /*
+    Y de qué fecha es lo que se está mirando, si no es de ahora. Va detrás: sin
+    red es contexto —no alarma— pero no se calla, tampoco en el móvil, donde
+    antes se quedaba fuera del renglón corto.
+
+    Con red ya no es contexto: si ha llegado hasta aquí, la carga no ha vuelto.
+    Decía «Se pondrá al día sola», que es a la vez lo único que no hace falta
+    contar y, justo en este caso, lo único que no es verdad.
+  */
+  const copia = !hablaDeLaCopia
+    ? ''
+    : enLinea
+      ? `No hemos podido traer tus datos: estás viendo tu copia, de ${cuando(copiaLocal.at)}.`
+      : `Estás viendo tu copia, de ${cuando(copiaLocal.at)}.`;
+  const copiaCorta = !hablaDeLaCopia
+    ? ''
+    : enLinea
+      ? `Sin actualizar: tu copia, de ${cuando(copiaLocal.at)}.`
+      : `Tu copia, de ${cuando(copiaLocal.at)}.`;
 
   const largo = [explicacion?.largo, cola, copia].filter(Boolean).join(' ');
   const corto = [explicacion?.corto, cola, copiaCorta].filter(Boolean).join(' ');
@@ -370,7 +426,29 @@ export const EstadoDeRed = () => {
       pierde su sitio.
     */
     <div className="layout" style={{ paddingBottom: 0 }}>
-      <Notice tone="info" icon={icono} onClose={explicacion ? retirarExplicacion : undefined}>
+      <Notice
+        tone="info"
+        icon={icono}
+        onClose={explicacion ? retirarExplicacion : undefined}
+        /*
+          El verbo, solo en el caso que no se arregla solo. Recargar y no «volver
+          a intentar la carga»: lo que hay que rehacer es el arranque entero
+          —sesión, cartera y los tres bloques—, y esa secuencia vive en el efecto
+          de montaje de `AppContext`. Un botón que llamara a media carga dejaría
+          media aplicación vieja y media nueva, que es peor que la copia entera.
+        */
+        action={
+          hablaDeLaCopia && enLinea ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => window.location.reload()}
+            >
+              Recargar
+            </button>
+          ) : undefined
+        }
+      >
         {/* La versión corta existe porque esta frase sale también en el móvil,
             donde la larga se envuelve en cuatro renglones sobre el trabajo. */}
         <span className="solo-escritorio">{largo}</span>

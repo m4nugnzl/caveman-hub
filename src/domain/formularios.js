@@ -370,6 +370,13 @@ export const resumenFormulario = (form) => {
   if ((form.weighIns || 0) > 0) piezas.push('peso');
   if (form.checkin?.perimeters !== 'off') piezas.push('perímetros');
   if (form.checkin?.folds !== 'off') piezas.push('pliegues');
+  /* Y las medidas encendidas, contadas por su id: aquí no hace falta el catálogo
+     —solo cuántas son— y pedirlo obligaría a que lo pasara cada tabla que
+     resume un formulario. */
+  for (const [id, modo] of Object.entries(form.checkin || {})) {
+    if (id === 'perimeters' || id === 'folds') continue;
+    if (modo === 'required' || modo === 'optional') piezas.push(id);
+  }
   if (form.askPhotos) piezas.push('fotos');
   return piezas.length > 0 ? `${preguntas} + ${piezas.length} medidas` : preguntas;
 };
@@ -408,8 +415,32 @@ export const catalogoDe = (momento) => {
        entera del cambio, que es la única forma de hacer esto sin romper a nadie.
    ══════════════════════════════════════════════════════════════════════════ */
 
+/**
+ * El `kind` del protocolo y el `tipo` del lienzo, que son la misma cosa con dos
+ * nombres.
+ *
+ * Una sola tabla y sus dos lecturas, en vez de dos listas de `if` en dos
+ * archivos: el día que entre un tipo nuevo y solo se añada a una, el constructor
+ * lo ofrece y el viaje de vuelta lo convierte en texto sin decir nada.
+ */
+const TIPO_POR_KIND = {
+  scale: 'escala',
+  text: 'parrafo',
+  bool: 'sino',
+  choice: 'una',
+  multi: 'varias',
+  number: 'numero',
+  zone: 'zona',
+};
+const KIND_POR_TIPO = Object.fromEntries(
+  Object.entries(TIPO_POR_KIND).map(([kind, tipo]) => [tipo, kind])
+);
+
 /** El tipo de elemento que le toca a una pregunta del catálogo. */
-const tipoDePregunta = (kind) => (kind === 'scale' ? 'escala' : 'parrafo');
+const tipoDePregunta = (kind) => TIPO_POR_KIND[kind] || 'parrafo';
+
+/** Y el `kind` que le toca a un elemento del lienzo. */
+export const kindDeElemento = (tipo) => KIND_POR_TIPO[tipo] || 'text';
 
 /** Una pregunta del catálogo, servida como elemento listo para insertar. */
 export const elementoDePregunta = (q) => ({
@@ -420,6 +451,10 @@ export const elementoDePregunta = (q) => ({
   ...(q.kind === 'scale'
     ? { min: q.min ?? 1, max: q.max ?? 10, mejorAbajo: q.lowerIsBetter === true }
     : {}),
+  /* Las opciones de una de elegir. Sin esto, encender «¿cómo has comido fuera?»
+     con sus tres respuestas la sacaba al lienzo con la lista vacía, y guardar
+     desde ahí se las borraba al cliente. */
+  ...(q.ops ? { ops: [...q.ops] } : {}),
 });
 
 /**
@@ -428,22 +463,57 @@ export const elementoDePregunta = (q) => ({
  * Cada llamada genera ids nuevos (`defaultElemento` los pide a `newId`), que es
  * lo correcto: son plantillas de las que se saca una copia, no objetos vivos.
  */
-export const estanteria = (momento) => catalogoDe(momento).map(elementoDePregunta);
+/** Una medida del catálogo, servida como elemento listo para insertar. */
+export const medidaComoElemento = (medida) => ({
+  ...defaultElemento('medida'),
+  origen: medida.id,
+  enun: medida.label,
+  ayuda: medida.hint || '',
+  unidad: medida.unit || '',
+});
+
+/**
+ * El catálogo de un momento, como elementos.
+ *
+ * Cada llamada genera ids nuevos (`defaultElemento` los pide a `newId`), que es
+ * lo correcto: son plantillas de las que se saca una copia, no objetos vivos.
+ *
+ * ── Y en el check-in, también las MEDIDAS ──────────────────────────────────
+ * Detrás de las preguntas, porque son otra cosa y se eligen menos veces. Se
+ * cogen de la misma estantería y por el mismo gesto: el entrenador no tiene por
+ * qué saber que una lleva unidad y la otra no —lo sabe la pieza—.
+ *
+ * Las de GRUPO —pliegues y perímetros— no entran: ya tienen su propio tipo de
+ * elemento con su lámina de medición y sus quince casillas. Serían la misma
+ * pieza dos veces con dos nombres.
+ */
+export const estanteria = (momento, medidas = []) => {
+  const preguntas = catalogoDe(momento).map(elementoDePregunta);
+  if (momento !== 'semana') return preguntas;
+  return [...preguntas, ...medidas.filter((m) => !m.campos).map(medidaComoElemento)];
+};
 
 /**
  * QUÉ ELEMENTOS CABEN EN CADA MOMENTO — y por qué no caben todos.
  *
  * El parte y el check-in se guardan en el modelo viejo (`questions` + `custom`),
- * donde una pregunta solo puede ser **escala o texto**: eso es lo que leen el
- * portal, la revisión y la analítica. Ofrecer ahí «Elegir una» sería dejar que
- * el entrenador escriba tres opciones para que al guardar se conviertan en un
- * campo de texto y al volver a abrirlo hayan desaparecido — la pérdida
- * silenciosa que un constructor único vuelve fácil de cometer.
+ * y lo que ese modelo sabe guardar es lo que declara `QUESTION_KINDS`. Ofrecer
+ * aquí un tipo que no esté ahí sería dejar que el entrenador escriba tres
+ * opciones para que al guardar se conviertan en un campo de texto y al volver a
+ * abrirlo hayan desaparecido — la pérdida silenciosa que un constructor único
+ * vuelve fácil de cometer.
+ *
+ * ── Eran dos, y desde el 14 de septiembre son seis ────────────────────────
+ * `QUESTION_KINDS` se abrió a sí/no, elegir una, elegir varias, una cifra y las
+ * zonas del cuerpo, así que estas listas crecen con él. Lo que NO entra en los
+ * dos del protocolo es lo que el modelo viejo sigue sin saber guardar: la fecha
+ * y el archivo, que no tienen dónde caer.
  *
  * Así que la lámina enseña lo que ese momento SABE GUARDAR, ni uno más:
  *
- *   · **semana** — las cuatro del oficio, más escala y texto.
- *   · **sesión** — escala y texto. Nada del oficio: el parte se cierra al
+ *   · **semana** — las cinco del oficio, más las preguntas que el protocolo
+ *     guarda.
+ *   · **sesión** — esas mismas preguntas. Nada del oficio: el parte se cierra al
  *     terminar de entrenar, y ahí no se pesa nadie.
  *   · **suelto** — todo menos las fotos, que necesitan el asistente de la
  *     revisión para subirse por ángulos.
@@ -454,10 +524,20 @@ export const estanteria = (momento) => catalogoDe(momento).map(elementoDePregunt
  * preguntan nada, y el modelo viejo no tiene dónde guardarlos (lo dice también
  * `comoProtocoloDesdeElementos`, que los descarta).
  */
+/** Los tipos de pregunta que el modelo viejo sabe guardar. Ver `QUESTION_KINDS`. */
+const PREGUNTAS_DE_PROTOCOLO = ['escala', 'parrafo', 'sino', 'una', 'varias', 'numero', 'zona'];
+
 export const tiposDeMomento = (momento) => {
-  if (momento === 'semana') return ['peso', 'perimetros', 'pliegues', 'fotos', 'escala', 'parrafo'];
-  if (momento === 'sesion') return ['escala', 'parrafo'];
-  if (momento === 'libre') return TIPOS.filter((t) => t.id !== 'fotos').map((t) => t.id);
+  if (momento === 'semana')
+    return ['peso', 'perimetros', 'pliegues', 'medida', 'fotos', ...PREGUNTAS_DE_PROTOCOLO];
+  if (momento === 'sesion') return PREGUNTAS_DE_PROTOCOLO;
+  /* Ni las fotos ni las medidas: las dos necesitan el asistente de la revisión
+     —una por ángulos, la otra para aterrizar en `log.medidas` con los decimales
+     de su definición— y un suelto no lo tiene. Prometerlas aquí sería recoger un
+     número que no entra en ninguna serie. */
+  if (momento === 'libre') {
+    return TIPOS.filter((t) => t.id !== 'fotos' && t.id !== 'medida').map((t) => t.id);
+  }
   return [];
 };
 
@@ -468,7 +548,7 @@ export const tiposDeMomento = (momento) => {
  * formulario. Como elementos son lo que siempre fueron: cosas que se piden en el
  * mismo momento y que caen en la antropometría.
  */
-const oficioDeSemana = (form) => {
+const oficioDeSemana = (form, medidas = []) => {
   const out = [];
   if ((form.weighIns || 0) > 0) {
     out.push({ ...defaultElemento('peso'), origen: 'weighIns', veces: form.weighIns });
@@ -487,6 +567,27 @@ const oficioDeSemana = (form) => {
       oblig: form.checkin?.folds === 'required',
     });
   }
+
+  /*
+    ── Y las MEDIDAS que este formulario pida ────────────────────────────────
+    Detrás de los pliegues y delante de las fotos, que es el orden en que se
+    hace: primero te pesas, luego te mides, luego los aparatos y al final las
+    fotos. Solo las que existen en el catálogo del entrenador: un id guardado
+    cuya definición ya no está no se puede pintar —no se sabe ni su unidad— y un
+    hueco sin nombre en el check-in de alguien es peor que la medida que falta.
+  */
+  for (const medida of medidas) {
+    const modo = form.checkin?.[medida.id];
+    if (modo !== 'required' && modo !== 'optional') continue;
+    out.push({
+      ...defaultElemento('medida'),
+      origen: medida.id,
+      enun: medida.label,
+      ayuda: medida.hint || '',
+      unidad: medida.unit || '',
+      oblig: modo === 'required',
+    });
+  }
   /* Al final: primero te pesas, después te mides y por último te haces las
      fotos — que es el orden del asistente de la revisión. */
   if (form.askPhotos !== false) out.push({ ...defaultElemento('fotos'), origen: 'askPhotos' });
@@ -501,12 +602,17 @@ const oficioDeSemana = (form) => {
  * piezas del oficio van DELANTE, porque es el orden en que se hace: primero te
  * pesas y te mides, y después cuentas qué tal ha ido la semana.
  */
-export const elementosDe = (form) => {
+/**
+ * @param medidas El catálogo de medidas del entrenador (`coachMedidas`). Sin él
+ *   el check-in se lee como siempre —peso, bloques y fotos— y las medidas no
+ *   aparecen: no se puede pintar una medida de la que no se sabe la unidad.
+ */
+export const elementosDe = (form, medidas = []) => {
   if (!form) return [];
   if (form.momento === 'libre') return sanitizeElementos(form.elementos);
   if (form.momento === 'alta') return [];
 
-  const oficio = form.momento === 'semana' ? oficioDeSemana(form) : [];
+  const oficio = form.momento === 'semana' ? oficioDeSemana(form, medidas) : [];
   const preguntas = preguntasDe(form).map(elementoDePregunta);
   return sanitizeElementos([...oficio, ...preguntas]);
 };
@@ -516,6 +622,17 @@ const igualQueElCatalogo = (elem, base) => {
   if (!base) return false;
   if (elem.enun !== base.label) return false;
   if ((elem.ayuda || '') !== (base.hint || '')) return false;
+  /* Cambiarle el TIPO a una del catálogo es cambiarla: «¿has entrenado todo?»
+     puesta como sí/no y guardada como la escala que era de serie le llega al
+     cliente con otro control. */
+  if (elem.tipo !== tipoDePregunta(base.kind)) return false;
+  if (base.kind === 'choice' || base.kind === 'multi') {
+    /* Y las opciones son la mitad de una pregunta de elegir: dos listas
+       distintas no son la misma pregunta por mucho que se llamen igual. */
+    const suyas = base.ops || [];
+    const puestas = elem.ops || [];
+    return suyas.length === puestas.length && suyas.every((o, i) => o === puestas[i]);
+  }
   if (base.kind !== 'scale') return true;
   return (
     elem.min === (base.min ?? 1) &&
@@ -561,6 +678,14 @@ export const comoProtocoloDesdeElementos = (elementos, momento) => {
       checkin[clave] = elem.oblig ? 'required' : 'optional';
       continue;
     }
+    /* Una medida es su id del catálogo con su estado, en el mismo mapa que los
+       dos bloques de siempre: la lista dejó de ser fija justamente para esto.
+       Sin `origen` no sabe qué mide y no se emite — el lienzo no deja dejarla
+       a medias, pero un elemento escrito a mano en la columna sí podría. */
+    if (elem.tipo === 'medida') {
+      if (elem.origen) checkin[elem.origen] = elem.oblig ? 'required' : 'optional';
+      continue;
+    }
     /* Lo que no pregunta nada —apartados y notas— no tiene sitio en el modelo
        viejo. Se pierde a propósito y no en silencio: el constructor no deja
        ponerlos en estos dos momentos. */
@@ -574,12 +699,18 @@ export const comoProtocoloDesdeElementos = (elementos, momento) => {
     if (igualQueElCatalogo(elem, base)) continue;
 
     const escala = elem.tipo === 'escala';
+    const elegir = elem.tipo === 'una' || elem.tipo === 'varias';
     custom.push({
       id,
       label: elem.enun,
       hint: elem.ayuda || undefined,
-      kind: escala ? 'scale' : 'text',
+      kind: kindDeElemento(elem.tipo),
       ...(escala ? { min: elem.min, max: elem.max, lowerIsBetter: elem.mejorAbajo } : {}),
+      /* Las opciones viajan con la pregunta. Son lo único que un tipo de elegir
+         tiene además del enunciado: sin ellas el cliente recibe un renglón con
+         una pregunta y nada debajo con lo que contestarla (por eso `sanitizeCustom`
+         la degrada a texto antes que servirla vacía). */
+      ...(elegir ? { ops: elem.ops || [] } : {}),
     });
   }
 

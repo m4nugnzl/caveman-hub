@@ -36,7 +36,20 @@ import { MenuAcciones } from '@/components/ui/MenuAcciones';
  * vista una flecha sobre un rótulo de dos palabras es un tercer trazo para
  * decir lo que el propio menú enseña en cuanto se abre.
  */
-export const BotonMas = ({ palabra, onClick, title, items = null, ariaLabel = null }) => {
+export const BotonMas = ({
+  palabra,
+  onClick,
+  title,
+  items = null,
+  ariaLabel = null,
+  /* Los dos mandos del menú, para cuando los verbos hay que LEERLOS antes de
+     elegir: la frase de cada uno debajo del rótulo (`descriptivo`) y el menú
+     colgando del canto izquierdo, que es donde está el verbo. Se reenvían en
+     vez de dejar que cada pantalla se monte su propio «+» con `MenuAcciones`,
+     que es como llegaron a existir siete dibujos de lo mismo. */
+  descriptivo = false,
+  alineado = undefined,
+}) => {
   const dentro = (
     <>
       <Plus size={13} aria-hidden="true" />
@@ -44,7 +57,15 @@ export const BotonMas = ({ palabra, onClick, title, items = null, ariaLabel = nu
     </>
   );
   return items ? (
-    <MenuAcciones clase="tira-mas" label={dentro} items={items} ariaLabel={ariaLabel || `Añadir ${palabra}`} sinFlecha />
+    <MenuAcciones
+      clase="tira-mas"
+      label={dentro}
+      items={items}
+      ariaLabel={ariaLabel || `Añadir ${palabra}`}
+      descriptivo={descriptivo}
+      alineado={alineado}
+      sinFlecha
+    />
   ) : (
     <button type="button" className="tira-mas" onClick={onClick} title={title} aria-label={ariaLabel || undefined}>
       {dentro}

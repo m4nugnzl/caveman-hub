@@ -60,7 +60,7 @@ vi.mock('@/context/AppContext', () => ({
   useActions: () => ({
     updateCoachPreferences: () => {},
     renombrarEnCajon: async () => ({ ok: true }),
-    tirarDelCajon: async () => ({ ok: true }),
+    borrarDelCajon: async () => ({ ok: true }),
   }),
 }));
 
@@ -77,7 +77,7 @@ const { PlantillasPanel } = await import('./PlantillasPanel');
  * —o al revés—. Eso es justo lo que esto vigila.
  *
  * Con `renderToStaticMarkup` y sin DOM, así que los gestos —pulsar un tramo,
- * renombrar, tirar— no se prueban aquí; el estado inicial es «Bloques», que es
+ * renombrar, borrar— no se prueban aquí; el estado inicial es «Bloques», que es
  * el primero de `FORMAS`.
  */
 /*

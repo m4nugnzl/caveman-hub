@@ -92,10 +92,10 @@
 .q-texto > .texto-en-sitio.es-ayuda { font-size: var(--fs-xs); color: var(--text-tertiary); }
 
 /* El asa y los mandos, a plomo con la primera línea del enunciado. */
-.q-libre-cab > .q-asa { margin-top: 7px; }
+.q-libre-cab > .q-asa { margin-top: var(--s2); }
 .q-libre-cab > .q-donde,
 .q-libre-cab > .q-orden,
-.q-libre-cab > .q-quitar { margin-top: 4px; }
+.q-libre-cab > .q-quitar { margin-top: var(--s1); }
 
 /* El tono del suelto y del envío. Faltaba, y sin él `--fd-h` no existe: la
    declaración `hsl(var(--fd-h) …)` se invalida ENTERA y el disco sale sin
@@ -210,14 +210,14 @@
 .repaso-k { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .repaso-v { margin: 0; font-size: var(--fs-sm); color: var(--text); }
 
-@media (max-width: 560px) {
+@media (max-width: 639.98px) {
   .repaso-fila { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
 /* ── Los envíos ──────────────────────────────────────────────────────────── */
 .rotulo-tramo {
   margin: var(--s5) 0 var(--s2);
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--text-tertiary);
 }
@@ -246,6 +246,19 @@
   max-width: var(--max-w-columna); margin: 0 auto;
   padding: var(--s5) var(--s4) var(--s6);
 }
+/* El ENSAYO del entrenador: la misma hoja, dentro de una ventana. Pierde el aire
+   de página y el ancho de columna porque los dos los pone ya el diálogo, y
+   dejarlos puestos sería sangrar dos veces. Ver `VistaPreviaFormulario`.
+
+   ── Y EL MARGEN TAMBIÉN SE VA, que era la avería ─────────────────────────
+   Quitar el `max-width` no bastaba. El cuerpo del diálogo apila sus hijos en
+   una columna flex, y en un hijo flex un margen `auto` en el eje transversal
+   NO centra un elemento estirado: cancela el estirado y lo encoge a su
+   contenido. El ensayo salía en 357 px dentro de una ventana de 880, centrado
+   y con medio diálogo en blanco a cada lado — o sea, la pantalla que existe
+   para enseñar cómo le llega el formulario al cliente le llegaba deformada. */
+.hoja-libre.vista-previa { max-width: none; margin: 0; padding: 0; }
+
 .libre-cab { display: flex; align-items: center; gap: var(--s2); }
 .libre-tit { margin: 0; font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
 /* El recado del entrenador, grapado al formulario que le mandó. Lleva el filete
@@ -260,7 +273,221 @@
 }
 .libre-recado > svg { flex-shrink: 0; margin-top: 2px; color: var(--accent); }
 
-.libre-campos { display: flex; flex-direction: column; gap: var(--s4); }
+/* ══ LA HOJA DEL SUELTO, NUMERADA ══════════════════════════════════════════
+   La misma gramática que el check-in (`.feedback-q.es-numerada`, en
+   `ajustes.css`): carril de números a la izquierda, filete entre pregunta y
+   pregunta y el número encendido en cuanto hay respuesta. Son dos componentes
+   distintos porque los dos modelos son distintos, pero el cliente ve los dos y
+   no tiene por qué notarlo.
+
+   El hueco se va de la lista y pasa a ser el aire de cada renglón: con un
+   filete en medio, `gap` + `padding` se suman y la hoja se desparrama. */
+.libre-campos { display: flex; flex-direction: column; gap: 0; }
+.campo-q.es-numerada {
+  display: grid; grid-template-columns: 2.25rem minmax(0, 1fr);
+  column-gap: var(--s3); align-items: start;
+  padding: var(--s4) 0;
+}
+.campo-q.es-numerada > * { grid-column: 2; }
+.campo-q.es-numerada > .feedback-n { grid-column: 1; grid-row: 1; }
+/* El filete entre renglón y renglón, con UNA excepción: detrás de un apartado
+   no va. Un apartado es el título de lo que viene después, y una línea entre el
+   título y su primera pregunta las separa justo donde van juntas. */
+.campo-q + .campo-q { border-top: 1px solid var(--hairline); }
+.campo-q[data-tipo='apartado'] + .campo-q { border-top: 0; padding-top: var(--s3); }
+.campo-q:first-child { padding-top: 0; }
+/* Un apartado o una nota no se contestan: no gastan número y sangran con el
+   resto para que la columna de texto siga siendo una sola. */
+.campo-q.es-estructura { padding: var(--s4) 0 var(--s4) calc(2.25rem + var(--s3)); }
+/* El aire ya lo pone el renglón: el que traía el apartado de cuando vivía
+   suelto en la pila se sumaba al de ahora. */
+.campo-q > .apartado-libre { padding-top: 0; }
+
+/* El enunciado manda, la ayuda cuelga y el control respira. `.field` es de toda
+   la casa —ahí la etiqueta es de 12 px porque va sobre un campo de ajustes—, y
+   aquí es la pregunta: sube a cuerpo y a tinta principal. */
+.campo-q .field { gap: var(--s1); }
+.campo-q .field > .field-label { font-size: var(--fs-base); color: var(--text); }
+.campo-q .field > .field-hint { margin-top: -2px; line-height: var(--lh-base); }
+.campo-q .field > .field-label + .field-hint { margin-bottom: var(--s1); }
+.campo-q .field > .input,
+.campo-q .field > .select,
+.campo-q .field > .textarea,
+.campo-q .field > .input-suffix,
+.campo-q .field > .opciones-libres,
+.campo-q .field > .rampa-marco,
+.campo-q .field > .medidas-rejilla,
+/* Los dos del alta: la placa de una medida y los dos botones de una cuenta. La
+   hoja la contestan tres formularios con tres modelos distintos y todos sus
+   controles respiran igual por debajo del enunciado. */
+.campo-q .field > .placa,
+.campo-q .field > .contador { margin-top: var(--s2); }
+/* Medida de control: una fila de opciones estirada a 880 px son ocho losas. La
+   escala trae la suya puesta. */
+.campo-q .field > .opciones-libres { max-width: 30rem; }
+.campo-q .field > .textarea,
+.campo-q .field > .input,
+.campo-q .field > .select { max-width: 30rem; }
+.campo-q .field > .input-suffix { max-width: 12rem; }
+
+/* ══ UNA SOLA ALTURA DE CAJA EN TODA LA HOJA ═══════════════════════════════
+   Esto no es un remate: era la avería. Medida a 1440 px, la hoja del alta
+   enseñaba CINCO alturas de control para cinco maneras de contestar —
+
+       chips 31 · contador 32 · campo 32 · sí/no 36 · placa 52
+
+   — o sea que la caja de «— min» medía un 62 % más que el campo de texto que
+   tenía justo debajo, y en el móvil no eran las mismas cinco (31/44/40/36/52)
+   sino otras. Bajando la vista por la columna, cada renglón cambiaba de talla:
+   *«cada caja es distinta a la anterior… mucha desproporción y caos»*.
+
+   La cura no es tocar cada control donde vive —cada uno tiene su motivo fuera
+   de aquí— sino imponer el RITMO DE LA HOJA sobre todos: en un papel que
+   contesta una persona, la talla de la caja no significa nada, así que no puede
+   variar. Se elige `--h-control-lg` y no `--h-control` porque estas cajas las
+   rellena el cliente con el pulgar, y 36 es el escalón de la rejilla que ya
+   usan los controles que se tocan (ver la familia de mandos en `tokens.css`).
+
+   ⚠️ El bloque táctil de abajo NO es opcional. `jornada.css` sube `.input` a 40
+   dentro de su media query, pero eso es un selector de una clase contra los tres
+   de aquí: la especificidad le gana a la media query y sin repetirlo el campo se
+   quedaría en 36 en el móvil — con el suelo táctil roto y, peor, otra vez dos
+   alturas. Es la trampa del §25.9. */
+.campo-q .field > .input,
+.campo-q .field > .select,
+.campo-q .field .chip-op { min-height: var(--h-control-lg); }
+/* La placa se queda con lo suyo —la caja mide lo que mide el número, por
+   `digitos`— y suelta lo que era de otra pantalla: los 52 px y la cifra de 22
+   son los del peso en la revisión, donde ESA cifra es el dato de la pantalla.
+   Aquí «6 h» no es el dato de nada: es una respuesta más de trece. */
+.campo-q .field > .placa { height: var(--h-control-lg); padding: 0 var(--s3); }
+.campo-q .field > .placa > input { font-size: var(--fs-base); }
+/* El chip nace de su relleno y por eso medía 31 suelto y 36 con icono —el sí/no
+   lleva su visto y su aspa—. Con un alto mínimo y el contenido centrado, los dos
+   caen en la rejilla y siguen siendo píldoras: la forma distingue elegir de
+   escribir, la talla ya no distingue nada. */
+.campo-q .field .chip-op { display: inline-flex; align-items: center; }
+/* El contador es un recuadro entero (ver `.contador`, en `controles.css`) y su
+   alto va por variable, así que basta con decirlo una vez: la caja y los dos
+   signos de dentro lo siguen los dos. */
+.campo-q .field > .contador { --h-cuenta: var(--h-control-lg); }
+
+@media (max-width: 1023.98px) {
+  .campo-q .field > .input,
+  .campo-q .field > .select,
+  .campo-q .field .chip-op { min-height: var(--h-control-touch); }
+  .campo-q .field > .placa { height: var(--h-control-touch); }
+  .campo-q .field > .contador { --h-cuenta: var(--h-control-touch); }
+}
+
+@media (max-width: 639.98px) {
+  .campo-q.es-numerada { grid-template-columns: 1.6rem minmax(0, 1fr); column-gap: var(--s2); }
+  .campo-q.es-estructura { padding-left: calc(1.6rem + var(--s2)); }
+}
+
+/* ══ EL ALTA, UN CAPÍTULO POR HOJA ═════════════════════════════════════════
+   El carril y el panel son los del asistente de siempre (`.wiz`, en
+   `revision.css`): lo propio de aquí es el pie, que es de dos botones y no de
+   uno. Ver `CuerpoDelAlta`.
+
+   El margen de desplazamiento es lo que cose la doble navegación del portal:
+   cuando el capítulo cambia, el cuerpo vuelve a la vista y tiene que quedar POR
+   DEBAJO de la cabecera pegajosa, no tapado por ella. Es el mismo recurso que
+   `.anchored`. */
+.alta-hojas { scroll-margin-top: calc(var(--header-h) + var(--s4)); }
+.alta-pie { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+/* El que avanza, a la derecha del renglón: en la primera hoja no hay «Atrás» y
+   sin esto el único botón del pie se iría al margen izquierdo, que es donde
+   está el que retrocede en todas las demás. */
+.alta-sigue { margin-left: auto; min-width: 0; }
+/* Un capítulo puede llamarse «Lo que te pregunta tu entrenador», y eso no cabe
+   al lado de «Atrás» en un teléfono. El reparto es el que tiene que ser: PRIMERO
+   el pie plega y el botón se baja entero a su renglón —con su nombre completo,
+   que es para lo que se escribió—, y solo si ni así cabe se recorta con puntos
+   suspensivos. Recortar antes que plegar sería gastar el nombre del capítulo
+   para ahorrar una línea.
+
+   El orden lo da flex solo: una línea se parte según el tamaño natural de sus
+   hijos y solo después se encoge lo que queda dentro de ella. Los dos
+   `min-width: 0` son los que habilitan el segundo paso; sin ellos el rótulo
+   desbordaría el botón en vez de recortarse. */
+.alta-sigue-k {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ══ LA VENTANA DEL CAPÍTULO ═══════════════════════════════════════════════
+   Las preguntas pasan por una ventana de alto fijo en vez de apilarse: cada una
+   encaja arriba, la puesta se enciende, la anterior se desvanece por el borde
+   de arriba y la siguiente asoma por el de abajo. Ver `VentanaDeTanda`.
+
+   `--asoma` es el aire que queda por encima de la puesta —lo que se ve de la
+   anterior— y es a la vez el `scroll-padding-top`, que el componente lee para
+   saber dónde encaja. Por eso vive en una variable: son la misma medida.
+
+   El alto es el mismo en todos los capítulos, y es a propósito: una ventana
+   que cambiara de talla con cada hoja haría saltar la pantalla al pasar. */
+.alta-marco {
+  --alto-ventana: clamp(22rem, 56svh, 28rem);
+  --asoma: 3.5rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3);
+}
+.alta-ventana {
+  position: relative; /* el `offsetTop` de cada pregunta se mide desde aquí */
+  height: var(--alto-ventana);
+  overflow-y: auto; overscroll-behavior-y: auto;
+  scroll-snap-type: y mandatory; scroll-padding-top: var(--asoma);
+  scrollbar-width: none;
+  /* El desvanecido va en la máscara de la ventana, no en cada pregunta: así lo
+     que se va se apaga según cruza el borde, esté a medio camino o no. */
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--asoma), #000 calc(100% - 4.5rem), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--asoma), #000 calc(100% - 4.5rem), transparent 100%);
+}
+.alta-ventana::-webkit-scrollbar { display: none; }
+/* Los dos rellenos que dejan encajar a la primera y a la última: sin el de
+   arriba la primera no tendría encima el aire de la anterior, y sin el de abajo
+   la última nunca podría subir hasta el borde de encaje. */
+.alta-ventana > .libre-campos::before { content: ''; display: block; height: var(--asoma); flex-shrink: 0; }
+.alta-ventana > .libre-campos::after {
+  content: ''; display: block; flex-shrink: 0;
+  height: calc(var(--alto-ventana) - var(--asoma) - 2rem);
+}
+.alta-ventana .alta-q {
+  scroll-snap-align: start;
+  padding-block: var(--s4);
+  opacity: 0.14;
+  transition: opacity 0.26s var(--ease);
+}
+/* Por distancia: las dos vecinas asoman, las lejanas casi no están. Con todas
+   al mismo gris la ventana volvía a leerse como una lista atenuada. */
+.alta-ventana .alta-q.is-activa + .alta-q,
+.alta-ventana .alta-q:has(+ .alta-q.is-activa) { opacity: 0.34; }
+.alta-ventana .alta-q.is-activa { opacity: 1; }
+/* Una apagada se trae con un toque en cualquier sitio de su renglón. */
+.alta-ventana .alta-q:not(.is-activa) { cursor: pointer; }
+
+/* Con una sola pregunta no hay nada que pase por la ventana. */
+.alta-ventana[data-sola] {
+  height: auto; overflow: visible; scroll-snap-type: none;
+  -webkit-mask-image: none; mask-image: none;
+}
+.alta-ventana[data-sola] > .libre-campos::before,
+.alta-ventana[data-sola] > .libre-campos::after { display: none; }
+.alta-ventana[data-sola] .alta-q { opacity: 1; padding-top: 0; }
+
+/* LA MIRA: un punto por pregunta, en columna como el recorrido. La puesta se
+   estira, las contestadas llevan acento. */
+.alta-mira {
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  gap: 6px; padding-inline: 2px;
+}
+.alta-mira > i {
+  width: 4px; height: 4px; border-radius: 999px;
+  background: var(--hairline-strong);
+  transition: height 0.26s var(--ease), background-color 0.26s var(--ease);
+}
+.alta-mira > i[data-hecha] { background: var(--accent); }
+.alta-mira > i.is-activa { height: 16px; background: var(--text-secondary); }
+.alta-mira > i.is-activa[data-hecha] { background: var(--accent); }
 .libre-pie {
   display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
   padding-top: var(--s4); border-top: 1px solid var(--hairline);
@@ -268,7 +495,7 @@
 .libre-nota { font-size: var(--fs-xs); color: var(--text-tertiary); }
 .libre-rot {
   margin: var(--s4) 0 0;
-  font-size: var(--fs-2xs); font-weight: 650;
+  font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary);
 }
 .libre-lista {
@@ -304,31 +531,29 @@
   color: var(--text-secondary); font: inherit; font-size: var(--fs-sm); cursor: pointer;
   transition: border-color var(--fast), background-color var(--fast), color var(--fast);
 }
-.chip-op:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+/* El hover NO alcanza a la marcada, y esto no es un remate: la marcada lleva el
+   acento de FONDO, así que teñirle la letra del acento la deja invisible —texto
+   azul sobre azul—. Y pasa justo en el peor momento, porque al elegir con el
+   ratón el puntero se queda encima: la opción que acabas de marcar es la única
+   que no se puede leer. Medido en el banco: `color` y `background-color`
+   devolvían los dos `rgb(59, 73, 223)`. */
+.chip-op:hover:not(:disabled):not([aria-pressed='true']) {
+  border-color: var(--accent); color: var(--accent);
+}
 .chip-op[aria-pressed='true'] {
   background: var(--accent); border-color: var(--accent); color: var(--accent-on);
 }
 .chip-op:disabled { cursor: default; }
-.escala-libre { display: flex; flex-wrap: wrap; gap: var(--s1); }
-.escala-num {
-  width: 34px; height: 34px; display: grid; place-items: center;
-  border: 1px solid var(--hairline); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--text-secondary);
-  font: inherit; font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: border-color var(--fast), background-color var(--fast), color var(--fast);
-}
-.escala-num:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.escala-num[aria-pressed='true'] {
-  background: var(--accent); border-color: var(--accent); color: var(--accent-on);
-}
-.escala-num:disabled { cursor: default; }
+/* La escala del suelto ES la del check-in, y ya no por parecido sino por ser la
+   misma pieza: `ui/Escala` (`.rampa`, en `controles.css`). Aquí vivió una copia
+   con su propio CSS que hubo que igualar a mano a la otra; dos controles para lo
+   mismo divergen, y el cliente contesta los dos. */
 .medidas-rejilla {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: var(--s2) var(--s3);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1023.98px) {
   /* Tres columnas de mandar no caben en una tableta: se apilan, y el recuento
      sigue justo debajo de su paso, que es donde hace falta. */
   .mandar { grid-template-columns: 1fr; gap: var(--s4); }
@@ -348,7 +573,7 @@
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--s5); align-items: start;
 }
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .reparto { grid-template-columns: 1fr; }
   .reparto > :last-child { order: -1; }
 }
@@ -359,7 +584,7 @@
   padding: var(--s2) var(--s3); background: var(--surface);
 }
 .consec > h6 {
-  margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 650;
+  margin: 0 0 var(--s1); font-size: var(--fs-sm); font-weight: 600;
 }
 .consec-fila {
   margin: 0; display: flex; align-items: baseline; gap: var(--s2);
@@ -373,7 +598,7 @@
 .consec-fila > .marca {
   flex: none; font-size: var(--fs-3xs); font-weight: 700;
   letter-spacing: 0.04em; text-transform: uppercase;
-  border-radius: 999px; padding: 2px 8px;
+  border-radius: 999px; padding: 2px var(--s2);
 }
 .consec-fila > .marca.entra { background: var(--accent-soft); color: var(--accent); }
 .consec-fila > .marca.sale { background: var(--fill); color: var(--text-tertiary); }
@@ -387,10 +612,10 @@
   padding: var(--s2) var(--s3); background: var(--fill-subtle);
   display: flex; flex-direction: column; gap: 2px;
 }
-.pieza-carta > b { font-size: var(--fs-sm); font-weight: 650; }
+.pieza-carta > b { font-size: var(--fs-sm); font-weight: 600; }
 .pieza-carta > span { font-size: var(--fs-2xs); color: var(--text-tertiary); }
 .pieza-carta > ul {
-  list-style: none; margin: 4px 0 0; padding: 0;
+  list-style: none; margin: var(--s1) 0 0; padding: 0;
   font-size: var(--fs-xs); color: var(--text-secondary);
 }
 .pieza-carta > ul > li { padding: 1px 0; }
@@ -409,7 +634,7 @@
    nada de esto está mal, es una decisión que hay que tomar mirándola. */
 .consec-veto,
 .consec-ojo {
-  margin: 4px 0 0; font-size: var(--fs-2xs); font-weight: 600;
+  margin: var(--s1) 0 0; font-size: var(--fs-2xs); font-weight: 600;
 }
 .consec-veto { color: var(--warning); }
 .consec-ojo { color: var(--text-tertiary); }

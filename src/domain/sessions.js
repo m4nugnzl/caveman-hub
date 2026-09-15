@@ -31,7 +31,7 @@
  */
 
 import { newId } from '@/lib/ids';
-import { toNum } from '@/lib/num';
+import { round, toNum } from '@/lib/num';
 import { shortDate, todayISO, toISODate } from '@/lib/dates';
 
 const emptySet = () => ({ kg: '', reps: '', rir: '' });
@@ -57,6 +57,15 @@ export const buildSessionFromPlan = (day, date = todayISO()) => ({
   id: newId('ses'),
   date: toISODate(date) || todayISO(),
   dayName: day.dayName,
+  /*
+    ── El principio, para que la pantalla pueda contarlo ya ──────────────────
+    El sello que MANDA lo pone el servidor (`log_session_set`, 0119): el reloj
+    de un teléfono se puede adelantar y la duración se le dice a una persona.
+    Éste es la copia optimista, la que hace que el resumen sepa cuánto ha
+    costado sin esperar a recargar — y es la misma hora con unos milisegundos
+    de diferencia, así que ninguna de las dos miente.
+  */
+  startedAt: new Date().toISOString(),
   notes: '',
   entries: (day.exercises || []).map((exercise) => ({
     exerciseId: exercise.id,
@@ -375,6 +384,99 @@ export const sessionMuscleVolume = (session) => {
 export const sessionSetCount = (session) =>
   (session?.entries || []).reduce((acc, e) => acc + (e.sets || []).filter(isSetLogged).length, 0);
 
+// ── El principio, el fin, y lo que quedó a medias ──────────────────────────
+//
+// Una sesión era una FECHA con series dentro, y eso deja sin poder decirse las
+// dos cosas que la tanda 2 del móvil necesita: cuánto ha costado y si se dejó
+// sin terminar. Los dos sellos los pone la 0119.
+
+/**
+ * Cuánto duró, en minutos, o `null` si no se puede decir.
+ *
+ * ══ Por qué se niega a contestar tantas veces ══════════════════════════════
+ *
+ * Porque esta cifra se le enseña a una persona —«te ha costado 52 min»— y una
+ * duración inventada es peor que ninguna. Devuelve `null`:
+ *
+ *   · si falta cualquiera de los dos sellos (todo lo registrado antes de la
+ *     0119, y cualquier sesión todavía abierta);
+ *   · si el fin es anterior al principio, que es lo que produciría un reloj
+ *     mal puesto;
+ *   · y si pasan de SEIS HORAS. Eso no es un entreno largo: es una sesión que
+ *     se quedó abierta el martes y se cerró el jueves al abrirla otra vez. La
+ *     duración no la ha medido nadie, así que no se dice.
+ *
+ * Redondeado al minuto, que es la única precisión que significa algo aquí.
+ */
+export const minutosDeSesion = (session) => {
+  const inicio = Date.parse(session?.startedAt || '');
+  const fin = Date.parse(session?.endedAt || '');
+  if (!Number.isFinite(inicio) || !Number.isFinite(fin)) return null;
+  const minutos = Math.round((fin - inicio) / 60000);
+  if (minutos < 0 || minutos > 6 * 60) return null;
+  return minutos;
+};
+
+/** ¿Tiene algo anotado y nadie la ha cerrado? Entonces se dejó a medias. */
+export const sesionAbierta = (session) =>
+  Boolean(session) && !session.isLegacy && !session.endedAt && sessionSetCount(session) > 0;
+
+/**
+ * LA QUE DEJASTE A MEDIAS: la sesión abierta más reciente de todo el programa.
+ *
+ * ══ Por qué hace falta que la busque alguien ═══════════════════════════════
+ *
+ * Porque hoy esa sesión existe en los datos y no existe para la persona. Quien
+ * cerró el navegador a mitad de un empuje solo la reencuentra si vuelve a esa
+ * hoja por su cuenta — y si no vuelve, se queda ahí con la fecha de anteayer y
+ * cuatro series de catorce, contando como un entreno en la adherencia.
+ *
+ * ── Una, y la más reciente ────────────────────────────────────────────────
+ * Puede haber varias abiertas (dos semanas seguidas dejadas a medias). La
+ * portada ofrece UNA: anunciar tres es convertir un aviso en una lista de
+ * tareas. Y es la última, que es la única que alguien puede querer seguir.
+ *
+ * ── Las cuentas salen de la SESIÓN, no del plan ───────────────────────────
+ * Sus `entries` son la foto del plan de ese día, así que «4 de 14 series» se
+ * puede decir sin buscar el día en el microciclo. Si el plan cambió por debajo
+ * después, manda lo que la sesión trajo: es lo que la persona tenía delante.
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @returns {{
+ *   session: import('@/types').Session, weekNumber: number, dayName: string,
+ *   hechas: number, series: number, ejercicios: number, conAlgo: number
+ * } | null}
+ */
+export const sesionAMedias = (microcycles) => {
+  let elegida = null;
+
+  for (const micro of microcycles || []) {
+    if (!Number.isFinite(micro?.weekNumber)) continue;
+    for (const session of sessionsOf(micro)) {
+      if (!sesionAbierta(session)) continue;
+      const cuando = session.startedAt || session.date || '';
+      /* Por el sello de inicio y, sin él, por la fecha: las dos son cadenas ISO
+         y ordenan igual. Una sesión sin ninguno de los dos no puede ganar. */
+      if (!elegida || String(cuando).localeCompare(elegida.cuando) > 0) {
+        elegida = { session, weekNumber: micro.weekNumber, cuando: String(cuando) };
+      }
+    }
+  }
+
+  if (!elegida) return null;
+
+  const entries = elegida.session.entries || [];
+  return {
+    session: elegida.session,
+    weekNumber: elegida.weekNumber,
+    dayName: elegida.session.dayName,
+    hechas: sessionSetCount(elegida.session),
+    series: entries.reduce((n, e) => n + (e.sets || []).length, 0),
+    ejercicios: entries.length,
+    conAlgo: entries.filter((e) => (e.sets || []).some(isSetLogged)).length,
+  };
+};
+
 /** ¿Está la sesión completa respecto al plan del día? */
 export const sessionCompletion = (session, day) => {
   const planned = (day?.exercises || []).reduce((acc, ex) => acc + (ex.sets?.length || 0), 0);
@@ -458,6 +560,11 @@ export const mergePlanWithSession = (day, session) => {
           rir: logged?.rir ?? '',
         };
       }),
+      /* Lo que dijo el cliente de este ejercicio EN ESTE entreno. Viaja con el
+         ejercicio fusionado porque se lee justo ahí —en su ficha, y encima de
+         sus series en la pantalla del entrenador— y no encima de la sesión.
+         `coachNote` llega por el `...exercise` de arriba: es del plan. */
+      clientNote: entry?.clientNote ?? '',
     };
   });
 };
@@ -588,6 +695,9 @@ export const previousSetsBefore = (microcycles, weekNumber) => {
         out.set(previousSetKey(entry.name, index), {
           kg: set.kg ?? '',
           reps: set.reps ?? '',
+          /* El RIR de la vez anterior, para el «La última vez: 45 · 8 · RIR 0»
+             del modo entreno. Solo se enseña con el módulo encendido. */
+          rir: set.rir ?? '',
           weekNumber: session.weekNumber,
           date: session.date || null,
         });
@@ -602,6 +712,168 @@ export const previousSetsBefore = (microcycles, weekNumber) => {
 export function previousSetKey(exerciseName, setIndex) {
   return `${exerciseName}#${setIndex}`;
 }
+
+// ── Lo que hiciste en un ejercicio, y tu marca ─────────────────────────────
+//
+// Las dos son PUERTAS, no cálculos nuevos: `previousSetsBefore` ya recorre
+// todos los microciclos del programa indexando por nombre de ejercicio, y lo
+// hace mientras se entrena. Ese histórico completo se estaba enseñando solo
+// como el número gris de dentro del campo. Ver `M-03`.
+
+/**
+ * SESIÓN A SESIÓN, lo que se levantó en este ejercicio. De hoy hacia atrás.
+ *
+ * ── Por nombre, y eso es lo que hace que cruce bloques ────────────────────
+ * Al clonar una semana cada ejercicio estrena id (`reidExercises`), así que el
+ * press de banca de septiembre no comparte id con el de agosto. Lo que se
+ * mantiene es el nombre, que además es lo que la persona reconoce — y por eso
+ * el bloque de hace dos meses sigue apareciendo aquí.
+ *
+ * ── Solo lo que tiene algo escrito ────────────────────────────────────────
+ * Una sesión sin series anotadas de este ejercicio no es un día en el que lo
+ * hiciste flojo: es un día en el que no lo hiciste. Enseñarla vacía diría lo
+ * primero.
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @param {string} nombre
+ * @returns {{
+ *   weekNumber: number, date: string|null, dayName: string,
+ *   sets: { kg: string, reps: string }[], nota: string
+ * }[]}
+ */
+export const historialDeEjercicio = (microcycles, nombre) => {
+  const buscado = String(nombre || '').trim();
+  if (!buscado) return [];
+
+  const dias = [];
+  for (const session of allSessions(microcycles)) {
+    for (const entry of session.entries || []) {
+      if (String(entry.name || '').trim() !== buscado) continue;
+      const sets = (entry.sets || [])
+        .filter(isSetLogged)
+        .map((s) => ({ kg: s.kg ?? '', reps: s.reps ?? '' }));
+      if (sets.length === 0) continue;
+      dias.push({
+        weekNumber: session.weekNumber,
+        date: session.date || null,
+        dayName: session.dayName,
+        sets,
+        nota: String(entry.clientNote || '').trim(),
+      });
+    }
+  }
+
+  /* `allSessions` ordena por fecha de la más antigua a la más reciente; aquí se
+     quiere al revés, porque lo que se busca al abrir esto es la última vez. */
+  return dias.reverse();
+};
+
+/**
+ * TU MARCA en un ejercicio: el peso máximo, las repeticiones máximas y el
+ * tonelaje de todo lo que llevas hecho.
+ *
+ * ── Por qué las tres por separado y no un 1RM estimado ────────────────────
+ * Porque son tres hechos y el 1RM es una fórmula. `e1rm` existe y sirve para
+ * ordenar récords —ahí hay que comparar 100×3 con 80×8 de alguna manera—, pero
+ * en la ficha de quien entrena un número calculado invita a perseguirlo, y esta
+ * aplicación no propone objetivos. «32 kg» y «12 reps» son cosas que pasaron.
+ *
+ * El máximo de repeticiones es el de CUALQUIER serie, no el de la serie del
+ * peso máximo: son dos marcas distintas y juntarlas escondería una de las dos.
+ *
+ * @param {ReturnType<typeof historialDeEjercicio>} historial
+ */
+export const marcasDeEjercicio = (historial) => {
+  let maxKg = null;
+  let maxReps = null;
+  let tonelaje = 0;
+
+  for (const dia of historial || []) {
+    for (const set of dia.sets) {
+      const kg = toNum(set.kg);
+      const reps = toNum(set.reps);
+      if (kg !== null && (maxKg === null || kg > maxKg)) maxKg = kg;
+      if (reps !== null && (maxReps === null || reps > maxReps)) maxReps = reps;
+      if (kg !== null && reps !== null && kg > 0 && reps > 0) tonelaje += kg * reps;
+    }
+  }
+
+  return { maxKg, maxReps, tonelaje };
+};
+
+/**
+ * EL REGISTRO: todos sus ejercicios, por lo último que levantó en cada uno.
+ *
+ * ══ Qué contesta ═══════════════════════════════════════════════════════════
+ *
+ * «¿Cuánto hice la última vez en press banca?». Es la pregunta que una persona
+ * le hace a su historial, y la que se hace de pie delante de la máquina —no
+ * «cuánto tonelaje llevo este mes», que es la pregunta de quien programa—.
+ *
+ * Por eso el progreso del entreno EN EL TELÉFONO es esta lista y no una gráfica:
+ * una curva de tonelaje se mira una vez al mes con calma, y esto se mira entre
+ * serie y serie. Ver `docs/portal-dos-aparatos.html`, «el logbook».
+ *
+ * ── La serie que representa un día es la MÁS PESADA ────────────────────────
+ * No la primera ni la última. Un día de press banca son 82,5×8, 82,5×8 y 75×10
+ * al fallo: la primera y la tercera cuentan cosas distintas, y la que alguien
+ * recuerda como «lo que hice» es la de más peso. A igualdad de peso manda la de
+ * más repeticiones, que es la misma regla con la que se ordena un récord.
+ *
+ * ── El salto se mide contra el DÍA anterior, no contra el récord ───────────
+ * «+5 kg» quiere decir «cinco más que la última vez», que es lo que hace mirar
+ * la lista. Contra el récord, quien viene de una descarga vería «−15 kg» en todo
+ * y la lista se leería como un suspenso — y esta aplicación no juzga, resalta.
+ * Sin día anterior no hay salto: `null`, y quien pinta decide qué escribe.
+ *
+ * @param {import('@/types').Microcycle[]} microcycles
+ * @returns `[{ nombre, kg, reps, date, dayName, salto, veces }]`, del más
+ *   reciente al más antiguo.
+ */
+export const registroDeEjercicios = (microcycles) => {
+  /* Un paso por todas las sesiones y no uno por ejercicio: `historialDeEjercicio`
+     recorre el historial entero cada vez que se le llama, y llamarlo una vez por
+     nombre sería recorrerlo cuarenta veces para pintar una lista. */
+  const porNombre = new Map();
+
+  for (const session of allSessions(microcycles)) {
+    for (const entry of session.entries || []) {
+      const nombre = String(entry.name || '').trim();
+      if (!nombre) continue;
+
+      /* La más pesada del día. `isSetLogged` ya descarta la serie en blanco: sin
+         repeticiones no hubo serie, aunque lleve kilos escritos. */
+      let mejor = null;
+      for (const set of entry.sets || []) {
+        if (!isSetLogged(set)) continue;
+        const kg = toNum(set.kg) ?? 0;
+        const reps = toNum(set.reps) ?? 0;
+        if (!mejor || kg > mejor.kg || (kg === mejor.kg && reps > mejor.reps)) mejor = { kg, reps };
+      }
+      if (!mejor) continue;
+
+      const previo = porNombre.get(nombre);
+      porNombre.set(nombre, {
+        nombre,
+        kg: mejor.kg,
+        reps: mejor.reps,
+        date: session.date || null,
+        dayName: session.dayName,
+        /* El día de antes es el que estaba guardado, porque `allSessions` va de
+           la más antigua a la más reciente y esta lo sustituye. */
+        anterior: previo ? { kg: previo.kg, reps: previo.reps } : null,
+        veces: (previo?.veces || 0) + 1,
+      });
+    }
+  }
+
+  return [...porNombre.values()]
+    .map((e) => ({
+      ...e,
+      salto: e.anterior ? round(e.kg - e.anterior.kg, 2) : null,
+    }))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+};
 
 // ── La hoja veraz: lo hecho al lado del plan ───────────────────────────────
 

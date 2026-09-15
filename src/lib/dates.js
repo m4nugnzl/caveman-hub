@@ -165,3 +165,20 @@ export const weekdayName = (value, { conFecha = false } = {}) => {
 
 /** Un número con los separadores del idioma: "1.520". */
 export const localeNumber = (n, opciones) => Number(n).toLocaleString(LOCALE, opciones);
+
+/**
+ * Un número entero con su punto de los miles, SIEMPRE: «1.750», «9.000».
+ *
+ * ── Por qué no vale `localeNumber` a secas ─────────────────────────────────
+ * Porque el español **no agrupa los números de cuatro cifras**: `1750` sale
+ * «1750» y `12092` sale «12.092». La regla es del idioma y es correcta para un
+ * año —«en 1750»— y es exactamente lo contrario de lo que hace falta para una
+ * cifra que se lee de un vistazo: en una pantalla donde conviven «1750 kcal» y
+ * «12.092 kg», la primera se lee como una fecha.
+ *
+ * `useGrouping: 'always'` es el interruptor que dice «agrupa aunque el idioma
+ * no lo haga». Está aquí y no escrito en cada pantalla porque es una decisión
+ * del producto sobre cómo se escriben SUS cifras, no de quien pinta una fila.
+ */
+export const miles = (n) =>
+  localeNumber(Number(n) || 0, { useGrouping: 'always', maximumFractionDigits: 0 });

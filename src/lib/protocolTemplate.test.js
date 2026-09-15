@@ -307,6 +307,20 @@ describe('protocolos con nombre', () => {
     expect(parchePara(coachPrefs, suyo).protocol.hidden).toEqual({ weight: true, nutrition: false });
   });
 
+  it('de dónde recortas al ajustar es de la persona: no marca excepción ni se pisa', () => {
+    const semilla = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
+    /* Lo que escribe la ventana del objetivo al guardar. Ver `EditarObjetivo`. */
+    const suyo = {
+      preferences: { ...semilla, protocol: { ...semilla.protocol, ajuste: 'kcals' } },
+    };
+
+    /* Ni cuenta como desvío —elegir un reparto dentro de una ventana no puede
+       marcar a nadie como excepción a la plantilla—… */
+    expect(igualASuPlan(coachPrefs, suyo)).toBe(true);
+    /* …ni «poner al día» se lo devuelve a la general. */
+    expect(parchePara(coachPrefs, suyo).protocol.ajuste).toBe('kcals');
+  });
+
   it('el parche conserva los enlaces que el alta ya tenía', () => {
     const semilla = newClientPreferences(coachPrefs, { protocoloId: 'p1' });
     const conVideo = {

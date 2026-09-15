@@ -70,7 +70,7 @@ describe('qué formas tienen cajón', () => {
       expect(forma.tope).toBeGreaterThan(0);
       expect(typeof forma.libre).toBe('function');
       expect(forma.vacio.titulo).toBeTruthy();
-      expect(forma.alTirar).toBeTruthy();
+      expect(forma.alBorrar).toBeTruthy();
       /* El pie dice dónde se pone lo que se está mirando: `/plantillas` exhibe
          y no coloca, así que sin esa frase la pantalla es un callejón. */
       expect(forma.pie).toBeTruthy();

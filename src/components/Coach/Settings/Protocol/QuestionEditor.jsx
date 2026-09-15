@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Plus, X } from 'lucide-react';
 import {
   MAX_CUSTOM,
   addCustomQuestion,
+  dicePregunta,
   moveQuestion,
   removeCustomQuestion,
   toggleQuestion,
@@ -18,11 +19,11 @@ const QuestionRow = ({ question, index, total, onMove, onRemove, canDelete, onDe
       <span className="t-sm" style={{ fontWeight: 600 }}>
         {question.label}
       </span>
-      <span className="t-2xs t-tertiary">
-        {question.kind === 'scale'
-          ? `Escala ${question.min ?? 1}–${question.max ?? 10}${question.lowerIsBetter ? ' · menos es mejor' : ''}`
-          : 'Texto libre · no se puede medir'}
-      </span>
+      {/* Cómo se contesta, dicho por el dominio. Aquí vivía su propia copia del
+          mismo `if` de dos ramas —«escala» o «texto libre»—, y con siete tipos de
+          pregunta esas dos ramas mienten: una de elegir con tres opciones se
+          anunciaba como texto libre en la pantalla donde se decide si usarla. */}
+      <span className="t-2xs t-tertiary">{dicePregunta(question)}</span>
     </span>
 
     <span className="row gap-1 shrink-0">

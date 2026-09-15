@@ -4,7 +4,7 @@ import { metricPoints } from '@/domain/analytics';
 import { PERIMETER_LABELS, perimeterSeries, seriesDelta } from '@/domain/anthropometry';
 import { targetRateKg } from '@/domain/goals';
 import { metricColor } from '@/domain/metrics';
-import { checkinQuestions } from '@/domain/protocol';
+import { checkinQuestions, esSerie } from '@/domain/protocol';
 import { answerTrend } from '@/domain/reviews';
 import { shortDate } from '@/lib/dates';
 import { fmt } from '@/lib/num';
@@ -114,7 +114,7 @@ export const PanelCuerpo = ({
   }, [serie, pasosPorSemana, respuestasPorSemana]);
 
   /* Solo las escalas: una respuesta de texto no cabe en una celda. */
-  const columnas = useMemo(() => preguntas.filter((q) => q.kind !== 'text').slice(0, 4), [preguntas]);
+  const columnas = useMemo(() => preguntas.filter(esSerie).slice(0, 4), [preguntas]);
 
   /*
     ── Las columnas del PLAN existen solo si tienen algo dentro ───────────────

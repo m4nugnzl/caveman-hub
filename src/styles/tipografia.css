@@ -21,8 +21,7 @@
 .t-2xs { font-size: var(--fs-2xs); }
 .t-xs { font-size: var(--fs-xs); }
 .t-sm { font-size: var(--fs-sm); }
-.t-md { font-size: var(--fs-md); }
-.t-strong { font-weight: 650; }
+.t-strong { font-weight: 600; }
 
 /* ── Una frase por ancho ───────────────────────────────────────────────────
    Para textos que tienen versión completa y versión de bolsillo (el aviso del
@@ -30,7 +29,7 @@
    es el del armazón, 720 px. Son para TEXTO en línea; una caja que cambie por
    ancho tiene su sitio en la media query de su componente, no aquí. */
 .solo-movil { display: none; }
-@media (max-width: 720px) {
+@media (max-width: 1023.98px) {
   .solo-escritorio { display: none; }
   .solo-movil { display: inline; }
 }
@@ -106,7 +105,7 @@
 .metric-title,
 .widget-title {
   font-family: var(--font-display);
-  font-size: var(--fs-base); font-weight: 640; letter-spacing: -0.012em;
+  font-size: var(--fs-base); font-weight: 600; letter-spacing: -0.012em;
   text-transform: none; color: var(--text);
 }
 
@@ -149,7 +148,7 @@
    baja con el cambio de anchura (ver la escala de la cifra en `base.css`). */
 .section-head h1, .section-head h2 {
   font-family: var(--font-ancha); font-size: var(--fs-2xl);
-  font-weight: 740; letter-spacing: -0.016em; line-height: var(--lh-tight);
+  font-weight: 700; letter-spacing: -0.016em; line-height: var(--lh-tight);
 }
 /* El remate: cursiva de verdad (fuente, no sesgo sintético) y tinta
    secundaria. Para la parte humana del título, no para un segundo título.
@@ -157,14 +156,58 @@
    casa y el navegador la sesgaría con matriz — y además el par
    ancha-romana / estrecha-cursiva es justo el contraste que remata. */
 .section-head h1 em, .section-head h2 em {
-  font-family: var(--font); font-style: italic; font-weight: 560;
+  font-family: var(--font); font-style: italic; font-weight: 500;
   color: var(--text-secondary); letter-spacing: -0.012em;
 }
+/* ── L-07 · EN EL PORTAL, EL SALUDO ES UN SALUDO ───────────────────────────
+   Aquí arriba ya está escrito que «el saludo es cortesía; el título es
+   estructura», y sin embargo «Buenas, Marta» cogía la portada entera al mismo
+   cuerpo que «Buenos días, Entrenador» en Inicio. La diferencia es cuál es la
+   firma de cada pantalla: en Inicio ES el saludo, con su cuenta de trabajo
+   detrás; en el portal la firma es la sesión de hoy, y quien abre la
+   aplicación no viene a que le den los buenos días.
+
+   Baja a rótulo de sección. Sigue presentando la pantalla —y el remate en
+   cursiva sigue poniendo el nombre—, pero deja el escalón de arriba libre para
+   lo único que lo ocupa (`.sesion-hoy-nombre`). Solo en el portal: el panel
+   del entrenador no se toca. */
+.layout-portal .section-head h1 {
+  font-size: var(--fs-lg);
+  letter-spacing: -0.02em;
+}
+/* ── EL SALUDO DE LA PORTADA DEL CLIENTE, que es la excepción a las dos ────
+   Dos reglas de esta hoja empequeñecen el saludo del portal: L-07 lo baja a
+   rótulo de sección y A-02 lo saca del ojo en el teléfono. Las dos se tomaron
+   midiendo, y las dos tienen el mismo fallo: valen para una pantalla que se
+   TITULA —«Mi dieta», «Mi rutina»— y no para la única del producto cuyo
+   titular es el contenido.
+
+   El dueño, con el prototipo delante: «quiero tener lo del prototipo». Y lo
+   del prototipo es que «Hoy» abre con la fecha en voz baja y **«Hola, Marta»
+   grande**, sin filete debajo (`docs/portal-dos-aparatos.html`, `.nav`). Esto
+   no es cortesía ocupando sitio: es lo que hace que la pantalla se reconozca
+   como suya en el primer cuarto de segundo.
+
+   Solo aquí. Las otras cuatro del portal siguen con A-02, donde la medida del
+   dueño sigue siendo cierta: allí el titular repite la pestaña y empuja el
+   verbo fuera de la pantalla.
+
+   ── Y desde el 14 de septiembre de 2026 la excepción no vive aquí ───────
+   La excepción sigue viva, pero fuera: desde esa fecha
+   el portal del cliente no monta `PageHead` en ninguna de sus seis pantallas.
+   La fecha en voz baja y el saludo grande son `.pc-fecha` + `.pc-saludo` en el
+   monitor y `.tel-cabecera-dia` en el teléfono. Ver `portal-pc.css`. */
 .section-head p { font-size: var(--fs-sm); color: var(--text-secondary); }
+/* El dato de la línea, cuando la línea lleva uno que no es contexto. No cambia
+   de cuerpo —la línea sigue siendo la línea— sino de tinta y de peso, que es el
+   escalón más corto que hay y el único que cabe dentro de una frase. Lo usa el
+   saludo de Inicio para su cuenta de trabajo, que es media firma de esa
+   pantalla. Nada más debería usarlo: dos negritas en la misma línea son cero. */
+.section-head p strong { color: var(--text); font-weight: var(--peso-fuerte); }
 
 .section-title {
   display: flex; align-items: center; gap: var(--s2);
-  font-size: var(--fs-md); font-weight: 650; letter-spacing: -0.018em; min-width: 0;
+  font-size: var(--fs-md); font-weight: 600; letter-spacing: -0.018em; min-width: 0;
 }
 
 /* ── El aire de un `h3` dentro de un bloque ────────────────────────────────
@@ -235,7 +278,53 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Un bloque sin relleno propio —una lista a sangre— necesita que su cabecera lo
-   tenga, o el título queda pegado al canto de la tarjeta. */
-.card-flush > .panel-head { padding: var(--s4) var(--s4) 0; margin-bottom: var(--s3); }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   A-02 · EN EL TELÉFONO LA PANTALLA NO SE PRESENTA: DICE EN QUÉ PUNTO ESTÁS
+   --------------------------------------------------------------------------
+   Medido sobre las capturas del dueño del 12 de septiembre: en «Mi revisión»
+   el titular ocupaba de 155 a 191 px y el ÚNICO verbo de la pantalla caía a
+   342. En la dieta, cuatro renglones seguidos —la pestaña dice «Dieta», el h1
+   dice «Mi dieta», el subtítulo dice de qué va y un párrafo lo explica otra
+   vez— empujaban la primera cifra a 598 px de una pantalla de 664.
+
+   La barra del pulgar ya dice dónde estás. Repetirlo a 42 px gasta el 15 % del
+   alto en decir lo sabido, y lo que se pierde por abajo es justamente lo que
+   hay que hacer.
+
+   ── Lo que se hace, y por qué NO es un componente nuevo ───────────────────
+   Lo primero que se escribió aquí fue un `EstadoDePantalla` aparte, montado al
+   lado de `PageHead`. Son dos piezas diciendo lo mismo con el mismo texto: en
+   cuanto una de las dos se quede sin actualizar, la pantalla miente en un
+   ancho y no en el otro. `PageHead` YA tiene las dos piezas —el nombre y el
+   estado— y aquí solo se decide cuál pesa: en el teléfono el `sub` sube a ser
+   la línea, y el nombre se queda para quien navega con lector de pantalla, que
+   sí necesita saber en qué página está.
+
+   Y solo en el PORTAL: el panel del entrenador se usa en un escritorio y ahí la
+   cabecera de pantalla es lo que ordena una rejilla de 1440 px.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 639.98px) {
+  .layout-portal .section-head {
+    padding-bottom: 0; border-bottom: 0;
+    align-items: baseline;
+  }
+  /* Sigue en el árbol, y por eso no es `display: none`: para un lector de
+     pantalla esto es el nombre de la página, y sin él el portal entero serían
+     cuatro pantallas sin título. */
+  .layout-portal .section-head h1 {
+    position: absolute; width: 1px; height: 1px;
+    margin: -1px; padding: 0; overflow: hidden;
+    clip-path: inset(50%); white-space: nowrap;
+  }
+  /* La línea de estado: 14 px, tinta terciaria, y el DATO en tinta plena. Es la
+     misma gramática con la que la cabecera de un bloque dice por dónde va. */
+  .layout-portal .section-head p {
+    font-size: var(--fs-sm); color: var(--text-tertiary);
+  }
+  /* Sin nada que decir —ni estado ni acción—, la cabecera no ocupa: una
+     pantalla sin estado empieza por su contenido, que es a lo que se vino. El
+     hueco del `.stack` que la rodea sí cuenta, así que no basta con que el
+     titular esté fuera de flujo. */
+  .layout-portal .section-head:not(:has(p, button, a, input, select)) { display: none; }
+}

@@ -27,7 +27,7 @@ import { clientProtocol, hiddenFor } from '@/domain/protocol';
  * el RGPD). Esto decide qué le pone la aplicación DELANTE, que es exactamente el
  * problema que se vino a resolver. Ver `HIDDEN_INFO` en `domain/protocol.js`.
  */
-const NADA_OCULTO = { weight: false, nutrition: false };
+const NADA_OCULTO = { weight: false, nutrition: false, medidas: {} };
 
 const OcultoCtx = createContext(NADA_OCULTO);
 
@@ -40,7 +40,9 @@ export const OcultoProvider = ({ client, children }) => {
 };
 
 /**
- * `{ weight, nutrition }`: si esta pantalla se está pintando PARA el cliente y
- * su entrenador le ha ocultado esa cifra. Fuera del portal, las dos en `false`.
+ * `{ weight, nutrition, medidas }`: si esta pantalla se está pintando PARA el
+ * cliente y su entrenador le ha ocultado esa cifra. `medidas` es el mapa de las
+ * medidas ocultas por id —una glucosa hace el mismo daño que la báscula a quien
+ * se la hace—. Fuera del portal, nada oculto.
  */
 export const useOculto = () => useContext(OcultoCtx);

@@ -1,19 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ArrowLeft, ClipboardList, MessageSquare, Ruler } from 'lucide-react';
+import { ArrowLeft, ClipboardList } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { notaDe, pendientesDeCliente } from '@/domain/envios';
-import {
-  aterrizar,
-  elementosVisibles,
-  faltanObligatorias,
-  tocaAntropometria,
-} from '@/domain/formulario';
+import { aterrizar, faltanObligatorias } from '@/domain/formulario';
 import { buildAnthropometryLog } from '@/domain/anthropometry';
 import { todayISO } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { BotonAccion, EmptyState, Notice } from '@/components/ui/primitives';
-import { CampoLibre } from './CampoLibre';
+import { CuerpoDeFormulario } from './CuerpoDeFormulario';
 
 /**
  * LO QUE TU ENTRENADOR TE HA MANDADO.
@@ -60,7 +55,6 @@ export const FormulariosDelCliente = () => {
   const fila = mios.find((f) => f.id === abierto) || null;
   const elementos = fila?.schema?.elementos || [];
   const recado = notaDe(fila);
-  const visibles = elementosVisibles(elementos, borrador);
   const faltan = faltanObligatorias(elementos, borrador);
 
   /* Darla por hecha sin abrir nada: el vídeo que se abre, lo que él ya te ha
@@ -134,38 +128,18 @@ export const FormulariosDelCliente = () => {
         </header>
 
         {/*
-          El recado de su entrenador, si lo escribió al mandarlo. Va ANTES de las
-          preguntas y con su cara al lado, porque es lo que explica por qué le ha
-          llegado esto: sin él, un formulario que aparece solo en el portal es
-          una tarea sin remitente. Se lee con `notaDe` porque desde la 0105 vive
-          en su columna y lo mandado antes lo lleva dentro del esquema; las dos
-          formas dicen lo que decían el día que se mandó.
+          El cuerpo del formulario, que es el MISMO que ensaya el entrenador
+          antes de mandarlo (ver `CuerpoDeFormulario`). El recado se lee con
+          `notaDe` porque desde la 0105 vive en su columna y lo mandado antes lo
+          lleva dentro del esquema; las dos formas dicen lo que decían el día que
+          se mandó.
         */}
-        {recado && (
-          <p className="libre-recado">
-            <MessageSquare size={15} aria-hidden="true" />
-            <span>{recado}</span>
-          </p>
-        )}
-
-        {tocaAntropometria(elementos) && (
-          <Notice tone="info">
-            <Ruler size={15} aria-hidden="true" /> Las medidas que pongas aquí entran en tu
-            evolución. Tómalas siempre igual: relajado y sin meter tripa.
-          </Notice>
-        )}
-
-        <div className="libre-campos">
-          {visibles.map((elem) => (
-            <CampoLibre
-              key={elem.id}
-              elem={elem}
-              elementos={elementos}
-              valor={borrador[elem.id]}
-              onChange={(v) => setBorrador((prev) => ({ ...prev, [elem.id]: v }))}
-            />
-          ))}
-        </div>
+        <CuerpoDeFormulario
+          elementos={elementos}
+          borrador={borrador}
+          recado={recado}
+          onChange={(id, v) => setBorrador((prev) => ({ ...prev, [id]: v }))}
+        />
 
         {aviso && <Notice tone="warn">{aviso}</Notice>}
 

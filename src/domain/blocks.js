@@ -20,8 +20,17 @@
  * de datos y nada de lo que ya existe cambia de forma. Ver la migración 0086.
  */
 import { newId } from '@/lib/ids';
-import { MRV_GOALS, cloneExerciseAsTemplate, cycleSlots, dayPlannedVolume, tecnicaOf } from './training';
-import { executedSessions, sessionTonnage } from './sessions';
+import { addDays, daysBetween, todayISO, weekStart } from '@/lib/dates';
+import {
+  MRV_GOALS,
+  WEEK_DAYS,
+  claveDelDia,
+  cloneExerciseAsTemplate,
+  cycleSlots,
+  dayPlannedVolume,
+  tecnicaOf,
+} from './training';
+import { executedSessions, sesionAMedias, sessionTonnage } from './sessions';
 
 /** La última semana montada del programa (0 sin ninguna). */
 export const lastWeekNumber = (microcycles = []) =>
@@ -1915,3 +1924,189 @@ export const clientCycleSlots = (client, program) => {
     weeklySplit: bloque ? structureOfBlock(program, bloque).weeklySplit || {} : {},
   });
 };
+
+/**
+ * LA INICIAL DE CADA DÍA. `X` para el miércoles, que es como se escribe en
+ * español —`M` dos veces no distingue nada— y es lo que enseña el prototipo.
+ */
+const INICIAL_DEL_DIA = {
+  Lunes: 'L',
+  Martes: 'M',
+  Miércoles: 'X',
+  Jueves: 'J',
+  Viernes: 'V',
+  Sábado: 'S',
+  Domingo: 'D',
+};
+
+/**
+ * La inicial del día de una FECHA. Misma tabla, otra puerta.
+ *
+ * Existe porque la fila de siete casillas ya se pinta en dos sitios —la cinta
+ * de la dieta y los pesajes de la semana en «Tu revisión»— y cada uno llegaba
+ * con lo suyo: el segundo sacaba la letra de `weekdayName(...).charAt(0)` y
+ * ponía **M para el martes y M para el miércoles**, que es exactamente el fallo
+ * que la tabla de arriba está escrita para evitar. Una tabla y dos lectores.
+ */
+export const inicialDelDia = (iso) => {
+  const dia = new Date(`${iso}T00:00:00Z`).toLocaleDateString('es-ES', {
+    weekday: 'long',
+    timeZone: 'UTC',
+  });
+  return INICIAL_DEL_DIA[`${dia.charAt(0).toUpperCase()}${dia.slice(1)}`] || dia.charAt(0).toUpperCase();
+};
+
+/**
+ * DÓNDE EMPIEZA LA VUELTA: la fecha del microciclo más reciente que tenga una.
+ *
+ * Es el único ancla que existe, y no es una fecha inventada aquí: la pone el
+ * entrenador al montar el ciclo y la aplicación ya la usa para dos cosas de
+ * peso —fechar el ciclo siguiente (`nextCycleDate`) y agrupar la analítica—.
+ * Se toma el ÚLTIMO y no el primero porque cada ciclo nuevo reancla la cuenta:
+ * partiendo del primero, tres meses de vacaciones y bajas se acumulan en la
+ * proyección y la semana de esta persona saldría corrida dos días.
+ */
+const anclaDelCiclo = (program) => {
+  const micros = (program?.microcycles || []).filter((m) => m?.date);
+  if (micros.length === 0) return null;
+  return micros.reduce((a, b) => (b.weekNumber > a.weekNumber ? b : a)).date;
+};
+
+/**
+ * LA SEMANA DE ESTA PERSONA: los siete días naturales, y qué casilla de su
+ * ciclo le toca a cada uno.
+ *
+ * ══ Por qué existe, y qué ley cambia ═══════════════════════════════════════
+ *
+ * La dieta del cliente enseñaba sus casillas tal cual: `Lun…Dom` a quien entrena
+ * por semanas y **`D1…D9`** a quien lleva un ciclo rotativo. Lo segundo es
+ * correcto de modelo y es ilegible de calendario: nadie sabe si hoy es su D4.
+ *
+ * El 13 de septiembre de 2026 el dueño lo decidió al revés de como estaba
+ * escrito: *«aunque se utilicen microciclos y no días, está bien que la app
+ * móvil sea semanal, estilo MyFitnessPal»*. O sea que la casilla sigue siendo el
+ * modelo —la dieta se reparte por casillas, no por martes— y la SEMANA es cómo
+ * se enseña. Esto es la traducción entre las dos, y vive en el dominio porque la
+ * preguntan las dos formas de la cinta y ninguna puede contestar distinto.
+ *
+ * ── La cuenta, y por qué no inventa nada ──────────────────────────────────
+ * La misma con la que la aplicación fecha el ciclo siguiente: los ciclos van
+ * seguidos desde la fecha del último montado. Un día cae en la casilla
+ * `(días desde el ancla) mod (número de casillas)`. Con el ciclo natural no hay
+ * nada que traducir: la casilla YA es el día de la semana.
+ *
+ * ── Cuándo devuelve `null`, y qué hay que hacer entonces ──────────────────
+ * Sin fecha de la que partir —programas viejos, o un cliente sin ciclos
+ * montados— no se puede colocar la semana en el calendario, y colocarla a ojo
+ * sería decirle que hoy le toca una dieta que a lo mejor no es la suya. Quien lo
+ * llama se queda con las casillas a secas, que es lo que había.
+ *
+ * @returns `[{ fecha, key, corto, dia, titulo, esHoy }]`, o `null`.
+ *   `key` es la casilla del ciclo (lo que guarda `cycleMap`); `fecha` es lo que
+ *   identifica al día, porque en un ciclo de cinco una semana pisa dos veces la
+ *   misma casilla y entonces la clave no distingue las dos columnas.
+ */
+export const semanaDelCliente = (client, program, casillas = [], hoy = todayISO()) => {
+  const lunes = weekStart(hoy);
+  if (!lunes) return null;
+
+  const dias = Array.from({ length: 7 }, (_, i) => addDays(lunes, i));
+  const rotativo = (client?.cycleType || 'weekly') === 'rotating';
+
+  if (!rotativo) {
+    return dias.map((fecha) => {
+      const dia = claveDelDia(fecha) || WEEK_DAYS[0];
+      return {
+        fecha,
+        key: dia,
+        corto: INICIAL_DEL_DIA[dia] || dia.slice(0, 1),
+        dia,
+        titulo: dia,
+        esHoy: fecha === hoy,
+      };
+    });
+  }
+
+  const ancla = anclaDelCiclo(program);
+  if (!ancla || casillas.length === 0) return null;
+
+  return dias.map((fecha) => {
+    const desde = daysBetween(ancla, fecha) ?? 0;
+    const i = ((desde % casillas.length) + casillas.length) % casillas.length;
+    const casilla = casillas[i];
+    const dia = claveDelDia(fecha) || WEEK_DAYS[0];
+    return {
+      fecha,
+      key: casilla.key,
+      corto: INICIAL_DEL_DIA[dia] || dia.slice(0, 1),
+      dia,
+      /* El día de la semana Y la casilla de su ciclo: en un rotativo las dos
+         hacen falta —«Martes · D4»— porque lo que su entrenador le montó está
+         escrito en casillas y él lo vive en martes. */
+      titulo: `${dia} · ${casilla.corto}`,
+      esHoy: fecha === hoy,
+    };
+  });
+};
+
+/**
+ * ¿LE TOCA EL MICROCICLO SIGUIENTE? La regla, en un solo sitio.
+ *
+ * ══ Por qué es del dominio y no de la portada ══════════════════════════════
+ *
+ * Porque la preguntan dos cosas que tienen que contestar lo mismo: el aviso de
+ * la portada —que es la oferta— y el automatismo de quien ha marcado «que el
+ * siguiente se abra solo al cerrar este». Escrita dos veces, el día que una se
+ * afinara el cliente se encontraría una tarjeta ofreciéndole algo que ya se
+ * había abierto solo, o al revés.
+ *
+ * ── Las tres condiciones, y las tres son HECHOS ───────────────────────────
+ *   · El microciclo abierto está ENTERO anotado. Cerrar es haber entrenado
+ *     todas sus sesiones, no que sea lunes: un microciclo mide cinco días o
+ *     nueve, y atarlo al calendario lo parte en cuanto deja de medir siete.
+ *   · No hay ninguna sesión a medias. Esa espera una decisión suya —seguirla o
+ *     descartarla— y ofrecerle empezar otro ciclo encima es un segundo verbo
+ *     delante de alguien que va a hacer una cosa.
+ *   · Su bloque es EL QUE CORRE. Solo el bloque abierto crece; prometer alargar
+ *     uno que se cerró hace dos meses es ofrecer algo que no va a pasar.
+ *
+ * Devuelve el número de la semana que se abriría, o `null`. El número sirve
+ * para la clave del guardado (ver `continueProgram`); lo que la portada escribe
+ * es la posición dentro del bloque, que es otra cuenta y es suya.
+ */
+export const cicloPorAbrir = (program) => {
+  const conPlan = program ? { ...program, microcycles: resolvedMicrocycles(program) } : null;
+  const micros = conPlan?.microcycles || [];
+  if (micros.length === 0 || sesionAMedias(micros)) return null;
+
+  const actual = lastWeekNumber(micros);
+  const micro = micros.find((m) => m.weekNumber === actual);
+  const dias = micro?.days || [];
+  /* Sin días programados no hay nada que cerrar: un microciclo vacío no está
+     «entero anotado», está sin montar. */
+  if (dias.length === 0) return null;
+
+  const anotadas = new Set(executedSessions(micro).map((s) => s.dayName));
+  if (!dias.every((d) => anotadas.has(d.dayName))) return null;
+
+  const bloque = blockOfWeek(conPlan, actual);
+  if (!bloque || !isCurrentBlock(conPlan, bloque)) return null;
+
+  return actual + 1;
+};
+
+/**
+ * ¿Ha pedido que el siguiente se abra solo al cerrar este?
+ *
+ * ══ Por qué la oferta se ata al hecho y no al lunes ════════════════════════
+ *
+ * La casilla decía «que se abra sola cada lunes» y era falsa: `unitLabel` nunca
+ * dice «Semana» en un ciclo rotativo, y un microciclo de nueve días se habría
+ * abierto dos veces antes de terminarse. Lo que la dispara es cerrar el
+ * anterior, que es lo mismo que dispara la oferta de la portada.
+ *
+ * Vive en `clients.preferences.rutina`, que el propio cliente puede escribir por
+ * `set_client_preferences` (0008) — es SUYA: quien decide si su plan crece solo
+ * es quien lo entrena. No hace falta migración ni columna.
+ */
+export const abreSoloElCiclo = (preferences) => Boolean(preferences?.rutina?.seguirSolo);

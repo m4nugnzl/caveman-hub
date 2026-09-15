@@ -87,6 +87,7 @@ export const useWorkout = ({
   setNutrition,
   persist,
   persistSet,
+  persistExerciseNote,
   persistContinue,
   queue,
   ensureProgram,
@@ -535,6 +536,142 @@ export const useWorkout = ({
       }
     },
     [applyMicrocycle, profileRole, queue]
+  );
+
+  /**
+   * TERMINAR la sesión: estampa el fin.
+   *
+   * Es el único momento en que se dice cuánto ha costado («te ha costado 52
+   * min»), y es lo que la saca de «la dejaste a medias». El sello de verdad lo
+   * pone el servidor con su reloj (`log_session_close`, 0119); aquí se escribe
+   * el de este navegador para que el resumen pueda decir la cifra sin esperar a
+   * la red, que es lo que pasa en un gimnasio.
+   *
+   * ── Lo que se pierde si el envío no llega, y por qué se puede perder ──────
+   * Nada que no se pueda volver a decir. Un cierre que no sale reaparece en la
+   * portada como la sesión a medias, con «Seguir» y «Descartar»: la propia
+   * pantalla que existe para esto es la recuperación. Por eso su clave de cola
+   * no está entre las que se reenvían al arrancar (ver `AppContext`) — apuntar
+   * en el navegador «hay que cerrar aquello» duplicaría un mecanismo que ya
+   * tiene la persona delante.
+   */
+  const closeSession = useCallback(
+    (clientId, weekNumber, sessionId) => {
+      if (!clientId || !sessionId || !Number.isFinite(weekNumber)) return;
+      const endedAt = new Date().toISOString();
+      const local = (m) => ({
+        ...m,
+        sessions: sessionsOf(m).map((s) => (s.id === sessionId ? { ...s, endedAt } : s)),
+      });
+
+      if (profileRole !== 'client') {
+        applyMicrocycle(clientId, weekNumber, local, { immediate: false });
+        return;
+      }
+
+      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
+      queue.enqueue(
+        `cierre:${clientId}:${sessionId}`,
+        { weekNumber, sessionId },
+        (data) =>
+          supabase.rpc('log_session_close', {
+            p_client: clientId,
+            p_week: data.weekNumber,
+            p_session_id: data.sessionId,
+          }),
+        /* Inmediato: es un gesto explícito con una pantalla esperando. El resto
+           de la sesión se guarda en tandas porque son cien tecleos. */
+        { immediate: true }
+      );
+    },
+    [applyMicrocycle, profileRole, queue]
+  );
+
+  /**
+   * DESCARTAR una sesión a medias: la borra.
+   *
+   * El porqué de que borre —y no marque nada— está en la 0119: la razón de
+   * anunciarla es que contamina el histórico, y dejarla dentro con una marca
+   * obligaría a que cada cuenta del producto se acordase de la marca.
+   *
+   * La base de datos solo lo permite mientras la sesión esté SIN CERRAR. Aquí no
+   * se repite esa comprobación con otro código: la pantalla solo ofrece el verbo
+   * sobre lo que `sesionAMedias` devuelve, que es exactamente eso.
+   */
+  const discardSession = useCallback(
+    (clientId, weekNumber, sessionId) => {
+      if (!clientId || !sessionId || !Number.isFinite(weekNumber)) return;
+      const local = (m) => ({
+        ...m,
+        sessions: sessionsOf(m).filter((s) => s.id !== sessionId),
+      });
+
+      if (profileRole !== 'client') {
+        applyMicrocycle(clientId, weekNumber, local, { immediate: false });
+        return;
+      }
+
+      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
+      queue.enqueue(
+        `descarte:${clientId}:${sessionId}`,
+        { weekNumber, sessionId },
+        (data) =>
+          supabase.rpc('log_session_discard', {
+            p_client: clientId,
+            p_week: data.weekNumber,
+            p_session_id: data.sessionId,
+          }),
+        { immediate: true }
+      );
+    },
+    [applyMicrocycle, profileRole, queue]
+  );
+
+  /**
+   * LA NOTA DEL CLIENTE en un ejercicio de una sesión.
+   *
+   * Cuelga de la entrada de la sesión y no del plan, que es lo que la deja
+   * fechada con el entreno y pegada a los kilos que explica. La del plan
+   * (`coachNote`) es del entrenador y el cliente no la puede escribir: si
+   * pudiera, se fabricaría indicaciones que parecen suyas.
+   *
+   * ── Y ésta sí se reenvía al arrancar ──────────────────────────────────────
+   * A diferencia del cierre, aquí lo que se perdería es TEXTO que alguien
+   * escribió, y no hay ninguna pantalla que lo vuelva a pedir. Su clave
+   * (`notaej:`) está entre las que se recuperan.
+   */
+  const logExerciseNote = useCallback(
+    (clientId, weekNumber, sessionId, exerciseId, note) => {
+      if (!clientId || !sessionId || !exerciseId || !Number.isFinite(weekNumber)) return;
+      const texto = String(note ?? '');
+      const local = (m) => ({
+        ...m,
+        sessions: sessionsOf(m).map((s) =>
+          s.id !== sessionId
+            ? s
+            : {
+                ...s,
+                entries: (s.entries || []).map((e) =>
+                  e.exerciseId === exerciseId ? { ...e, clientNote: texto } : e
+                ),
+              }
+        ),
+      });
+
+      if (profileRole !== 'client') {
+        applyMicrocycle(clientId, weekNumber, local, { immediate: false });
+        return;
+      }
+
+      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
+      persistExerciseNote(`notaej:${clientId}:${sessionId}:${exerciseId}`, clientId, {
+        weekNumber,
+        sessionId,
+        exerciseId,
+        note: texto,
+      });
+    },
+    [applyMicrocycle, persistExerciseNote, profileRole]
   );
 
   /**
@@ -2130,6 +2267,9 @@ export const useWorkout = ({
     logSessionSet,
     updateSession,
     updateSessionMeta,
+    closeSession,
+    discardSession,
+    logExerciseNote,
     updateMobilityDrills,
     removeSession,
     addExercise,

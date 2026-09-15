@@ -108,7 +108,14 @@ export const TarjetaPlan = ({
   const oculto = useOculto();
   const direction = goal ? directionById(goal.direction) : null;
   const ritmo = targetRateKg(goal, pesoActual);
-  const dias = program?.weeklySplit ? trainingDayCount(program.weeklySplit) : null;
+  /* Cero días pautados es lo mismo que no haber pautado, y por eso se cuenta
+     como hueco y no como cifra: el semanal existe —el bloque se creó— pero no
+     tiene un solo día con trabajo dentro, y «0 días a la semana» ocupaba con un
+     dato falso el sitio donde va «Monta su rutina». Era la única de las cinco
+     palancas que miraba `!== null` en vez de si hay algo; las otras cuatro ya
+     dejan caer el cero al verbo (`kcal ?`, `pasos ?`, `cardio ||`). */
+  const diasPautados = program?.weeklySplit ? trainingDayCount(program.weeklySplit) : 0;
+  const dias = diasPautados > 0 ? diasPautados : null;
   const reparto = program?.weeklySplit
     ? [...new Set(WEEK_DAYS.map((d) => program.weeklySplit[d]).filter((v) => v && !isRestDay(v)))]
     : [];

@@ -13,8 +13,8 @@ import { Pliegue } from '@/components/ui/Pliegue';
  * posición que resumen» fue la frase, y la respuesta fue unificar la cinta del
  * expediente y la de la cartera en `chasis.css`.
  *
- * El Taller son cuatro listas más. Si cada una se dibujara su banda, tendríamos
- * el mismo problema multiplicado por cuatro. Así que se monta el traje que ya
+ * El Taller son tres puertas más. Si cada una se dibujara su banda, tendríamos
+ * el mismo problema multiplicado por tres. Así que se monta el traje que ya
  * existe (`.cartera-cab`) y `.cinta-pagina` queda solo como asidero para lo que
  * sea propio de estas pantallas.
  *
