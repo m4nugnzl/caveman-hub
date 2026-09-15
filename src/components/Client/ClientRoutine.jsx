@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronRight, NotebookPen, Play, Quote, Timer } from 'lucide-react';
 
 import {
   countSets,
   dayMuscleVolume,
   drillsForDay,
+  supersetLabels,
   unitLabel,
   unitLabelPlural,
   weekdayForDay,
@@ -29,8 +30,10 @@ import {
 } from '@/domain/blocks';
 import { activeQuestions, asksFeedback, clientProtocol, isModuleOn } from '@/domain/protocol';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
+import { prefiereMenosMovimiento, traeALaVista } from '@/lib/motion';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/ToastProvider';
 import { Panel, SaveIndicator, WeekPicker } from '@/components/ui/primitives';
 import { ComoLoLlevo } from '@/components/Coach/Workout/ComoLoLlevo';
 import { ComparativaEjercicio } from '@/components/Coach/Workout/ComparativaEjercicio';
@@ -116,6 +119,74 @@ import { buildStrip, buildTape } from './hojas';
 const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 /**
+ * ══ EL ÍNDICE DE LA SESIÓN: de un ejercicio a otro sin buscarlos ════════════
+ *
+ * Una sesión son seis u ocho fichas, y cada una con su tabla ocupa media
+ * pantalla de teléfono: ir del primer ejercicio al quinto —o volver al segundo
+ * porque en la superserie se alterna— era desplazarse a ojo por dos mil
+ * píxeles leyendo nombres al vuelo.
+ *
+ * Esta tira es una marca por ejercicio, en su orden, con cuántas series lleva.
+ * Pulsar una lleva a su ficha y deja el cursor en la primera casilla que falta
+ * por rellenar: el salto y el gesto que se venía a hacer, en el mismo toque.
+ *
+ * ── Por qué una tira y no un desplegable ────────────────────────────────────
+ * Porque además de llevarte dice dónde estás y cuánto queda de cada ejercicio
+ * —«3/4», «0/3»—, que es lo que se mira entre serie y serie. Un desplegable
+ * escondería las dos cosas detrás de un toque y no diría ninguna hasta abrirlo.
+ *
+ * Es la misma gramática de la cinta de hojas (`CintaDeHojas`), un escalón más
+ * abajo: allí se salta de sesión a sesión, aquí de ejercicio a ejercicio. Y
+ * como aquélla, trae al centro la marca de donde estás — moviendo SOLO la tira,
+ * nunca la página: el índice se marca también al tocar una casilla, y una
+ * página que salta mientras se escribe es peor que no tener índice.
+ */
+const IndiceDeEjercicios = ({ ejercicios, activo, onIr }) => {
+  const marcas = supersetLabels(ejercicios);
+  const tira = useRef(null);
+  const marcada = useRef(null);
+
+  useEffect(() => {
+    const caja = tira.current;
+    const aqui = marcada.current;
+    if (!caja || !aqui || typeof caja.scrollTo !== 'function') return;
+    const izquierda = aqui.offsetLeft - (caja.clientWidth - aqui.clientWidth) / 2;
+    caja.scrollTo({
+      left: Math.max(0, izquierda),
+      behavior: prefiereMenosMovimiento() ? 'auto' : 'smooth',
+    });
+  }, [activo]);
+
+  return (
+    /* `data-sin-deslizar`: la tira ya se mueve a lo ancho con el dedo. Sin la
+       marca, arrastrarla cambiaría además de hoja. Ver `lib/useDeslizar`. */
+    <nav className="ej-indice" aria-label="Ejercicios de esta sesión" data-sin-deslizar ref={tira}>
+      {ejercicios.map((ex, i) => {
+        const series = ex.sets || [];
+        const hechas = series.filter(isSetLogged).length;
+        const completo = series.length > 0 && hechas >= series.length;
+        return (
+          <button
+            key={ex.id}
+            type="button"
+            ref={ex.id === activo ? marcada : null}
+            className={`ej-salto${completo ? ' is-done' : ''}`}
+            aria-current={ex.id === activo}
+            onClick={() => onIr(ex.id)}
+          >
+            <span className="n">{marcas[i] || i + 1}</span>
+            <span className="nm">{ex.name}</span>
+            <span className="pg">
+              {hechas}/{series.length}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+};
+
+/**
  * Un día de la rutina, con su sesión.
  *
  * ── El fallo que corrige ────────────────────────────────────────────────────
@@ -160,8 +231,18 @@ const ClientDay = ({
   fichaDe,
   save,
   onRetry,
+  /*
+    El ejercicio en foco. Llegaba desde `ClientRoutine` y esta función NO lo
+    recogía: se quedaba en el objeto de props y la lista recibía los valores por
+    defecto, así que pulsar un ejercicio no movía la comparativa del costado —la
+    tarjeta que enseña su progresión— y la única forma de cambiarla era su
+    propio selector. Ahora entra, y además marca el índice de aquí abajo.
+  */
+  focusedId = null,
+  onFocusExercise = null,
 }) => {
   const daySession = useDaySession(microcycle, day);
+  const toast = useToast();
   const volume = dayMuscleVolume(day);
   const questions = activeQuestions(protocol);
   const session = daySession.session;
@@ -274,6 +355,74 @@ const ClientDay = ({
     const id = escribir(exId, setIndex, 'kg', String(previo.kg));
     escribir(exId, setIndex, 'reps', String(previo.reps), id);
     empezarDescanso(descansoDe(exId));
+  };
+
+  /*
+    ══ BORRAR UNA SERIE APUNTADA, que es el camino de vuelta ══════════════════
+
+    Se registra de pie, con una mano y a veces con el teléfono en la esquina de
+    un banco: el ✓ que repite la vez anterior se pulsa sin querer, y los kilos
+    se escriben en la fila de al lado. Hasta ahora la salida era borrar dos o
+    tres casillas a mano con el teclado tapando media pantalla; ahora la marca
+    de la serie hecha vuelve a ser un botón y la deja vacía, con el cursor en
+    los kilos (ver `SetRow`).
+
+    Con aviso y «Deshacer», que es la pareja honesta de «sin confirmación» en
+    esta casa: lo frecuente con inverso no se pregunta, se deshace. El RIR solo
+    se toca si había algo escrito — una llamada más por serie borrada, y cada
+    una es una escritura contra la base de datos.
+  */
+  const limpiarSet = (exId, setIndex) => {
+    const serie = daySession.exercises.find((ex) => ex.id === exId)?.sets?.[setIndex];
+    if (!serie) return;
+    const previo = { kg: serie.kg ?? '', reps: serie.reps ?? '', rir: serie.rir ?? '' };
+
+    const poner = (valores) => {
+      const id = escribir(exId, setIndex, 'kg', valores.kg);
+      escribir(exId, setIndex, 'reps', valores.reps, id);
+      if (previo.rir !== '') escribir(exId, setIndex, 'rir', valores.rir, id);
+    };
+
+    poner({ kg: '', reps: '', rir: '' });
+    /* El descanso lo arrancó esta serie: sin serie no hay nada que contar. */
+    setFinDescanso(null);
+    toast({
+      text: `Serie ${setIndex + 1} borrada.`,
+      action: { label: 'Deshacer', onClick: () => poner(previo) },
+    });
+  };
+
+  /*
+    ── Dónde estás dentro de la sesión ────────────────────────────────────────
+    En escritorio lo dice la pantalla de arriba, que lo necesita para la
+    comparativa del costado; en el teléfono no hay costado y el dato se queda
+    aquí. Una sola marca para las dos: el índice y la tarjeta de al lado
+    hablan siempre del mismo ejercicio.
+  */
+  const [ultimo, setUltimo] = useState(null);
+  /* Sin haber tocado nada todavía, «aquí» es el primer ejercicio que le falta
+     algo: se entra a la sesión por la mitad tantas veces como por el principio
+     —se deja el teléfono entre serie y serie— y un índice que no marcara nada
+     hasta el primer toque contaría a medias. */
+  const pendiente = daySession.exercises.find((ex) =>
+    (ex.sets || []).some((serie) => !isSetLogged(serie))
+  );
+  const enFoco = focusedId || ultimo || pendiente?.id || daySession.exercises[0]?.id || null;
+  const marcar = (id) => {
+    setUltimo(id);
+    onFocusExercise?.(id);
+  };
+
+  /* Saltar a un ejercicio: su ficha arriba y el cursor en la primera casilla
+     que falte. Si ya está entero, solo se trae a la vista — no hay nada que
+     escribir y abrir el teclado encima sería estorbar. */
+  const irAEjercicio = (id) => {
+    marcar(id);
+    const ficha = typeof document === 'undefined' ? null : document.getElementById(`ej-${id}`);
+    if (!ficha) return;
+    traeALaVista(ficha, { block: 'start' });
+    const libre = [...ficha.querySelectorAll('input')].find((campo) => !campo.value);
+    libre?.focus({ preventScroll: true });
   };
 
   const tonelaje = session ? sessionTonnage(session) : 0;
@@ -413,6 +562,11 @@ const ClientDay = ({
 
       {isModuleOn(protocol, 'warmup') && <WarmupView drills={drillsForDay(program, day)} />}
 
+      {/* El índice: con un solo ejercicio no hay a dónde saltar. */}
+      {daySession.exercises.length > 1 && (
+        <IndiceDeEjercicios ejercicios={daySession.exercises} activo={enFoco} onIr={irAEjercicio} />
+      )}
+
       <ExerciseList
         exercises={daySession.exercises}
         canEditStructure={false}
@@ -423,6 +577,11 @@ const ClientDay = ({
         previousSets={previousSets}
         bestSets={bestSets}
         onConfirmSet={confirmarSet}
+        onClearSet={limpiarSet}
+        /* Marcar el ejercicio es de las dos pantallas: enciende su renglón,
+           mueve el índice y, en escritorio, la comparativa del costado. */
+        focusedId={enFoco}
+        onFocusExercise={marcar}
         /* La marca junto al nombre, y su ficha. Solo aquí: en la hoja del
            entrenador no se pinta nada. */
         sheetOf={fichaDe}

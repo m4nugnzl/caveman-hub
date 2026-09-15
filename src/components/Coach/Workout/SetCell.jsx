@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Check, X } from 'lucide-react';
 
 import { isSetLogged } from '@/domain/sessions';
@@ -63,6 +64,18 @@ const FIELDS = [
  *
  * Y no rellena el valor: un marcador desaparece al escribir y NO se guarda. Unos
  * kilos heredados que nadie ha levantado son indistinguibles de los reales.
+ *
+ * ── La marca es un interruptor: se pulsa, y se vuelve a pulsar ──────────────
+ * El ✓ apuntaba lo de la vez anterior y, hecho el apunte, se convertía en un
+ * adorno. Pero el gesto de un toque se da también sin querer —se rellena de
+ * pie, con una mano y con el móvil sudado— y entonces la única salida era
+ * borrar dos cifras a mano, con el teclado tapando la fila.
+ *
+ * Ahora la marca de una serie hecha VUELVE a ser un botón: lo borra y deja el
+ * cursor en los kilos, que es donde se sigue corrigiendo. Pulsar otra vez
+ * devuelve la serie al estado anterior —vacía y con su ✓ de repetir, si había
+ * vez anterior—, así que el gesto es reversible por los dos lados y no hace
+ * falta aprender ninguna otra cosa.
  */
 export const SetRow = ({
   index,
@@ -73,16 +86,28 @@ export const SetRow = ({
   previous = null,
   record = false,
   onConfirm = null,
+  /* Borrar lo apuntado en ESTA serie. Solo lo pasa quien registra (el portal
+     del cliente); programando no hay nada que borrar aquí. */
+  onClear = null,
 }) => {
   const label = `${exerciseName}, serie ${index + 1}`;
   const done = isSetLogged(set);
+  const fila = useRef(null);
   /* Se puede repetir lo de la vez anterior de un toque: hay referencia y la
      serie está vacía. Es el gesto de Hevy —la mayoría de las series son «lo
      mismo que la última vez»— y ahorra escribir dos cifras por serie. */
   const puedeRepetir = !done && previous?.kg && previous?.reps && onConfirm;
+  const puedeBorrar = done && Boolean(onClear);
+
+  /* Borrar y quedarse dentro: el sitio donde se sigue después de deshacer una
+     equivocación es el primer campo de la misma fila. */
+  const borrar = () => {
+    onClear();
+    fila.current?.querySelector('input')?.focus();
+  };
 
   return (
-    <div className={`set-row${done ? ' is-done' : ''}${record ? ' is-record' : ''}`}>
+    <div ref={fila} className={`set-row${done ? ' is-done' : ''}${record ? ' is-record' : ''}`}>
       {/*
         La marca de hecho sustituye al número, no lo acompaña: en una lista de
         cuatro series el orden ya lo da la posición, así que repetir «S3» al lado
@@ -99,6 +124,16 @@ export const SetRow = ({
           title="Igual que la vez anterior"
         >
           <Check size={13} strokeWidth={3} />
+        </button>
+      ) : puedeBorrar ? (
+        <button
+          type="button"
+          className="set-row-tag is-boton"
+          onClick={borrar}
+          aria-label={`${label}: borrar lo apuntado y corregirlo`}
+          title={record ? 'Récord. Toca para borrar lo apuntado' : 'Borrar lo apuntado'}
+        >
+          {record ? 'PR' : <Check size={13} strokeWidth={3} />}
         </button>
       ) : (
         <span className="set-row-tag" title={record ? 'Récord: tu mejor marca en este ejercicio' : undefined}>
@@ -146,8 +181,17 @@ export const SetRow = ({
             onKeyDown={(e) => {
               if (e.key !== 'Enter') return;
               e.preventDefault();
-              const tabla = e.currentTarget.closest('.set-table');
-              const campos = [...(tabla?.querySelectorAll('input') || [])];
+              /*
+                ── Y no se suelta tampoco entre ejercicio y ejercicio ─────────
+                El recorrido era el de la tabla, o sea el del ejercicio: al
+                llegar al último RIR del press se cerraba el teclado y había
+                que apuntar con el dedo a la primera casilla del siguiente.
+                Registrar una sesión es una sola tirada de treinta números, así
+                que el recorrido es el de la SESIÓN (`.set-flow`, la lista
+                entera) y solo se suelta al final de todo.
+              */
+              const ambito = e.currentTarget.closest('.set-flow') || e.currentTarget.closest('.set-table');
+              const campos = [...(ambito?.querySelectorAll('input') || [])];
               const siguiente = campos[campos.indexOf(e.currentTarget) + 1];
               if (siguiente) siguiente.focus();
               else e.currentTarget.blur();

@@ -122,6 +122,49 @@
 /* El récord: la marca cambia a brasa y dice «PR». */
 .set-row.is-record > .set-row-tag { background: var(--positive); color: var(--text-inverse); font-size: var(--fs-3xs); letter-spacing: 0.04em; }
 
+/* ── Y hecha, la misma marca borra lo apuntado ─────────────────────────────
+   No cambia de forma —es el visto de siempre, y una serie hecha tiene que
+   seguir leyéndose como hecha—: lo que cambia es que se puede volver a pulsar.
+   El trazo discontinuo es de lo que está por hacer, así que aquí se cierra, y
+   el aviso de que hay algo detrás lo da el puntero y el realce al pasar por
+   encima. El porqué del gesto, en `Workout/SetCell.jsx`. */
+.set-row.is-done > .set-row-tag.is-boton { border-style: solid; border-color: transparent; }
+.set-row.is-done > .set-row-tag.is-boton:hover { border-color: var(--positive); }
+.set-row.is-record > .set-row-tag.is-boton:hover { background: var(--positive); color: var(--text-inverse); }
+
+/* ══ EL ÍNDICE DE LA SESIÓN ════════════════════════════════════════════════
+   Una marca por ejercicio para saltar entre ellos y ver cuánto lleva cada uno.
+   Una línea que se arrastra a lo ancho y no una rejilla que envuelva: con ocho
+   ejercicios, envolver gastaría tres renglones encima de la primera tabla, que
+   es justo lo que se le quitó a esta pantalla. Ver `Client/ClientRoutine.jsx`. */
+.ej-indice {
+  display: flex; gap: var(--s2); overflow-x: auto; overscroll-behavior-x: contain;
+  padding-bottom: 2px; scrollbar-width: none;
+}
+.ej-indice::-webkit-scrollbar { display: none; }
+
+.ej-salto {
+  display: flex; align-items: center; gap: var(--s2); flex: 0 0 auto;
+  max-width: 200px; min-height: 34px; padding: 5px var(--s3);
+  background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r-pill);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary);
+  cursor: pointer; transition: border-color var(--fast), color var(--fast);
+}
+.ej-salto:hover { border-color: var(--hairline-strong); color: var(--text); }
+/* Donde estás: la misma marca de «aquí» que la pastilla del día de la tira. */
+.ej-salto[aria-current='true'] {
+  border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); color: var(--text);
+}
+.ej-salto > .n {
+  font-family: var(--font-display); font-weight: 700; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.ej-salto > .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ej-salto > .pg { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+/* Terminado: la cuenta en verde, como en la tira de la semana. Es lo único que
+   distingue un ejercicio hecho — el nombre no cambia de peso ni se tacha. */
+.ej-salto.is-done > .pg { color: var(--positive); font-weight: 650; }
+
 /* La fila que cierra la sesión: una salida, no un formulario. */
 .sesion-cierre {
   display: flex; align-items: center; justify-content: space-between; gap: var(--s3);

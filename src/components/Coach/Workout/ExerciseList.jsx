@@ -132,6 +132,9 @@ export const ExerciseList = ({
      gesto de «igual que la vez anterior»: los dos solo registrando. */
   bestSets = null,
   onConfirmSet = null,
+  /* Borrar lo apuntado en una serie. Es el inverso del gesto de arriba y el
+     camino de vuelta de cualquier equivocación: ver `SetRow`. */
+  onClearSet = null,
   /* El ejercicio «en foco»: el que enseña su histórico en la columna de al lado.
      Se marca al pulsar cualquier parte de su fila que no sea un control. */
   focusedId = null,
@@ -337,7 +340,13 @@ export const ExerciseList = ({
   }
 
   return (
-    <ul className="col gap-2" style={{ listStyle: 'none' }}>
+    /*
+      `set-flow` cuando se REGISTRA: marca el recorrido de los campos, que es la
+      sesión entera y no cada ejercicio por su cuenta (ver el Enter de
+      `SetRow`). Programando no existe: allí cada ejercicio es una pieza que se
+      compara con las de al lado, no una tirada de números seguidos.
+    */
+    <ul className={`col gap-2${canEditStructure ? '' : ' set-flow'}`} style={{ listStyle: 'none' }}>
       {exercises.map((exercise, index) => {
         /* La referencia de la primera serie sirve para saber SI hay vez
            anterior y de qué semana. Las cifras de cada serie van en su campo. */
@@ -348,6 +357,10 @@ export const ExerciseList = ({
         return (
           <li
             key={exercise.id}
+            /* El ancla del índice de la sesión (`ClientRoutine`), y solo
+               registrando: programando hay hojas de varios días montadas a la
+               vez y dos anclas iguales no son un ancla. */
+            id={canEditStructure ? undefined : `ej-${exercise.id}`}
             className={[
               'exercise',
               /* Registrando, el ejercicio es una FICHA en columna —nombre arriba,
@@ -565,6 +578,7 @@ export const ExerciseList = ({
                         previous={previousSets?.get(previousSetKey(exercise.name, setIndex))}
                         record={setIndex === recordSetIndex(exercise, bestSets)}
                         onConfirm={onConfirmSet ? (antes) => onConfirmSet(exercise.id, setIndex, antes) : null}
+                        onClear={onClearSet ? () => onClearSet(exercise.id, setIndex) : null}
                       />
                       {remate && (
                         <p className="set-remate" title={tecnicaSpec(remate.id)?.ayuda}>
