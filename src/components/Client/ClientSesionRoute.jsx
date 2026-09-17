@@ -196,7 +196,25 @@ export const ClientSesionRoute = () => {
   }
 
   const protocolo = clientProtocol(activeClient.preferences);
-  const showRir = isModuleOn(protocolo, 'rir');
+  /*
+    ══ EL RIR LO DECIDE EL CONTENIDO, y no solo el interruptor ═══════════════
+
+    Esto era `isModuleOn(protocolo, 'rir')` a secas, y ahí estaba la avería: la
+    hoja del entrenador dejó de pedirle permiso al protocolo —«la columna está
+    si algo de esta hoja la usa», ver `camposDeLaHoja`—, así que puede abrir la
+    columna a mano y pautar el RIR con el módulo apagado. Del otro lado seguía
+    el interruptor, de modo que lo pautado no se veía y tampoco había casilla
+    para anotarlo: el entrenador escribía contra una pantalla ciega.
+
+    Ahora es la misma regla en los dos sitios. El módulo sigue valiendo para
+    quien programa así siempre: deja la casilla puesta aunque esta sesión no
+    pida ningún RIR.
+  */
+  const showRir =
+    isModuleOn(protocolo, 'rir') ||
+    daySession.exercises.some((ex) =>
+      (ex.sets || []).some((s) => String(s?.targetRir ?? '').trim() !== '')
+    );
 
   /*
     Escribir una serie. La PRIMERA de un día crea la sesión y devuelve su id;
@@ -337,6 +355,8 @@ export const ClientSesionRoute = () => {
              ella: dos referencias distintas, y ninguna tapa a la otra. */
           pideKg: Number(set.targetKg) > 0 ? String(set.targetKg) : null,
           pideReps: String(set.targetReps ?? '').trim() || null,
+          /* El RIR pautado, que antes no salía de aquí. Ver `objetivoDeSerie`. */
+          pideRir: String(set.targetRir ?? '').trim() || null,
           antesKg: previo?.kg ? String(previo.kg) : null,
           antesReps: previo?.reps ? String(previo.reps) : null,
           antesRir: previo && String(previo.rir ?? '') !== '' ? String(previo.rir) : null,

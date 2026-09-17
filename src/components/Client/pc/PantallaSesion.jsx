@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { miles } from '@/lib/dates';
-import { serieEnCorto, siguientePorHacer } from '../sesion';
+import { objetivoDeSerie, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Boton } from './Piezas';
 
 /**
@@ -136,9 +136,7 @@ export const PantallaSesion = ({ datos }) => {
                       {i + 1}
                       {s.hecha ? <span aria-label="hecha"> ✓</span> : null}
                     </span>
-                    <span className="pc-puesto-obj">
-                      {[s.pideKg ? `${s.pideKg} kg` : null, s.pideReps].filter(Boolean).join(' × ') || '—'}
-                    </span>
+                    <span className="pc-puesto-obj">{objetivoDeSerie(s) || '—'}</span>
                     <input
                       className="pc-puesto-dato"
                       type="number"

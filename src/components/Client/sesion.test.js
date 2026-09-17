@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   contraQueTeMides,
+  objetivoDeSerie,
   pasoDelCampo,
   porEjercicio,
   recordsDeLaSesion,
@@ -73,6 +74,27 @@ describe('serieEnCorto', () => {
     expect(serieEnCorto({ kg: '82.5', reps: '8' })).toBe('82,5 kg · 8');
     expect(serieEnCorto({ kg: '', reps: '12' })).toBe('12 reps');
     expect(serieEnCorto({ kg: '80', reps: '' })).toBe('—');
+  });
+});
+
+describe('objetivoDeSerie', () => {
+  it('dice el RIR pautado, que es lo que no le llegaba al cliente', () => {
+    expect(objetivoDeSerie({ pideKg: '80', pideReps: '8-10', pideRir: '2' })).toBe(
+      '80 kg × 8-10 · RIR 2'
+    );
+    /* Y «RIR 0» es una pauta —al fallo—, no un campo vacío. */
+    expect(objetivoDeSerie({ pideReps: '5', pideRir: '0' })).toBe('5 · RIR 0');
+  });
+
+  it('en corto se calla los kilos y no el RIR', () => {
+    expect(objetivoDeSerie({ pideKg: '80', pideReps: '8-10', pideRir: '2' }, { conKg: false })).toBe(
+      '8-10 · RIR 2'
+    );
+  });
+
+  it('sin nada pautado no hay objetivo que decir', () => {
+    expect(objetivoDeSerie({ pideKg: null, pideReps: null, pideRir: null })).toBeNull();
+    expect(objetivoDeSerie(undefined)).toBeNull();
   });
 });
 

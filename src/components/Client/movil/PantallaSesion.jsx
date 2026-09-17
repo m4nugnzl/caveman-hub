@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
-import { pasoDelCampo, serieEnCorto, siguientePorHacer } from '../sesion';
+import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Descanso } from './Descanso';
 
 /**
@@ -225,10 +225,8 @@ export const PantallaSesion = ({ datos }) => {
                 <div key={i} className="tel-ses-viva">
                   <div className="tel-ses-viva-cab">
                     <span className="tel-ses-idx">Serie {i + 1}</span>
-                    {s.pideReps || s.pideKg ? (
-                      <span className="tel-ses-obj">
-                        objetivo {[s.pideKg ? `${s.pideKg} kg` : null, s.pideReps].filter(Boolean).join(' × ')}
-                      </span>
+                    {objetivoDeSerie(s) ? (
+                      <span className="tel-ses-obj">objetivo {objetivoDeSerie(s)}</span>
                     ) : null}
                   </div>
 
@@ -321,7 +319,9 @@ export const PantallaSesion = ({ datos }) => {
               >
                 <span className="tel-ses-idx">Serie {i + 1}</span>
                 <span className="tel-ses-res">
-                  {s.pideReps ? `objetivo ${s.pideReps}` : '—'}
+                  {objetivoDeSerie(s, { conKg: false })
+                    ? `objetivo ${objetivoDeSerie(s, { conKg: false })}`
+                    : '—'}
                 </span>
               </button>
             );
@@ -387,7 +387,9 @@ const resumenDeSerie = (s, showRir) =>
 /** «objetivo 8-10 · la última vez 45 kg · 8», para lo que viene después. */
 const metaDeSerie = (s) =>
   [
-    s?.pideReps ? `objetivo ${s.pideReps}` : null,
+    objetivoDeSerie(s, { conKg: false })
+      ? `objetivo ${objetivoDeSerie(s, { conKg: false })}`
+      : null,
     s?.antesReps ? `la última vez ${serieEnCorto({ kg: s.antesKg, reps: s.antesReps })}` : null,
   ]
     .filter(Boolean)

@@ -503,7 +503,17 @@ export const mapNutritionToDb = (clientId, data) => {
   const dias = data.days?.length ? data.days : null;
   const primero = dias?.[0] || null;
   const segundo = dias?.[1] || null;
-  const objetivo = (dia, campo, porDefecto) => (dia ? dia.targets?.[campo] ?? null : porDefecto);
+  /*
+    `numerico` es el guardián de la frontera, y está aquí porque la columna es
+    `numeric`: una casilla vacía viaja como `''` desde cualquier formulario y
+    Postgres rechaza la fila ENTERA con «invalid input syntax for type numeric»,
+    así que un macro sin poner tumbaba el guardado del objetivo de kcal. Lo
+    normaliza `setDayTargets` en el dominio; esto es el cinturón, y además deja
+    pasar lo que ya estuviera en cola de escritura con el `''` dentro.
+  */
+  const numerico = (v) => (v === '' || v === undefined ? null : v);
+  const objetivo = (dia, campo, porDefecto) =>
+    numerico(dia ? dia.targets?.[campo] ?? null : porDefecto);
 
   return {
     client_id: clientId,

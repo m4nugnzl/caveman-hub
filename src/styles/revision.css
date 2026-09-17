@@ -4566,6 +4566,10 @@ button.objetivo:active { transform: scale(0.994); }
 .resumen-lado {
   display: flex; flex-direction: column; gap: var(--s5); min-width: 0;
 }
+/* «Para empezar»: el Resumen de quien aún no tiene historia es UNA lista de
+   cinco filas, no un mosaico. A todo el ancho, el rótulo de cada fila y su
+   verbo quedaban a un metro; la medida es la de «El plan» con aire. */
+.resumen-arranque { max-width: 36rem; }
 /* ── Aquí vivió `.resumen-trabajo` ─────────────────────────────────────────
    La pila con la que el portal del cliente heredaba la FORMA del Resumen del
    entrenador sin heredar su rejilla. Se ha ido con el rediseño del 14 de

@@ -1003,7 +1003,10 @@ body:has(.pc-portal) .app-header { display: none; }
   align-items: center;
   font-size: 15px;
 }
-.pc-puesto-filas.pc-con-rir .pc-puesto-fila { grid-template-columns: 56px 72px 96px 96px 80px minmax(0, 1fr); }
+/* Con RIR entran dos cosas en la fila: su casilla, y el RIR PAUTADO dentro de
+   «Obj» —«80 kg × 8-10 · RIR 2»—. En 72 px eso se parte en tres renglones y
+   descuadra la tabla, así que la columna del objetivo crece con la variante. */
+.pc-puesto-filas.pc-con-rir .pc-puesto-fila { grid-template-columns: 56px 132px 96px 96px 80px minmax(0, 1fr); }
 .pc-puesto-fila.pc-cab span {
   font-size: 10px;
   font-weight: 700;

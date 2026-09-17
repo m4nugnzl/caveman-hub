@@ -2,8 +2,9 @@ import { Suspense, useMemo, useState } from 'react';
 
 import { useApp } from '@/context/AppContext';
 import { buildWeeklySeries, metricPoints, weekOverWeek } from '@/domain/analytics';
-import { weeklyCheckIn } from '@/domain/anthropometry';
+import { weeklyCheckIn, weightSeries } from '@/domain/anthropometry';
 import { clientCycleSlots } from '@/domain/blocks';
+import { allSessions } from '@/domain/sessions';
 import { cycleFoto } from '@/domain/nutrition';
 import { clientProtocol, isServiceOn, weighInsTarget } from '@/domain/protocol';
 import { goalFromDirection } from '@/domain/goals';
@@ -16,6 +17,7 @@ import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { useOculto } from '@/components/Client/Oculto';
+import { TarjetaArranque } from './TarjetaArranque';
 import { TarjetaComoVa } from './TarjetaComoVa';
 import { TarjetaDesde } from './TarjetaDesde';
 import { TarjetaCuerpo } from './TarjetaCuerpo';
@@ -131,7 +133,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
     entrenador: el cliente ya lee tus cambios en su semana) y lo que CONTESTA
     cada semana, que sí es suyo y lo ve. Es una sola consulta para las dos.
   */
-  const { rows: revisiones, checkIns } = useReviewRows(activeClient?.id);
+  const { rows: revisiones, checkIns, cargando: cargandoRevisiones } = useReviewRows(activeClient?.id);
   /*
     ══ Y LA ESCALERA TAMBIÉN ES SUYA ═════════════════════════════════════════
 
@@ -242,6 +244,84 @@ export const Dashboard = ({ audience = 'coach' }) => {
   /* Donde el coach anota un pesaje: la revisión, con su alta de registros.
      Solo coach — el vacío del portal habla del check-in, no de esta puerta. */
   const aPesaje = isClient ? null : clientPath(activeClient.id, 'revision');
+
+  const ventanas = (
+    <Suspense fallback={null}>
+      {ventana === 'fases' && <FasesPopup open onClose={() => setVentana(null)} audience={audience} />}
+      {ventana === 'cuerpo' && (
+        <PanelCuerpo
+          open
+          onClose={() => setVentana(null)}
+          serie={serie}
+          track={track}
+          checkIns={checkIns}
+          protocol={protocol}
+          history={history}
+          pesoActual={pesoActual}
+          trend={trend}
+          goal={goal}
+          isClient={isClient}
+          pregunta={preguntaVentana}
+        />
+      )}
+      {ventana === 'entreno' && (
+        <PanelEntreno
+          open
+          onClose={() => setVentana(null)}
+          program={program}
+          microcycles={microcycles}
+          cycleType={activeClient.cycleType}
+          latestWeek={latestWeek}
+          protocol={protocol}
+          isClient={isClient}
+          pregunta={preguntaVentana}
+        />
+      )}
+    </Suspense>
+  );
+
+  /*
+    ══ SIN NADA QUE RESUMIR, EL RESUMEN ES LO QUE FALTA POR MONTAR ═══════════
+
+    A un cliente recién dado de alta no le ha pasado nada: el mosaico eran siete
+    cajas vacías. Mientras no haya sesiones, check-ins entregados, fotos ni dos
+    pesajes —con uno solo no hay curva ni cambio que contar—, la página es la
+    lista de «Para empezar». Ver `TarjetaArranque`.
+
+    Solo el entrenador: el portal monta este panel en «Mi progreso», que es una
+    lectura, y a él no se le pide montar nada.
+
+    Mientras el programa o los check-ins no han llegado no se sabe, y no se
+    pinta nada: si no, un cliente con historia vería la lista un instante antes
+    de sus tarjetas, y uno nuevo las tarjetas vacías antes de la lista.
+  */
+  const sinHistoria =
+    !isClient &&
+    allSessions(microcycles).length === 0 &&
+    weightSeries(history).length < 2 &&
+    !checkIns.some((c) => c.submittedAt) &&
+    !(progressPhotos || []).some((p) => p.clientId === activeClient.id);
+
+  if (sinHistoria) {
+    if (program === undefined || cargandoRevisiones) return null;
+    return (
+      <>
+        <div className="resumen-pagina">
+          <TarjetaArranque
+            client={activeClient}
+            phases={phases}
+            plan={plan}
+            ciclo={fotoDelCiclo}
+            program={program}
+            conEntreno={conEntreno}
+            conDieta={conDieta}
+            onAbrirFases={() => abrirVentana('fases')}
+          />
+        </div>
+        {ventanas}
+      </>
+    );
+  }
 
   return (
     /*
@@ -401,38 +481,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
       </div>
       </div>
 
-      <Suspense fallback={null}>
-        {ventana === 'fases' && <FasesPopup open onClose={() => setVentana(null)} audience={audience} />}
-        {ventana === 'cuerpo' && (
-          <PanelCuerpo
-            open
-            onClose={() => setVentana(null)}
-            serie={serie}
-            track={track}
-            checkIns={checkIns}
-            protocol={protocol}
-            history={history}
-            pesoActual={pesoActual}
-            trend={trend}
-            goal={goal}
-            isClient={isClient}
-            pregunta={preguntaVentana}
-          />
-        )}
-        {ventana === 'entreno' && (
-          <PanelEntreno
-            open
-            onClose={() => setVentana(null)}
-            program={program}
-            microcycles={microcycles}
-            cycleType={activeClient.cycleType}
-            latestWeek={latestWeek}
-            protocol={protocol}
-            isClient={isClient}
-            pregunta={preguntaVentana}
-          />
-        )}
-      </Suspense>
+      {ventanas}
     </>
   );
 };

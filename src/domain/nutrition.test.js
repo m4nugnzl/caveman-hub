@@ -2556,6 +2556,22 @@ describe('los objetivos de los micros', () => {
     expect(out.targetKcals).toBe(2400);
   });
 
+  /* La avería del 17 de septiembre: poner 1600 kcal sin tocar los macros
+     mandaba `''` a tres columnas `numeric` y Postgres tumbaba la fila entera
+     con «invalid input syntax for type numeric». El objetivo no se guardaba. */
+  it('un macro en blanco se guarda como null y no como cadena vacía', () => {
+    const out = setDayTargets(emptyNutrition(), 'default', {
+      targetKcals: '1600',
+      proteinGrams: '',
+      carbsGrams: '',
+      fatsGrams: '',
+    });
+    expect(out.targetKcals).toBe('1600');
+    expect(out.proteinGrams).toBe(null);
+    expect(out.carbsGrams).toBe(null);
+    expect(out.fatsGrams).toBe(null);
+  });
+
   it('el objetivo del día viaja con el día al leerlo', () => {
     const con = setDayTargets(emptyNutrition(), 'default', { fiberGrams: 30, saltGrams: 5 });
     const leido = targetsFor(con, con.days[0].id);

@@ -399,11 +399,17 @@ export const setDayMeals = (nutrition, dayId, meals) => {
  * la lista se materializa cuando hace falta, y no antes.
  */
 export const setDayTargets = (nutrition, dayId, fields) => {
-  /* Un micro en blanco es «no lo pautas», y eso se escribe como `null` y no como
-     la cadena vacía: `soloTargets` solo deja pasar los que tienen valor, así que
-     un `''` guardado sería una clave muerta en el jsonb de todos los días. */
+  /* Una casilla en blanco es «no lo pautas», y eso se escribe como `null` y no
+     como la cadena vacía. Dos motivos, uno por destino:
+       · en el jsonb de `days`, `soloTargets` solo deja pasar lo que tiene valor,
+         así que un `''` guardado sería una clave muerta en todos los días;
+       · en las columnas de siempre —`target_kcals`, `protein_grams`…— el `''`
+         llega tal cual a una columna `numeric` y la escritura ENTERA se cae con
+         «invalid input syntax for type numeric». Poner 1600 kcal sin tocar los
+         macros no guardaba nada: los tres macros iban vacíos en el formulario.
+     Las cuatro del envase y las cuatro del objetivo, por lo mismo. */
   const limpio = { ...(fields || {}) };
-  for (const k of MICRO_TARGET_FIELDS) {
+  for (const k of [...TARGET_FIELDS, ...MICRO_TARGET_FIELDS]) {
     if (k in limpio && (limpio[k] === '' || limpio[k] === undefined)) limpio[k] = null;
   }
   const pide = MICRO_TARGET_FIELDS.some((k) => limpio[k] !== null && limpio[k] !== undefined);

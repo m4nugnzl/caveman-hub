@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dumbbell, FileText, Salad, Scale, Send } from 'lucide-react';
 
@@ -20,7 +20,10 @@ import {
 import { clientWeek } from '@/domain/week';
 import { localeNumber, miles, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
+import { lazyRoute } from '@/lib/lazyRoute';
 import { Modal } from '@/components/ui/Modal';
+import { Loading } from '@/components/ui/primitives';
+import { HojaDePortal } from './ClientLayout';
 import { IntakeDeliverables } from './IntakeDeliverables';
 import { useAvisos } from './useAvisos';
 import { useDondeEstas } from './useDondeEstas';
@@ -28,6 +31,13 @@ import { ejerciciosConMarca, sesionDeHoy, tiraDeLaSemana } from './hoy';
 import { useOculto } from './Oculto';
 import { PantallaHoy as HoyEnMonitor } from './pc/PantallaHoy';
 import { PantallaHoy as HoyEnTelefono } from './movil/PantallaHoy';
+
+/* El alta va diferida, como su propia ruta (`/mi/alta` en `App`): se enseña la
+   primera semana de cada cliente y no tiene por qué pesar en la portada de las
+   demás. Es el mismo trozo para las dos entradas. */
+const ClientOnboarding = lazyRoute(() =>
+  import('./ClientOnboarding').then((m) => ({ default: m.ClientOnboarding }))
+);
 
 /**
  * LA PORTADA DEL CLIENTE — la capa de DATOS de las dos «Hoy».
@@ -257,6 +267,43 @@ export const ClientStart = () => {
         }
       : null,
   ].filter(Boolean);
+
+  /*
+    ══ SI EL ALTA ES LO ÚNICO QUE HAY, «HOY» ES EL ALTA ═══════════════════════
+    A quien acaba de entrar sin plan, la portada le enseñaba cuatro teselas que
+    no salían, «Lo de hoy» sin filas y un aviso con «Seguir» que llevaba a otra
+    pantalla. Su única tarea es contarle de sí mismo a su entrenador, así que se
+    le pone delante y ya. En cuanto haya algo más —un plan, una sesión, algo que
+    le hayan mandado o dicho—, vuelve la portada con el aviso encima.
+
+    Lo que su entrenador le dejó preparado al empezar solo tiene puerta en la
+    portada, así que viaja con el alta: sin eso, quien tiene un vídeo de
+    bienvenida se quedaría sin forma de llegar a él justo la primera semana.
+  */
+  const soloElAlta =
+    altaPendiente &&
+    !laSesion &&
+    !aMedias &&
+    !ofreceNueva &&
+    !dieta &&
+    total.sesiones === 0 &&
+    !(semana?.sessions?.planned > 0) &&
+    mandados.length === 0 &&
+    avisos.length === 0 &&
+    !respuesta;
+
+  if (soloElAlta) {
+    return (
+      <HojaDePortal>
+        <Suspense fallback={<Loading />}>
+          <div className="stack">
+            <ClientOnboarding />
+            <IntakeDeliverables client={activeClient} />
+          </div>
+        </Suspense>
+      </HojaDePortal>
+    );
+  }
 
   const kcalVisible = !oculto.nutrition && dieta?.kcal > 0;
   const pesoVisible = !oculto.weight && pesajes.length > 0;

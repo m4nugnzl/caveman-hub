@@ -317,8 +317,12 @@ export const CuerpoDelAlta = ({ form, borrador = {}, onChange }) => {
   const cuerpo = useRef(null);
   /* El primer render no desplaza nada: al abrir la pantalla nadie ha pedido ir
      a ninguna parte, y traer el formulario a la vista al montarlo movería una
-     página que la persona acaba de abrir por arriba. */
-  const montado = useRef(false);
+     página que la persona acaba de abrir por arriba.
+
+     Se compara con el capítulo de antes y no con una marca de «ya montado»: el
+     efecto corre DOS veces al montar en `StrictMode`, la marca ya estaba puesta
+     en la segunda y la página abría 887 px más abajo, en el cuestionario. */
+  const capituloVisto = useRef(indice);
 
   const tandas = formSections(form);
   /* El índice sobrevive a que el formulario cambie debajo —en el ensayo, el
@@ -328,10 +332,8 @@ export const CuerpoDelAlta = ({ form, borrador = {}, onChange }) => {
   const conCapitulos = tandas.length > 1;
 
   useEffect(() => {
-    if (!montado.current) {
-      montado.current = true;
-      return;
-    }
+    if (capituloVisto.current === i) return;
+    capituloVisto.current = i;
     traeALaVista(cuerpo.current, { block: 'start', behavior: 'smooth' });
   }, [i]);
 

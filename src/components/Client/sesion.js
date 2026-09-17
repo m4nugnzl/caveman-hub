@@ -81,6 +81,36 @@ export const siguientePorHacer = (series, desde = -1) => {
   return -1;
 };
 
+/**
+ * LO QUE TE PIDEN EN UNA SERIE: «80 kg × 8-10 · RIR 2», o `null` si no se pauta
+ * nada.
+ *
+ * ── Por qué está aquí y no en cada pantalla ───────────────────────────────
+ * El RIR pautado NO LLEGABA al cliente. El entrenador lo escribe por serie
+ * (`targetRir`) y su hoja lo dice pegado al rango de repeticiones —«100 kg ·
+ * 6-8 · RIR 2», ver `SetCell`—, pero las dos pantallas del cliente armaban el
+ * objetivo a mano con solo `pideKg` y `pideReps`, cada una en su sitio: el
+ * teléfono en tres, el monitor en uno. Cuatro copias de la misma frase y
+ * ninguna con el RIR. Ahora la frase es una y la leen las dos.
+ *
+ * El `×` entre kilos y repeticiones es el de la hoja del cliente y se queda: el
+ * `·` de esa hoja separa lo de la última vez. El RIR va detrás con `·`, que es
+ * donde lo pone el entrenador cuando lo escribe.
+ *
+ * `conKg` es para las filas en corto —una serie sin abrir, o lo que viene
+ * después del descanso—, que ya decían solo el rango de repeticiones y siguen
+ * diciéndolo: ahí el objetivo es una pista de un renglón, no la ficha.
+ *
+ * @param {{ pideKg?: string|null, pideReps?: string|null, pideRir?: string|null }} s
+ */
+export const objetivoDeSerie = (s, { conKg = true } = {}) =>
+  [
+    [conKg && s?.pideKg ? `${s.pideKg} kg` : null, s?.pideReps].filter(Boolean).join(' × ') || null,
+    s?.pideRir ? `RIR ${s.pideRir}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ') || null;
+
 /** «80 kg · 8» — una serie dicha en corto; sin kilos es «8 reps». */
 export const serieEnCorto = ({ kg, reps }) => {
   const k = toNum(kg);
