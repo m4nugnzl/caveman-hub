@@ -1,0 +1,1166 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El arranque, en pantalla</title>
+<meta name="description" content="Prototipo navegable del sistema de guía, pistas con demo viva y ayuda para el entrenador nuevo, dibujado sobre la interfaz real de Caveman Hub, con alternativas para cada pieza.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..800;1,62..125,400..600&display=swap">
+<style>
+/* ──────────────────────────────────────────────────────────────────────────
+   Tokens del producto («Papel y señal», src/styles/tokens.css). La página
+   enseña la app, así que usa sus colores y no otros.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --canvas: #f7f6f2; --mesa: #edebe3; --surface: #ffffff; --sunken: #f2f0e9;
+  --fill-subtle: #f5f3ed; --fill: #eceae1; --fill-strong: #dfdbcd;
+  --hairline: #e7e3d9; --hairline-2: #cfc9bb; --edge-control: #ddd8ca;
+  --text: #191713; --text-2: #514d45; --text-3: #706c62;
+  --accent: #3b49df; --accent-hover: #2f3ac2; --accent-soft: rgba(59,73,223,.08); --accent-wash: rgba(59,73,223,.10); --on-accent: #fff;
+  --luz: rgba(59,73,223,.07);
+  --brasa: #c4452e; --brasa-soft: rgba(196,69,46,.1);
+  --ok: #10774c; --warn: #a4530e; --warn-soft: rgba(164,83,14,.12);
+  --sh-control: 0 1px 1px rgba(38,32,20,.06);
+  --sh-sm: 0 1px 2px rgba(38,32,20,.06), 0 14px 30px -22px rgba(38,32,20,.55);
+  --sh-md: 0 6px 20px -8px rgba(38,32,20,.16), 0 1px 3px rgba(38,32,20,.06);
+  --sh-float: 0 10px 28px -8px rgba(38,32,20,.22), 0 2px 6px rgba(38,32,20,.08);
+  --r-sm: 9px; --r-md: 14px; --r-lg: 20px; --r-control: 8px; --r-pill: 999px;
+  --sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2,.7,.2,1);
+  /* tinta de la barra (`.barra-tinta`) */
+  --tinta: #1a1e27; --tinta-2: #232936; --tinta-fill: rgba(214,224,244,.085); --tinta-fill-s: rgba(214,224,244,.045);
+  --tinta-hair: rgba(214,224,244,.08); --tinta-text: #e9ecf2; --tinta-text-2: #a2a9b7; --tinta-text-3: #8b93a3;
+  --tinta-accent: #5b8df7; --tinta-accent-soft: rgba(91,141,247,.14);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { color-scheme: dark;
+  --canvas: #090b0e; --mesa: #090b0e; --surface: #1c2027; --sunken: #14171c;
+  --fill-subtle: rgba(214,224,244,.045); --fill: rgba(214,224,244,.085); --fill-strong: rgba(214,224,244,.145);
+  --hairline: rgba(214,224,244,.08); --hairline-2: rgba(214,224,244,.17); --edge-control: #66707e;
+  --text: #e9ecf2; --text-2: #a7aebb; --text-3: #8b93a3;
+  --accent: #5b8df7; --accent-hover: #7da5f9; --accent-soft: rgba(91,141,247,.14); --accent-wash: rgba(91,141,247,.22); --on-accent: #10131a;
+  --luz: rgba(91,141,247,.09);
+  --brasa: #ec6a52; --brasa-soft: rgba(236,106,82,.14);
+  --ok: #45c98c; --warn: #f0a35c; --warn-soft: rgba(240,163,92,.14);
+  --sh-control: 0 1px 1px rgba(0,0,0,.4);
+  --sh-sm: 0 1px 3px rgba(0,0,0,.45); --sh-md: 0 4px 16px -4px rgba(0,0,0,.55); --sh-float: 0 14px 34px -10px rgba(0,0,0,.65);
+} }
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #090b0e; --mesa: #090b0e; --surface: #1c2027; --sunken: #14171c;
+  --fill-subtle: rgba(214,224,244,.045); --fill: rgba(214,224,244,.085); --fill-strong: rgba(214,224,244,.145);
+  --hairline: rgba(214,224,244,.08); --hairline-2: rgba(214,224,244,.17); --edge-control: #66707e;
+  --text: #e9ecf2; --text-2: #a7aebb; --text-3: #8b93a3;
+  --accent: #5b8df7; --accent-hover: #7da5f9; --accent-soft: rgba(91,141,247,.14); --accent-wash: rgba(91,141,247,.22); --on-accent: #10131a;
+  --luz: rgba(91,141,247,.09);
+  --brasa: #ec6a52; --brasa-soft: rgba(236,106,82,.14);
+  --ok: #45c98c; --warn: #f0a35c; --warn-soft: rgba(240,163,92,.14);
+  --sh-control: 0 1px 1px rgba(0,0,0,.4);
+  --sh-sm: 0 1px 3px rgba(0,0,0,.45); --sh-md: 0 4px 16px -4px rgba(0,0,0,.55); --sh-float: 0 14px 34px -10px rgba(0,0,0,.65);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--canvas); color: var(--text); font-family: var(--sans); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); }
+h1, h2, h3, h4 { margin: 0; line-height: 1.15; letter-spacing: -0.015em; font-weight: 600; }
+p { margin: 0; }
+button { font: inherit; color: inherit; }
+svg.i { width: 1em; height: 1em; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+.k { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-3); }
+.muted { color: var(--text-2); }
+
+/* ── Cabecera de la página ──────────────────────────────────────────────── */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--hairline); }
+.top .marca { font-weight: 700; letter-spacing: .06em; font-size: 13px; text-transform: uppercase; }
+.top nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.top nav a, .chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: var(--r-control); background: var(--fill); color: var(--text-2); text-decoration: none; font-size: 13px; font-weight: 500; border: 0; cursor: pointer; }
+.top nav a:hover, .chip:hover { color: var(--text); background: var(--fill-strong); }
+.chip[aria-pressed="true"], .chip.on { background: var(--text); color: var(--canvas); }
+.chip .i { font-size: 14px; }
+
+.hero { padding: 56px 0 28px; max-width: 760px; }
+.hero h1 { font-size: clamp(34px, 5vw, 54px); font-weight: 700; letter-spacing: -0.03em; margin: 8px 0 14px; }
+.hero .lead { font-size: 18px; color: var(--text-2); }
+.hero .como { margin-top: 22px; display: grid; gap: 6px; font-size: 14.5px; color: var(--text-2); }
+.hero .como b { color: var(--text); font-weight: 600; }
+
+/* ── Cada pantalla ──────────────────────────────────────────────────────── */
+.sec { padding: 48px 0 8px; border-top: 1px solid var(--hairline); }
+.sec-head { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: start; margin-bottom: 18px; }
+.sec-head .n { font-family: var(--mono); font-size: 13px; color: var(--text-3); padding-top: 8px; }
+.sec-head h2 { font-size: clamp(22px, 2.6vw, 30px); font-weight: 700; letter-spacing: -0.025em; }
+.sec-head .lead { margin-top: 8px; font-size: 16px; color: var(--text-2); max-width: 70ch; }
+
+.mandos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 0 0 12px 68px; }
+.mandos .grupo { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mandos .grupo > .k { margin-right: 4px; }
+.mandos .ampliar { margin-left: auto; }
+
+.marco { position: relative; width: 100%; aspect-ratio: 1280 / 820; overflow: hidden; border-radius: 16px; background: var(--mesa); box-shadow: var(--sh-md); border: 1px solid var(--hairline); }
+.marco > .app { position: absolute; left: 0; top: 0; width: 1280px; height: 820px; transform: scale(var(--k, 1)); transform-origin: 0 0; }
+
+.notas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0 40px 68px; }
+.nota { background: var(--surface); border-radius: var(--r-md); padding: 16px 18px; box-shadow: var(--sh-sm); font-size: 14px; color: var(--text-2); display: grid; gap: 6px; align-content: start; }
+.nota h3 { font-size: 15px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.nota .letra { font-family: var(--mono); font-size: 11px; background: var(--fill); padding: 2px 7px; border-radius: 6px; color: var(--text-2); }
+.nota.elegida { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nota.elegida h3::after { content: 'La que elegiría'; margin-left: auto; font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.nota ul { margin: 0; padding-left: 18px; }
+.nota li + li { margin-top: 3px; }
+
+/* ── Cierre ─────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); font-weight: 500; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.tabla-wrap { overflow-x: auto; margin-left: 68px; }
+.cierre { padding: 36px 0 80px; }
+.cierre p.lead { font-size: 16px; color: var(--text-2); max-width: 70ch; margin: 0 0 18px 68px; }
+footer { padding: 24px 0 60px; font-size: 13px; color: var(--text-3); border-top: 1px solid var(--hairline); }
+
+/* ── La lupa: el marco a tamaño real ────────────────────────────────────── */
+.lupa { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.6); display: none; align-items: center; justify-content: center; padding: 20px; }
+.lupa.on { display: flex; }
+.lupa .caja { width: min(1280px, 100%); }
+.lupa .caja > .marco { box-shadow: 0 40px 100px -20px rgba(0,0,0,.6); }
+.lupa .cerrar { position: absolute; top: 14px; right: 14px; height: 36px; padding: 0 12px; border-radius: var(--r-control); background: #fff; color: #191713; border: 0; cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA APP, dibujada. Todo lo que sigue vive dentro de `.app` y usa el
+   vocabulario del producto: barra de tinta, mesa, hoja, tarjeta, banda vacía.
+   ══════════════════════════════════════════════════════════════════════════ */
+.app { display: flex; gap: 0; background: var(--mesa); font-size: 14px; color: var(--text); line-height: 1.45; overflow: hidden; }
+.app *, .app *::before, .app *::after { box-sizing: border-box; }
+.app .oculto { display: none !important; }
+
+/* La barra de tinta: un objeto despegado de los cantos. */
+.barra { width: 256px; flex-shrink: 0; margin: 12px 0 12px 12px; border-radius: var(--r-lg); background: var(--tinta); color: var(--tinta-text); padding: 14px 12px 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.25), 0 14px 30px -22px rgba(0,0,0,.6); }
+.barra .brand { display: flex; align-items: center; gap: 10px; padding: 6px 10px 10px; font-family: var(--sans); font-stretch: 112%; font-weight: 700; letter-spacing: .14em; font-size: 12.5px; }
+.barra .brand .logo { display: flex; align-items: flex-end; gap: 2px; height: 18px; }
+.barra .brand .logo i { display: block; width: 4px; background: #fff; border-radius: 1px; }
+.barra .brand .logo i:nth-child(1) { height: 8px; } .barra .brand .logo i:nth-child(2) { height: 13px; } .barra .brand .logo i:nth-child(3) { height: 18px; background: var(--brasa); }
+.barra .buscar { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: var(--r-control); background: rgba(214,224,244,.06); border: 1px solid rgba(214,224,244,.12); color: var(--tinta-text-3); font-size: 13.5px; }
+.barra .buscar kbd { margin-left: auto; font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border-radius: 5px; border: 1px solid rgba(214,224,244,.18); color: var(--tinta-text-2); }
+.barra nav { display: flex; flex-direction: column; gap: 2px; }
+.barra .link { display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: var(--r-md); font-size: 14px; font-weight: 600; color: var(--tinta-text-2); }
+.barra .link .i { font-size: 16px; color: var(--tinta-text-3); }
+.barra .link.on { background: var(--tinta-fill); color: var(--tinta-text); }
+.barra .link.on .i { color: var(--tinta-text); }
+.barra .cnt { margin-left: auto; min-width: 24px; height: 18px; line-height: 18px; text-align: center; padding: 0 8px; border-radius: var(--r-pill); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--tinta-text-3); }
+.barra .cnt.pend { background: var(--tinta-accent); color: #10131a; }
+.barra .grupo { display: flex; align-items: center; padding: 14px 14px 6px; font-size: 12.5px; font-weight: 600; color: var(--tinta-text-3); }
+.barra .grupo .cnt { padding: 0; min-width: 0; }
+.barra .persona { display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 36px; border-radius: var(--r-md); font-size: 13.5px; font-weight: 500; color: var(--tinta-text-2); }
+.barra .persona.on { background: var(--tinta-fill); color: var(--tinta-text); }
+.barra .persona .sem { margin-left: auto; font-size: 11.5px; font-family: var(--mono); color: var(--tinta-text-3); }
+.barra .nadie { padding: 6px 14px 10px; font-size: 13px; color: var(--tinta-text-3); }
+.barra .nadie b { display: block; color: var(--tinta-text-2); font-weight: 500; }
+.barra .aire { flex: 1 1 auto; }
+.barra .pie { display: flex; align-items: center; gap: 10px; padding: 10px 8px 4px; border-top: 1px solid var(--tinta-hair); }
+.barra .pie .av { width: 32px; height: 32px; border-radius: 999px; background: #e9d7f1; color: #5a2d70; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; }
+.barra .pie b { display: block; font-size: 14px; font-weight: 600; }
+.barra .pie small { display: block; font-size: 12px; color: var(--tinta-text-3); }
+.barra .pie .i { margin-left: auto; color: var(--tinta-text-3); }
+
+/* La guía en la barra (alternativa A de la pantalla 1) */
+.guia-barra { margin: 4px 2px 6px; padding: 12px 12px 10px; border-radius: var(--r-md); background: var(--tinta-2); border: 1px solid rgba(214,224,244,.09); display: grid; gap: 6px; }
+.guia-barra .k { color: var(--tinta-text-3); display: flex; align-items: center; gap: 6px; }
+.guia-barra .k .i { font-size: 13px; color: var(--tinta-accent); }
+.guia-barra .k span:last-child { margin-left: auto; letter-spacing: 0; }
+.guia-barra .paso { font-size: 14px; font-weight: 600; color: var(--tinta-text); line-height: 1.25; }
+.guia-barra .por { font-size: 12.5px; color: var(--tinta-text-2); line-height: 1.35; }
+.guia-barra .tramos { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px; margin-top: 4px; }
+.guia-barra .tramos i { display: block; height: 3px; border-radius: 2px; background: rgba(214,224,244,.16); }
+.guia-barra .tramos i.hecho { background: var(--tinta-accent); }
+.guia-barra .hacer { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 13.5px; font-weight: 600; color: var(--tinta-accent); }
+.guia-barra .hacer .i { font-size: 14px; }
+
+/* La mesa y la hoja */
+.mesa { flex: 1 1 auto; min-width: 0; margin: 12px; border-radius: var(--r-lg); background: var(--canvas); box-shadow: var(--sh-sm); overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.hoja { padding: 28px 36px 36px; flex: 1 1 auto; overflow: hidden; position: relative; }
+.saludo { font-size: 42px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.05; }
+.fecha { margin-top: 10px; font-size: 13.5px; color: var(--text-2); }
+.regla { height: 1px; background: var(--hairline); margin: 20px 0 22px; position: relative; }
+.regla::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px; background-image: repeating-linear-gradient(90deg, var(--hairline-2) 0 1px, transparent 1px 32px); opacity: .8; }
+
+.card { background: var(--surface); border-radius: var(--r-md); box-shadow: var(--sh-sm); padding: 20px 22px; }
+.card.lumbre { background-image: radial-gradient(120% 90% at 0% 0%, var(--luz), transparent 55%); }
+.card .rot { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.card .rot small { font-size: 12.5px; font-weight: 400; color: var(--text-2); }
+.card .rot a { margin-left: auto; font-size: 13.5px; font-weight: 600; text-decoration: none; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: var(--r-control); border: 0; background: var(--fill); color: var(--text); font-size: 14px; font-weight: 500; letter-spacing: -0.01em; white-space: nowrap; cursor: default; }
+.btn.primary { background: var(--accent); color: var(--on-accent); box-shadow: var(--sh-control); }
+.btn.plain { background: transparent; color: var(--accent); padding: 0 9px; }
+.btn.ghost { background: var(--surface); border: 1px solid var(--edge-control); box-shadow: var(--sh-control); }
+.campo { height: 36px; flex: 1 1 auto; border-radius: var(--r-control); border: 1px solid var(--edge-control); background: var(--surface); box-shadow: inset 0 1px 1px rgba(38,32,20,.04); padding: 0 12px; display: flex; align-items: center; color: var(--text-3); font-size: 14px; }
+.badge { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--r-pill); background: var(--fill); font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+.badge.warn { background: var(--warn-soft); color: var(--warn); }
+
+/* La invitación de Inicio (M0) */
+.arranque { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: start; padding: 26px 28px 24px; }
+.arranque h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-top: 6px; }
+.arranque .que { margin-top: 8px; color: var(--text-2); font-size: 14.5px; max-width: 46ch; }
+.arranque .fila { display: flex; gap: 8px; margin-top: 18px; max-width: 440px; }
+.arranque .despues { margin-top: 14px; font-size: 13px; color: var(--text-3); max-width: 50ch; }
+.arranque .salidas { display: grid; gap: 8px; align-content: start; padding-left: 26px; border-left: 1px solid var(--hairline); }
+.arranque .salidas .k { margin-bottom: 4px; }
+.salida { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--sunken); font-size: 13.5px; font-weight: 500; }
+.salida .i { font-size: 15px; color: var(--accent); }
+.salida small { margin-left: auto; font-size: 12px; color: var(--text-3); font-weight: 400; }
+
+/* La guía en Inicio (alternativa B): la escalera */
+.guia-inicio { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; padding: 0; overflow: hidden; margin-bottom: 16px; }
+.guia-inicio .p { padding: 14px 16px 14px; border-right: 1px solid var(--hairline); font-size: 13px; color: var(--text-3); display: grid; gap: 4px; align-content: start; }
+.guia-inicio .p:last-child { border-right: 0; }
+.guia-inicio .p b { font-size: 13.5px; font-weight: 600; color: var(--text-2); line-height: 1.25; }
+.guia-inicio .p .num { font-family: var(--mono); font-size: 11px; display: flex; align-items: center; gap: 6px; }
+.guia-inicio .p.ahora { background: var(--accent-soft); }
+.guia-inicio .p.ahora b { color: var(--text); }
+.guia-inicio .p.ahora .num { color: var(--accent); }
+.guia-inicio .p.hecho .num { color: var(--ok); }
+.guia-inicio .p.hecho b { text-decoration: line-through; text-decoration-color: var(--hairline-2); }
+.guia-linea { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 14px; }
+.guia-linea .i { color: var(--text-2); font-size: 16px; }
+.guia-linea a { font-weight: 600; text-decoration: none; }
+.guia-linea .x { margin-left: auto; color: var(--text-3); }
+
+/* Colas (M1, M5) */
+.colas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+.cola { padding: 18px 20px 16px; }
+.cola.on { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
+.cola .t { font-size: 14.5px; font-weight: 600; }
+.cola .cifra { display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+.cola .cifra b { font-size: 42px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+.cola .cifra span { font-size: 13px; color: var(--text-2); }
+.cola .verbo { display: block; margin-top: 10px; color: var(--accent); font-weight: 600; font-size: 14px; }
+.al-dia { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--text-2); margin: 4px 0 18px; }
+.al-dia .i { color: var(--ok); }
+.tarea { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--hairline); }
+.tarea:first-child { border-top: 0; }
+.av { width: 34px; height: 34px; border-radius: 999px; background: #dbe8ee; color: #23515f; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; flex-shrink: 0; }
+.av.b { background: #eee3c8; color: #5d4a12; } .av.c { background: #e9d7f1; color: #5a2d70; }
+.tarea .quien b { display: block; font-size: 15px; font-weight: 600; }
+.tarea .quien span { font-size: 12.5px; color: var(--text-2); }
+.tarea .i { margin-left: auto; color: var(--text-3); }
+
+/* Cabecera del cliente y pestañas */
+.cab { padding: 22px 36px 0; border-bottom: 1px solid var(--hairline); }
+.cab .quien { display: flex; align-items: center; gap: 12px; }
+.cab .quien .av { width: 40px; height: 40px; font-size: 13px; }
+.cab .nombre { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.cab .meta { font-size: 14px; color: var(--text-2); margin-left: 6px; }
+.cab .cobro { margin-left: auto; }
+.tabs { display: flex; gap: 26px; margin-top: 14px; }
+.tab { position: relative; padding: 3px 0 12px; font-size: 15px; color: var(--text-2); font-weight: 500; }
+.tab.on { color: var(--accent); font-weight: 600; }
+.tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px; }
+.tab .punto { position: absolute; top: 2px; right: -9px; width: 6px; height: 6px; border-radius: 999px; background: var(--brasa); }
+.cab .ayuda { margin-left: auto; align-self: flex-start; width: 30px; height: 30px; border-radius: var(--r-control); display: grid; place-items: center; color: var(--text-3); background: transparent; }
+.cab .ayuda.on { background: var(--accent-wash); color: var(--accent); }
+.cab .ayuda .i { font-size: 17px; }
+
+/* El vacío de Entreno */
+.vacio { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 16px; align-items: center; padding: 22px 24px; }
+.vacio .azulejo { width: 40px; height: 40px; border-radius: var(--r-md); background: var(--fill); display: grid; place-items: center; color: var(--text-2); grid-row: 1 / -1; }
+.vacio .azulejo .i { font-size: 20px; }
+.vacio h3 { font-size: 18px; font-weight: 600; }
+.vacio p { grid-column: 2; font-size: 14px; color: var(--text-2); max-width: 62ch; }
+.vacio .acciones { grid-column: 3; grid-row: 1 / -1; display: flex; gap: 8px; align-items: center; }
+.vacio .despues { grid-column: 2; margin-top: 6px; font-size: 13px; color: var(--text-3); }
+
+/* El vacío que enseña (alternativa C) */
+.vacio.ensena { grid-template-columns: minmax(0, 1fr) 380px; gap: 8px 32px; align-items: center; padding: 26px 28px; }
+.vacio.ensena .azulejo { display: none; }
+.vacio.ensena h3 { font-size: 22px; letter-spacing: -0.02em; }
+.vacio.ensena p, .vacio.ensena .despues { grid-column: 1; }
+.vacio.ensena .acciones { grid-column: 1; grid-row: auto; margin-top: 10px; }
+.vacio.ensena .demo-col { grid-column: 2; grid-row: 1 / span 4; }
+.vacio.ensena .demo-col .pie { display: flex; gap: 10px; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--text-3); }
+.vacio.ensena .demo-col .pie u { color: var(--accent); text-decoration: none; font-weight: 600; white-space: nowrap; }
+
+/* La hoja de Entreno con contenido (pantalla 3) */
+.bl { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
+.bl-cab { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: var(--sh-sm); font-size: 14px; }
+.bl-cab .migas { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.bl-cab .migas b { color: var(--text); font-size: 16px; font-weight: 600; }
+.bl-cab .mas { color: var(--accent); font-weight: 600; }
+.bl-cab .badge { margin-left: auto; }
+.bl-ciclos { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--hairline); border-top: 1px solid var(--hairline); font-size: 13.5px; }
+.mc { height: 30px; padding: 0 12px; border-radius: var(--r-control); display: inline-flex; align-items: center; gap: 6px; background: var(--fill); font-weight: 600; font-size: 13px; }
+.mc.on { background: var(--surface); box-shadow: 0 0 0 1.5px var(--accent); color: var(--accent); }
+.mc.on i { width: 6px; height: 6px; border-radius: 999px; background: var(--brasa); }
+.bl-ciclos .mas { color: var(--accent); font-weight: 600; margin-left: 4px; }
+.dias { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 16px 14px; background: var(--sunken); border-radius: 0 0 var(--r-md) var(--r-md); }
+.dia { background: var(--surface); border-radius: var(--r-md); padding: 16px 16px 14px; box-shadow: var(--sh-sm); }
+.dia h4 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.dia .sub { font-size: 12.5px; color: var(--text-2); margin: 4px 0 10px; }
+.dia .sub b { color: var(--ok); font-weight: 500; }
+.ej { padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 14px; }
+.ej .n { font-weight: 500; }
+.ej .s { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; color: var(--text-2); font-variant-numeric: tabular-nums; margin-top: 1px; }
+.ej .s > span { margin-left: 8px; }
+.ej .s b { color: var(--text); font-weight: 600; }
+.dia .mas { display: block; margin-top: 10px; color: var(--accent); font-weight: 600; font-size: 14px; }
+.lat .card + .card { margin-top: 16px; }
+.lat .rot { font-size: 14px; }
+.lat .cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.lat .cifras b { display: block; font-size: 26px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+.lat .cifras span { font-size: 12.5px; color: var(--text-2); }
+.termino { text-decoration: underline dotted var(--hairline-2); text-underline-offset: 3px; }
+
+/* ══ LA PISTA ══════════════════════════════════════════════════════════════
+   Tres formas. Todas llevan la misma demo viva dentro. */
+.pista { position: absolute; z-index: 5; }
+.pista .cabeza { display: flex; align-items: center; gap: 8px; }
+.pista .cabeza .k { color: inherit; opacity: .7; }
+.pista .cabeza .x { margin-left: auto; opacity: .6; font-size: 15px; }
+.pista .texto { font-size: 14px; line-height: 1.4; margin-top: 4px; }
+.pista .texto b { font-weight: 600; }
+.pista .pie { display: flex; align-items: center; gap: 12px; margin-top: 8px; font-size: 12.5px; }
+.pista .pie u { text-decoration: none; font-weight: 600; }
+.pista .pie span { opacity: .65; }
+.pista .pie .otra { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+
+/* A · nota anclada: tinta, con su punta */
+.pista.anclada { width: 420px; padding: 14px 16px 12px; border-radius: var(--r-md); background: var(--text); color: var(--canvas); box-shadow: var(--sh-float); left: 532px; top: 160px; }
+.pista.anclada::before { content: ''; position: absolute; top: -7px; left: 331px; width: 14px; height: 14px; background: var(--text); transform: rotate(45deg); border-radius: 2px; }
+.pista.anclada .pie u { color: #fff; }
+:root[data-theme="dark"] .pista.anclada .pie u { color: #10131a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pista.anclada .pie u { color: #10131a; } }
+.pista.anclada .demo { margin-top: 10px; }
+
+/* B · tarjeta de esquina: papel, abajo a la derecha */
+.pista.esquina { width: 380px; right: 24px; bottom: 24px; padding: 16px 18px 14px; border-radius: var(--r-md); background: var(--surface); color: var(--text); box-shadow: var(--sh-float); border: 1px solid var(--hairline); }
+.pista.esquina .cabeza .k { color: var(--text-3); opacity: 1; }
+.pista.esquina .texto { color: var(--text-2); }
+.pista.esquina .texto b { color: var(--text); }
+.pista.esquina .demo { margin-top: 12px; }
+.pista.esquina .pie u { color: var(--accent); }
+.pista.esquina .pie span { color: var(--text-3); opacity: 1; }
+.pista.esquina .pie .otra { color: var(--accent); }
+
+/* La marca de «aquí», solo en B: un anillo sobre el botón al que se refiere */
+.anillo { position: absolute; z-index: 4; left: 812px; top: 52px; width: 116px; height: 36px; border-radius: 8px; box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--accent-soft); pointer-events: none; animation: anillo 2.4s var(--ease) infinite; }
+@keyframes anillo { 0%, 100% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 6px var(--accent-soft); } 50% { box-shadow: 0 0 0 2px var(--accent), 0 0 0 10px transparent; } }
+
+/* La conmutación de alternativas y momentos */
+.marco[data-alt="A"] .solo-b, .marco[data-alt="A"] .solo-c { display: none !important; }
+.marco[data-alt="B"] .solo-a, .marco[data-alt="B"] .solo-c { display: none !important; }
+.marco[data-alt="C"] .solo-a, .marco[data-alt="C"] .solo-b, .marco[data-alt="C"] .no-c { display: none !important; }
+.marco[data-m="0"] .m:not(.m0), .marco[data-m="1"] .m:not(.m1), .marco[data-m="5"] .m:not(.m5) { display: none !important; }
+.marco[data-demo="off"] .ventana { display: none !important; }
+
+/* ══ LA DEMO VIVA ══════════════════════════════════════════════════════════
+   Réplica en miniatura de Entreno, animada con CSS. Los valores por defecto
+   son el ÚLTIMO fotograma: con movimiento reducido se ve el resultado. */
+.demo { position: relative; background: var(--canvas); color: var(--text); border-radius: 10px; padding: 10px 12px; height: 188px; overflow: hidden; border: 1px solid var(--hairline); font-size: 12px; }
+.demo .d-tabs { display: flex; gap: 14px; font-size: 11.5px; color: var(--text-2); padding-bottom: 6px; border-bottom: 1px solid var(--hairline); }
+.demo .d-tabs .on { color: var(--accent); font-weight: 600; position: relative; }
+.demo .d-tabs .on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -7px; height: 2px; background: var(--accent); }
+.demo .d-vacio, .demo .d-bloque { position: absolute; left: 12px; right: 12px; top: 40px; }
+.demo .d-vacio { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--surface); border-radius: 8px; padding: 12px 12px; box-shadow: var(--sh-sm); opacity: 0; animation: d-vacio 8s linear infinite; }
+.demo .d-vacio b { font-size: 12.5px; font-weight: 600; }
+.demo .d-btn { background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 600; padding: 5px 9px; border-radius: 6px; white-space: nowrap; }
+.demo .d-bloque { background: var(--surface); border-radius: 8px; box-shadow: var(--sh-sm); overflow: hidden; animation: d-in 8s var(--ease) infinite; }
+.demo .d-bh { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--hairline); font-size: 11px; }
+.demo .d-chip { padding: 2px 7px; border-radius: 5px; background: var(--fill); font-weight: 600; }
+.demo .d-chip.on { background: var(--surface); box-shadow: 0 0 0 1px var(--accent); color: var(--accent); }
+.demo .d-bh .d-mas { margin-left: auto; color: var(--accent); font-weight: 600; }
+.demo .d-dia { padding: 8px 10px 6px; background: var(--sunken); animation: d-dia 8s var(--ease) infinite; }
+.demo .d-dia-t { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 4px; }
+.demo .d-fila { display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid var(--hairline); font-size: 11.5px; animation: d-f1 8s var(--ease) infinite; }
+.demo .d-fila.dos { animation-name: d-f2; }
+.demo .d-fila .d-serie { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.demo .d-fila .d-serie b { color: var(--text); }
+.demo .d-fila.tres { animation: none; border-top: 0; padding-top: 2px; color: var(--accent); font-weight: 600; }
+.demo .d-cursor { position: absolute; width: 18px; height: 18px; border-radius: 999px; border: 2px solid var(--accent); background: var(--accent-soft); left: calc(100% - 84px); top: 54px; opacity: 0; animation: d-cursor 8s var(--ease) infinite; pointer-events: none; }
+@keyframes d-vacio  { 0%, 22% { opacity: 1; } 26%, 100% { opacity: 0; } }
+@keyframes d-in     { 0%, 28% { opacity: 0; transform: translateY(6px); } 34%, 92% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; transform: none; } }
+@keyframes d-dia    { 0%, 42% { opacity: 0; transform: translateY(4px); } 48%, 100% { opacity: 1; transform: none; } }
+@keyframes d-f1     { 0%, 54% { opacity: 0; transform: translateX(-4px); } 60%, 100% { opacity: 1; transform: none; } }
+@keyframes d-f2     { 0%, 66% { opacity: 0; transform: translateX(-4px); } 72%, 100% { opacity: 1; transform: none; } }
+@keyframes d-cursor { 0% { opacity: 0; transform: translate(-120px, 60px); } 6% { opacity: 1; } 18% { transform: translate(0, 0) scale(1); } 21% { transform: translate(0, 0) scale(.7); } 24% { transform: translate(0, 0) scale(1); opacity: 1; } 30%, 100% { opacity: 0; transform: translate(0, 0); } }
+.demo.grande { height: 300px; font-size: 14px; padding: 16px 20px; }
+.demo.grande .d-tabs { font-size: 14px; gap: 22px; padding-bottom: 10px; }
+.demo.grande .d-vacio, .demo.grande .d-bloque { top: 58px; left: 20px; right: 20px; }
+.demo.grande .d-vacio { padding: 18px 18px; } .demo.grande .d-vacio b { font-size: 16px; }
+.demo.grande .d-btn { font-size: 13px; padding: 8px 12px; }
+.demo.grande .d-bh { font-size: 13px; padding: 10px 14px; }
+.demo.grande .d-dia { padding: 12px 14px 10px; } .demo.grande .d-dia-t { font-size: 20px; }
+.demo.grande .d-fila { font-size: 14px; padding: 6px 0; }
+.demo.grande .d-cursor { width: 24px; height: 24px; left: calc(100% - 110px); top: 78px; }
+@media (prefers-reduced-motion: reduce) { .demo *, .anillo { animation: none !important; } }
+
+/* La ventana de la demo de Inicio (20 s) */
+.ventana-velo { position: absolute; inset: 0; z-index: 8; background: rgba(25,23,19,.28); }
+.ventana { position: absolute; z-index: 9; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 720px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-float); padding: 22px 26px 20px; }
+.ventana .cabeza { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.ventana .cabeza h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.ventana .cabeza .x { margin-left: auto; color: var(--text-3); }
+.ventana .capitulos { display: flex; gap: 6px; margin-top: 14px; }
+.ventana .capitulos span { flex: 1; font-size: 12.5px; color: var(--text-3); padding-top: 8px; border-top: 2px solid var(--hairline); }
+.ventana .capitulos span.on { color: var(--accent); border-top-color: var(--accent); font-weight: 600; }
+.ventana .pie { display: flex; align-items: center; gap: 12px; margin-top: 16px; font-size: 13px; color: var(--text-3); }
+.ventana .pie .btn { margin-left: auto; }
+
+/* ══ LA AYUDA ══════════════════════════════════════════════════════════════ */
+.ayuda-velo { position: absolute; inset: 0; z-index: 8; background: rgba(25,23,19,.18); }
+.ayuda-hoja { position: absolute; z-index: 9; top: 12px; right: 12px; bottom: 12px; width: 372px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--sh-float); padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; overflow: hidden; }
+.ayuda-hoja .cabeza { display: flex; align-items: center; gap: 10px; }
+.ayuda-hoja .cabeza h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.ayuda-hoja .cabeza .x { margin-left: auto; color: var(--text-3); }
+.ayuda-hoja .para { font-size: 15px; color: var(--text-2); }
+.ayuda-hoja .bloque { display: grid; gap: 8px; }
+.ayuda-hoja .bloque .k { margin-bottom: 2px; }
+.ayuda-hoja .hace { display: grid; gap: 6px; font-size: 14px; }
+.ayuda-hoja .hace div { display: flex; gap: 10px; align-items: baseline; }
+.ayuda-hoja .hace i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--text-3); padding-top: 2px; }
+.ayuda-hoja .palabras { display: grid; gap: 6px; font-size: 13.5px; }
+.ayuda-hoja .palabras div { display: grid; grid-template-columns: 92px 1fr; gap: 10px; color: var(--text-2); }
+.ayuda-hoja .palabras b { color: var(--text); font-weight: 600; }
+.ayuda-hoja .demos { display: grid; gap: 8px; }
+.ayuda-hoja .demos .salida { background: var(--sunken); }
+.ayuda-hoja .demos .salida .i { font-size: 16px; }
+.ayuda-hoja .pie { margin-top: auto; font-size: 12.5px; color: var(--text-3); }
+.ayuda-pop { position: absolute; z-index: 9; top: 66px; right: 36px; width: 330px; background: var(--surface); border-radius: var(--r-md); box-shadow: var(--sh-float); border: 1px solid var(--hairline); padding: 16px 18px; display: grid; gap: 12px; font-size: 13.5px; }
+.ayuda-pop::before { content: ''; position: absolute; top: -6px; right: 14px; width: 12px; height: 12px; background: var(--surface); border-left: 1px solid var(--hairline); border-top: 1px solid var(--hairline); transform: rotate(45deg); }
+.ayuda-pop h3 { font-size: 16px; }
+.ayuda-pop .para { color: var(--text-2); }
+.ayuda-pop .lista { display: grid; gap: 4px; }
+.ayuda-pop .lista div { display: flex; gap: 8px; }
+.ayuda-pop .lista i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--text-3); padding-top: 2px; }
+.ayuda-pop .mas { display: flex; gap: 14px; font-size: 13px; padding-top: 8px; border-top: 1px solid var(--hairline); }
+.ayuda-pop .mas a { text-decoration: none; font-weight: 600; }
+
+/* ══ MÓVIL ═════════════════════════════════════════════════════════════════ */
+.telefonos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-left: 68px; }
+.tel { position: relative; width: 100%; aspect-ratio: 390 / 800; overflow: hidden; border-radius: 28px; background: var(--canvas); box-shadow: var(--sh-md); border: 1px solid var(--hairline); }
+.tel > .app-m { position: absolute; left: 0; top: 0; width: 390px; height: 800px; transform: scale(var(--k, 1)); transform-origin: 0 0; background: var(--canvas); color: var(--text); font-size: 14px; line-height: 1.45; display: flex; flex-direction: column; }
+.app-m *, .app-m *::before, .app-m *::after { box-sizing: border-box; }
+.app-m .cab-m { display: flex; align-items: center; gap: 10px; padding: 18px 18px 12px; }
+.app-m .cab-m .logo { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
+.app-m .cab-m .logo i { display: block; width: 3.5px; background: var(--text); border-radius: 1px; }
+.app-m .cab-m .logo i:nth-child(1) { height: 7px; } .app-m .cab-m .logo i:nth-child(2) { height: 11px; } .app-m .cab-m .logo i:nth-child(3) { height: 16px; background: var(--brasa); }
+.app-m .cab-m .marca-m { font-weight: 700; letter-spacing: .12em; font-size: 11.5px; font-stretch: 112%; }
+.app-m .cab-m .av { margin-left: auto; width: 30px; height: 30px; font-size: 10.5px; background: #e9d7f1; color: #5a2d70; }
+.app-m .cuerpo { flex: 1 1 auto; padding: 8px 16px 0; overflow: hidden; position: relative; }
+.app-m .saludo { font-size: 30px; }
+.app-m .fecha { margin-top: 6px; font-size: 13px; }
+.app-m .regla { margin: 16px 0; }
+.app-m .card { padding: 18px 18px; }
+.app-m .arranque { grid-template-columns: 1fr; gap: 14px; padding: 18px; }
+.app-m .arranque h2 { font-size: 20px; }
+.app-m .arranque .fila { flex-direction: column; margin-top: 12px; }
+.app-m .arranque .salidas { padding-left: 0; border-left: 0; border-top: 1px solid var(--hairline); padding-top: 14px; }
+.app-m .guia-m { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin-bottom: 12px; font-size: 13.5px; }
+.app-m .guia-m .i { color: var(--text-2); font-size: 16px; }
+.app-m .guia-m a { margin-left: auto; font-weight: 600; text-decoration: none; }
+.app-m .cab { padding: 0 0 0; border-bottom: 1px solid var(--hairline); }
+.app-m .cab .nombre { font-size: 19px; }
+.app-m .cab .quien .av { width: 34px; height: 34px; font-size: 11px; }
+.app-m .tabs { gap: 18px; margin-top: 10px; overflow: hidden; }
+.app-m .tab { font-size: 14px; padding-bottom: 10px; }
+.app-m .vacio { grid-template-columns: 1fr; gap: 10px; padding: 18px; justify-items: start; }
+.app-m .vacio .azulejo { grid-row: auto; }
+.app-m .vacio p, .app-m .vacio .despues { grid-column: 1; }
+.app-m .vacio .acciones { grid-column: 1; grid-row: auto; flex-wrap: wrap; }
+.app-m .pista.anclada { width: calc(100% - 32px); left: 16px; top: auto; bottom: 16px; }
+.app-m .pista.anclada::before { top: -7px; left: 30px; }
+.app-m .pista.anclada .demo { height: 176px; }
+.app-m .nav-m { flex-shrink: 0; display: grid; grid-template-columns: repeat(5, 1fr); padding: 8px 6px 18px; border-top: 1px solid var(--hairline); background: var(--surface); }
+.app-m .nav-m div { display: grid; justify-items: center; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--text-3); }
+.app-m .nav-m div .i { font-size: 20px; }
+.app-m .nav-m div.on { color: var(--accent); }
+.app-m .sheet-velo { position: absolute; inset: 0; background: rgba(25,23,19,.3); z-index: 8; }
+.app-m .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 9; background: var(--surface); border-radius: 22px 22px 0 0; padding: 10px 18px 26px; box-shadow: var(--sh-float); display: grid; gap: 14px; }
+.app-m .sheet .grip { width: 36px; height: 4px; border-radius: 2px; background: var(--hairline-2); margin: 0 auto 4px; }
+.app-m .sheet h3 { font-size: 18px; }
+.app-m .sheet .para { font-size: 14px; color: var(--text-2); }
+.app-m .sheet .bloque { display: grid; gap: 6px; }
+.app-m .sheet .hace { display: grid; gap: 5px; font-size: 13.5px; }
+.app-m .sheet .hace div { display: flex; gap: 8px; align-items: baseline; }
+.app-m .sheet .hace i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.app-m .sheet .palabras { display: grid; gap: 4px; font-size: 13px; color: var(--text-2); }
+.app-m .sheet .palabras b { color: var(--text); }
+.app-m .sheet .salida { font-size: 13px; }
+
+@media (max-width: 900px) {
+  .sec-head { grid-template-columns: 1fr; }
+  .sec-head .n { display: none; }
+  .mandos, .notas, .tabla-wrap, .telefonos, .cierre p.lead { margin-left: 0; }
+  .telefonos { grid-template-columns: 1fr; max-width: 390px; }
+}
+@media (max-width: 640px) {
+  .hero { padding-top: 32px; }
+  .mandos .ampliar { display: none; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.5a5 5 0 0 1 6 5"/></symbol>
+  <symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M15 14.5h3"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="m12.5 7.5 4 4"/></symbol>
+  <symbol id="i-shapes" viewBox="0 0 24 24"><circle cx="7" cy="17" r="3.5"/><rect x="13" y="13" width="7.5" height="7.5" rx="1"/><path d="m12 3 4 7H8z"/></symbol>
+  <symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="8" height="6" rx="1.5"/><rect x="14" y="14" width="7" height="6" rx="1.5"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.5v.2M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-updown" viewBox="0 0 24 24"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+  <symbol id="i-userplus" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3.5 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5M3 17.5 12 22l9-4.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+  <symbol id="i-replay" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+  <symbol id="i-sheet" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 12h16"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/></symbol>
+</svg>
+
+<header class="wrap top">
+  <span class="marca">Caveman Hub · Prototipo</span>
+  <nav aria-label="Pantallas">
+    <a href="#p1">1 · Inicio</a><a href="#p2">2 · La pista</a><a href="#p3">3 · La ayuda</a><a href="#p4">4 · Móvil</a><a href="#cierre">Qué elegiría</a>
+    <button class="chip" id="tema" aria-pressed="false" title="Cambiar tema"><svg class="i"><use href="#i-moon"/></svg> Hierro</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <p class="k">Prototipo · sobre la interfaz real · septiembre 2026</p>
+    <h1>El arranque, en pantalla</h1>
+    <p class="lead">El estudio decía qué hacer. Esto enseña cómo se vería: la app dibujada con sus tokens y su chasis, y en cada pantalla dos o tres formas de la misma pieza, para elegir mirando y no imaginando.</p>
+    <div class="como">
+      <p><b>Se toca.</b> Los mandos de encima de cada pantalla cambian el momento (sin clientes, con uno, en régimen) o la alternativa (A, B, C). «Ver otra vez» reinicia la demo viva. «Ampliar» abre la pantalla a tamaño real.</p>
+      <p><b>Es un dibujo, no la app.</b> No navega ni guarda. Lo que enseña es dónde va cada cosa, cuánto pesa y cómo se mueve. Los nombres de cliente que salen son de la maqueta, no datos que el producto sembraría: en la cuenta de un entrenador no hay nadie que él no haya puesto.</p>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="sec" id="p1">
+    <div class="sec-head">
+      <div class="n">P1</div>
+      <div>
+        <p class="k">Inicio · la guía</p>
+        <h2>El primer minuto, y cómo se enciende después</h2>
+        <p class="lead">Sin nadie, Inicio es una sola invitación: dar de alta a alguien en diez segundos, con dos salidas por si quiere mirar antes. Cuando hay una persona, aparece su cola. En régimen, la guía ya no está. Las dos alternativas son dónde vive la guía de cinco pasos.</p>
+      </div>
+    </div>
+    <div class="mandos">
+      <div class="grupo" role="group" aria-label="Momento"><span class="k">Momento</span>
+        <button class="chip" data-marco="m1" data-set="m" data-v="0" aria-pressed="true">Nadie todavía</button>
+        <button class="chip" data-marco="m1" data-set="m" data-v="1" aria-pressed="false">Un cliente, sin semana</button>
+        <button class="chip" data-marco="m1" data-set="m" data-v="5" aria-pressed="false">En régimen</button>
+      </div>
+      <div class="grupo" role="group" aria-label="La guía"><span class="k">La guía</span>
+        <button class="chip" data-marco="m1" data-set="alt" data-v="A" aria-pressed="true">A · en la barra</button>
+        <button class="chip" data-marco="m1" data-set="alt" data-v="B" aria-pressed="false">B · en Inicio, escalera</button>
+      </div>
+      <div class="grupo"><button class="chip" data-marco="m1" data-toggle="demo" aria-pressed="false"><svg class="i"><use href="#i-play"/></svg> Abrir la demo de 20 s</button></div>
+      <button class="chip ampliar" data-ampliar="m1"><svg class="i"><use href="#i-max"/></svg> Ampliar</button>
+    </div>
+
+    <div class="marco" id="m1" data-m="0" data-alt="A" data-demo="off">
+      <div class="app">
+        <aside class="barra">
+          <div class="brand"><span class="logo"><i></i><i></i><i></i></span>CAVEMAN HUB</div>
+          <div class="buscar"><svg class="i"><use href="#i-search"/></svg> Buscar <kbd>Ctrl K</kbd></div>
+          <nav>
+            <span class="link on"><svg class="i"><use href="#i-home"/></svg> Inicio <span class="cnt m m1 m5 pend"><span class="m m1">1</span><span class="m m5">4</span></span></span>
+            <span class="link"><svg class="i"><use href="#i-users"/></svg> Clientes <span class="cnt m m1">1</span><span class="cnt m m5">3</span></span>
+            <span class="link"><svg class="i"><use href="#i-wallet"/></svg> Cobros</span>
+            <span class="link"><svg class="i"><use href="#i-cal"/></svg> Agenda</span>
+          </nav>
+          <div class="grupo">Tus clientes <span class="cnt m m1">1</span><span class="cnt m m5">3</span></div>
+          <div class="nadie m m0"><b>Nadie todavía.</b> La primera persona que des de alta aparecerá aquí.</div>
+          <nav class="m m1 m5">
+            <span class="persona"><span>Marta García</span><span class="sem"><span class="m m1">sin plan</span><span class="m m5">M3</span></span></span>
+            <span class="persona m m5">Luis Ramos<span class="sem">M2</span></span>
+            <span class="persona m m5">Ana Vidal<span class="sem">M1</span></span>
+          </nav>
+          <div class="grupo">Tu taller</div>
+          <nav>
+            <span class="link"><svg class="i"><use href="#i-clip"/></svg> Protocolos</span>
+            <span class="link"><svg class="i"><use href="#i-edit"/></svg> Formularios</span>
+            <span class="link"><svg class="i"><use href="#i-shapes"/></svg> Librería</span>
+            <span class="link"><svg class="i"><use href="#i-layout"/></svg> Plantillas</span>
+          </nav>
+          <div class="aire"></div>
+          <div class="guia-barra solo-a m m0 m1">
+            <div class="k"><svg class="i"><use href="#i-compass"/></svg> Puesta en marcha <span><span class="m m0">1</span><span class="m m1">2</span> de 5</span></div>
+            <div class="paso"><span class="m m0">Da de alta a tu primer cliente</span><span class="m m1">Prográmale la semana a Marta</span></div>
+            <div class="por"><span class="m m0">Solo su nombre. Todo lo suyo cuelga de ahí.</span><span class="m m1">Dentro de Marta, en Entreno. Un bloque y su primera hoja.</span></div>
+            <div class="tramos"><i class="m m1 hecho"></i><i class="m m0"></i><i></i><i></i><i></i><i></i></div>
+            <span class="hacer"><span class="m m0">Dar de alta</span><span class="m m1">Ir a su Entreno</span> <svg class="i"><use href="#i-arrow"/></svg></span>
+          </div>
+          <div class="pie"><span class="av">ED</span><div><b>Entrenador</b><small>Entrenador</small></div><svg class="i"><use href="#i-updown"/></svg></div>
+        </aside>
+
+        <div class="mesa">
+          <div class="hoja">
+            <h1 class="saludo">Buenos días</h1>
+            <p class="fecha">Viernes, 18 de septiembre<span class="m m1"> · 1 cliente · 1 cosa por hacer</span><span class="m m5"> · 3 clientes · 4 cosas por hacer</span><span class="m m0"> · nadie todavía</span></p>
+            <div class="regla"></div>
+
+            <!-- Guía B: la escalera en Inicio -->
+            <div class="card guia-inicio solo-b m m0 m1">
+              <div class="p ahora m m0"><span class="num">01</span><b>Da de alta a tu primer cliente</b><span>Solo su nombre.</span></div>
+              <div class="p hecho m m1"><span class="num"><svg class="i"><use href="#i-check"/></svg> 01</span><b>Da de alta a tu primer cliente</b><span>Marta García</span></div>
+              <div class="p m m0"><span class="num">02</span><b>Prográmale la semana</b><span>En su Entreno.</span></div>
+              <div class="p ahora m m1"><span class="num">02</span><b>Prográmale la semana a Marta</b><span>En su Entreno.</span></div>
+              <div class="p"><span class="num">03</span><b>Mándale su enlace</b><span>Para que pueda entrar.</span></div>
+              <div class="p"><span class="num">04</span><b>Mira lo que verá</b><span>Su portal, con tus ojos.</span></div>
+              <div class="p"><span class="num">05</span><b>Cierra su primera revisión</b><span>Cuando entregue.</span></div>
+            </div>
+
+            <!-- M0: la invitación -->
+            <div class="card lumbre arranque m m0">
+              <div>
+                <p class="k">Tu primer cliente</p>
+                <h2>Dale de alta en diez segundos</h2>
+                <p class="que">Solo su nombre. Todo lo suyo, la rutina, la dieta, las medidas y las fotos, cuelga de ahí. Lo demás se rellena cuando haga falta.</p>
+                <div class="fila"><span class="campo">Nombre y apellidos</span><span class="btn primary"><svg class="i"><use href="#i-userplus"/></svg> Dar de alta</span></div>
+                <p class="despues">Después: le montas la semana en Entreno, le mandas su enlace, y aquí irá apareciendo lo que te toque con él.</p>
+              </div>
+              <div class="salidas">
+                <p class="k">Si prefieres mirar antes</p>
+                <span class="salida"><svg class="i"><use href="#i-play"/></svg> Ver cómo queda una semana montada <small>20 s</small></span>
+                <span class="salida"><svg class="i"><use href="#i-eye"/></svg> Ver lo que verá tu cliente <small>portal</small></span>
+              </div>
+            </div>
+
+            <p class="al-dia m m0" style="margin-top:18px"><svg class="i"><use href="#i-check"/></svg> Aquí irán apareciendo tus colas: por revisar, sin programar, sin señales, cobros. Cada una se enciende con su primer hecho.</p>
+
+            <!-- M1: una cola -->
+            <div class="m m1">
+              <div class="colas">
+                <div class="card cola on"><div class="t">Sin programar</div><div class="cifra"><b>1</b><span>no tiene semana montada</span></div><span class="verbo">Programar</span></div>
+                <div class="card cola" style="opacity:.55"><div class="t">Por revisar</div><div class="cifra"><b>0</b><span>cuando entregue su primera revisión</span></div></div>
+              </div>
+              <div class="al-dia"><svg class="i"><use href="#i-check"/></svg> Revisiones, respuestas y cobros, al día. Lo demás irá apareciendo aquí según pase.</div>
+              <div class="card" style="padding:6px 22px">
+                <div class="tarea"><span class="av">MG</span><div class="quien"><b>Marta García</b><span>dada de alta hoy · sin semana montada</span></div><span class="btn plain">Programar</span><svg class="i"><use href="#i-chev"/></svg></div>
+              </div>
+            </div>
+
+            <!-- M5: en régimen -->
+            <div class="m m5">
+              <div class="colas">
+                <div class="card cola on"><div class="t">Por revisar</div><div class="cifra"><b>2</b><span>te esperan</span></div><span class="verbo">Revisar</span></div>
+                <div class="card cola"><div class="t">Sin señales</div><div class="cifra"><b>1</b><span>lleva días sin entrenar</span></div><span class="verbo">Escribir</span></div>
+              </div>
+              <div class="al-dia"><svg class="i"><use href="#i-check"/></svg> Rutinas por montar y cobros, al día.</div>
+              <div class="grid3">
+                <div class="card" style="padding:6px 22px">
+                  <div class="tarea"><span class="av">MG</span><div class="quien"><b>Marta García <span class="badge warn">Te espera</span></b><span>3 pesajes · entrenó hace 1 d</span></div><svg class="i"><use href="#i-chev"/></svg></div>
+                  <div class="tarea"><span class="av b">LR</span><div class="quien"><b>Luis Ramos <span class="badge warn">Te espera</span></b><span>2 pesajes · entrenó hace 2 d</span></div><svg class="i"><use href="#i-chev"/></svg></div>
+                </div>
+                <div class="card"><div class="rot">Esta semana <small>3 revisiones</small></div><p class="muted" style="margin-top:10px;font-size:13.5px">Marta el jueves, Luis el viernes, Ana el sábado.</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- La demo de Inicio, en ventana -->
+          <div class="ventana-velo ventana"></div>
+          <div class="ventana" role="dialog" aria-label="Cómo queda una semana montada">
+            <div class="cabeza"><h3>Cómo queda una semana montada</h3><span class="muted" style="font-size:13px">20 s · sin datos de nadie</span><svg class="i x"><use href="#i-x"/></svg></div>
+            <div class="demo grande" aria-hidden="true">
+              <div class="d-tabs"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+              <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+              <div class="d-bloque">
+                <div class="d-bh"><span class="d-chip on">Bloque 1</span><span class="d-chip">M1 · en curso</span><span class="d-mas">+ hoja</span></div>
+                <div class="d-dia"><div class="d-dia-t">Lunes</div>
+                  <div class="d-fila"><span>Sentadilla</span><span class="d-serie"><b>3</b> × 5</span></div>
+                  <div class="d-fila dos"><span>Press banca</span><span class="d-serie"><b>3</b> × 8</span></div>
+                  <div class="d-fila tres"><span>+ ejercicio</span></div>
+                </div>
+              </div>
+              <div class="d-cursor"></div>
+            </div>
+            <div class="capitulos"><span class="on">1 · Abrir un bloque</span><span>2 · La hoja del lunes</span><span>3 · Lo que ve tu cliente</span><span>4 · Lo que te devuelve</span></div>
+            <div class="pie"><span>Se puede volver a ver desde la ayuda «?» de Inicio.</span><span class="btn primary"><svg class="i"><use href="#i-userplus"/></svg> Dar de alta a alguien</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notas">
+      <div class="nota elegida"><h3><span class="letra">A</span> La guía en la barra</h3>
+        <ul><li>Va contigo a todas partes: dentro de Marta sigue diciendo «prográmale la semana».</li><li>Ocupa el hueco vacío que la barra tiene mientras hay pocos clientes; se va cuando llegan.</li><li>Un paso a la vez, el que toca, con el botón que lleva a donde se hace.</li></ul>
+      </div>
+      <div class="nota"><h3><span class="letra">B</span> La escalera en Inicio</h3>
+        <ul><li>Se ven los cinco pasos y cuánto queda: da sensación de ruta.</li><li>Solo está en Inicio; al entrar en un cliente desaparece, que es justo cuando hace falta.</li><li>Cinco tareas a la vez cuando tres todavía no se pueden hacer.</li></ul>
+      </div>
+      <div class="nota"><h3>Lo que pasa en los tres momentos</h3>
+        <ul><li><b>Nadie:</b> una invitación y dos salidas. Ni colas ni tarjetas vacías.</li><li><b>Un cliente:</b> aparece la cola «Sin programar» con él dentro; la de al lado, apagada, dice cuándo se encenderá.</li><li><b>Régimen:</b> la guía ya no está y la pantalla es la de siempre.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="sec" id="p2">
+    <div class="sec-head">
+      <div class="n">P2</div>
+      <div>
+        <p class="k">Entreno · la pista con su demo viva</p>
+        <h2>Acabas de dar de alta a alguien y entras en su Entreno</h2>
+        <p class="lead">El vacío ya dice qué hacer y qué aparecerá después. La pista salta una sola vez, porque acaba de pasar algo (tu primer cliente), y enseña el gesto con una demo de ocho segundos en bucle. Tres formas de ponerla en la pantalla.</p>
+      </div>
+    </div>
+    <div class="mandos">
+      <div class="grupo" role="group" aria-label="La pista"><span class="k">La pista</span>
+        <button class="chip" data-marco="m2" data-set="alt" data-v="A" aria-pressed="true">A · nota anclada</button>
+        <button class="chip" data-marco="m2" data-set="alt" data-v="B" aria-pressed="false">B · tarjeta de esquina</button>
+        <button class="chip" data-marco="m2" data-set="alt" data-v="C" aria-pressed="false">C · dentro del vacío</button>
+      </div>
+      <div class="grupo"><button class="chip" data-replay="m2"><svg class="i"><use href="#i-replay"/></svg> Ver otra vez</button></div>
+      <button class="chip ampliar" data-ampliar="m2"><svg class="i"><use href="#i-max"/></svg> Ampliar</button>
+    </div>
+
+    <div class="marco" id="m2" data-alt="A">
+      <div class="app">
+        <aside class="barra">
+          <div class="brand"><span class="logo"><i></i><i></i><i></i></span>CAVEMAN HUB</div>
+          <div class="buscar"><svg class="i"><use href="#i-search"/></svg> Buscar <kbd>Ctrl K</kbd></div>
+          <nav>
+            <span class="link"><svg class="i"><use href="#i-home"/></svg> Inicio <span class="cnt pend">1</span></span>
+            <span class="link"><svg class="i"><use href="#i-users"/></svg> Clientes <span class="cnt">1</span></span>
+            <span class="link"><svg class="i"><use href="#i-wallet"/></svg> Cobros</span>
+            <span class="link"><svg class="i"><use href="#i-cal"/></svg> Agenda</span>
+          </nav>
+          <div class="grupo">Tus clientes <span class="cnt">1</span></div>
+          <nav><span class="persona on"><span>Marta García</span><span class="sem">sin plan</span></span></nav>
+          <div class="grupo">Tu taller</div>
+          <nav>
+            <span class="link"><svg class="i"><use href="#i-clip"/></svg> Protocolos</span>
+            <span class="link"><svg class="i"><use href="#i-edit"/></svg> Formularios</span>
+            <span class="link"><svg class="i"><use href="#i-shapes"/></svg> Librería</span>
+            <span class="link"><svg class="i"><use href="#i-layout"/></svg> Plantillas</span>
+          </nav>
+          <div class="aire"></div>
+          <div class="guia-barra">
+            <div class="k"><svg class="i"><use href="#i-compass"/></svg> Puesta en marcha <span>2 de 5</span></div>
+            <div class="paso">Prográmale la semana a Marta</div>
+            <div class="por">Estás en el sitio. Un bloque y su primera hoja.</div>
+            <div class="tramos"><i class="hecho"></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="pie"><span class="av">ED</span><div><b>Entrenador</b><small>Entrenador</small></div><svg class="i"><use href="#i-updown"/></svg></div>
+        </aside>
+
+        <div class="mesa">
+          <div class="cab">
+            <div class="quien"><span class="av">MG</span><span class="nombre">Marta García</span><span class="meta">Dada de alta hoy · sin plan</span><span class="ayuda"><svg class="i"><use href="#i-help"/></svg></span></div>
+            <div class="tabs"><span class="tab">Resumen</span><span class="tab on">Entreno</span><span class="tab">Dieta</span><span class="tab">Revisiones</span></div>
+          </div>
+          <div class="hoja">
+            <!-- A y B: la banda vacía de siempre -->
+            <div class="card lumbre vacio no-c" id="vacio-ab">
+              <span class="azulejo"><svg class="i"><use href="#i-layers"/></svg></span>
+              <h3>Móntale la primera semana</h3>
+              <p>Un bloque es la versión del plan que está puesta; dentro, sus microciclos y una hoja por día.</p>
+              <p class="despues">Cuando entrene, aquí verás lo que levantó al lado de lo que le pusiste.</p>
+              <div class="acciones"><span class="btn ghost">Desde una plantilla</span><span class="btn primary">Montar de cero</span></div>
+            </div>
+
+            <!-- C: el vacío que enseña -->
+            <div class="card lumbre vacio ensena solo-c">
+              <h3>Móntale la primera semana</h3>
+              <p>Un bloque es la versión del plan que está puesta; dentro, sus microciclos y una hoja por día. A la derecha, cómo se hace.</p>
+              <p class="despues">Cuando entrene, aquí verás lo que levantó al lado de lo que le pusiste. Esta demo solo se ve la primera vez.</p>
+              <div class="acciones"><span class="btn primary">Montar de cero</span><span class="btn ghost">Desde una plantilla</span></div>
+              <div class="demo-col">
+                <div class="demo" aria-hidden="true">
+                  <div class="d-tabs"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+                  <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+                  <div class="d-bloque">
+                    <div class="d-bh"><span class="d-chip on">Bloque 1</span><span class="d-chip">M1 · en curso</span><span class="d-mas">+ hoja</span></div>
+                    <div class="d-dia"><div class="d-dia-t">Lunes</div>
+                      <div class="d-fila"><span>Sentadilla</span><span class="d-serie"><b>3</b> × 5</span></div>
+                      <div class="d-fila dos"><span>Press banca</span><span class="d-serie"><b>3</b> × 8</span></div>
+                      <div class="d-fila tres"><span>+ ejercicio</span></div>
+                    </div>
+                  </div>
+                  <div class="d-cursor"></div>
+                </div>
+                <div class="pie"><span>Abres un bloque, eliges el día, apuntas cada ejercicio con sus series.</span><u>Ya lo sé</u></div>
+              </div>
+            </div>
+
+            <!-- A: nota anclada -->
+            <div class="pista anclada solo-a" role="note">
+              <div class="cabeza"><span class="k">Pista · 1 de 8</span><svg class="i x"><use href="#i-x"/></svg></div>
+              <div class="texto"><b>Aquí le montas la semana.</b> Abres un bloque, eliges el día y apuntas cada ejercicio con sus series.</div>
+              <div class="demo" aria-hidden="true">
+                <div class="d-tabs"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+                <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+                <div class="d-bloque">
+                  <div class="d-bh"><span class="d-chip on">Bloque 1</span><span class="d-chip">M1 · en curso</span><span class="d-mas">+ hoja</span></div>
+                  <div class="d-dia"><div class="d-dia-t">Lunes</div>
+                    <div class="d-fila"><span>Sentadilla</span><span class="d-serie"><b>3</b> × 5</span></div>
+                    <div class="d-fila dos"><span>Press banca</span><span class="d-serie"><b>3</b> × 8</span></div>
+                    <div class="d-fila tres"><span>+ ejercicio</span></div>
+                  </div>
+                </div>
+                <div class="d-cursor"></div>
+              </div>
+              <div class="pie"><u>Entendido</u><span>No vuelve a salir · está en «?»</span></div>
+            </div>
+
+            <!-- B: tarjeta de esquina + anillo -->
+            <div class="anillo solo-b"></div>
+            <div class="pista esquina solo-b" role="note">
+              <div class="cabeza"><span class="k">Pista · 1 de 8</span><svg class="i x"><use href="#i-x"/></svg></div>
+              <div class="texto"><b>Aquí le montas la semana.</b> Con el botón que está marcado abres un bloque; luego eliges el día y apuntas cada ejercicio con sus series.</div>
+              <div class="demo" aria-hidden="true">
+                <div class="d-tabs"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span><span>Revisiones</span></div>
+                <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+                <div class="d-bloque">
+                  <div class="d-bh"><span class="d-chip on">Bloque 1</span><span class="d-chip">M1 · en curso</span><span class="d-mas">+ hoja</span></div>
+                  <div class="d-dia"><div class="d-dia-t">Lunes</div>
+                    <div class="d-fila"><span>Sentadilla</span><span class="d-serie"><b>3</b> × 5</span></div>
+                    <div class="d-fila dos"><span>Press banca</span><span class="d-serie"><b>3</b> × 8</span></div>
+                    <div class="d-fila tres"><span>+ ejercicio</span></div>
+                  </div>
+                </div>
+                <div class="d-cursor"></div>
+              </div>
+              <div class="pie"><u>Entendido</u><span>1 de 8</span><span class="otra">Siguiente <svg class="i"><use href="#i-chev"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notas">
+      <div class="nota elegida"><h3><span class="letra">A</span> Nota anclada</h3>
+        <ul><li>Dice <em>dónde</em>: la punta señala el botón que resuelve la pista. Es la gramática de las notas del producto (tinta sobre papel).</li><li>Ocupa lo justo; el vacío de detrás sigue siendo el de siempre.</li><li>En móvil sube desde abajo, encima del botón, sin tapar la barra del pulgar.</li></ul>
+      </div>
+      <div class="nota"><h3><span class="letra">B</span> Tarjeta de esquina</h3>
+        <ul><li>Siempre en el mismo sitio, con «Siguiente»: es lo que hacen Linear o Notion.</li><li>Pierde el ancla; hace falta un anillo sobre el botón para recuperarla, y son dos cosas encendidas a la vez.</li><li>Empieza a parecer un tour, que es lo que se quería evitar.</li></ul>
+      </div>
+      <div class="nota"><h3><span class="letra">C</span> Dentro del vacío</h3>
+        <ul><li>Nada flota: el vacío enseña, la primera vez, y luego vuelve a ser una banda.</li><li>La más tranquila y la que más pesa: la banda pasa de 90 px a 240.</li><li>Solo vale para pistas cuyo hecho es «esto está vacío». Las otras cuatro con demo (portal, revisión, plantilla) no tienen vacío donde vivir.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="sec" id="p3">
+    <div class="sec-head">
+      <div class="n">P3</div>
+      <div>
+        <p class="k">Entreno · la ayuda «?»</p>
+        <h2>Semanas después: «¿qué era un microciclo?»</h2>
+        <p class="lead">La ayuda no salta: se pide. Un «?» en la cabecera de cada pantalla abre lo mismo siempre: para qué sirve, las tres cosas que se hacen aquí, las palabras de esta pantalla, y las demos de esta pantalla para verlas otra vez. Las palabras van además con subrayado punteado en la propia hoja.</p>
+      </div>
+    </div>
+    <div class="mandos">
+      <div class="grupo" role="group" aria-label="La ayuda"><span class="k">La ayuda</span>
+        <button class="chip" data-marco="m3" data-set="alt" data-v="A" aria-pressed="true">A · hoja lateral</button>
+        <button class="chip" data-marco="m3" data-set="alt" data-v="B" aria-pressed="false">B · desplegable bajo el «?»</button>
+        <button class="chip" data-marco="m3" data-set="alt" data-v="C" aria-pressed="false">Cerrada</button>
+      </div>
+      <button class="chip ampliar" data-ampliar="m3"><svg class="i"><use href="#i-max"/></svg> Ampliar</button>
+    </div>
+
+    <div class="marco" id="m3" data-alt="A">
+      <div class="app">
+        <aside class="barra">
+          <div class="brand"><span class="logo"><i></i><i></i><i></i></span>CAVEMAN HUB</div>
+          <div class="buscar"><svg class="i"><use href="#i-search"/></svg> Buscar <kbd>Ctrl K</kbd></div>
+          <nav>
+            <span class="link"><svg class="i"><use href="#i-home"/></svg> Inicio <span class="cnt pend">4</span></span>
+            <span class="link"><svg class="i"><use href="#i-users"/></svg> Clientes <span class="cnt">3</span></span>
+            <span class="link"><svg class="i"><use href="#i-wallet"/></svg> Cobros</span>
+            <span class="link"><svg class="i"><use href="#i-cal"/></svg> Agenda</span>
+          </nav>
+          <div class="grupo">Tus clientes <span class="cnt">3</span></div>
+          <nav>
+            <span class="persona on"><span>Marta García</span><span class="sem">M3</span></span>
+            <span class="persona">Luis Ramos<span class="sem">M2</span></span>
+            <span class="persona">Ana Vidal<span class="sem">M1</span></span>
+          </nav>
+          <div class="grupo">Tu taller</div>
+          <nav>
+            <span class="link"><svg class="i"><use href="#i-clip"/></svg> Protocolos</span>
+            <span class="link"><svg class="i"><use href="#i-edit"/></svg> Formularios</span>
+            <span class="link"><svg class="i"><use href="#i-shapes"/></svg> Librería</span>
+            <span class="link"><svg class="i"><use href="#i-layout"/></svg> Plantillas</span>
+          </nav>
+          <div class="aire"></div>
+          <div class="pie"><span class="av">ED</span><div><b>Entrenador</b><small>Entrenador</small></div><svg class="i"><use href="#i-updown"/></svg></div>
+        </aside>
+
+        <div class="mesa">
+          <div class="cab">
+            <div class="quien"><span class="av">MG</span><span class="nombre">Marta García</span><span class="meta">Microciclo 3 · en curso</span><span class="badge cobro">Renueva en 12 días</span><span class="ayuda no-c on" style="margin-left:10px"><svg class="i"><use href="#i-help"/></svg></span><span class="ayuda solo-c" style="margin-left:10px"><svg class="i"><use href="#i-help"/></svg></span></div>
+            <div class="tabs"><span class="tab">Resumen</span><span class="tab on">Entreno</span><span class="tab">Dieta</span><span class="tab">Revisiones<span class="punto"></span></span></div>
+          </div>
+          <div class="hoja">
+            <div class="bl">
+              <div>
+                <div class="bl-cab"><span class="migas"><svg class="i"><use href="#i-layers"/></svg> Bloques <svg class="i"><use href="#i-chev"/></svg> <b><span class="termino">Bloque 1</span></b></span><span class="mas">+ bloque</span><span class="badge">Abierto</span></div>
+                <div class="bl-ciclos"><span class="mc">M1</span><span class="mc">M2</span><span class="mc on"><span class="termino">M3</span><i></i> en curso</span><span class="mas">+ microciclo</span><span class="mas">+ <span class="termino">hoja</span></span></div>
+                <div class="dias">
+                  <div class="dia"><h4>Empuje</h4><div class="sub"><b>● hecha el lunes</b> · 12 series</div>
+                    <div class="ej"><div class="n">Press banca</div><div class="s"><b>4</b> × 6-8 <span>hizo 60 kg · 8·8·7·7</span></div></div>
+                    <div class="ej"><div class="n">Press militar</div><div class="s"><b>3</b> × 8-10 <span>hizo 32,5 kg</span></div></div>
+                    <div class="ej"><div class="n">Fondos</div><div class="s"><b>3</b> × 10-12</div></div>
+                    <span class="mas">+ ejercicio</span></div>
+                  <div class="dia"><h4>Tirón</h4><div class="sub"><b>● hecha el miércoles</b> · 12 series</div>
+                    <div class="ej"><div class="n">Dominadas</div><div class="s"><b>4</b> × 6-8 <span>hizo 8·7·6·6</span></div></div>
+                    <div class="ej"><div class="n">Remo con barra</div><div class="s"><b>3</b> × 8-10 <span>hizo 50 kg</span></div></div>
+                    <div class="ej"><div class="n">Curl con barra</div><div class="s"><b>3</b> × 10-12</div></div>
+                    <span class="mas">+ ejercicio</span></div>
+                  <div class="dia"><h4>Pierna</h4><div class="sub">○ aún no · 12 series</div>
+                    <div class="ej"><div class="n">Sentadilla</div><div class="s"><b>4</b> × 5 <span>antes 80 kg</span></div></div>
+                    <div class="ej"><div class="n">Peso muerto rumano</div><div class="s"><b>3</b> × 8</div></div>
+                    <div class="ej"><div class="n">Prensa</div><div class="s"><b>3</b> × 10-12</div></div>
+                    <span class="mas">+ ejercicio</span></div>
+                </div>
+              </div>
+              <div class="lat">
+                <div class="card"><div class="rot">Este bloque <small>desde el 1 sep</small></div><div class="cifras"><div><b>36</b><span>series por microciclo</span></div><div><b>92 %</b><span>de lo pautado</span></div></div></div>
+                <div class="card"><div class="rot">Volumen por microciclo</div><p class="muted" style="margin-top:8px;font-size:13px">pecho 7 · espalda 7 · cuádriceps 7 · hombro 3 · …</p></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- A: hoja lateral -->
+          <div class="ayuda-velo solo-a"></div>
+          <div class="ayuda-hoja solo-a" role="dialog" aria-label="Ayuda de Entreno">
+            <div class="cabeza"><h3>Entreno</h3><svg class="i x"><use href="#i-x"/></svg></div>
+            <p class="para">Aquí escribes lo que tiene que hacer cada día y ves, al lado, lo que hizo.</p>
+            <div class="bloque"><p class="k">Aquí se hace</p><div class="hace">
+              <div><i>01</i><span>Abrir un bloque y sus microciclos.</span></div>
+              <div><i>02</i><span>Escribir la hoja de cada día: ejercicios, series, repeticiones.</span></div>
+              <div><i>03</i><span>Leer lo que levantó, en gris al lado de lo que le pusiste.</span></div>
+            </div></div>
+            <div class="bloque"><p class="k">Las palabras de esta pantalla</p><div class="palabras">
+              <div><b>Bloque</b><span>La versión del plan que está puesta. Dura hasta que hay motivo para cambiarla.</span></div>
+              <div><b>Microciclo</b><span>Una semana del bloque. M3 es la tercera.</span></div>
+              <div><b>Hoja</b><span>El documento de un día: lo que toca hacer.</span></div>
+              <div><b>Fantasma</b><span>Lo que hizo la vez anterior, en gris, para comparar.</span></div>
+            </div></div>
+            <div class="bloque"><p class="k">Ver cómo se hace</p><div class="demos">
+              <span class="salida"><svg class="i"><use href="#i-play"/></svg> Montar la semana <small>8 s</small></span>
+              <span class="salida"><svg class="i"><use href="#i-play"/></svg> Guardar como plantilla <small>6 s</small></span>
+            </div></div>
+            <p class="pie">La misma ayuda desde el menú de cuenta › «Ayuda de esta pantalla».</p>
+          </div>
+
+          <!-- B: desplegable -->
+          <div class="ayuda-pop solo-b" role="dialog" aria-label="Ayuda de Entreno">
+            <div><h3>Entreno</h3><p class="para">Escribes lo que tiene que hacer cada día y ves, al lado, lo que hizo.</p></div>
+            <div class="lista">
+              <div><i>01</i><span>Abrir un bloque y sus microciclos.</span></div>
+              <div><i>02</i><span>Escribir la hoja de cada día.</span></div>
+              <div><i>03</i><span>Leer lo que levantó, en gris al lado.</span></div>
+            </div>
+            <div class="mas"><a>Las palabras (4)</a><a>Ver cómo se hace (2)</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notas">
+      <div class="nota elegida"><h3><span class="letra">A</span> Hoja lateral</h3>
+        <ul><li>Cabe todo sin plegar: el para qué, las tres acciones, las palabras y las demos.</li><li>La pantalla se queda detrás, visible: se lee la ayuda mirando lo que explica.</li><li>Es la misma pieza que en móvil sube desde abajo (<code>ui/Hoja</code>).</li></ul>
+      </div>
+      <div class="nota"><h3><span class="letra">B</span> Desplegable</h3>
+        <ul><li>Más ligero y más cerca del «?».</li><li>No caben las palabras ni las demos: hay que plegarlas en enlaces, y eso es un segundo clic para lo que más se pide.</li><li>Vale si la ayuda se reduce a tres líneas. No es el caso de Entreno.</li></ul>
+      </div>
+      <div class="nota"><h3>Las palabras en la hoja</h3>
+        <ul><li>«Bloque 1», «M3» y «hoja» llevan subrayado punteado: al pasar o tocar, una línea.</li><li>Sale del mismo catálogo que la hoja de ayuda: cada definición se escribe una vez.</li><li>Solo la primera vez que aparece la palabra en la pantalla, no en cada fila.</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="sec" id="p4">
+    <div class="sec-head">
+      <div class="n">P4</div>
+      <div>
+        <p class="k">Móvil · las mismas tres piezas</p>
+        <h2>En el teléfono todo sube desde abajo</h2>
+        <p class="lead">No hay barra lateral, así que la guía es una línea plegada en Inicio y una hoja desde «Más». La pista se ancla desde abajo, encima del botón y sin tapar la barra del pulgar. La ayuda es la hoja que ya existe. Las tres, con la elección de arriba.</p>
+      </div>
+    </div>
+    <div class="telefonos">
+      <div class="tel"><div class="app-m">
+        <div class="cab-m"><span class="logo"><i></i><i></i><i></i></span><span class="marca-m">CAVEMAN HUB</span><span class="av">ED</span></div>
+        <div class="cuerpo">
+          <h1 class="saludo">Buenos días</h1><p class="fecha">Viernes, 18 de septiembre · nadie todavía</p>
+          <div class="regla"></div>
+          <div class="card guia-m"><svg class="i"><use href="#i-compass"/></svg> Puesta en marcha · 1 de 5 <a>Ver</a></div>
+          <div class="card lumbre arranque">
+            <div><p class="k">Tu primer cliente</p><h2>Dale de alta en diez segundos</h2><p class="que">Solo su nombre. Todo lo suyo cuelga de ahí.</p>
+              <div class="fila"><span class="campo">Nombre y apellidos</span><span class="btn primary">Dar de alta</span></div>
+              <p class="despues">Después: le montas la semana, le mandas su enlace, y aquí irá apareciendo lo que te toque con él.</p></div>
+            <div class="salidas"><span class="salida"><svg class="i"><use href="#i-play"/></svg> Ver una semana montada <small>20 s</small></span><span class="salida"><svg class="i"><use href="#i-eye"/></svg> Ver lo que verá tu cliente</span></div>
+          </div>
+        </div>
+        <div class="nav-m"><div class="on"><svg class="i"><use href="#i-home"/></svg>Inicio</div><div><svg class="i"><use href="#i-users"/></svg>Clientes</div><div><svg class="i"><use href="#i-wallet"/></svg>Cobros</div><div><svg class="i"><use href="#i-cal"/></svg>Agenda</div><div><svg class="i"><use href="#i-more"/></svg>Más</div></div>
+      </div></div>
+
+      <div class="tel"><div class="app-m">
+        <div class="cab-m"><span class="logo"><i></i><i></i><i></i></span><span class="marca-m">CAVEMAN HUB</span><span class="av">ED</span></div>
+        <div class="cuerpo">
+          <div class="cab"><div class="quien"><span class="av">MG</span><span class="nombre">Marta García</span><span class="ayuda"><svg class="i"><use href="#i-help"/></svg></span></div>
+            <div class="tabs"><span class="tab">Resumen</span><span class="tab on">Entreno</span><span class="tab">Dieta</span><span class="tab">Revisiones</span></div></div>
+          <div class="card lumbre vacio" style="margin-top:16px">
+            <span class="azulejo"><svg class="i"><use href="#i-layers"/></svg></span>
+            <h3>Móntale la primera semana</h3>
+            <p>Un bloque, sus microciclos y una hoja por día.</p>
+            <p class="despues">Cuando entrene, aquí verás lo que levantó.</p>
+            <div class="acciones"><span class="btn primary">Montar de cero</span><span class="btn ghost">Desde plantilla</span></div>
+          </div>
+          <div class="pista anclada" role="note">
+            <div class="cabeza"><span class="k">Pista · 1 de 8</span><svg class="i x"><use href="#i-x"/></svg></div>
+            <div class="texto"><b>Aquí le montas la semana.</b> Abres un bloque, eliges el día y apuntas cada ejercicio.</div>
+            <div class="demo" aria-hidden="true">
+              <div class="d-tabs"><span>Resumen</span><span class="on">Entreno</span><span>Dieta</span></div>
+              <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+              <div class="d-bloque">
+                <div class="d-bh"><span class="d-chip on">Bloque 1</span><span class="d-chip">M1</span><span class="d-mas">+ hoja</span></div>
+                <div class="d-dia"><div class="d-dia-t">Lunes</div>
+                  <div class="d-fila"><span>Sentadilla</span><span class="d-serie"><b>3</b> × 5</span></div>
+                  <div class="d-fila dos"><span>Press banca</span><span class="d-serie"><b>3</b> × 8</span></div>
+                  <div class="d-fila tres"><span>+ ejercicio</span></div>
+                </div>
+              </div>
+              <div class="d-cursor"></div>
+            </div>
+            <div class="pie"><u>Entendido</u><span>Está en «?»</span></div>
+          </div>
+        </div>
+        <div class="nav-m"><div><svg class="i"><use href="#i-home"/></svg>Inicio</div><div class="on"><svg class="i"><use href="#i-users"/></svg>Clientes</div><div><svg class="i"><use href="#i-wallet"/></svg>Cobros</div><div><svg class="i"><use href="#i-cal"/></svg>Agenda</div><div><svg class="i"><use href="#i-more"/></svg>Más</div></div>
+      </div></div>
+
+      <div class="tel"><div class="app-m">
+        <div class="cab-m"><span class="logo"><i></i><i></i><i></i></span><span class="marca-m">CAVEMAN HUB</span><span class="av">ED</span></div>
+        <div class="cuerpo">
+          <div class="cab"><div class="quien"><span class="av">MG</span><span class="nombre">Marta García</span><span class="ayuda on"><svg class="i"><use href="#i-help"/></svg></span></div>
+            <div class="tabs"><span class="tab">Resumen</span><span class="tab on">Entreno</span><span class="tab">Dieta</span><span class="tab">Revisiones</span></div></div>
+          <div class="bl-cab" style="margin-top:16px"><span class="migas"><b>Bloque 1</b></span><span class="badge">Abierto</span></div>
+          <div class="bl-ciclos"><span class="mc">M1</span><span class="mc">M2</span><span class="mc on">M3<i></i></span></div>
+          <div class="sheet-velo"></div>
+          <div class="sheet" role="dialog" aria-label="Ayuda de Entreno">
+            <span class="grip"></span>
+            <h3>Entreno</h3>
+            <p class="para">Aquí escribes lo que tiene que hacer cada día y ves, al lado, lo que hizo.</p>
+            <div class="bloque"><p class="k">Aquí se hace</p><div class="hace"><div><i>01</i><span>Abrir un bloque y sus microciclos.</span></div><div><i>02</i><span>Escribir la hoja de cada día.</span></div><div><i>03</i><span>Leer lo que levantó, en gris al lado.</span></div></div></div>
+            <div class="bloque"><p class="k">Las palabras</p><div class="palabras"><div><b>Bloque</b> · la versión del plan que está puesta.</div><div><b>Microciclo</b> · una semana del bloque.</div><div><b>Hoja</b> · el documento de un día.</div></div></div>
+            <div class="bloque"><p class="k">Ver cómo se hace</p><span class="salida"><svg class="i"><use href="#i-play"/></svg> Montar la semana <small>8 s</small></span></div>
+          </div>
+        </div>
+        <div class="nav-m"><div><svg class="i"><use href="#i-home"/></svg>Inicio</div><div class="on"><svg class="i"><use href="#i-users"/></svg>Clientes</div><div><svg class="i"><use href="#i-wallet"/></svg>Cobros</div><div><svg class="i"><use href="#i-cal"/></svg>Agenda</div><div><svg class="i"><use href="#i-more"/></svg>Más</div></div>
+      </div></div>
+    </div>
+    <div class="notas">
+      <div class="nota"><h3>Inicio</h3><ul><li>La guía es una línea con «Ver»: abre la hoja con el paso actual y los otros cuatro detrás.</li><li>La invitación es la pantalla; las salidas, debajo, en una columna.</li></ul></div>
+      <div class="nota"><h3>La pista</h3><ul><li>Anclada desde abajo con la punta hacia el botón, la demo más baja (160 px).</li><li>Nunca sobre la barra del pulgar: si el botón queda debajo, la pista empuja el contenido en vez de taparlo.</li></ul></div>
+      <div class="nota"><h3>La ayuda</h3><ul><li>Es <code>Hoja</code> tal cual existe: agarradera, arrastre para cerrar, foco atrapado.</li><li>El mismo registro que en escritorio, con las palabras en una línea cada una.</li></ul></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <section class="sec cierre" id="cierre">
+    <div class="sec-head">
+      <div class="n">—</div>
+      <div><p class="k">Qué elegiría</p><h2>Una elección por pieza, y por qué</h2></div>
+    </div>
+    <p class="lead">Las tres elegidas comparten una cosa: cada una vive donde se usa. La guía, en la barra que va contigo; la pista, pegada al botón que la resuelve; la ayuda, en una hoja que deja ver lo que explica.</p>
+    <div class="tabla-wrap"><table>
+      <thead><tr><th>Pieza</th><th>Elección</th><th>Por qué esa</th><th>Cuándo cambiaría</th></tr></thead>
+      <tbody>
+        <tr><td>La guía</td><td>A · en la barra</td><td>Sigue contigo dentro de un cliente, que es donde se hacen los pasos 2 a 5. Un paso a la vez. Ocupa un hueco que hoy está vacío.</td><td>Si la cartera crece antes de terminar los pasos y la lista de personas la empuja fuera: entonces se pliega a la línea de Inicio (lo que hay ahora).</td></tr>
+        <tr><td>La pista</td><td>A · nota anclada</td><td>Es la única que dice <em>dónde</em> sin encender una segunda cosa. Cabe la demo. Es la gramática de nota que el producto ya usa.</td><td>Si con uso real las pistas se cierran sin mirarse: probar C en las dos que tienen vacío (semana, dieta), y dejar A para el resto.</td></tr>
+        <tr><td>La demo viva</td><td>Dentro de la pista, en bucle</td><td>Ocho segundos, contenido genérico, mismo tema, sin vídeo. Se repite desde «?».</td><td>Nunca más de cinco demos. Si una pantalla cambia y su demo miente, se quita antes que dejarla.</td></tr>
+        <tr><td>La ayuda</td><td>A · hoja lateral</td><td>Cabe entera, y deja la pantalla visible detrás. En móvil es la misma pieza subiendo.</td><td>Si una pantalla tiene ayuda de tres líneas y ninguna demo, un desplegable (B) le sobra espacio. Es la excepción, no la regla.</td></tr>
+        <tr><td>Inicio sin nadie</td><td>Una invitación, dos salidas</td><td>Diez segundos hasta el primer cliente. Nada de ejemplo: la demo de 20 s hace el papel de «ver la app llena».</td><td>Si la analítica dice que la gente mira la demo y no da de alta a nadie, la salida sobra: se quita.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</main>
+
+<footer class="wrap">Prototipo hecho con los tokens de <code>src/styles/tokens.css</code> y el chasis de <code>CoachLayout</code>. Acompaña a <code>docs/estudio-el-arranque.html</code>. Nada de esto toca el código de la app.</footer>
+
+<div class="lupa" id="lupa" aria-hidden="true"><button class="cerrar" id="lupa-cerrar"><svg class="i"><use href="#i-x"/></svg> Cerrar</button><div class="caja"></div></div>
+
+<script>
+(() => {
+  /* Escala cada marco a su ancho real */
+  const escalar = (el, base) => { el.style.setProperty('--k', (el.clientWidth / base).toFixed(4)); };
+  const ro = new ResizeObserver((entries) => entries.forEach((e) => escalar(e.target, e.target.classList.contains('tel') ? 390 : 1280)));
+  document.querySelectorAll('.marco, .tel').forEach((el) => { escalar(el, el.classList.contains('tel') ? 390 : 1280); ro.observe(el); });
+
+  /* Mandos: momento y alternativa */
+  document.querySelectorAll('.chip[data-set]').forEach((b) => b.addEventListener('click', () => {
+    const marco = document.getElementById(b.dataset.marco);
+    marco.dataset[b.dataset.set] = b.dataset.v;
+    document.querySelectorAll(`.chip[data-marco="${b.dataset.marco}"][data-set="${b.dataset.set}"]`).forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+    reiniciar(marco);
+  }));
+  document.querySelectorAll('.chip[data-toggle]').forEach((b) => b.addEventListener('click', () => {
+    const marco = document.getElementById(b.dataset.marco);
+    const on = marco.dataset[b.dataset.toggle] !== 'on';
+    marco.dataset[b.dataset.toggle] = on ? 'on' : 'off';
+    b.setAttribute('aria-pressed', String(on));
+    if (on) reiniciar(marco);
+  }));
+  const reiniciar = (raiz) => raiz.getAnimations({ subtree: true }).forEach((a) => { a.cancel(); a.play(); });
+  document.querySelectorAll('.chip[data-replay]').forEach((b) => b.addEventListener('click', () => reiniciar(document.getElementById(b.dataset.replay))));
+  document.querySelectorAll('.ventana .x, .pista .x, .ayuda-hoja .x').forEach((x) => x.addEventListener('click', () => {
+    const marco = x.closest('.marco'); if (!marco) return;
+    if (x.closest('.ventana')) { marco.dataset.demo = 'off'; document.querySelector('.chip[data-toggle="demo"]').setAttribute('aria-pressed', 'false'); }
+    else if (x.closest('.ayuda-hoja')) { marco.dataset.alt = 'C'; document.querySelectorAll('.chip[data-marco="m3"][data-set="alt"]').forEach((o) => o.setAttribute('aria-pressed', String(o.dataset.v === 'C'))); }
+  }));
+
+  /* Tema */
+  const tema = document.getElementById('tema');
+  const pintarTema = (oscuro) => { tema.setAttribute('aria-pressed', String(oscuro)); tema.innerHTML = oscuro ? '<svg class="i"><use href="#i-sun"/></svg> Papel' : '<svg class="i"><use href="#i-moon"/></svg> Hierro'; };
+  pintarTema(matchMedia('(prefers-color-scheme: dark)').matches);
+  tema.addEventListener('click', () => {
+    const oscuro = !(document.documentElement.dataset.theme === 'dark' || (!document.documentElement.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches));
+    document.documentElement.dataset.theme = oscuro ? 'dark' : 'light';
+    pintarTema(oscuro);
+  });
+
+  /* La lupa */
+  const lupa = document.getElementById('lupa'); const caja = lupa.querySelector('.caja');
+  let origen = null;
+  const cerrarLupa = () => { if (origen) { origen.parentNode.insertBefore(caja.firstElementChild, origen); origen.remove(); origen = null; } lupa.classList.remove('on'); lupa.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; };
+  document.querySelectorAll('.chip[data-ampliar]').forEach((b) => b.addEventListener('click', () => {
+    const marco = document.getElementById(b.dataset.ampliar);
+    origen = document.createElement('div'); origen.style.aspectRatio = '1280 / 820'; marco.parentNode.insertBefore(origen, marco);
+    caja.appendChild(marco); lupa.classList.add('on'); lupa.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+    escalar(marco, 1280);
+  }));
+  document.getElementById('lupa-cerrar').addEventListener('click', cerrarLupa);
+  lupa.addEventListener('click', (e) => { if (e.target === lupa) cerrarLupa(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && lupa.classList.contains('on')) cerrarLupa(); });
+})();
+</script>
+</body>
+</html>
