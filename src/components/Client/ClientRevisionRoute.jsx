@@ -53,9 +53,9 @@ import { PantallaRevision as RevisionEnTelefono } from './movil/PantallaRevision
  * asistente, solo para lo que de verdad es un formulario (las medidas y el
  * cuestionario).
  *
- * Entregada la semana, el primer bloque se apaga solo: lo que queda es leer la
- * respuesta de su entrenador, que baja en `datos.respuesta` a las dos pantallas.
- * Es la ley del reposo —un hecho se queda, una oferta se apaga—.
+ * Entregada la semana, lo que queda es leer la respuesta de su entrenador, que
+ * baja en `datos.respuesta` a las dos pantallas. La casilla del peso se queda:
+ * pesarse es diario y no depende de la entrega (ver `datos.peso`).
  *
  * ── Y la báscula entera: depende del aparato ──────────────────────────────
  * Anotar los nueve perímetros y los seis pliegues es un formulario largo. En el
@@ -140,7 +140,6 @@ export const ClientRevisionRoute = () => {
     ver. Si subió algo mal y ya le contestaste, eso es una conversación.
   */
   const cerrada = Boolean(deEste?.reviewedAt);
-  const porEntregar = !cerrada;
 
   const photos = useMemo(
     () => progressPhotos.filter((p) => p.clientId === activeClient?.id),
@@ -227,6 +226,7 @@ export const ClientRevisionRoute = () => {
     history,
     fotos: hechas,
     preguntas: checkinQuestions(protocol),
+    respuestas: deEste?.answers ?? null,
     sinPeso: oculto.weight,
   });
 
@@ -271,10 +271,15 @@ export const ClientRevisionRoute = () => {
         Entregada, el titular dice lo que pasó y no lo que falta.
       */
       titular: cerrada ? 'Tu semana, revisada' : yaEntregada ? 'Semana entregada' : 'Entrega tu semana',
-      rotulo: siguientePaso
-        ? `Te ${siguientePaso.id === 'fotos' ? 'faltan' : 'falta'} ${siguientePaso.titulo.toLowerCase()}`
-        : 'Lo tienes todo',
-      verbo: yaEntregada ? 'Volver a entregar' : 'Entregar mi semana',
+      /* Revisada no queda nada que hacer contra ella: el rótulo deja de
+         reclamar y el verbo desaparece (ver «Revisada, ahí sí se acaba»). */
+      rotulo: cerrada
+        ? 'Tu entrega'
+        : siguientePaso
+          ? `Te ${siguientePaso.id === 'fotos' ? 'faltan' : 'falta'} ${siguientePaso.titulo.toLowerCase()}`
+          : 'Lo tienes todo',
+      verbo: cerrada ? null : yaEntregada ? 'Volver a entregar' : 'Entregar mi semana',
+      cerrada,
       /*
         El monitor monta `PasosDeLaEntrega`, que escribe su propio verbo y su
         propio pie a partir de estos dos: entregada, el botón baja de tono y la
@@ -286,8 +291,15 @@ export const ClientRevisionRoute = () => {
       onEntregar: () => setAsistente(pasos[0]?.id || 'peso'),
       onPaso: (id) => setAsistente(id),
     },
+    /*
+      LA BÁSCULA NO DEPENDE DE LA ENTREGA. Iba atada a `porEntregar` y, con la
+      semana ya revisada, desaparecía: quien se pesa a diario se quedaba de
+      miércoles a domingo sin dónde apuntarlo, con un «hecho» por toda
+      respuesta. El pesaje va al historial, no a la entrega, así que se apunta
+      siempre; solo el peso oculto la quita.
+    */
     peso:
-      porEntregar && !oculto.weight
+      !oculto.weight
         ? {
             resumen,
             semana,

@@ -94,6 +94,7 @@ export const RevisionEnMonitor = ({ datos }) => {
               onEntregar={entrega.onEntregar}
               yaEntregada={entrega.yaEntregada}
               entregadaEl={entrega.entregadaEl}
+              cerrada={entrega.cerrada}
             />
 
             {/* 3. Lo que te contestó. Es un texto suyo, así que va en su

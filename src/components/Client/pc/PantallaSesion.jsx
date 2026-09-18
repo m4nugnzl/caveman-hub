@@ -4,6 +4,7 @@ import { mmss } from '@/context/SesionEnCurso';
 import { miles } from '@/lib/dates';
 import { objetivoDeSerie, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Boton } from './Piezas';
+import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 
 /**
  * «EN SESIÓN» EN EL MONITOR — el puesto de `docs/la-sesion-manda.md`.
@@ -49,6 +50,7 @@ import { Boton } from './Piezas';
 export const PantallaSesion = ({ datos }) => {
   const {
     cabecera,
+    preambulo = null,
     ejercicios,
     showRir = false,
     descanso = null,
@@ -96,6 +98,20 @@ export const PantallaSesion = ({ datos }) => {
         </div>
         {guardado ? <EstadoDelGuardado guardado={guardado} /> : null}
 
+        {/* Lo que se lee antes de empezar: la indicación del día y el
+            calentamiento. Ver `ClientSesionRoute`. */}
+        {preambulo ? (
+          <section className="pc-puesto-preambulo" aria-label="Antes de empezar">
+            {preambulo.indicacion ? (
+              <p className="pc-puesto-indicacion">
+                <span className="pc-rot">De tu entrenador</span>
+                {preambulo.indicacion}
+              </p>
+            ) : null}
+            <WarmupView drills={preambulo.calentamiento} />
+          </section>
+        ) : null}
+
         {ejercicios.map((e, k) => {
           const hechos = e.series.length > 0 && e.series.every((s) => s.hecha);
           const viva = k === n ? siguientePorHacer(e.series) : -1;
@@ -117,6 +133,15 @@ export const PantallaSesion = ({ datos }) => {
                 {e.musculo ? <span className="pc-puesto-gr">{e.musculo}</span> : null}
                 {e.descanso ? <span className="pc-puesto-des">descanso {e.descanso}</span> : null}
               </div>
+
+              {/* Lo que te pide tu entrenador de este ejercicio, antes de las
+                  series: es la condición con la que se hacen. */}
+              {e.indicacion ? (
+                <p className="pc-puesto-indicacion">
+                  <span className="pc-rot">De tu entrenador</span>
+                  {e.indicacion}
+                </p>
+              ) : null}
 
               <div className={`pc-puesto-filas${showRir ? ' pc-con-rir' : ''}`}>
                 <div className="pc-puesto-fila pc-cab" aria-hidden="true">

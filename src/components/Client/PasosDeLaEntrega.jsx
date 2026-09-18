@@ -55,6 +55,7 @@ export const PasosDeLaEntrega = ({
   enviando = false,
   yaEntregada = false,
   entregadaEl = null,
+  cerrada = false,
 }) => (
   <div className="pasos-entrega col gap-3">
     {/* El rótulo va fuera de la superficie, como en cualquier grupo del portal. */}
@@ -63,7 +64,7 @@ export const PasosDeLaEntrega = ({
         no—, así que un rótulo que solo nombre lo hecho describe mal su propia
         lista. Lo que hay debajo es el estado de su entrega, entera. */}
     <span className="grupo-filas-rotulo">
-      {yaEntregada ? 'Tu entrega' : 'Lo que te falta para entregar'}
+      {yaEntregada || cerrada ? 'Tu entrega' : 'Lo que te falta para entregar'}
     </span>
 
     <div className="list">
@@ -91,7 +92,7 @@ export const PasosDeLaEntrega = ({
           {/* El verbo solo mientras falte. Hecho, un botón «Corregir» al lado de
               un tick invita a tocar lo que ya está bien. Se corrige desde el
               propio asistente al entregar, que es cuando se repasa. */}
-          {!hecho && verbo && (
+          {!hecho && verbo && !cerrada && (
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => onPaso(id)}>
               {verbo}
             </button>
@@ -112,6 +113,15 @@ export const PasosDeLaEntrega = ({
       un botón azul a tamaño completo diciendo «Volver a entregar» convertiría
       una salida de emergencia en la acción principal de la pantalla.
     */}
+    {/*
+      REVISADA, SIN VERBO. Reentregar contra una fila ya contestada no vuelve a
+      la cola de su entrenador: el botón mandaba algo que nadie iba a ver, y con
+      un paso sin marcar parecía reclamar que faltaba algo. Lo que queda es
+      decir que está cerrada.
+    */}
+    {cerrada ? (
+      <span className="t-xs t-tertiary">Tu entrenador ya la ha revisado.</span>
+    ) : (
     <div className="decide-verbo col gap-2">
       <button
         type="button"
@@ -131,6 +141,7 @@ export const PasosDeLaEntrega = ({
             'No hace falta que sea el domingo exacto.'}
       </span>
     </div>
+    )}
   </div>
 );
 
@@ -147,6 +158,7 @@ export const PasosDeLaEntrega = ({
  * @param history   Su antropometría, para la última toma de medidas.
  * @param fotos     Los ángulos que ya tiene esta semana (un `Set`).
  * @param preguntas Las del cuestionario (`checkinQuestions`).
+ * @param respuestas Las `answers` de la entrega de ESTE periodo, o `null`.
  * @param sinPeso   Con el peso oculto, el paso del peso no existe. Ver `Oculto`.
  */
 export const pasosDeLaEntrega = ({
@@ -155,6 +167,7 @@ export const pasosDeLaEntrega = ({
   history = [],
   fotos = new Set(),
   preguntas = [],
+  respuestas = null,
   sinPeso = false,
 }) => {
   /* Los mismos guardianes que usa `ReviewWizard` para decidir sus pasos. Leer
@@ -172,6 +185,7 @@ export const pasosDeLaEntrega = ({
   );
 
   const faltan = ANGLES.filter((a) => !fotos.has(a.id));
+  const contestadas = Object.values(respuestas || {}).some((v) => String(v ?? '').trim() !== '');
 
   return [
     !sinPeso && {
@@ -233,12 +247,19 @@ export const pasosDeLaEntrega = ({
       id: 'cuestionario',
       icono: MessageSquare,
       titulo: 'Cómo lo has llevado',
-      /* Sin forma de saber si ya las contestó esta semana sin releer el check-in
-         entero, se da por pendiente: es el único paso que no cuesta nada rehacer
-         y el que su entrenador más echa en falta. */
-      hecho: false,
+      /*
+        HECHO SI LA ENTREGA DE ESTE PERIODO TRAE RESPUESTAS. Iba fijo a `false`
+        («sin forma de saber si ya las contestó») y la forma estaba: las
+        respuestas viajan con la propia entrega (`answers`, migración 0060). El
+        precio era un cliente que lo había mandado todo leyendo «te falta cómo
+        lo has llevado» y un «Volver a entregar» que parecía pedírselo — el
+        aviso del 18 de septiembre.
+      */
+      hecho: contestadas,
       verbo: 'Responder',
-      estado: `${preguntas.length} ${preguntas.length === 1 ? 'pregunta' : 'preguntas'} de tu entrenador`,
+      estado: contestadas
+        ? 'Contestado en tu entrega'
+        : `${preguntas.length} ${preguntas.length === 1 ? 'pregunta' : 'preguntas'} de tu entrenador`,
     },
   ].filter(Boolean);
 };

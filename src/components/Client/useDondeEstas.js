@@ -81,6 +81,9 @@ export const useDondeEstas = () => {
     history: historial,
     fotos: fotosDeLaSemana,
     preguntas: checkinQuestions(protocolo),
+    /* Las respuestas solo cuentan si la entrega es de ESTE periodo: las de la
+       semana pasada no contestan la de ahora. */
+    respuestas: entrega?.weekStart >= desde ? (entrega.answers ?? null) : null,
     sinPeso: oculto.weight,
   });
   const pasosHechos = pasos.filter((p) => p.hecho).length;

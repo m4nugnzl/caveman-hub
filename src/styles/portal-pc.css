@@ -1059,6 +1059,32 @@ button.pc-puesto-ant:hover { color: var(--accent); background: var(--accent-soft
 .pc-puesto-ant.pc-nada { cursor: default; }
 .pc-puesto-ej .pc-ej-nota { padding: 0 var(--s4) 14px; }
 
+/* La nota de su entrenador para el ejercicio: la misma raya de acento que
+   llevaba en la hoja antigua (`.hcl-nota`), entre la cabecera y las series. */
+.pc-puesto-indicacion {
+  margin: var(--s3) var(--s4) 0;
+  padding-left: 11px;
+  border-left: 2px solid var(--accent-soft);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--pc-tinta-2);
+  white-space: pre-line;
+}
+/* Antes del primer ejercicio: la indicación del día y el calentamiento
+   (`WarmupView`, la pieza de la casa, con su fondo hundido). */
+.pc-puesto-preambulo { display: flex; flex-direction: column; gap: var(--s3); }
+.pc-puesto-preambulo .pc-puesto-indicacion { margin: 0; }
+.pc-puesto-indicacion .pc-rot {
+  display: block;
+  margin-bottom: var(--s1);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--pc-tinta-3);
+}
+
 /* ── El costado: contra qué te mides ─────────────────────────────────────── */
 .pc-puesto-lado {
   position: sticky;

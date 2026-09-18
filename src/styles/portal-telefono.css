@@ -1599,6 +1599,23 @@ body:has(.tel-portal) .app-header { display: none; }
 
 .tel-ses-series { display: flex; flex-direction: column; gap: var(--s2); padding-top: 14px; }
 
+/* La nota de su entrenador para el ejercicio, antes de las series: la misma
+   raya de acento que llevaba en la hoja antigua (`.hcl-nota`). */
+.tel-ses-indicacion {
+  margin: 10px 2px 0;
+  padding-left: 11px;
+  border-left: 2px solid var(--accent-soft);
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--tel-tinta-2);
+  white-space: pre-line;
+}
+/* Antes del primer ejercicio: la indicación del día y el calentamiento
+   (`WarmupView`, la pieza de la casa, con su fondo hundido). */
+.tel-ses-preambulo { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); }
+.tel-ses-preambulo .tel-ses-indicacion { margin: 0 2px; }
+.tel-ses-indicacion .tel-ses-k { display: block; margin-bottom: var(--s1); text-align: left; }
+
 /* La serie viva: alzada, con su sombra. Es lo único de la pantalla que se toca
    sesenta veces. */
 .tel-ses-viva {

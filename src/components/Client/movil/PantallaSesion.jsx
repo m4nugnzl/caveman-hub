@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
+import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Descanso } from './Descanso';
 
@@ -61,6 +62,7 @@ import { Descanso } from './Descanso';
 export const PantallaSesion = ({ datos }) => {
   const {
     cabecera,
+    preambulo = null,
     ejercicios,
     showRir = false,
     activo = 0,
@@ -203,6 +205,20 @@ export const PantallaSesion = ({ datos }) => {
       </nav>
 
       <div className="tel-ses-cuerpo" ref={cuerpo}>
+        {/* Antes del primer ejercicio, lo que se lee antes de empezar: la
+            indicación del día y el calentamiento. Ver `ClientSesionRoute`. */}
+        {n === 0 && preambulo ? (
+          <div className="tel-ses-preambulo">
+            {preambulo.indicacion ? (
+              <p className="tel-ses-indicacion">
+                <span className="tel-ses-k">De tu entrenador</span>
+                {preambulo.indicacion}
+              </p>
+            ) : null}
+            <WarmupView drills={preambulo.calentamiento} />
+          </div>
+        ) : null}
+
         <div className="tel-ses-ej">
           <button type="button" className="tel-ses-titulo" onClick={() => onFicha(ej)}>
             <span className="tel-ses-n">{ej.nombre}</span>
@@ -215,6 +231,15 @@ export const PantallaSesion = ({ datos }) => {
             {n + 1} de {ejercicios.length}
           </span>
         </div>
+
+        {/* Lo que te pide tu entrenador de este ejercicio, antes de las
+            series: es la condición con la que se hacen. */}
+        {ej.indicacion ? (
+          <p className="tel-ses-indicacion">
+            <span className="tel-ses-k">De tu entrenador</span>
+            {ej.indicacion}
+          </p>
+        ) : null}
 
         <div className="tel-ses-series">
           {ej.series.map((s, i) => {

@@ -4,7 +4,7 @@ import { Dumbbell } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
-import { resolvedMicrocycles } from '@/domain/blocks';
+import { blockOfWeek, resolvedMicrocycles, structureOfBlock } from '@/domain/blocks';
 import {
   activeQuestions,
   asksFeedback,
@@ -23,7 +23,7 @@ import {
   sessionSetCount,
   sessionTonnage,
 } from '@/domain/sessions';
-import { restLabel, unitLabel } from '@/domain/training';
+import { drillsForDay, restLabel, unitLabel } from '@/domain/training';
 import { todayISO, weekdayName } from '@/lib/dates';
 import { toNum } from '@/lib/num';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -340,6 +340,10 @@ export const ClientSesionRoute = () => {
       objetivo: pedidas.length === 1 ? pedidas[0] : null,
       descanso: restLabel(ex.restSeconds),
       ejercicio: ex,
+      /* LA NOTA DE SU ENTRENADOR para este ejercicio («codos pegados»). Se
+         perdió al rehacer la sesión: solo la pintaba `HojaDelCliente`, que ya
+         no monta nadie. Con el mismo interruptor del protocolo que en su hoja. */
+      indicacion: isModuleOn(protocolo, 'coachNote') ? String(ex.coachNote || '').trim() : '',
       nota: String(ex.clientNote || ''),
       onNota: puedeAnotar
         ? (texto) => logExerciseNote(activeClient.id, donde.weekNumber, daySession.activeId, ex.id, texto)
@@ -365,6 +369,31 @@ export const ClientSesionRoute = () => {
       }),
     };
   });
+
+  /*
+    ══ LO QUE SE LEE ANTES DE EMPEZAR: la indicación del día y el calentamiento
+    Los dos se perdieron al rehacer la sesión (la hoja vieja, `ClientRoutine`,
+    los pintaba encima de los ejercicios) y ninguna pantalla nueva los recogió.
+    Vuelven con las mismas reglas que tenían:
+
+      · La indicación vive en el DÍA del plan; la de la sesión es el respaldo
+        de la primera versión, cuando se escribía ahí.
+      · El calentamiento es el del día si lo tiene propio y si no el de su
+        BLOQUE (`structureOfBlock`: el abierto usa el del programa, uno cerrado
+        su copia congelada). `[]` en el día es «hoy no se calienta».
+      · Cada uno, con su interruptor del protocolo.
+  */
+  const bloqueDelDia = blockOfWeek(program, donde.weekNumber);
+  const preambulo = {
+    indicacion: isModuleOn(protocolo, 'coachNote')
+      ? String(day.coachNote?.trim() || daySession.session?.coachNote?.trim() || '')
+      : '',
+    calentamiento: isModuleOn(protocolo, 'warmup')
+      ? drillsForDay(bloqueDelDia ? structureOfBlock(program, bloqueDelDia) : program, day).filter((d) =>
+          d.name?.trim()
+        )
+      : [],
+  };
 
   const fecha = daySession.session?.date || todayISO();
   const cabecera = {
@@ -418,6 +447,7 @@ export const ClientSesionRoute = () => {
 
   const datos = {
     cabecera,
+    preambulo: preambulo.indicacion || preambulo.calentamiento.length > 0 ? preambulo : null,
     ejercicios,
     showRir,
     activo: activo ?? 0,

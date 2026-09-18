@@ -26,7 +26,8 @@ import { Aire, Boton, CabeceraDia, FilaMenu, Tarjeta, Titulillo } from './Piezas
  */
 export const PantallaRevision = ({ datos }) => {
   const { periodo, pasos, entrega, peso, atrasadas, respuesta } = datos;
-  const siguiente = pasos.find((p) => !p.hecho)?.id || null;
+  /* Revisada, nada se enciende ni se abre: ya no hay entrega que rehacer. */
+  const siguiente = entrega.cerrada ? null : pasos.find((p) => !p.hecho)?.id || null;
 
   return (
     <>
@@ -40,19 +41,25 @@ export const PantallaRevision = ({ datos }) => {
             <FilaMenu
               key={p.id}
               rotulo={p.titulo}
-              valor={p.hecho ? 'hecho' : 'te toca'}
+              valor={p.hecho ? 'hecho' : entrega.cerrada ? 'sin hacer' : 'te toca'}
               /* En azul SOLO el siguiente, no los tres que faltan: tres avisos
                  encendidos a la vez dejan de decir «mira aquí» y pasan a ser el
                  aspecto normal de la lista. Ver `la ley del color`. */
               espera={p.id === siguiente}
-              onClick={p.hecho ? undefined : () => entrega.onPaso(p.id)}
+              onClick={p.hecho || entrega.cerrada ? undefined : () => entrega.onPaso(p.id)}
             />
           ))}
         </Tarjeta>
-        <Boton onClick={entrega.onEntregar}>{entrega.verbo}</Boton>
-        <p className="tel-pie-nota">
-          No hace falta que sea el domingo exacto, y llegar tarde no te salta la revisión.
-        </p>
+        {entrega.cerrada ? (
+          <p className="tel-pie-nota">Tu entrenador ya la ha revisado.</p>
+        ) : (
+          <>
+            <Boton onClick={entrega.onEntregar}>{entrega.verbo}</Boton>
+            <p className="tel-pie-nota">
+              No hace falta que sea el domingo exacto, y llegar tarde no te salta la revisión.
+            </p>
+          </>
+        )}
 
         {respuesta ? (
           <>
