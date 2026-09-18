@@ -259,6 +259,20 @@
    para enseñar cómo le llega el formulario al cliente le llegaba deformada. */
 .hoja-libre.vista-previa { max-width: none; margin: 0; padding: 0; }
 
+/* El ensayo del alta sangra hasta los cantos del diálogo con el fondo hundido
+   del portal: sin él, las cajas del cliente iban sobre el mismo fondo que la
+   ventana y parecían recuadros sueltos, no la hoja del prototipo (104:80). */
+.modal-body > .ensayo-papel {
+  margin: 0 calc(var(--s5) * -1) calc(var(--s5) * -1);
+  padding: var(--s5);
+  min-height: 100%;
+  background: var(--surface-sunken);
+  border-top: 1px solid var(--hairline);
+}
+@media (max-width: 639.98px) {
+  .modal-body > .ensayo-papel { margin: 0 calc(var(--s4) * -1) calc(var(--s5) * -1); padding: var(--s4); }
+}
+
 .libre-cab { display: flex; align-items: center; gap: var(--s2); }
 .libre-tit { margin: 0; font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.02em; }
 /* El recado del entrenador, grapado al formulario que le mandó. Lleva el filete
@@ -415,79 +429,74 @@
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* ══ LA VENTANA DEL CAPÍTULO ═══════════════════════════════════════════════
-   Las preguntas pasan por una ventana de alto fijo en vez de apilarse: cada una
-   encaja arriba, la puesta se enciende, la anterior se desvanece por el borde
-   de arriba y la siguiente asoma por el de abajo. Ver `VentanaDeTanda`.
+/* ══ EL CAPÍTULO, EN CAJAS (frame 104:80, 18 sep) ══════════════════════════
+   Cada pregunta del alta es una caja con canto: enunciado, ayuda y el control
+   dentro. Sustituye a la ventana con foco (ver `CajasDeTanda`). Las cajas son
+   `.campo-q` a propósito, para heredar el ritmo de alturas de arriba; lo que
+   traía la hoja numerada —el filete entre renglones y el tope de 30rem— se
+   deshace aquí. */
+.alta-cajas { display: flex; flex-direction: column; gap: var(--s5); }
+.alta-cajas > .campo-q.alta-caja {
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--edge-card); border-radius: var(--r-md);
+}
+.alta-cajas > .campo-q + .campo-q { border-top: 1px solid var(--edge-card); }
+.alta-caja .field > .field-label { font-weight: 600; }
+.alta-caja .field > .field-label + .field-hint { margin-bottom: 0; }
+/* La ayuda a 13 px, como en el dibujo: dentro de su caja no compite con nada. */
+.alta-caja .field > .field-hint { font-size: var(--fs-control); }
+.alta-caja .field > .input,
+.alta-caja .field > .opciones-libres { max-width: none; margin-top: var(--s3); }
 
-   `--asoma` es el aire que queda por encima de la puesta —lo que se ve de la
-   anterior— y es a la vez el `scroll-padding-top`, que el componente lee para
-   saber dónde encaja. Por eso vive en una variable: son la misma medida.
+/* La cifra, al canto derecho del renglón: enunciado y ayuda a la izquierda. */
+.alta-caja.es-cifra .field {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--s4); align-items: center;
+}
+.alta-caja.es-cifra .field > .field-label,
+.alta-caja.es-cifra .field > .field-hint { grid-column: 1; }
+.alta-caja.es-cifra .field > .contador,
+.alta-caja.es-cifra .field > .placa { grid-column: 2; grid-row: 1 / span 2; margin-top: 0; }
+/* Sin ayuda hay un solo renglón: la segunda fila vacía sumaba su hueco debajo. */
+.alta-caja.es-cifra .field:not(:has(> .field-hint)) > .contador,
+.alta-caja.es-cifra .field:not(:has(> .field-hint)) > .placa { grid-row: 1; }
 
-   El alto es el mismo en todos los capítulos, y es a propósito: una ventana
-   que cambiara de talla con cada hoja haría saltar la pantalla al pasar. */
-.alta-marco {
-  --alto-ventana: clamp(22rem, 56svh, 28rem);
-  --asoma: 3.5rem;
-  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3);
+/* Las opciones, rectángulos con canto y no píldoras; la marcada se tiñe en vez
+   de rellenarse, que en una fila de cuatro pesaba más que el enunciado. */
+.alta-caja .opciones-libres .chip-op {
+  border-radius: var(--r-control); border-color: var(--edge-control);
+  color: var(--text); padding-inline: var(--s4);
 }
-.alta-ventana {
-  position: relative; /* el `offsetTop` de cada pregunta se mide desde aquí */
-  height: var(--alto-ventana);
-  overflow-y: auto; overscroll-behavior-y: auto;
-  scroll-snap-type: y mandatory; scroll-padding-top: var(--asoma);
-  scrollbar-width: none;
-  /* El desvanecido va en la máscara de la ventana, no en cada pregunta: así lo
-     que se va se apaga según cruza el borde, esté a medio camino o no. */
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 var(--asoma), #000 calc(100% - 4.5rem), transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, #000 var(--asoma), #000 calc(100% - 4.5rem), transparent 100%);
+.alta-caja .opciones-libres .chip-op[aria-pressed='true'] {
+  background: var(--accent-soft); border-color: var(--accent);
+  color: var(--accent); font-weight: 600;
 }
-.alta-ventana::-webkit-scrollbar { display: none; }
-/* Los dos rellenos que dejan encajar a la primera y a la última: sin el de
-   arriba la primera no tendría encima el aire de la anterior, y sin el de abajo
-   la última nunca podría subir hasta el borde de encaje. */
-.alta-ventana > .libre-campos::before { content: ''; display: block; height: var(--asoma); flex-shrink: 0; }
-.alta-ventana > .libre-campos::after {
-  content: ''; display: block; flex-shrink: 0;
-  height: calc(var(--alto-ventana) - var(--asoma) - 2rem);
-}
-.alta-ventana .alta-q {
-  scroll-snap-align: start;
-  padding-block: var(--s4);
-  opacity: 0.14;
-  transition: opacity 0.26s var(--ease);
-}
-/* Por distancia: las dos vecinas asoman, las lejanas casi no están. Con todas
-   al mismo gris la ventana volvía a leerse como una lista atenuada. */
-.alta-ventana .alta-q.is-activa + .alta-q,
-.alta-ventana .alta-q:has(+ .alta-q.is-activa) { opacity: 0.34; }
-.alta-ventana .alta-q.is-activa { opacity: 1; }
-/* Una apagada se trae con un toque en cualquier sitio de su renglón. */
-.alta-ventana .alta-q:not(.is-activa) { cursor: pointer; }
 
-/* Con una sola pregunta no hay nada que pase por la ventana. */
-.alta-ventana[data-sola] {
-  height: auto; overflow: visible; scroll-snap-type: none;
-  -webkit-mask-image: none; mask-image: none;
+/* EL SÍ/NO, dos tarjetas a partes iguales con su marca en un disco. */
+.alta-caja .opciones-libres.es-sino {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4);
 }
-.alta-ventana[data-sola] > .libre-campos::before,
-.alta-ventana[data-sola] > .libre-campos::after { display: none; }
-.alta-ventana[data-sola] .alta-q { opacity: 1; padding-top: 0; }
+.alta-caja .opciones-libres.es-sino .chip-op {
+  justify-content: flex-start; gap: var(--s3);
+  min-height: 64px; padding-inline: var(--s5);
+  border-radius: var(--r-control-lg); font-size: var(--fs-base);
+}
+.alta-caja .opciones-libres.es-sino .chip-op > svg {
+  width: 24px; height: 24px; padding: 5px; flex-shrink: 0; margin: 0;
+  border-radius: var(--r-pill);
+  background: var(--fill-subtle); color: var(--text-secondary);
+}
+.alta-caja .opciones-libres.es-sino .chip-op[aria-pressed='true'] { color: var(--text); }
+.alta-caja .opciones-libres.es-sino .chip-op[aria-pressed='true'] > svg {
+  background: var(--accent); color: var(--accent-on);
+}
 
-/* LA MIRA: un punto por pregunta, en columna como el recorrido. La puesta se
-   estira, las contestadas llevan acento. */
-.alta-mira {
-  display: flex; flex-direction: column; justify-content: center; align-items: center;
-  gap: 6px; padding-inline: 2px;
+@media (max-width: 639.98px) {
+  .alta-cajas > .campo-q.alta-caja { padding: var(--s4); }
+  .alta-caja .opciones-libres.es-sino { gap: var(--s2); }
+  .alta-caja .opciones-libres.es-sino .chip-op { min-height: 56px; padding-inline: var(--s3); }
 }
-.alta-mira > i {
-  width: 4px; height: 4px; border-radius: 999px;
-  background: var(--hairline-strong);
-  transition: height 0.26s var(--ease), background-color 0.26s var(--ease);
-}
-.alta-mira > i[data-hecha] { background: var(--accent); }
-.alta-mira > i.is-activa { height: 16px; background: var(--text-secondary); }
-.alta-mira > i.is-activa[data-hecha] { background: var(--accent); }
 .libre-pie {
   display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
   padding-top: var(--s4); border-top: 1px solid var(--hairline);

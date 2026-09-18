@@ -875,7 +875,11 @@ button.task-head:hover > .chevron { color: var(--text); }
   .cartera-cuerpo:not(.es-banco):not(.proto-banco) {
     flex: 1; display: flex; flex-direction: column;
   }
-  .cartera-cuerpo:not(.es-banco):not(.proto-banco) > .plantilla,
+  /* Solo en el Taller. La cartera la dejó el 18 sep (frame 164:1501): allí la
+     hoja es gris y las tres cajas se posan encima, así que el hueco de debajo
+     de la última fila se lee como mesa, no como papel sobrante. Ver
+     `cartera.css`. */
+  .taller .cartera-cuerpo:not(.es-banco):not(.proto-banco) > .plantilla,
   .plano-lista > .plantilla { flex: 1; }
 }
 
@@ -1043,7 +1047,10 @@ button.task-head:hover > .chevron { color: var(--text); }
    se abre cincuenta veces al día, eso es la diferencia entre ver tu cartera y
    desplazarte por ella. */
 .plantilla .p-persona { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
-.plantilla .p-cara { width: 32px; height: 32px; border-radius: var(--r-sm); font-size: var(--fs-2xs); flex-shrink: 0; }
+/* Redonda desde el frame del 18 sep (164:1565): en una lista de personas la
+   cara es un retrato, y el cuadrado redondeado la confundía con el icono de
+   una cosa —la forma que llevan los ejercicios y los alimentos de al lado—. */
+.plantilla .p-cara { width: 32px; height: 32px; border-radius: var(--r-pill); font-size: var(--fs-xs); flex-shrink: 0; }
 .plantilla .p-who { min-width: 0; }
 /* El nombre también lleva tope, y por el mismo motivo que el estado: sin él,
    un «Guillermo vivenka» entero es el ancho mínimo de su columna y la tabla
@@ -1067,7 +1074,12 @@ button.task-head:hover > .chevron { color: var(--text); }
   background: none; border: 0; padding: 0; font: inherit; color: var(--text);
   font-size: var(--fs-base); font-weight: 600; cursor: pointer; text-align: left;
 }
-.cartera .plantilla .p-abrir { font-size: var(--fs-md); letter-spacing: -0.012em; }
+/* ── Y BAJA OTRA VEZ, CON CORREO DEBAJO (18 sep · frame 164:1568) ──────────
+   El escalón de arriba se hizo cuando el nombre iba solo en su celda. El frame
+   le pone el correo debajo y lo dibuja al cuerpo de la fila en negrita: la
+   pareja nombre/correo ya forma un bloque que se reconoce, y 18 px encima de
+   una línea de 11 era un titular con una nota a pie. */
+.cartera .plantilla .p-abrir { font-size: var(--fs-sm); font-weight: 700; }
 /* Debajo del nombre solo queda quien lleva a esa persona, y solo si hay equipo.
    El veredicto y las carencias se mudaron a su columna. */
 .plantilla .p-sub {
@@ -1090,16 +1102,18 @@ button.task-head:hover > .chevron { color: var(--text); }
    ratón y para el tabulador, así que quien la busque a ciegas la encuentra
    igual, y el foco de teclado la enciende (`:focus-visible`). Y sin `:has()`:
    se estila la casilla, no su envoltorio, así que una marcada no puede
-   quedarse invisible en un navegador que no lo entienda. */
-.plantilla .p-marca { width: 1px; padding-right: 0; }
-.plantilla .p-marca input[type='checkbox'] {
-  opacity: 0;
-  transition: opacity var(--fast), background var(--fast), border-color var(--fast);
-}
-.plantilla tbody tr:hover .p-marca input[type='checkbox'],
-.plantilla:hover thead .p-marca input[type='checkbox'],
-.plantilla .p-marca input[type='checkbox']:checked,
-.plantilla .p-marca input[type='checkbox']:focus-visible { opacity: 1; }
+   quedarse invisible en un navegador que no lo entienda.
+
+   ── Y VUELVEN A ESTAR (18 sep · frame 164:1543) ───────────────────────────
+   El frame las dibuja siempre, en hueco y con el canto claro. Lo que las hacía
+   ruido era la casilla de antes —maciza, con el tic blanco— y desde el 17 sep
+   la casilla de la casa va en hueco (`controles.css`, frame 66:218): trece
+   cuadros con un canto de 1,5 px en gris claro son una columna tranquila, y
+   una casilla que se ve es un gesto que se descubre sin pasar el ratón. La
+   fila marcada se tiñe entera (`.is-marcada`), que es lo que dice de un
+   vistazo a quién le va a llegar lo que se pulse abajo. */
+.plantilla .p-marca { width: 1px; padding-right: var(--s2); }
+.plantilla tbody tr.is-marcada { background: var(--fill-subtle); }
 
 /* Las pestañas de tramo: el mismo conmutador `.tabs` del producto, pero
    conviviendo en la banda — sin el margen de serie. En estrecho, la banda
@@ -1202,18 +1216,19 @@ button.task-head:hover > .chevron { color: var(--text); }
    El disco es un `::before` y no otro elemento: `data-tono` ya viaja en la
    cápsula, y una marca decorativa que el lector de pantalla no debe leer es
    exactamente para lo que están los pseudoelementos. */
+/* ── Y EL DISCO TAMBIÉN SE VA DE LA FILA (18 sep · frame 164:1574) ─────────
+   El frame dibuja la etiqueta como una chapa gris con la palabra y nada más.
+   Con el disco, trece filas eran trece puntos de color más en una tabla que ya
+   lleva el semáforo del estado a dos columnas de distancia: dos columnas de
+   puntos seguidas, y la del estado es la que JUZGA. El matiz se queda donde
+   sí distingue sin competir —el desplegable y el chip del filtro (`.tag-disco`,
+   aquí debajo)—. */
 .plantilla .p-tag {
-  --tag-h: 220;
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: var(--fs-xs); font-weight: 600; line-height: 1.5;
+  display: inline-flex; align-items: center;
+  font-size: var(--fs-2xs); font-weight: 600; line-height: 1.5;
   color: var(--text-secondary); background: var(--fill);
-  border-radius: var(--r-sm); padding: 2px 9px 2px var(--s2);
+  border-radius: var(--r-xs); padding: 1px var(--s2);
 }
-.plantilla .p-tag::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
-  background: hsl(var(--tag-h) 55% 55%);
-}
-[data-theme='dark'] .plantilla .p-tag::before { background: hsl(var(--tag-h) 50% 62%); }
 
 /* El disco de la etiqueta en el filtro y en el desplegable: mismo tono que sus
    chips, para poder seguirla de un sitio a otro sin volver a leerla. */
@@ -1266,16 +1281,77 @@ button.task-head:hover > .chevron { color: var(--text); }
    abajo. Flotando, marcar y ver las acciones son el mismo instante, se marque
    donde se marque. Por debajo de las capas (Modal va a 300) y por encima del
    contenido. */
+/* ── Y ES UNA PASTILLA DE TINTA (18 sep · frame 164:1878) ──────────────────
+   Era una tarjeta blanca más, del mismo papel que la tabla sobre la que flota:
+   al aparecer no se distinguía de una caja de la pantalla. El frame la pinta
+   oscura, en pastilla y a lo ancho de la tabla, con los verbos en cristal: es
+   un MODO («tienes gente marcada»), y un modo se dice con la tinta, como la
+   barra de la sesión. Los valores, en `tokens.css` («EL MOSTRADOR DEL LOTE»). */
 .p-lote {
   position: fixed; bottom: var(--s5); left: 50%; transform: translateX(-50%);
   z-index: 120;
-  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
-  max-width: min(760px, calc(100vw - 2 * var(--s4)));
-  padding: var(--s3) var(--s4);
-  background: var(--surface); border: 1px solid var(--edge);
-  border-radius: var(--r-lg); box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s2) var(--s4); flex-wrap: wrap;
+  width: min(920px, calc(100vw - 2 * var(--s4)));
+  padding: var(--s2);
+  background: linear-gradient(3.5deg, var(--lote-tinta-de) 25%, var(--lote-tinta-a) 75%);
+  color: var(--lote-texto);
+  border: 1px solid var(--lote-filete);
+  border-radius: var(--r-pill); box-shadow: var(--shadow-lg);
 }
-.p-lote > .n { font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
+/* Quién va: la cuenta en su tesela de acento y el nombre si es una persona. */
+.p-lote-quien {
+  display: flex; align-items: center; gap: var(--s3); min-width: 0;
+  padding-left: var(--s1);
+  font-size: var(--fs-sm); font-weight: 700;
+}
+.p-lote-n {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  min-width: var(--h-control-sm); height: var(--h-control-sm); padding: 0 var(--s1);
+  border-radius: var(--r-control);
+  background: var(--accent); color: var(--accent-on);
+  font-variant-numeric: tabular-nums;
+}
+.p-lote-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-lote-verbos { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+/* Los verbos, en cristal sobre la tinta. Un botón propio y no `.btn-secondary`
+   con otro color: aquel es papel con canto, y sobre la tinta tendría que
+   invertirse entero —fondo, canto, letra y los tres estados—. */
+.p-lote-boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
+  height: var(--h-control-lg); padding: 0 var(--s3);
+  border: 1px solid var(--lote-filete); border-radius: var(--r-control);
+  background: var(--lote-boton); color: var(--lote-texto);
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--fast);
+}
+.p-lote-boton:hover { background: var(--lote-boton-hover); }
+.p-lote-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* «Pausar» es el único verbo que CAMBIA a la persona —deja de contar—, y es el
+   único con relleno. */
+.p-lote-boton.is-pausa { background: var(--lote-pausa); border-color: transparent; font-weight: 700; }
+.p-lote-boton.is-pausa:hover { background: var(--lote-pausa-hover); }
+.p-lote-boton.is-cerrar { width: var(--h-control-lg); padding: 0; border-radius: var(--r-pill); }
+/* En el teléfono los verbos bajan a su renglón y una pastilla de dos pisos es
+   un óvalo: ahí la esquina es la de una tarjeta. */
+@media (max-width: 639.98px) {
+  .p-lote { border-radius: var(--r-lg); }
+}
+/* ── CENTRADA SOBRE LA HOJA, NO SOBRE LA VENTANA ────────────────────────────
+   Con la barra lateral a la izquierda, el centro de la ventana cae 134 px a la
+   izquierda del de la tabla, y la pastilla —920 px, casi el ancho de la
+   lista— se veía descolgada de lo que acaba de marcarse. Se corre la mitad de
+   lo que ocupa la barra con su hueco: 256 abierta, 64 plegada (los dos anchos
+   de `.sidebar`, chasis.css). */
+@media (min-width: 1024px) {
+  .p-lote {
+    --lote-barra: 256px;
+    left: calc(50% + (var(--lote-barra) + var(--s3)) / 2);
+    width: min(920px, calc(100vw - var(--lote-barra) - var(--s3) * 2 - var(--s6) * 2));
+  }
+  .shell:has(.sidebar.is-plegada) .p-lote { --lote-barra: 64px; }
+}
 
 /* ══ LO QUE SE RETIRA AL ESTRECHARSE ═══════════════════════════════════════
    Por orden inverso de urgencia: primero el peso, luego la semana, la señal y
@@ -1920,12 +1996,7 @@ button.pp-pieza-texto { cursor: pointer; }
   .vflota-esquina { display: none; }
 }
 
-/* La foto dentro de la ventana: entera y centrada sobre fondo hundido, como en
-   el visor. `contain` y no `cover`: una máquina recortada no contesta nada. */
-.vflota-foto {
-  flex: 1; min-height: 0;
-  display: grid; place-items: center;
-  background: var(--surface-sunken);
-  padding: var(--s2);
-}
-.vflota-foto img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Aquí vivió `.vflota-foto`: la foto de una máquina abierta dentro de la
+   ventana flotante. Se va con `EquipmentNote`, que era lo único que la
+   escribía (ver `WorkoutLogEditor`, donde está el porqué). La ventana flotante
+   sigue viva para lo demás. */

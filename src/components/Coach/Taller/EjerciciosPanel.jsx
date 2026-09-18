@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Dumbbell, Plus, Quote, Search, Video } from 'lucide-react';
+import { ChevronRight, Dumbbell, Plus, Quote, Search, Video } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { findByName, groupInOrder, mergeCatalog } from '@/domain/catalog';
@@ -7,6 +7,7 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
 import { EmptyState } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { Cinta } from '@/components/ui/Cinta';
+import { MandoDeOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import { SelectorDeGrupo } from './SelectorDeGrupo';
 import { FichaEjercicio } from './FichaEjercicio';
 
@@ -50,7 +51,14 @@ export const EjerciciosPanel = ({ banda }) => {
   /* Lo que hay tocado en la lista, por nombre. Null NO es «nada»: es «todavía
      no has elegido», y entonces manda el primero de la lista (ver `actual`). */
   const [elegido, setElegido] = useState(null);
-  const [nuevo, setNuevo] = useState(false);
+  /* El alta: `null` si no hay, `{}` vacía, o con lo que trae el ejercicio del
+     que nace («Duplicar»). `nuevo` es sólo la pregunta de si la hay. */
+  const [alta, setAlta] = useState(null);
+  const nuevo = Boolean(alta);
+  const setNuevo = (v) => setAlta(v ? {} : null);
+  /* El orden, el mismo mando que la cartera (`MandoDeOrden`). Por defecto el
+     alfabeto, que es como llega la lista. */
+  const orden = useOrden();
   /* El contador de remontaje. La ficha guarda su borrador en estado propio, así
      que para que cambiar de ejercicio la recargue —y para que «Cancelar»
      descarte de verdad— hay que darle una `key` nueva. Sin esto, tocar otro
@@ -112,6 +120,16 @@ export const EjerciciosPanel = ({ banda }) => {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [todos, origen, musculo, busca]);
 
+  /* Ordenar reordena DENTRO de cada músculo: `groupInOrder` respeta el orden
+     con el que le llegan las filas. */
+  const ordenadas = useMemo(
+    () =>
+      ordenar(visibles, orden, {
+        tuyo: (ex) => (ex.videoUrl ? 1 : 0) + (ex.cue ? 1 : 0),
+      }),
+    [visibles, orden]
+  );
+
   /*
     ══ LA LISTA VA POR MÚSCULOS, Y ASÍ SE VA EL SOCAVÓN ══════════════════════
 
@@ -127,8 +145,8 @@ export const EjerciciosPanel = ({ banda }) => {
     orden; el porqué de no usar `MUSCLE_GROUPS`, en `groupInOrder`.
   */
   const grupos = useMemo(
-    () => groupInOrder(visibles, 'muscle', musculos.map(([m]) => m)),
-    [visibles, musculos]
+    () => groupInOrder(ordenadas, 'muscle', musculos.map(([m]) => m)),
+    [ordenadas, musculos]
   );
 
   /*
@@ -177,6 +195,29 @@ export const EjerciciosPanel = ({ banda }) => {
     setRevision((v) => v + 1);
   };
 
+  /* «Duplicar»: un alta que nace de este, con su músculo y tu voz puestos y el
+     nombre marcado para cambiarlo. Del catálogo sale «el mío», que es lo que
+     es; de uno tuyo, una copia. El sufijo no es decoración: con el mismo
+     nombre, el alta chocaría con el que ya existe. */
+  const duplicar = (ex) => {
+    setAlta({
+      name: `${ex.name} ${ex.mio ? '(copia)' : '(el mío)'}`,
+      muscle: ex.muscle || null,
+      videoUrl: ex.videoUrl || '',
+      cue: ex.cue || '',
+    });
+    setRevision((v) => v + 1);
+  };
+
+  const camposDeOrden = [
+    {
+      id: 'tuyo',
+      label: 'Lo que has trabajado',
+      num: true,
+      sentidos: { desc: 'con tu vídeo o tus pautas primero', asc: 'sin nada tuyo primero' },
+    },
+  ];
+
   return (
     <div className="stack cascada">
       <div className="taller libreria">
@@ -198,7 +239,17 @@ export const EjerciciosPanel = ({ banda }) => {
 
         <div className={`cartera-cuerpo${conCarril ? ' es-banco' : ''}`}>
           <div className="plano-lista">
-          <div className="cartera-barra">
+          {/*
+            ══ LA BARRA, EN DOS RENGLONES (frame de Figma, 18 sep) ═══════════
+            El buscador arriba y a lo ancho, que es lo que más se usa; debajo,
+            de quién es a un lado y de qué es y cómo se ordena al otro.
+
+            `rail-wrap` y no `rail`: el `overflow` de `.rail` recortaba el menú
+            del selector de músculo y pulsarlo no hacía nada (ver
+            `SelectorDeGrupo`). Dos chapas y no tres: «Todos» es no pulsar
+            ninguna, que es como funciona el resto de chapas de la aplicación.
+          */}
+          <div className="lib-barra">
             <div className="searchbox">
               <Search size={15} aria-hidden="true" />
               <input
@@ -211,52 +262,39 @@ export const EjerciciosPanel = ({ banda }) => {
               />
             </div>
 
-            {/* De quién es y de qué es, en el mismo carril y en este orden: lo
-                primero que se acota es «enséñame solo lo mío», y después por
-                dónde. Dos chapas y no tres: «Todos» es no pulsar ninguna, que
-                es como funciona el resto de chapas de la aplicación.
+            <div className="lib-barra-filtros">
+              <div className="rail rail-wrap" role="group" aria-label="De quién es">
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={origen === 'mios'}
+                  onClick={() => setOrigen(origen === 'mios' ? null : 'mios')}
+                >
+                  Tuyos
+                  <span className="chip-count">{nMios}</span>
+                </button>
+                <button
+                  type="button"
+                  className="chip"
+                  aria-pressed={origen === 'catalogo'}
+                  onClick={() => setOrigen(origen === 'catalogo' ? null : 'catalogo')}
+                >
+                  Del catálogo
+                  <span className="chip-count">{todos.length - nMios}</span>
+                </button>
+              </div>
 
-                ── Y `rail-wrap`, que es lo que hacía que el menú NO SE VIERA ──
-                `.rail` lleva `overflow-x: auto`, y en CSS un `overflow` en un
-                eje convierte el otro en `auto` también: el popover del selector
-                de músculo se montaba, decía estar visible y quedaba RECORTADO
-                por el propio carril —comprobado con `elementFromPoint`, que en
-                mitad del menú devolvía la tabla de debajo—. Encima el `mask`
-                del degradado lo desvanecía. Pulsar «Músculo» no hacía nada.
-
-                Con `rail-wrap` el desbordamiento vuelve a `visible` y el menú
-                se pinta. Y es además la variante correcta por doctrina: las
-                opciones son excluyentes y hay que verlas todas para elegir
-                (ver `.rail` en `layout.css`). Desde que los ejes largos se
-                pliegan en `SelectorDeGrupo` aquí no queda nada que rodar. */}
-            <div className="rail rail-wrap" role="group" aria-label="Filtrar la lista">
-              <button
-                type="button"
-                className="chip"
-                aria-pressed={origen === 'mios'}
-                onClick={() => setOrigen(origen === 'mios' ? null : 'mios')}
-              >
-                Tuyos
-                <span className="chip-count">{nMios}</span>
-              </button>
-              <button
-                type="button"
-                className="chip"
-                aria-pressed={origen === 'catalogo'}
-                onClick={() => setOrigen(origen === 'catalogo' ? null : 'catalogo')}
-              >
-                Del catálogo
-                <span className="chip-count">{todos.length - nMios}</span>
-              </button>
-
-              {musculos.length > 1 && <span className="rail-corte" aria-hidden="true" />}
-              {/* Los músculos son ocho y no caben; ver `SelectorDeGrupo`. */}
-              <SelectorDeGrupo
-                titulo="Músculo"
-                opciones={musculos}
-                valor={musculo}
-                onElegir={setMusculo}
-              />
+              <div className="lib-barra-fin">
+                <SelectorDeGrupo
+                  titulo="Músculo"
+                  opciones={musculos}
+                  valor={musculo}
+                  onElegir={setMusculo}
+                />
+                {visibles.length > 1 && (
+                  <MandoDeOrden orden={orden} campos={camposDeOrden} defecto="Nombre" clase="chip p-orden" />
+                )}
+              </div>
             </div>
           </div>
 
@@ -267,110 +305,67 @@ export const EjerciciosPanel = ({ banda }) => {
               message={
                 busca.trim()
                   ? `Ningún ejercicio se llama «${busca.trim()}». Se da de alta desde la hoja de un cliente o con «Nuevo ejercicio».`
-                  : 'Tu biblioteca se llena sola: cada ejercicio que escribes en una hoja se queda aquí, listo para ponerle tu vídeo y tu clave.'
+                  : 'Tu biblioteca se llena sola: cada ejercicio que escribes en una hoja se queda aquí, listo para ponerle tu vídeo y tus pautas.'
               }
             />
           ) : (
-            <div className="plantilla">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col" className="lib-nombre">
-                      Ejercicio
-                    </th>
-                    {/*
-                      ── Y en su hueco, QUÉ ES ────────────────────────────────
-                      El socavón no se arregla estrechando la tabla: se arregla
-                      poniendo dentro algo que valga la pena leer. La descripción
-                      del catálogo existe en 148 de los 239 y es justo lo que
-                      distingue dos nombres parecidos sin abrir ninguno de los
-                      dos. Donde no la hay, la celda calla — que es lo que hace
-                      una columna secundaria, y lo contrario de lo que hacía «Lo
-                      tuyo» cuando ocupaba un tercio del ancho para estar vacía
-                      en 238 filas.
-                    */}
-                    <th scope="col" className="ej-quees">
-                      Qué es
-                    </th>
-                  </tr>
-                </thead>
-                {grupos.map(({ grupo, filas }) => (
-                <tbody key={grupo || '(sin músculo)'}>
-                  {/* La cabecera del grupo. Es `th` de `colgroup` y no una fila
-                      más: un lector de pantalla tiene que poder decir a qué
-                      músculo pertenece lo que viene debajo. */}
-                  <tr className="fila-grupo">
-                    <th scope="colgroup" colSpan={2}>
-                      {grupo || 'Sin músculo'}
-                      <span className="chip-count">{filas.length}</span>
-                    </th>
-                  </tr>
-                  {filas.map((ex) => (
-                    <tr
-                      key={ex.id || ex.name}
-                      className={conCarril && actual?.name === ex.name ? 'is-elegida' : ''}
-                      aria-current={conCarril && actual?.name === ex.name ? 'true' : undefined}
-                      onClick={() => elegir(ex.name)}
-                    >
-                      <td>
-                        <span className="p-name f-nombre">
-                          {/* Sigue siendo un botón aunque la fila entera valga:
-                              es por donde entra el teclado, igual que en la
-                              cartera. */}
-                          <button type="button" className="p-abrir" onClick={() => elegir(ex.name)}>
-                            {ex.name}
+            /*
+              ══ LA LISTA, EN CAJAS POR MÚSCULO ══════════════════════════════
+              Era una tabla de dos columnas —nombre y «qué es»— y el frame la
+              dibuja como lo que es: una LISTA. Cada fila, el nombre con sus
+              marcas y debajo qué es, en una línea; a la derecha la flecha que
+              dice que se abre. El grupo se dice UNA vez, encima de su caja y con
+              su cuenta, que es lo que una columna repetida nunca podría decir.
+
+              Cada fila es un botón entero: es por donde entra el teclado, y
+              `aria-current` dice cuál está abierta en el carril.
+            */
+            <div className="lib-grupos">
+              {grupos.map(({ grupo, filas }) => (
+                <section key={grupo || '(sin músculo)'} className="lib-grupo">
+                  <h3 className="lib-grupo-tit">
+                    {grupo || 'Sin músculo'} · {filas.length}{' '}
+                    {filas.length === 1 ? 'ejercicio' : 'ejercicios'}
+                  </h3>
+                  <ul className="lib-caja">
+                    {filas.map((ex) => {
+                      const esta = conCarril && actual?.name === ex.name;
+                      return (
+                        <li key={ex.id || ex.name}>
+                          <button
+                            type="button"
+                            className={`lib-fila${esta ? ' is-elegida' : ''}`}
+                            aria-current={esta ? 'true' : undefined}
+                            onClick={() => elegir(ex.name)}
+                          >
+                            <span className="lib-fila-txt">
+                              <span className="lib-fila-nom">
+                                <span className="lib-fila-nombre">{ex.name}</span>
+                                {/* Lo tuyo, pegado al nombre: la excepción es lo
+                                    que merece chapa, no las 245 del catálogo. */}
+                                {ex.mio && <span className="badge badge-info">Tuyo</span>}
+                                {/* Lo que TÚ le has puesto: la única señal de la
+                                    lista que dice «aquí ya has trabajado». */}
+                                {(ex.videoUrl || ex.cue) && (
+                                  <span className="ej-marcas">
+                                    {ex.videoUrl && <Video size={13} aria-label="Tiene tu vídeo" />}
+                                    {ex.cue && <Quote size={13} aria-label="Tiene tus pautas" />}
+                                  </span>
+                                )}
+                              </span>
+                              {/* Qué es, del catálogo: distingue dos nombres
+                                  parecidos sin abrir ninguno. Donde no lo hay,
+                                  la línea no se pinta. */}
+                              {ex.description && <span className="lib-fila-sub">{ex.description}</span>}
+                            </span>
+                            <ChevronRight size={13} className="lib-fila-ir" aria-hidden="true" />
                           </button>
-                          {/*
-                            ── Lo tuyo, PEGADO AL NOMBRE ────────────────────
-                            Esto era una columna de 34 % titulada «Lo tuyo», y
-                            en una biblioteca recién estrenada está vacía en 238
-                            de 239 filas: un tercio del ancho reservado para la
-                            excepción. Ahora son marcas junto al nombre, que es
-                            la misma ley que ya rige el renglón del entreno («la
-                            cadenita junto al nombre») y la nota del alimento
-                            dos columnas más allá.
-
-                            Sin la columna, las dos mitades de la librería
-                            tienen por fin la misma fila: nombre con sus marcas,
-                            su clasificación, y a la derecha lo que se lee en
-                            vertical.
-                          */}
-                          {/* ── Y de quién es, TAMBIÉN pegado al nombre ────
-                              Vivía en la última columna, a seiscientos píxeles
-                              del nombre al que califica y vacía en la mayoría
-                              de las filas: la misma avería que ya se le quitó a
-                              «Lo tuyo» dos párrafos más arriba, sobreviviendo
-                              en la otra punta de la misma fila. Con ella fuera,
-                              las dos mitades de la librería vuelven a tener la
-                              misma fila: nombre con sus marcas y su origen, y
-                              después su clasificación.
-
-                              Y sigue marcando lo TUYO y no lo del catálogo, que
-                              es lo contrario de Coachway y por un motivo: allí
-                              lo personal es raro y el sistema son 1.772 filas,
-                              así que «System» repetido mil veces es ruido. Lo
-                              excepcional es lo que merece chapa. */}
-                          {ex.mio && <span className="badge badge-info">Tuyo</span>}
-                          {/* Lo que TÚ le has puesto. Suben de terciario a
-                              secundario y de 13 a 14 px: eran la única señal de
-                              esta pantalla que decía «aquí ya has trabajado» y
-                              estaban en la tinta más callada de la casa, al
-                              lado de un nombre en tinta plena. */}
-                          <span className="ej-marcas">
-                            {ex.videoUrl && <Video size={15} aria-label="Tiene tu vídeo" />}
-                            {/* La frase entera se lee en la ficha, a dos dedos
-                                de aquí; en la lista lo que hace falta saber es
-                                si la hay. */}
-                            {ex.cue && <Quote size={15} aria-label="Tiene tus pautas" />}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="ej-quees">{ex.description || ''}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                ))}
-              </table>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
             </div>
           )}
           </div>
@@ -395,6 +390,8 @@ export const EjerciciosPanel = ({ banda }) => {
                 key={`${nuevo ? '+nuevo' : actual.name}-${revision}`}
                 nombre={nuevo ? '' : actual.name}
                 nuevo={nuevo}
+                semilla={alta}
+                onDuplicar={duplicar}
                 lista={todos}
                 /* En un carril no hay nada que cerrar: «Cancelar» descarta el
                    borrador (remontar) y guardar lo recarga ya guardado. Salir
@@ -424,8 +421,14 @@ export const EjerciciosPanel = ({ banda }) => {
           }}
         >
           <FichaEjercicio
+            /* Con la misma `key` que el carril: «Duplicar» pasa de la ficha de
+               uno al alta sin cerrar la capa, y sin remontar el borrador sería
+               el del ejercicio de antes. */
+            key={`${nuevo ? '+nuevo' : elegido}-${revision}`}
             nombre={nuevo ? '' : elegido}
             nuevo={nuevo}
+            semilla={alta}
+            onDuplicar={duplicar}
             enCapa
             lista={todos}
             onIr={elegir}

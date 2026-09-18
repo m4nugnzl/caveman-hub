@@ -9,7 +9,9 @@ import { abreSoloElCiclo, cicloPorAbrir, clientCycleSlots, semanaDelCliente } fr
 import { clientIntake, clientSteps, intakeDeliverables, stepDone } from '@/domain/intake';
 import { dietaDeHoy } from '@/domain/nutrition';
 import { onboardingState } from '@/domain/onboardingState';
-import { effectiveGoal } from '@/domain/roadmap';
+import { weekFromStart } from '@/domain/photos';
+import { clientProtocol } from '@/domain/protocol';
+import { effectiveGoal, phaseAt } from '@/domain/roadmap';
 import {
   allSessions,
   minutosDeSesion,
@@ -27,7 +29,16 @@ import { HojaDePortal } from './ClientLayout';
 import { IntakeDeliverables } from './IntakeDeliverables';
 import { useAvisos } from './useAvisos';
 import { useDondeEstas } from './useDondeEstas';
-import { ejerciciosConMarca, sesionDeHoy, tiraDeLaSemana } from './hoy';
+import {
+  ejerciciosConMarca,
+  loUltimo,
+  proximaDelMicrociclo,
+  sensacionesRecientes,
+  sesionDeHoy,
+  tiraDeLaSemana,
+  tiraPorFechas,
+} from './hoy';
+import { useFichaDe } from './useFichaDe';
 import { useOculto } from './Oculto';
 import { PantallaHoy as HoyEnMonitor } from './pc/PantallaHoy';
 import { PantallaHoy as HoyEnTelefono } from './movil/PantallaHoy';
@@ -88,6 +99,7 @@ export const ClientStart = () => {
     checkIns,
     nutrition,
     phases,
+    progressPhotos,
     discardSession,
     continueProgram,
     updateClientPreferences,
@@ -95,6 +107,7 @@ export const ClientStart = () => {
   const navigate = useNavigate();
   const oculto = useOculto();
   const { seguir } = useSesionEnCurso();
+  const fichaDe = useFichaDe();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   /* Lo que le ha dicho su entrenador y lo que le ha mandado. Esta pantalla es
      la que lo enseña, así que es la que lo sella: ver `useAvisos`. */
@@ -482,6 +495,13 @@ export const ClientStart = () => {
   const ultimaVez = laSesion ? ultimaVezDelDia(micros, laSesion.nombre) : null;
   const diaDeLaSemana = weekdayName(todayISO()).toUpperCase();
 
+  /* Sin sesión de HOY que ofrecer —no hay reparto por días, o el ciclo es
+     rotativo— el bloque del entreno no se cae: ofrece la siguiente del
+     microciclo, la misma que la caja «Próxima sesión» de Entreno. En un día de
+     descanso del reparto no: ese día lo que toca es descansar. */
+  const proxima = !laSesion && !hoy?.descanso ? proximaDelMicrociclo(micros) : null;
+  const ejerciciosDelHeroe = laSesion?.ejercicios || proxima?.day?.exercises || [];
+
   const heroe = laSesion
     ? {
         viva: laSesion.viva,
@@ -520,6 +540,19 @@ export const ClientStart = () => {
           to: revision ? '/mi/evolucion' : null,
           pie: null,
         }
+      : proxima
+        ? {
+            viva: false,
+            rotulo: 'Tu próximo entreno',
+            titulo: proxima.dayName,
+            sub: null,
+            verbo: proxima.hechas > 0 ? 'Continuar entrenamiento' : 'Iniciar entrenamiento',
+            onVerbo: () => {
+              seguir({ weekNumber: proxima.weekNumber, dayName: proxima.dayName });
+              navigate('/mi/rutina/sesion');
+            },
+            pie: null,
+          }
       : revision
         ? {
             viva: false,
@@ -532,65 +565,77 @@ export const ClientStart = () => {
           }
         : null;
 
-  /* «Esta semana»: lo que se entrega, dicho con sus dos piezas de siempre. */
-  const pasoDeFotos = pasos.find((p) => p.id === 'fotos');
-  const deLaSemana = [
-    !oculto.weight && resumen.asked ? `${resumen.count} de ${resumen.target} pesajes` : null,
-    pasoDeFotos ? (pasoDeFotos.hecho ? 'tus fotos, hechas' : 'tus fotos, pendientes') : null,
-  ].filter(Boolean);
+  /*
+    ══ EL TELÉFONO: el frame `327:8` (18 sep 2026) ═══════════════════════════
+
+    La cabecera saluda y dice dónde estás en tres escalas —la semana desde que
+    empezó, el microciclo del bloque y la fase de su plan—; cada una sale solo
+    si existe. Luego la semana, el entreno de hoy con los grupos que toca, lo
+    que su entrenador le ha dejado, el peso, las sensaciones y lo último.
+  */
+  const semanaDesdeAlta = activeClient.startDate ? weekFromStart(activeClient.startDate, todayISO()) : null;
+  const fase = phaseAt(phases, todayISO());
+  const nombrePila = String(activeClient.name || '').trim().split(/\s+/)[0] || '';
+
+  /* Sin reparto por días, la semana del calendario con lo que entrenó: la fila
+     de siete discos es lo primero del dibujo y no se cae por falta de plan. */
+  const tira = tiraDeLaSemana({ client: activeClient, program }) || tiraPorFechas({ micros });
+  const indiceHoy = tira ? tira.findIndex((d) => d.hoy) : -1;
+
+  /* Los grupos que toca hoy, del propio ejercicio o de su ficha del catálogo,
+     sin repetir y como mucho tres: son chapas, no un índice. */
+  const etiquetas = ejerciciosDelHeroe.length > 0
+    ? [
+        ...new Set(
+          ejerciciosDelHeroe
+            .map((ex) => String(ex.muscle || fichaDe(ex.name)?.muscle || '').trim())
+            .filter(Boolean)
+        ),
+      ].slice(0, 3)
+    : [];
+
+  const sensaciones = sensacionesRecientes(micros, clientProtocol(activeClient.preferences));
+  const fotosSuyas = (progressPhotos || []).filter((p) => p.clientId === activeClient.id);
 
   const datosMovil = {
     cabecera: {
-      fecha: diaCorto,
-      donde: porDonde,
+      titulo: nombrePila ? `Hola, ${nombrePila}` : diaCorto,
+      sub: [
+        semanaDesdeAlta ? `Semana ${semanaDesdeAlta}` : null,
+        cuantos > 0 ? `${unidad} ${vaPor}` : null,
+        fase?.title || null,
+      ]
+        .filter(Boolean)
+        .join(' · ') || diaCorto,
     },
-    heroe,
-    tira: tiraDeLaSemana({ client: activeClient, program }),
-    /* La respuesta de su entrenador es el momento que cierra el círculo del
-       producto, y vivía dos niveles dentro de su revisión. */
-    respuesta: respuesta
+    dias: tira ? tira.map((d, i) => ({ ...d, pasado: indiceHoy >= 0 && i < indiceHoy })) : null,
+    entreno: heroe
       ? {
-          que: 'Tu entrenador te ha contestado',
-          cual: `${shortDate(respuesta.reviewedAt)} · ${primeraLinea(respuesta.coachNotes)}`,
-          to: '/mi/evolucion',
+          ...heroe,
+          /* El rótulo del dibujo cuando es la sesión de hoy; el que ya había
+             cuando la dejó a medias o descansa, que dice más. */
+          rotulo: laSesion && !laSesion.viva ? 'Tu entreno de hoy' : heroe.rotulo,
+          verbo: laSesion ? (laSesion.viva ? 'Continuar entrenamiento' : 'Iniciar entrenamiento') : heroe.verbo,
+          etiquetas,
+          hechas: laSesion ? laSesion.hechas : proxima ? proxima.hechas : 0,
+          series: laSesion ? laSesion.series : proxima ? proxima.series : 0,
         }
       : null,
-    progreso: [
-      /* El cambio va sin «kg»: la unidad ya está escrita debajo, y en un tercio
-         de 390 px repetirla parte la cifra en dos líneas. */
-      pesoVisible
-        ? { k: 'Peso', v: kg(ahora), u: 'kg', delta: sinUnidad(deltaDe(ahora, anterior)) }
-        : null,
-      /* «Desde mayo» y no «desde el inicio»: el mes es un dato —cuándo empezó a
-         pesarse— y cabe en una línea. */
-      pesoVisible && primero !== null
-        ? { k: `Desde ${mesDe(pesajes[0].date)}`, v: conSigno(ahora - primero), u: 'kg' }
-        : null,
-      cuantos > 0 ? { k: 'Bloque', v: String(vaPor), de: `/${cuantos}`, u: `${unidad.toLowerCase()}s` } : null,
-    ].filter(Boolean),
-    semana:
-      pasos.length > 0
+    /* Lo que su entrenador le ha dejado: su respuesta, lo que ha cambiado y lo
+       que le ha mandado, y lo que queda del alta. Una sola lista. */
+    recados: [
+      respuesta
         ? {
-            que: 'Esta semana',
-            cual: deLaSemana.length > 0 ? deLaSemana.join(' · ') : revision?.estado || 'lo tienes todo',
+            id: 'respuesta',
+            que: 'Tu entrenador te ha contestado',
+            cual: `${shortDate(respuesta.reviewedAt)} · ${primeraLinea(respuesta.coachNotes)}`,
             to: '/mi/evolucion',
+            verbo: 'Leer',
           }
         : null,
-    /* Sin nada que sumar no se pinta: «0 sesiones · 0 kg · 0 semanas» es un
-       inventario de ausencias en la primera pantalla que abre. */
-    record:
-      total.sesiones > 0
-        ? [
-            { v: miles(total.sesiones), k: 'sesiones' },
-            { v: enMiles(total.kilos), k: 'kg movidos' },
-            { v: String(cuantos > 0 ? vaPor : micros.length), k: unidad.toLowerCase() + 's' },
-          ]
-        : null,
-    novedades: avisos,
-    mandados,
-    pedidos: [
       altaPendiente
         ? {
+            id: 'alta',
             que: 'Cuéntanos de ti',
             cual: `${hechosDelAlta.length} de ${pasosDelAlta.length} hechos`,
             to: '/mi/alta',
@@ -598,13 +643,47 @@ export const ClientStart = () => {
         : null,
       entregables.length > 0
         ? {
-            que: 'De tu entrenador',
-            cual: `${entregables.length} ${entregables.length === 1 ? 'cosa' : 'cosas'} preparadas`,
+            id: 'entregables',
+            que: 'Te ha preparado',
+            cual: `${entregables.length} ${entregables.length === 1 ? 'cosa' : 'cosas'}`,
             verbo: 'Ver',
             onClick: () => setVerEntregables(true),
           }
         : null,
+      ...avisos.map((n) => ({
+        id: n.id,
+        que: n.label,
+        cual: n.hint,
+        to: n.href || undefined,
+        onQuitar: n.onQuitar,
+        etiqueta: `Descartar «${n.label}»`,
+      })),
+      ...mandados.map((m) => ({ id: m.id, que: m.label, cual: m.hint, to: m.href })),
     ].filter(Boolean),
+    peso: pesoVisible
+      ? {
+          valor: kg(ahora),
+          /* El cambio contra el pesaje anterior, en tinta y con su signo: bajar
+             no es «bien» para quien está ganando masa. */
+          delta: anterior !== null ? `${conSigno(ahora - anterior)} kg` : null,
+          puntos: pesajes.slice(-8).map((p) => p.value),
+          to: '/mi/evolucion/peso',
+        }
+      : null,
+    sensaciones:
+      sensaciones.length > 0
+        ? {
+            items: sensaciones,
+            cuando: sensaciones[0].cuando ? `del ${shortDate(sensaciones[0].cuando)}` : '',
+          }
+        : null,
+    ultimo: loUltimo({
+      micros,
+      historial,
+      fotos: fotosSuyas,
+      entrega,
+      sinPeso: oculto.weight,
+    }),
   };
 
   return (
@@ -639,7 +718,11 @@ const deltaDe = (ahora, antes) => {
 };
 
 /** «te faltan las medidas» — lo primero que falta, dicho corto. */
-const faltanDe = (paso) => `falta${paso.id === 'fotos' ? 'n' : ''} ${paso.titulo.toLowerCase()}`;
+/* El verbo concuerda con lo que falta: «tus medidas» y «tus fotos» son plural. */
+const faltanDe = (paso) => {
+  const que = paso.titulo.toLowerCase();
+  return `falta${/^(tus|las|los)\s/.test(que) ? 'n' : ''} ${que}`;
+};
 
 /** Cuándo se quedó a medias: la hora si la hay, el día si no. */
 const cuandoSeQuedo = (session) => {
@@ -654,22 +737,12 @@ const cuandoSeQuedo = (session) => {
   return session?.date ? shortDate(session.date) : null;
 };
 
-/** «493k» — los kilos movidos de toda una vida no caben con sus seis cifras. */
-const enMiles = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : miles(Math.round(n)));
-
 /** «−3,4» — una diferencia de peso con su signo, que es lo que dice hacia dónde. */
 const conSigno = (d) => {
   const r = Math.round(d * 10) / 10;
   if (r === 0) return '0';
   return `${r > 0 ? '+' : '−'}${kg(Math.abs(r))}`;
 };
-
-/** Un delta sin su unidad, para cuando la unidad ya está al lado. */
-const sinUnidad = (delta) => (delta ? { ...delta, texto: delta.texto.replace(/\s*kg$/, '') } : null);
-
-/** «mayo» — el mes de una fecha ISO, en minúscula como lo escribe el idioma. */
-const mesDe = (fecha) =>
-  fecha ? new Date(`${fecha}T12:00:00`).toLocaleDateString('es-ES', { month: 'long' }) : 'el inicio';
 
 /** La primera línea de lo que escribió su entrenador, y corta. */
 const primeraLinea = (texto) => {

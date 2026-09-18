@@ -1640,29 +1640,54 @@ const TARGET_KEYS = ['kcals', 'protein', 'carbs', 'fats'];
 /** El suelo del margen, por campo. En gramos y en kilocalorías. */
 export const SUELO_MARGEN = { kcals: 25, protein: 3, carbs: 3, fats: 3 };
 
-/** El margen dentro del cual una cifra cuadra: el 5 %, pero nunca menos que el suelo. */
-export const margenDe = (objetivo, campo = 'kcals') =>
-  Math.max(Math.abs(toNum0(objetivo)) * 0.05, SUELO_MARGEN[campo] ?? SUELO_MARGEN.protein);
+/**
+ * Lo que se le tolera a UNA COMIDA en kilocalorías, que NO es lo que se le
+ * tolera al día: el 2 %, nunca menos de 15 kcal.
+ *
+ * ── Por qué una comida se juzga más fino que un plan ──────────────────────
+ * El 5 % con suelo de 25 está calibrado para la cifra del DÍA —3.100 kcal son
+ * 155 kcal de holgura—, y aplicado tal cual a cada comida le da 55 a una cena
+ * de 1.100: un alimento entero de margen. Y hay una razón que no es de gusto:
+ * el error del día es la SUMA de los de sus comidas, así que si la parte se
+ * juzga con la misma anchura que el todo, tres comidas «en verde» pueden dar
+ * un día que no cuadra. La parte se mide más estrecho.
+ *
+ * Solo en kcal. Los gramos de macro se quedan con el suelo de 3 g de arriba,
+ * que ya es estrecho sobre cifras pequeñas: apretarlo pintaría de ámbar «37 de
+ * 40 g de proteína», que es exactamente el reñir que esta casa no hace.
+ */
+export const MARGEN_COMIDA_KCALS = { pct: 0.02, suelo: 15 };
+
+/**
+ * El margen dentro del cual una cifra cuadra: el 5 %, pero nunca menos que el
+ * suelo. Con `escala: 'comida'` y en kcal, el de aquí arriba.
+ */
+export const margenDe = (objetivo, campo = 'kcals', escala = 'plan') => {
+  const valor = Math.abs(toNum0(objetivo));
+  if (escala === 'comida' && campo === 'kcals')
+    return Math.max(valor * MARGEN_COMIDA_KCALS.pct, MARGEN_COMIDA_KCALS.suelo);
+  return Math.max(valor * 0.05, SUELO_MARGEN[campo] ?? SUELO_MARGEN.protein);
+};
 
 /**
  * El veredicto sobre una DIFERENCIA ya calculada: `'ok' | 'over' | 'under'`, o
  * `'none'` cuando no hay objetivo contra el que juzgar —que no es lo mismo que
  * cuadrar—.
  */
-export const estadoDeDiff = (diff, objetivo, campo = 'kcals') => {
+export const estadoDeDiff = (diff, objetivo, campo = 'kcals', escala = 'plan') => {
   const meta = toNum0(objetivo);
   if (!meta) return 'none';
-  const margen = margenDe(meta, campo);
+  const margen = margenDe(meta, campo, escala);
   return diff > margen ? 'over' : diff < -margen ? 'under' : 'ok';
 };
 
 /** Lo mismo, con lo real y lo pautado. */
-export const estadoDe = (real, objetivo, campo = 'kcals') =>
-  estadoDeDiff(toNum0(real) - toNum0(objetivo), objetivo, campo);
+export const estadoDe = (real, objetivo, campo = 'kcals', escala = 'plan') =>
+  estadoDeDiff(toNum0(real) - toNum0(objetivo), objetivo, campo, escala);
 
 /** `' is-ok'`, `' is-over'`, `' is-under'` o cadena vacía, para pegar a una clase. */
-export const claseDe = (real, objetivo, campo = 'kcals') => {
-  const estado = estadoDe(real, objetivo, campo);
+export const claseDe = (real, objetivo, campo = 'kcals', escala = 'plan') => {
+  const estado = estadoDe(real, objetivo, campo, escala);
   return estado === 'none' ? '' : ` is-${estado}`;
 };
 

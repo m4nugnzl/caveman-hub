@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { Info, TrendingUp } from 'lucide-react';
 
 import { metricPoints } from '@/domain/analytics';
 import { PERIMETER_LABELS, perimeterSeries, seriesDelta } from '@/domain/anthropometry';
@@ -22,9 +23,10 @@ import { useOculto } from '@/components/Client/Oculto';
  *   1. La TABLA SEMANA A SEMANA —peso, kcal, pasos y lo que contestó, una fila
  *      por semana—: la hoja de series de Entreno aplicada al cuerpo. «Bajó 600 g
  *      la semana que le subí los pasos y con el hambre en 3» se lee en una fila.
- *   2. La recta de tendencia con la banda del objetivo, y el % graso.
- *   3. Los perímetros, cada uno con su curva.
- *   4. Las escalas del check-in, una fila por pregunta.
+ *   2. La recta de tendencia con la banda del objetivo, a todo lo ancho; y el
+ *      % graso debajo, solo si hay pliegues.
+ *   3. Los perímetros y las escalas del check-in, lado a lado, cada uno en su
+ *      caja: una fila por cosa con su curva, su cifra y su cambio.
  *
  * Es una ventana grande y no un panel lateral porque lo que enseña son tablas
  * de siete columnas: a 460 px no caben.
@@ -154,42 +156,75 @@ export const PanelCuerpo = ({
     return { from: esperado - margen, to: esperado + margen };
   }, [goal, pesoActual, trend, weightPts]);
 
+  /* Las columnas de la tabla, en el orden del frame `305:8`: la semana, el
+     peso con su cambio, lo que tenía puesto y lo que contestó. */
+  /* `repeat(0, …)` no es CSS válido y tira la declaración ENTERA —la tabla
+     caía a una columna—, así que cada tramo entra solo si tiene columnas. */
+  const rejilla = [
+    'minmax(96px, 0.9fr) minmax(96px, 1fr)',
+    planes.length > 0 && `repeat(${planes.length}, minmax(72px, 1fr))`,
+    columnas.length > 0 && `repeat(${columnas.length}, minmax(64px, 1fr))`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <Modal open={open} size="lg" title={isClient ? 'Tu cuerpo, a fondo' : 'El cuerpo, a fondo'} onClose={onClose}>
+    <Modal
+      open={open}
+      size="lg"
+      icono={TrendingUp}
+      title={isClient ? 'Tu cuerpo, a fondo' : 'El cuerpo, a fondo'}
+      sub={
+        isClient
+          ? 'Tu peso, tus medidas y lo que contestas, semana a semana'
+          : 'Su peso, sus medidas y lo que contesta, semana a semana'
+      }
+      onClose={onClose}
+    >
       <div className="afondo is-ventana">
         <section className="afondo-tramo">
           <h3 className="bloque-titulo">Semana a semana</h3>
-          <div className="semanas-tabla" style={{ '--cols': columnas.length, '--planes': planes.length }}>
-            <div className="semanas-fila is-head">
-              <span>Semana</span>
-              <span>Peso</span>
+          {/*
+            ══ LA TABLA ES LA DEL VOLUMEN, COMO LA DEL ENTRENO (frame 305:8) ════
+            Era una rejilla propia —`.semanas-tabla`, celdas grises a lo ancho y
+            cabecera sin banda— y el frame la dibuja con la misma anatomía que la
+            ventana del entreno: canto, cabecera en banda, cebra, y lo que
+            contestó en pastillas ceñidas. Las dos ventanas «a fondo» del Resumen
+            son hermanas y ahora se leen igual.
+          */}
+          <div className="volumen-tabla is-semanas" role="table" aria-label="Su semana a semana">
+            <div className="volumen-fila is-head" role="row" style={{ gridTemplateColumns: rejilla }}>
+              <span className="is-izq" role="columnheader">Semana</span>
+              <span className="is-izq" role="columnheader">Peso</span>
               {planes.map((col) => (
-                <span key={col.id}>{col.label}</span>
+                <span className="is-izq" role="columnheader" key={col.id}>
+                  {col.label}
+                </span>
               ))}
               {columnas.map((q) => (
-                <span key={q.id} title={q.label}>
+                <span className="is-centro" role="columnheader" key={q.id} title={q.label}>
                   {q.short || q.label}
                 </span>
               ))}
             </div>
 
             {filas.map((f) => (
-              <div className="semanas-fila" key={f.weekStart}>
-                <span className="semanas-sem">
+              <div className="volumen-fila" role="row" style={{ gridTemplateColumns: rejilla }} key={f.weekStart}>
+                <span className="semanas-sem" role="rowheader">
                   {f.semana ? `S${f.semana}` : f.etiqueta}
-                  <small>{f.etiqueta}</small>
+                  {f.semana && <small>{f.etiqueta}</small>}
                 </span>
-                <span className="semanas-celda is-peso">
-                  <b>{fmt(f.peso, { decimals: 1 })}</b>
+                <span className="semanas-peso" role="cell">
+                  <b>{f.peso === null || f.peso === undefined ? '—' : fmt(f.peso, { decimals: 1 })}</b>
                   {f.delta !== null && f.delta !== 0 && (
                     <small className={f.delta < 0 ? 'is-baja' : 'is-sube'}>
-                      {f.delta > 0 ? '+' : ''}
-                      {f.delta}
+                      {f.delta > 0 ? '+' : '−'}
+                      {fmt(Math.abs(f.delta), { decimals: 1 })}
                     </small>
                   )}
                 </span>
                 {planes.map((col) => (
-                  <span className="semanas-celda" key={col.id}>
+                  <span className="semanas-plan" role="cell" key={col.id}>
                     {f[col.id] === null || f[col.id] === undefined ? '·' : fmt(f[col.id])}
                   </span>
                 ))}
@@ -197,7 +232,7 @@ export const PanelCuerpo = ({
                   const v = f.answers?.[q.id];
                   const vacio = v === null || v === undefined || String(v).trim() === '';
                   return (
-                    <span className={`semanas-celda${vacio ? ' is-vacia' : ''}`} key={q.id}>
+                    <span className={`volumen-celda${vacio ? ' is-vacia' : ''}`} role="cell" key={q.id}>
                       {vacio ? '·' : v}
                     </span>
                   );
@@ -205,123 +240,134 @@ export const PanelCuerpo = ({
               </div>
             ))}
           </div>
-          <p className="tarjeta-pie">
-            {/* El pie nombra las columnas que de verdad hay: con la dieta
-                apagada, «lo que tenía puesto de comer» señalaba a una columna
-                que ya no está. */}
-            El promedio de peso de cada semana
-            {planes.length > 0 ? `, lo que tenía puesto ${planes.some((c) => c.id === 'kcals') ? 'de comer' : ''}${planes.length === 2 ? ' y ' : ''}${planes.some((c) => c.id === 'pasos') ? 'de andar' : ''}` : ''}
-            {columnas.length > 0 ? ', y lo que contestó al cerrarla' : ''}. Un punto es una semana
-            sin ese dato.
+          <p className="afondo-nota">
+            <Info size={13} aria-hidden="true" />
+            <span>
+              {/* El pie nombra las columnas que de verdad hay: con la dieta
+                  apagada, «lo que tenía puesto de comer» señalaba a una columna
+                  que ya no está. */}
+              El promedio de peso de cada semana
+              {planes.length > 0
+                ? `, lo que tenía puesto ${planes.some((c) => c.id === 'kcals') ? 'de comer' : ''}${planes.length === 2 ? ' y ' : ''}${planes.some((c) => c.id === 'pasos') ? 'de andar' : ''}`
+                : ''}
+              {columnas.length > 0 ? ', y lo que contestó al cerrarla' : ''}. Un punto es una semana sin ese dato.
+            </span>
           </p>
         </section>
 
         <section className="afondo-tramo">
-          <div className="hoja-par">
-            <div className="hoja-tramo">
-              <h3 className="bloque-titulo">La tendencia, y contra qué</h3>
+          <h3 className="bloque-titulo">La tendencia, y contra qué</h3>
+          {/* A todo lo ancho, como en el frame: compartiendo fila con el % graso
+              la recta medía la mitad, y es la lectura principal de la ventana. */}
+          <div className="afondo-lienzo">
+            <BandChart
+              labels={serie.map((row) => row.label)}
+              series={[
+                { id: 'weight', label: 'Peso', color: metricColor('weight'), unit: ' kg', decimals: 1, points: weightPts },
+              ]}
+              height={200}
+              smooth
+              trend={trend.ok ? trend : null}
+              band={bandaObjetivo}
+              emptyMessage="Sin pesajes registrados."
+            />
+          </div>
+          <p className="afondo-nota">
+            <Info size={13} aria-hidden="true" />
+            <span>
+              {trend.ok
+                ? `Pendiente de las últimas ${trend.weeks} semanas (r² ${fmt(trend.r2, { decimals: 2 })})${trend.weak ? ', poco fiable: los pesajes están muy dispersos y por eso la recta va discontinua' : ''}.${bandaObjetivo ? ' La banda es dónde debería estar según el objetivo.' : ''}`
+                : `Se necesitan ${trend.needed} semanas con pesajes para calcular una tendencia; hay ${trend.weeks}.`}
+            </span>
+          </p>
+        </section>
+
+        {/* El % graso sale solo con pliegues: el frame no lo dibuja, y una caja
+            vacía a media ventana era un hueco con rótulo para quien no los mide. */}
+        {fatPts.length > 0 && (
+          <section className="afondo-tramo">
+            <h3 className="bloque-titulo">% graso</h3>
+            <div className="afondo-lienzo">
               <BandChart
                 labels={serie.map((row) => row.label)}
-                series={[
-                  { id: 'weight', label: 'Peso', color: metricColor('weight'), unit: ' kg', decimals: 1, points: weightPts },
-                ]}
-                height={150}
-                smooth
-                trend={trend.ok ? trend : null}
-                band={bandaObjetivo}
-                emptyMessage="Sin pesajes registrados."
+                series={[{ id: 'fat', label: '% graso', color: metricColor('fat'), unit: '%', decimals: 1, points: fatPts }]}
+                height={160}
+                emptyMessage="Sin pliegues registrados."
               />
-              <p className="tarjeta-pie">
-                {trend.ok
-                  ? `Pendiente de las últimas ${trend.weeks} semanas (r² ${trend.r2})${trend.weak ? ', poco fiable: los pesajes están muy dispersos y por eso la recta va discontinua' : ''}.${bandaObjetivo ? ' La banda es dónde debería estar según el objetivo.' : ''}`
-                  : `Se necesitan ${trend.needed} semanas con pesajes para calcular una tendencia; hay ${trend.weeks}.`}
-              </p>
             </div>
-
-            <div className="hoja-tramo">
-              <h3 className="bloque-titulo">% graso</h3>
-              {fatPts.length === 0 ? (
-                <TarjetaVacia>
-                  {isClient
-                    ? 'Registra pliegues en tu revisión para ver el % graso.'
-                    : 'Sin pliegues registrados. Hacen falta plicómetro y buena mano, y se activan en su protocolo.'}
-                </TarjetaVacia>
-              ) : (
-                <>
-                  <BandChart
-                    labels={serie.map((row) => row.label)}
-                    series={[
-                      { id: 'fat', label: '% graso', color: metricColor('fat'), unit: '%', decimals: 1, points: fatPts },
-                    ]}
-                    height={150}
-                    emptyMessage="Sin pliegues registrados."
-                  />
-                  <p className="tarjeta-pie">
-                    Medido con plicómetro: el error entre dos mediciones es de 1-2 puntos, así que solo
-                    son fiables los cambios sostenidos.
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className="afondo-tramo">
-          <h3 className="bloque-titulo">{isClient ? 'Tus medidas' : 'Las medidas'}</h3>
-          {medidas.length === 0 ? (
-            <TarjetaVacia>
-              {isClient
-                ? 'Cuando midas algún perímetro en tu revisión, aparecerá aquí.'
-                : 'Sin perímetros registrados. Se miden en su check-in, y son lo que distingue perder grasa de perder músculo.'}
-            </TarjetaVacia>
-          ) : (
-            <ul className="tendencias">
-              {medidas.map((m) => (
-                <li className="tendencia" key={m.id}>
-                  <span className="tendencia-k">{m.label}</span>
-                  <span className="tendencia-linea">
-                    <Sparkline points={m.puntos} color={metricColor('waist')} height={30} />
-                  </span>
-                  <span className="tendencia-v">
-                    {fmt(m.valor, { decimals: 1 })}
-                    <small> cm</small>
-                  </span>
-                  <Delta value={m.delta} unit=" cm" lowerIsBetter={m.id === 'ombligo'} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {escalas.length > 0 && (
-          <section className="afondo-tramo">
-            <h3 className="bloque-titulo">{isClient ? 'Lo que cuentas cada semana' : 'Lo que cuenta cada semana'}</h3>
-            <ul className="tendencias">
-              {escalas.map((fila) => {
-                const ahora = fila.points[fila.points.length - 1]?.value ?? null;
-                const primera = fila.points[0]?.value ?? null;
-                const delta = ahora !== null && primera !== null ? ahora - primera : null;
-                return (
-                  <li
-                    className={`tendencia${fila.id === pregunta ? ' is-buscada' : ''}`}
-                    ref={fila.id === pregunta ? buscada : null}
-                    key={fila.id}
-                  >
-                    <span className="tendencia-k">{fila.label}</span>
-                    <span className="tendencia-linea">
-                      <Sparkline points={fila.points} color={fila.color} height={30} />
-                    </span>
-                    <span className="tendencia-v" style={{ color: fila.color }}>
-                      {ahora ?? '—'}
-                      <small>/{fila.max}</small>
-                    </span>
-                    <Delta value={delta} lowerIsBetter={fila.id === 'hunger' || fila.id === 'week_stress'} />
-                  </li>
-                );
-              })}
-            </ul>
+            <p className="afondo-nota">
+              <Info size={13} aria-hidden="true" />
+              <span>
+                Medido con plicómetro: el error entre dos mediciones es de 1-2 puntos, así que solo son fiables los
+                cambios sostenidos.
+              </span>
+            </p>
           </section>
         )}
+
+        {/* Las medidas y las escalas, lado a lado y cada una en su caja: son
+            la misma forma —una fila por cosa, su curva, su cifra y su cambio— y
+            en fila una detrás de otra la ventana medía el doble. */}
+        <section className="afondo-tramo">
+          <div className="afondo-par">
+            <div className="afondo-mitad">
+              <h3 className="bloque-titulo">{isClient ? 'Tus medidas' : 'Las medidas'}</h3>
+              {medidas.length === 0 ? (
+                <TarjetaVacia>
+                  {isClient
+                    ? 'Cuando midas algún perímetro en tu revisión, aparecerá aquí.'
+                    : 'Sin perímetros registrados. Se miden en su check-in, y son lo que distingue perder grasa de perder músculo.'}
+                </TarjetaVacia>
+              ) : (
+                <ul className="tendencias is-lista">
+                  {medidas.map((m) => (
+                    <li className="tendencia" key={m.id}>
+                      <span className="tendencia-k">{m.label}</span>
+                      <span className="tendencia-linea">
+                        <Sparkline points={m.puntos} color={metricColor('waist')} height={30} />
+                      </span>
+                      <span className="tendencia-v">
+                        {fmt(m.valor, { decimals: 1 })}
+                        <small> cm</small>
+                      </span>
+                      <Delta value={m.delta} unit=" cm" lowerIsBetter={m.id === 'ombligo'} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {escalas.length > 0 && (
+              <div className="afondo-mitad">
+                <h3 className="bloque-titulo">{isClient ? 'Lo que cuentas cada semana' : 'Lo que cuenta cada semana'}</h3>
+                <ul className="tendencias is-lista">
+                  {escalas.map((fila) => {
+                    const ahora = fila.points[fila.points.length - 1]?.value ?? null;
+                    const primera = fila.points[0]?.value ?? null;
+                    const delta = ahora !== null && primera !== null ? ahora - primera : null;
+                    return (
+                      <li
+                        className={`tendencia${fila.id === pregunta ? ' is-buscada' : ''}`}
+                        ref={fila.id === pregunta ? buscada : null}
+                        key={fila.id}
+                      >
+                        <span className="tendencia-k">{fila.label}</span>
+                        <span className="tendencia-linea">
+                          <Sparkline points={fila.points} color={fila.color} height={30} />
+                        </span>
+                        <span className="tendencia-v">
+                          {ahora === null ? '—' : fmt(ahora, { decimals: 1 })}
+                          <small>/{fila.max}</small>
+                        </span>
+                        <Delta value={delta} lowerIsBetter={fila.id === 'hunger' || fila.id === 'week_stress'} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </Modal>
   );

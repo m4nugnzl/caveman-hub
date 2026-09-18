@@ -192,7 +192,6 @@
    del cliente donde está ese dato: un aviso del que no se puede tirar se ignora
    a la tercera. */
 
-.feed-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── LA BANDEJA ────────────────────────────────────────────────────────────
    Mismo patrón que la ficha de la cartera: la tarjeta entera abre al cliente
@@ -476,17 +475,6 @@
 }
 .guia-linea > svg { color: var(--accent); flex-shrink: 0; }
 .guia-linea .btn-icon { margin-left: auto; }
-
-/* ══ EL RENGLÓN DE «AL DÍA» ════════════════════════════════════════════════
-   Las colas sin trabajo ya no gastan tarjeta: se funden en esta línea, que
-   premia en vez de ocupar. El tic va en verde porque es un juicio —esto está
-   bien—, no cromo. */
-.aldia-linea {
-  display: flex; align-items: center; gap: var(--s2);
-  margin: calc(-1 * var(--s3)) 0 0; padding: 0 var(--s1);
-  color: var(--text-secondary); font-size: var(--fs-sm);
-}
-.aldia-linea > svg { color: var(--positive); flex-shrink: 0; }
 
 /* ══ EL VACÍO QUE INVITA ═══════════════════════════════════════════════════
    Sin caja punteada: la frase dice lo que hay y el gesto está al lado. La

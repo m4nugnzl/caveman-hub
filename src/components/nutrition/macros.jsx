@@ -365,9 +365,66 @@ export const Medidor = ({
   fila = false,
   campo = 'kcals',
   juzga = true,
+  barra = false,
+  costado = false,
 }) => {
   const estado = juzga ? estadoMacro(valor, objetivo, campo) : '';
 
+  /*
+    ══ LA BARRA (17 sep · frame 64:252) ══════════════════════════════════════
+
+    El frame del costado de la dieta dibuja cada renglón con una barra debajo.
+    Y hay una objeción escrita contra las barras de progreso en esta pantalla,
+    de cuando se miraba a Efort: **una dieta montada va siempre por el 95-105 %
+    de lo pautado, así que cuatro barras salen SIEMPRE llenas** — cuatro franjas
+    de color y ni una lectura (ver `DiaResumen` y `dieta-costado-es-panel`).
+
+    Lo que la hace valer aquí, y por eso se construye: **la barra la pinta el
+    SEMÁFORO**, no el porcentaje a secas. Verde cuando cuadra, ámbar o rojo
+    cuando no, y pasada de vuelta se queda llena con la tinta de lo que sobra.
+    O sea que la franja llena no dice «vas bien», dice «cuadra»; y el día que no
+    cuadre, la barra es lo primero que se ve de la tarjeta. La cifra sigue
+    estando al lado para quien quiera el cuánto.
+
+    Va por `barra` y no siempre: las mismas filas se usan en la revisión y en el
+    portal, donde el renglón es una lectura y no un objetivo que cuadrar.
+  */
+  const pct =
+    barra && objetivo > 0 ? Math.max(0, Math.min(100, Math.round((valor / objetivo) * 100))) : null;
+
+  /*
+    ══ LA FORMA DEL COSTADO (frame 64:248) ═════════════════════════════════
+
+    El frame del panel derecho dibuja cada renglón en DOS líneas: el nombre
+    a la izquierda y «3096 / 3100 kcal» a la derecha, y debajo la barra de
+    cabo a cabo. No es la rejilla de cuatro columnas de `is-fila` —ahí la
+    lectura y el apunte se llevan la mitad del ancho y la barra se queda en
+    un canto—, así que es su propia forma y no una variante de aquella.
+
+    Lo que se cae por el camino es la columna del descuadre: aquí lo dice la
+    BARRA, que es de color. La cifra solo gana tinta cuando de verdad se sale
+    del margen, y entonces el gramaje va detrás en voz baja.
+  */
+  if (costado) {
+    return (
+      <div className={`medidor-costado${estado ? ` ${estado}` : ''}`}>
+        <span className="k">
+          {label}
+          {apunte ? <em>{apunte}</em> : null}
+        </span>
+        <span className="v">
+          <b>{valor}</b>
+          {objetivo ? <small>{` / ${objetivo}${unidad ? ` ${unidad}` : ''}`}</small> : unidad ? <small>{` ${unidad}`}</small> : null}
+          {lectura && estado && estado !== 'is-ok' ? <i>{lectura}</i> : null}
+        </span>
+        {pct !== null && (
+          <span className="medidor-barra" aria-hidden="true">
+            <i style={{ width: `${pct}%` }} />
+          </span>
+        )}
+      </div>
+    );
+  }
   return (
     <div className={`medidor${total ? ' is-total' : ''}${fila ? ' is-fila' : ''}${estado ? ` ${estado}` : ''}`}>
       <span className="k">
@@ -383,6 +440,11 @@ export const Medidor = ({
           misma vertical y la lista se leería como tres frases sueltas. */}
       {(lectura || fila) && <span className="lectura">{lectura || ''}</span>}
       {fila && <span className="apunte">{apunte || ''}</span>}
+      {pct !== null && (
+        <span className="medidor-barra" aria-hidden="true">
+          <i style={{ width: `${pct}%` }} />
+        </span>
+      )}
     </div>
   );
 };

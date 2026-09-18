@@ -19,7 +19,7 @@ import { clientPath } from '@/routes';
 import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Modal } from '@/components/ui/Modal';
 import { Cinta } from '@/components/ui/Cinta';
-import { EmptyState, Notice, Panel } from '@/components/ui/primitives';
+import { EmptyState, Notice } from '@/components/ui/primitives';
 import { KindLegend } from './KindLegend';
 
 /** «jueves 20 de agosto» → «Jueves 20 de agosto». Es un título; se le pone mayúscula. */
@@ -192,12 +192,7 @@ const AgendaSheet = ({ date, cards, clients, canWrite, onAdd, onToggle, onRemove
  * quien pregunta puede leer. La consulta sin filtro de cliente devuelve la
  * cartera y nada más: quitar el `.eq()` no abre nada. Ver `useCalendar`.
  */
-/**
- * @param enCapa Montado como capa del puesto (la ventana «Agenda» de la barra):
- *   la ventana ya trae el título, así que la cinta propia se retira. Como
- *   ruta (`/calendario`, marcadores y móvil) no cambia nada.
- */
-export const CoachCalendar = ({ enCapa = false }) => {
+export const CoachCalendar = () => {
   const { clients, loadEvents, addClientEvent, setEventDone, removeClientEvent } = useApp();
 
   const today = todayISO();
@@ -334,6 +329,7 @@ export const CoachCalendar = ({ enCapa = false }) => {
         filas.push({
           id: `prox-rev-${cell.date}`,
           date: cell.date,
+          kind: 'checkin',
           quien:
             entregan.length === 1
               ? entregan[0].name
@@ -353,8 +349,9 @@ export const CoachCalendar = ({ enCapa = false }) => {
         filas.push({
           id: `prox-ev-${event.id}`,
           date: cell.date,
+          kind: event.kind,
           quien: event.title,
-          que: `${nombres.get(event.clientId) || 'Cliente'} · ${kindMeta(event.kind).label}`,
+          que: nombres.get(event.clientId) || 'Cliente',
         });
       }
     }
@@ -374,10 +371,20 @@ export const CoachCalendar = ({ enCapa = false }) => {
 
   const move = (delta) => setCursor((prev) => shiftMonth(prev.year, prev.month, delta));
 
+  /* El verbo de la pantalla —«+ Nueva tarea» en el frame— es la hoja de HOY:
+     el mismo formulario que abre cualquier celda, con la fecha ya puesta. En
+     la casa esto se llama apuntar, y un «Nueva tarea» prometería una bandeja
+     de tareas que la agenda no tiene. */
+  const apuntar = !unavailable && (
+    <button type="button" className="btn btn-primary btn-sm" onClick={() => setOpenDay(today)}>
+      <Plus size={15} /> Apuntar algo
+    </button>
+  );
+
   if (activos.length === 0) {
     return (
       <div className="stack">
-        {!enCapa && <Cinta titulo="Agenda" />}
+        <Cinta titulo="Agenda" />
         <EmptyState
           title="Todavía no hay a quién agendar"
           message="Da de alta a tu primer cliente y su día de revisión aparecerá aquí, junto al de los demás."
@@ -393,19 +400,16 @@ export const CoachCalendar = ({ enCapa = false }) => {
 
   return (
     <div className="stack cascada">
-      {/* La misma cinta que Clientes, el Taller y Cobros: era la otra pantalla
-          del panel que seguía con la cabecera vieja. Ver `ui/Cinta`. */}
-      {!enCapa && <Cinta titulo="Agenda" />}
+      <div className="agenda">
+      {/* La misma cinta que Clientes, el Taller y Cobros. El frame (164:2324)
+          la dibuja como una caja con icono; no se copia, por la misma razón
+          que en la cartera: la cabecera no se rediseña por pantalla. Ver
+          `ui/Cinta` y la cabecera de `cobros-agenda.css`. */}
+      <Cinta titulo="Agenda" accion={apuntar} />
 
       {/* El cuerpo lleva el sangrado: con cinta, la hoja pierde el suyo para
           llegar de canto a canto. Igual que en Cobros. */}
-      <div className={enCapa ? 'stack' : 'cartera-cuerpo stack'}>
-        {!enCapa && (
-          <p className="t-sm t-secondary">
-            Quién te entrega y qué tienes agendado, con toda tu cartera junta.
-          </p>
-        )}
-
+      <div className="cartera-cuerpo agenda-cuerpo">
       {unavailable && (
         <Notice tone="info">
           El calendario todavía no está activo en tu cuenta: puedes ver los días de revisión, pero
@@ -414,17 +418,14 @@ export const CoachCalendar = ({ enCapa = false }) => {
       )}
       {error && <Notice tone="error">{error}</Notice>}
 
-      <div className="agenda-pagina">
-      <Panel
-        title={monthLabel(cursor.year, cursor.month)}
-        action={
-          <div className="row gap-2">
-            <button type="button" className="btn btn-icon" onClick={() => move(-1)} aria-label="Mes anterior">
-              <ChevronLeft size={15} />
-            </button>
+      <div className="agenda-mesa">
+      <section className="agenda-caja" aria-label="El mes">
+        <header className="agenda-caja-cab">
+          <h2 className="agenda-mes">{monthLabel(cursor.year, cursor.month)}</h2>
+          <div className="agenda-mandos">
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className="btn btn-secondary"
               onClick={() => {
                 const d = new Date(`${today}T00:00:00Z`);
                 setCursor({ year: d.getUTCFullYear(), month: d.getUTCMonth() });
@@ -432,13 +433,17 @@ export const CoachCalendar = ({ enCapa = false }) => {
             >
               Hoy
             </button>
-            <button type="button" className="btn btn-icon" onClick={() => move(1)} aria-label="Mes siguiente">
-              <ChevronRight size={15} />
-            </button>
+            <span className="agenda-mandos-flechas">
+              <button type="button" className="btn btn-icon" onClick={() => move(-1)} aria-label="Mes anterior">
+                <ChevronLeft size={15} />
+              </button>
+              <button type="button" className="btn btn-icon" onClick={() => move(1)} aria-label="Mes siguiente">
+                <ChevronRight size={15} />
+              </button>
+            </span>
           </div>
-        }
-        className="col gap-4"
-      >
+        </header>
+
         <div className="cal">
           {WEEKDAYS.map((label) => (
             <span className="cal-dow" key={label}>
@@ -460,7 +465,9 @@ export const CoachCalendar = ({ enCapa = false }) => {
                 onClick={() => setOpenDay(cell.date)}
                 aria-label={`${cell.date}, ${entregan.length} revisiones`}
               >
-                <span className="n">{cell.day}</span>
+                <span className="cal-dia">
+                  <span className="n">{cell.day}</span>
+                </span>
 
                 {/* La cifra y no la palabra: en la agenda lo que se busca en el
                     mes es cuántos te entregan ese día, no que haya alguno. */}
@@ -500,52 +507,69 @@ export const CoachCalendar = ({ enCapa = false }) => {
         </div>
 
         <div className="cal-pie">
-          <p className="cal-legend">Toca un día para ver quién entrega y agendar algo.</p>
           <KindLegend kinds={EVENT_KINDS} />
+          <p className="cal-legend">Toca un día para ver quién entrega y agendar algo.</p>
         </div>
-      </Panel>
+      </section>
 
       {/*
         El costado: lo que viene, con nombre. Cada fila abre la hoja de su día
         — el mismo gesto que pulsar la celda del mes, dicho en legible.
       */}
       <aside className="agenda-lado" aria-label="Lo próximo en la agenda">
-        <Panel tight title="Lo próximo" className="col gap-1">
+        <section className="agenda-caja">
+          <header className="agenda-caja-cab is-rotulo">
+            <div>
+              <h2 className="agenda-caja-titulo">Lo próximo</h2>
+              <p className="agenda-caja-sub">Quién entrega y qué hay agendado, de hoy a fin de mes.</p>
+            </div>
+          </header>
           {proximoVisible.length === 0 ? (
             <div className="vacio-invita">
               <p>Nada por delante en este mes.</p>
-              <button type="button" className="cab-accion is-puerta" onClick={() => setOpenDay(today)}>
-                Apuntar algo
-              </button>
+              {!unavailable && (
+                <button type="button" className="cab-accion is-puerta" onClick={() => setOpenDay(today)}>
+                  Apuntar algo
+                </button>
+              )}
             </div>
           ) : (
             <>
-              <div className="list">
+              <ul className="agenda-proximo">
                 {proximoVisible.map((fila) => (
-                  <button
-                    type="button"
-                    key={fila.id}
-                    className="list-row prox-fila"
-                    onClick={() => setOpenDay(fila.date)}
-                  >
-                    <span className="prox-cuando">
-                      <b>{Number(fila.date.slice(8, 10))}</b>
-                      <span>{weekdayName(fila.date)?.slice(0, 3) || ''}</span>
-                    </span>
-                    <span className="list-row-label">
-                      <span className="title">{fila.quien}</span>
-                      <span className="sub">{fila.que}</span>
-                    </span>
-                  </button>
+                  <li key={fila.id}>
+                    <button type="button" className="prox-fila" onClick={() => setOpenDay(fila.date)}>
+                      <span className="prox-cuando">
+                        <b>{Number(fila.date.slice(8, 10))}</b>
+                        <span>{weekdayName(fila.date)?.slice(0, 3) || ''}</span>
+                      </span>
+                      <span className="prox-que">
+                        <span
+                          className={`agenda-chapa${fila.kind === 'checkin' ? ' is-revision' : ''}`}
+                          style={fila.kind === 'checkin' ? undefined : { '--tipo': kindMeta(fila.kind).color }}
+                        >
+                          {kindMeta(fila.kind).label}
+                        </span>
+                        <span>
+                          {fila.quien}
+                          {fila.kind === 'checkin' ? ', ' : ' · '}
+                          {fila.que}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
                 ))}
-              </div>
+              </ul>
               {proximo.length > proximoVisible.length && (
                 <p className="t-xs t-tertiary">Y {proximo.length - proximoVisible.length} más, en el mes.</p>
               )}
             </>
           )}
-        </Panel>
+        </section>
       </aside>
+      </div>
+
+      <p className="t-xs t-tertiary">Quién te entrega y qué tienes agendado, con toda tu cartera junta.</p>
       </div>
 
       {openDay && (

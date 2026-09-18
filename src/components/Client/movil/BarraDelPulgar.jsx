@@ -1,53 +1,50 @@
 import { NavLink, useLocation } from 'react-router-dom';
+import { ClipboardCheck, Dumbbell, House, Utensils } from 'lucide-react';
 
 import { isSectionActive } from '@/routes';
 import { useAvisos } from '../useAvisos';
-import { IconoComer, IconoEntreno, IconoHoy, IconoTu } from './Piezas';
 
 /**
- * LA BARRA DEL PULGAR — CUATRO destinos, y ninguno es el entrenador.
+ * LA BARRA DEL PULGAR — flotante, en tinta, y con CUATRO destinos:
+ * **Hoy · Entreno · Comer · Revisión**.
  *
- * ══ Por qué cuatro y no cinco ══════════════════════════════════════════════
+ * ══ Por qué así (18 sep 2026, frames de Figma `327:8`…) ════════════════════
  *
- * Es la planta del prototipo del teléfono: **Hoy · Entreno · Comer · Tú**.
- * Coinciden en número con los de la app de hoy —la partición era correcta—;
- * cambia qué hay dentro y que ninguno depende de que haya un entrenador al otro
- * lado, que es la tesis entera del estudio.
+ * El dueño la dibujó como la barra lateral de la web del entrenador hecha
+ * píldora: la misma tinta (`barra-tinta`), suelta del borde y con aire
+ * alrededor. Es la pieza que dice que las dos aplicaciones son la misma casa.
  *
- * «Revisión» se cae de la barra y baja a una fila de «Tú» —*Cerrar la semana*,
- * con su estado escrito al lado—. El argumento por el que subió el 12 de
- * septiembre sigue siendo bueno (es lo único que el cliente le DEBE a su
- * entrenador), y el dueño lo ha decidido al revés mirando este prototipo: en un
- * aparato donde la navegación entera son cuatro botones, un destino apagado seis
- * días de cada siete es un botón de los cuatro. El recordatorio no se pierde —la
- * fila de «Tú» lleva su «pendiente» en azul y «Hoy» sigue trayendo el pedido
- * arriba— y además vuelve a haber sitio para que cada icono se lea.
+ * Y cambia quién está dentro, por cuarta vez (ver `CLIENT_SECTIONS`): vuelve
+ * «Revisión», que es de las tres misiones del cliente la que le cuesta dinero
+ * si no la hace, y sale «Tú», que se abre desde el avatar de arriba a la derecha
+ * de «Hoy». Lo que se consulta de vez en cuando va detrás de una puerta; lo que
+ * se hace cada semana, en la barra.
  *
- * «Progreso» sigue siendo de escritorio (`soloAncho`): se mira, no se hace.
- *
- * ── El icono no viene de `lucide` ────────────────────────────────────────
- * Son los cuatro del prototipo, dibujados en `Piezas`. Son los únicos iconos de
- * todo el teléfono: ni las filas ni las tarjetas llevan.
+ * ── Los puntos ────────────────────────────────────────────────────────────
+ * Dos, y cada uno en su destino: el de «Hoy» es lo que su entrenador ha
+ * cambiado o le ha mandado; el de «Revisión», que la semana espera. Es el
+ * recordatorio que en la versión de cuatro destinos sin revisión llevaba la
+ * fila de «Tú».
  */
 const ICONO = {
-  inicio: IconoHoy,
-  rutina: IconoEntreno,
-  dieta: IconoComer,
-  tu: IconoTu,
+  inicio: House,
+  rutina: Dumbbell,
+  dieta: Utensils,
+  evolucion: ClipboardCheck,
 };
 
 export const BarraDelPulgar = ({ secciones }) => {
   const { pathname } = useLocation();
-  /* Un solo punto, y es el de «Hoy»: lo que ha cambiado y lo que le falta. El
-     de «Revisión» se va con su destino — lo que espera sigue saliendo arriba,
-     en el pedido de la portada, que es donde se lee sin buscarlo. */
-  const { todo } = useAvisos();
+  const { todo, revisionEspera } = useAvisos();
 
   return (
-    <nav className="tel-pulgar" aria-label="Secciones de mi portal">
+    <nav className="tel-pulgar barra-tinta" aria-label="Secciones de mi portal">
       {secciones.map((seccion) => {
-        const Icono = ICONO[seccion.path] || IconoTu;
+        const Icono = ICONO[seccion.path] || House;
         const aqui = isSectionActive(pathname, seccion, '/mi');
+        const punto =
+          (seccion.path === 'inicio' && todo.length > 0) ||
+          (seccion.path === 'evolucion' && Boolean(revisionEspera));
         return (
           <NavLink
             key={seccion.path}
@@ -55,8 +52,10 @@ export const BarraDelPulgar = ({ secciones }) => {
             className={aqui ? 'tel-aqui' : undefined}
             aria-current={aqui ? 'page' : undefined}
           >
-            <Icono />
-            {seccion.path === 'inicio' && todo.length > 0 ? <i className="tel-punto" /> : null}
+            <span className="tel-pulgar-ico">
+              <Icono size={20} strokeWidth={aqui ? 2.2 : 1.8} aria-hidden="true" />
+              {punto ? <i className="tel-punto" aria-hidden="true" /> : null}
+            </span>
             {seccion.corto || seccion.short || seccion.label}
           </NavLink>
         );

@@ -81,7 +81,14 @@ export const diferencia = (primera, comida) => {
   return { corta: kcal ? `${conSigno(kcal)} kcal` : 'mismas kcal', entera: partes.join(' · '), igual: false };
 };
 
-export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null, onEditarObjetivo = null }) => {
+/*
+  Sin `onTarget` se LEE: es la pestaña «Todos los días» de la ventana del día
+  en el portal del cliente, que compara su día de entreno con el de descanso
+  sin poder tocar el reparto. Las cifras van en la celda de lectura de
+  `PlanDia`, sin «Separar»/«Juntar» (juntar es escribir en todos a la vez) y,
+  con `juzga` apagado, sin semáforo en «El día».
+*/
+export const RepartoComparado = ({ dias, elegidas = {}, onTarget = null, onFijar = null, onEditarObjetivo = null, juzga = true }) => {
   const nComidas = Math.max(0, ...dias.map((d) => d.meals.length));
   const clave = (i) => dias[0]?.meals[i]?.id ?? `pos-${i}`;
   const cuantos = dias.length === 2 ? 'los dos días' : `los ${dias.length} días`;
@@ -115,8 +122,15 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
   const kcalDeBarra = (meal) => mealTarget(meal)?.kcals ?? delMenu(meal).kcals;
   const maxKcal = Math.max(1, ...dias.flatMap((d) => d.meals.map(kcalDeBarra)));
 
-  const barra = (meal) => (
-    <span className={`reparto-cmp-barra${mealTarget(meal) ? '' : ' is-menu'}`} aria-hidden="true">
+  /* La del PRIMER día va en acento y las demás en gris (frame 73:190). No es
+     adorno: ése es el día contra el que se calculan las diferencias de todos
+     los otros —«−200 kcal» es contra él—, y hasta ahora eso había que deducirlo
+     de que su fila no llevaba diferencia. */
+  const barra = (meal, referencia = false) => (
+    <span
+      className={`reparto-cmp-barra${mealTarget(meal) ? '' : ' is-menu'}${referencia ? ' is-referencia' : ''}`}
+      aria-hidden="true"
+    >
       <i style={{ width: `${Math.round((kcalDeBarra(meal) / maxKcal) * 100)}%` }} />
     </span>
   );
@@ -167,7 +181,7 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
           delMenu={!objetivo}
           igual={Boolean(escrito && objetivo && deOtro && objetivo[c.key] === deOtro[c.key])}
           etiqueta={etiqueta(c)}
-          onChange={(v) => onChange(c.key, v)}
+          onChange={onChange ? (v) => onChange(c.key, v) : null}
         />
       );
     });
@@ -191,10 +205,9 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
         return (
           <div key={clave(i)} className="reparto-cmp-comida">
             <div className="reparto-cmp-titulo">
-              <span className="plan-dia-n">{i + 1}</span>
               {nombreDe(i)}
               {igual && <span className="reparto-cmp-estado">igual en {cuantos}</span>}
-              {igual && (
+              {igual && onTarget && (
                 <button
                   type="button"
                   className="cab-accion reparto-cmp-accion"
@@ -225,9 +238,9 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
                 </span>
                 {casillas(primera, {
                   etiqueta: (c) => `${c.label} de ${primera.name}, ${cuantos}`,
-                  onChange: (campo, v) => dias.forEach((d) => onTarget(d.id, i, campo, v)),
+                  onChange: onTarget ? (campo, v) => dias.forEach((d) => onTarget(d.id, i, campo, v)) : null,
                 })}
-                <span className="reparto-cmp-lado">{barra(primera)}</span>
+                <span className="reparto-cmp-lado">{barra(primera, true)}</span>
               </div>
             ) : (
               dias.map((dia, j) => {
@@ -251,10 +264,10 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
                     {casillas(meal, {
                       primera: j > 0 ? primera : null,
                       etiqueta: (c) => `${c.label} de ${meal.name}, ${dia.name}`,
-                      onChange: (campo, v) => onTarget(dia.id, i, campo, v),
+                      onChange: onTarget ? (campo, v) => onTarget(dia.id, i, campo, v) : null,
                     })}
                     <span className="reparto-cmp-lado">
-                      {barra(meal)}
+                      {barra(meal, j === 0)}
                       {sinRepartir && (
                         <span className="reparto-cmp-dif is-igual" title="Sin reparto: en gris, lo que suma su menú">
                           <span className="is-corta">sin repartir</span>
@@ -299,7 +312,7 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
               {CAMPOS.map((c) => (
                 <span
                   key={c.key}
-                  className={`is-num reparto-cmp-suma${repartido ? claseDe(reparto[c.key], t[c.plan], c.key) : ' is-menu'}`}
+                  className={`is-num reparto-cmp-suma${!repartido ? ' is-menu' : juzga ? claseDe(reparto[c.key], t[c.plan], c.key) : ''}`}
                 >
                   {repartido ? reparto[c.key] : menu[c.key] || '—'}
                 </span>
@@ -340,23 +353,30 @@ export const RepartoComparado = ({ dias, elegidas = {}, onTarget, onFijar = null
   · `sugerido`: lo que vale sin escribir —los hidratos del resto, o lo que suma
     el menú si la comida no tiene reparto (`delMenu`, en cursiva)—.
 */
-const Celda = ({ valor, sugerido = null, delMenu = false, igual = false, etiqueta, onChange }) => (
-  <span className="is-num">
-    <input
-      type="text"
-      inputMode="numeric"
-      className={`hoja-celda${igual ? ' is-igual' : ''}${delMenu ? ' is-menu' : ''}`}
-      placeholder={sugerido === null ? '—' : String(sugerido)}
-      value={valor ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={etiqueta}
-      title={
-        sugerido === null
-          ? undefined
-          : delMenu
-            ? `Sin reparto: su menú suma ${sugerido}. Escribe para pautarlo.`
-            : `${sugerido}, lo que queda con el resto de la comida`
-      }
-    />
-  </span>
-);
+const Celda = ({ valor, sugerido = null, delMenu = false, igual = false, etiqueta, onChange }) =>
+  !onChange ? (
+    <span className="is-num">
+      <span className={`hoja-celda is-lectura${igual ? ' is-igual' : ''}${delMenu ? ' is-menu' : ''}`}>
+        {valor !== '' ? valor : sugerido ?? '—'}
+      </span>
+    </span>
+  ) : (
+    <span className="is-num">
+      <input
+        type="text"
+        inputMode="numeric"
+        className={`hoja-celda${igual ? ' is-igual' : ''}${delMenu ? ' is-menu' : ''}`}
+        placeholder={sugerido === null ? '—' : String(sugerido)}
+        value={valor ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={etiqueta}
+        title={
+          sugerido === null
+            ? undefined
+            : delMenu
+              ? `Sin reparto: su menú suma ${sugerido}. Escribe para pautarlo.`
+              : `${sugerido}, lo que queda con el resto de la comida`
+        }
+      />
+    </span>
+  );

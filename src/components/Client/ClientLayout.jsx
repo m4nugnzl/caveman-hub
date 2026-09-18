@@ -146,8 +146,9 @@ const Telefono = ({ secciones }) => {
   const { viva } = useSesionEnCurso();
   const { pathname } = useLocation();
   const enSesion = viva || pathname.startsWith('/mi/rutina/sesion');
-  /* Cuatro destinos: «Progreso» y «Revisión» viven arriba, en la cinta del
-     monitor. Ver `soloAncho` en `CLIENT_SECTIONS`. */
+  /* Cuatro destinos: Hoy · Entreno · Comer · Revisión. «Progreso» y «Tú» son
+     del monitor; en el teléfono se abren desde el perfil y el avatar de «Hoy».
+     Ver `soloAncho` en `CLIENT_SECTIONS`. */
   const destinos = destinosDeBarra(secciones);
 
   return (

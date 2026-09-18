@@ -12,6 +12,7 @@ import {
   displayAsUnits,
   foodMacros,
   foodUnits,
+  MACROS,
   mealsForVariant,
   optionKcals,
   optionName,
@@ -325,11 +326,13 @@ export const ClientDietRoute = () => {
         ? null
         : {
             kcal: miles(objetivos.kcals || 0),
+            /* Con su clave y su color de la casa: el teléfono dibuja qué parte
+               de las kcal pone cada uno (`movil/PantallaComer · Arco`). */
             macros: [
-              { k: 'Proteína', v: Math.round(objetivos.protein || 0) },
-              { k: 'Carbos', v: Math.round(objetivos.carbs || 0) },
-              { k: 'Grasas', v: Math.round(objetivos.fats || 0) },
-            ],
+              { key: 'protein', k: 'Proteína', v: Math.round(objetivos.protein || 0) },
+              { key: 'carbs', k: 'Carbos', v: Math.round(objetivos.carbs || 0) },
+              { key: 'fats', k: 'Grasas', v: Math.round(objetivos.fats || 0) },
+            ].map((m) => ({ ...m, color: MACROS.find((x) => x.key === m.key)?.color })),
           },
     comidas,
     /* Lo que necesita la fila para calcular sus alternativas al desplegarse:

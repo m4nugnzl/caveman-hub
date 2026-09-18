@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 
-import { ANGLES, photoWeek } from '@/domain/photos';
+import { ANGLES, fotosPorAngulo, photoWeek } from '@/domain/photos';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
@@ -46,22 +46,8 @@ import { Thumb } from '@/components/photos/Thumb';
  */
 export const TresAngulos = ({ photos = [], semana, startDate, yaEstan = null, tira = false }) => {
   /* La última foto de cada ángulo ANTES de esta semana, y la de esta semana si
-     ya está subida. Un solo recorrido: la lista puede tener cien fotos. */
-  const deAhora = new Map();
-  const anteriores = new Map();
-
-  for (const foto of photos) {
-    if (!foto?.angle) continue;
-    const w = photoWeek(foto, startDate);
-    if (semana !== null && w === semana) {
-      deAhora.set(foto.angle, foto);
-      continue;
-    }
-    const previa = anteriores.get(foto.angle);
-    /* La más reciente de las anteriores: manda la semana, y a igualdad de
-       semana, la que se subió después. */
-    if (!previa || w > photoWeek(previa, startDate)) anteriores.set(foto.angle, foto);
-  }
+     ya está subida. Ver `fotosPorAngulo`, que comparte con el teléfono. */
+  const { ahora: deAhora, antes: anteriores } = fotosPorAngulo(photos, semana, startDate);
 
   return (
     <ul className={`angulos${tira ? ' es-tira' : ''}`}>

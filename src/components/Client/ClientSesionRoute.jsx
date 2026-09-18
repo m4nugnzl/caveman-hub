@@ -4,13 +4,12 @@ import { Dumbbell } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
-import { blockOfWeek, resolvedMicrocycles, structureOfBlock } from '@/domain/blocks';
+import { blockOfWeek, resolvedMicrocycles, structureOfBlock, weekLabel } from '@/domain/blocks';
 import {
   activeQuestions,
   asksFeedback,
   clientProtocol,
   isModuleOn,
-  scaleQuestions,
 } from '@/domain/protocol';
 import {
   allSessions,
@@ -23,15 +22,14 @@ import {
   sessionSetCount,
   sessionTonnage,
 } from '@/domain/sessions';
-import { drillsForDay, restLabel, unitLabel } from '@/domain/training';
+import { drillsForDay, restLabel, unitInitial, unitLabel } from '@/domain/training';
 import { todayISO, weekdayName } from '@/lib/dates';
-import { toNum } from '@/lib/num';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
 import { EmptyState } from '@/components/ui/primitives';
 import { CierreDeLaSesion } from './CierreDeLaSesion';
 import { pautaDe, sesionDeHoy } from './hoy';
-import { contraQueTeMides, porEjercicio, recordsDeLaSesion } from './sesion';
+import { porEjercicio, recordsDeLaSesion } from './sesion';
 import { useFichaDe } from './useFichaDe';
 import { FichaDelEjercicio } from './movil/FichaDelEjercicio';
 import { PantallaSesion as SesionEnMonitor } from './pc/PantallaSesion';
@@ -61,6 +59,16 @@ import { PantallaSesion as SesionEnTelefono } from './movil/PantallaSesion';
  * cierre —la vía del cliente, `log_session_feedback`— y `closeSession`. El
  * rediseño no toca la base.
  */
+/** La última sesión con alguna respuesta de las preguntas de su protocolo. */
+const ultimaConSensaciones = (micros, preguntas) => {
+  const sesiones = allSessions(micros);
+  for (let i = sesiones.length - 1; i >= 0; i -= 1) {
+    const feedback = sesiones[i].feedback || {};
+    if (preguntas.some((q) => String(feedback[q.id] ?? '').trim() !== '')) return sesiones[i];
+  }
+  return null;
+};
+
 export const ClientSesionRoute = () => {
   const {
     activeClient,
@@ -473,9 +481,19 @@ export const ClientSesionRoute = () => {
     onSalir: salir,
     onAcabar: acabar,
     guardado,
-    /* Solo el monitor: contra qué se mide cada ejercicio y cómo lo va llevando. */
-    contraQueTeMidesDe: (nombre) => contraQueTeMides(historialDeEjercicio(micros, nombre)),
-    sensaciones: sensacionesRecientes(micros, protocolo),
+    /*
+      Solo el monitor: lo que leen las dos tarjetas del costado y sus ventanas,
+      que son las de la hoja del entrenador (`ComparativaEjercicio`,
+      `ComoLoLlevo`). Las sensaciones son las de la última sesión que las
+      tiene: las de hoy se contestan al acabar.
+    */
+    lecturas: {
+      microcycles: micros,
+      weekNumber: donde.weekNumber,
+      etiqueta: (w) => weekLabel(program, w, unitInitial(program?.cycleType)),
+      preguntas: activeQuestions(protocolo),
+      ultimaConSensaciones: ultimaConSensaciones(micros, activeQuestions(protocolo)),
+    },
   };
 
   return (
@@ -496,28 +514,3 @@ export const ClientSesionRoute = () => {
   );
 };
 
-/**
- * CÓMO LO LLEVAS: las respuestas de escala de la última sesión que las tenga.
- *
- * Es el tercer bloque del costado del puesto. Solo preguntas de escala —una
- * barra no puede dibujar un sí/no ni una zona del cuerpo— y solo las que ESTE
- * protocolo pregunta. Sin respuestas no hay bloque: una barra vacía diría «0».
- */
-const sensacionesRecientes = (micros, protocolo) => {
-  const escalas = scaleQuestions(protocolo);
-  if (escalas.length === 0) return [];
-  const sesiones = allSessions(micros);
-  for (let i = sesiones.length - 1; i >= 0; i -= 1) {
-    const feedback = sesiones[i].feedback || {};
-    const filas = escalas
-      .map((q) => {
-        const valor = toNum(feedback[q.id]);
-        if (valor === null) return null;
-        const max = q.max ?? 10;
-        return { id: q.id, rotulo: q.label, valor, max };
-      })
-      .filter(Boolean);
-    if (filas.length > 0) return filas.slice(0, 4);
-  }
-  return [];
-};

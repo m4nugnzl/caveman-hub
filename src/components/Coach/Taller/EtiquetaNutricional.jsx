@@ -95,10 +95,34 @@ const Casilla = ({ etiqueta, valor, onChange, error, unidad = 'g', hueco }) => (
   </>
 );
 
-const Linea = ({ etiqueta, sangrada = false, fuerte = false, children }) => (
+/*
+  ── La barra de cada renglón (frame de Figma, 18 sep) ──────────────────────
+  Dice qué parte de cada 100 g es eso: 28 g de hidratos llenan el 28 %. Es la
+  única escala honesta en una etiqueta por 100 g —el reparto en kcal no vale
+  para la fibra, que casi no aporta— y no juzga nada: ni objetivo, ni CDR, ni
+  semáforo (ver `micros.js`).
+
+  En UNA tinta y no en los cuatro colores del frame: la ley del color deja el
+  color de serie para dentro de un gráfico con su leyenda, y aquí cada barra ya
+  lleva su nombre al lado. Cuatro colores serían cuatro categorías que no dicen
+  nada que la palabra no diga.
+*/
+const Barra = ({ gramos }) => {
+  const g = toNum(gramos);
+  if (g === null || g === undefined || Number.isNaN(g)) return null;
+  const pct = Math.max(0, Math.min(100, g));
+  return (
+    <span className="etq-barra" aria-hidden="true">
+      <span style={{ width: `${pct}%` }} />
+    </span>
+  );
+};
+
+const Linea = ({ etiqueta, sangrada = false, fuerte = false, barra, children }) => (
   <div className={`etq-linea${sangrada ? ' es-sangrada' : ''}${fuerte ? ' es-fuerte' : ''}`}>
     <span className="etq-que">{etiqueta}</span>
     <span className="etq-cuanto">{children}</span>
+    {barra !== undefined && <Barra gramos={barra} />}
   </div>
 );
 
@@ -160,38 +184,44 @@ export const EtiquetaNutricional = ({ alimento, general = null, edicion = null }
     ? [...Object.values(edicion.errores || {}), edicion.errorUnidad].filter(Boolean)
     : [];
 
+  /* Lo que mide cada barra: el borrador editando, lo guardado leyendo. */
+  const gMacro = (campo) => (escribe ? edicion.macros[campo] : macro(campo));
+  const gFibra = escribe
+    ? edicion.micros[MICROS.find((m) => m.key === 'fiber').field]
+    : micro('fiber');
+
   return (
     <section className="etq">
-      {/* La cifra que se busca primero, en la voz de las cifras y con su unidad
-          al lado: es la portada de la etiqueta, no una línea más de la tabla. */}
+      {/* La cifra que se busca primero, con su rótulo encima como en el frame:
+          es la portada de la etiqueta, no una línea más de la tabla. */}
       <header className="etq-cab">
+        <p className="etq-rot">Calorías</p>
         <p className="etq-kcal">
-          <span className="etq-kcal-v">{kcal}</span>
-          <span className="etq-kcal-u">kcal</span>
+          <span className="etq-kcal-v">{kcal} kcal</span>
+          <span className="etq-por">por 100 g</span>
         </p>
-        <p className="etq-por">por 100 g</p>
       </header>
 
       <div className="etq-tabla">
-        <Linea etiqueta="Proteína" fuerte>
+        <Linea etiqueta="Proteínas" fuerte barra={gMacro('proteinPer100')}>
           {escribe ? casillaMacro('proteinPer100', 'Proteína') : <Cifra valor={macro('proteinPer100')} />}
         </Linea>
-        <Linea etiqueta="Hidratos" fuerte>
+        <Linea etiqueta="Hidratos de carbono" fuerte barra={gMacro('carbsPer100')}>
           {escribe ? casillaMacro('carbsPer100', 'Hidratos') : <Cifra valor={macro('carbsPer100')} />}
         </Linea>
         <Linea etiqueta="de los cuales azúcares" sangrada>
           {escribe ? casillaMicro('sugars') : <Cifra valor={micro('sugars')} />}
         </Linea>
-        <Linea etiqueta="Grasas" fuerte>
+        <Linea etiqueta="Grasas" fuerte barra={gMacro('fatsPer100')}>
           {escribe ? casillaMacro('fatsPer100', 'Grasas') : <Cifra valor={macro('fatsPer100')} />}
         </Linea>
         <Linea etiqueta="de las cuales saturadas" sangrada>
           {escribe ? casillaMicro('saturates') : <Cifra valor={micro('saturates')} />}
         </Linea>
-        <Linea etiqueta="Fibra">
+        <Linea etiqueta="Fibra" fuerte barra={gFibra}>
           {escribe ? casillaMicro('fiber') : <Cifra valor={micro('fiber')} />}
         </Linea>
-        <Linea etiqueta="Sal">
+        <Linea etiqueta="Sal" fuerte>
           {escribe ? casillaMicro('salt') : <Cifra valor={micro('salt')} />}
         </Linea>
       </div>

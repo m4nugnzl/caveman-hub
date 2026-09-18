@@ -343,8 +343,23 @@ export const BandChart = ({
                   {/* `pathLength: 1` normaliza el largo del trazo y es lo que
                       permite que la línea SE DIBUJE al montar con un solo par
                       dasharray/dashoffset en CSS (ver EL DATO SE DEMUESTRA en
-                      base.css), mida lo que mida la curva. */}
-                  <path className="chart-line" d={path} stroke={s.color} pathLength="1" />
+                      base.css), mida lo que mida la curva.
+
+                      ── Y UNA SERIE PUEDE IR PUNTEADA ────────────────────
+                      `dash` es para lo que NO se ha medido: una estimación
+                      —el 1RM que se calcula a partir de la serie tope— se
+                      dibuja discontinua desde antes de que existieran las
+                      pantallas. Renuncia al trazado de entrada a cambio, y no
+                      por capricho: ese trazado ES un `stroke-dasharray` en
+                      CSS bajo la guarda `[pathLength='1']`, así que una
+                      línea no puede estar punteada y dibujarse a la vez.
+                      Quien la pide elige, y por eso es opcional. */}
+                  <path
+                    className={`chart-line${s.dash ? ' is-punteada' : ''}`}
+                    d={path}
+                    stroke={s.color}
+                    pathLength={s.dash ? undefined : '1'}
+                  />
 
                   {/* El último dato, marcado: es donde está la persona HOY y
                       lo que se busca al mirar la curva. Con halo del color de
@@ -386,7 +401,12 @@ export const BandChart = ({
               const shown = point ? point.value : s.pts[s.pts.length - 1]?.value;
               return (
                 <span className="row gap-2" key={s.id}>
-                  <span className="chart-swatch" style={{ background: s.color }} />
+                  {/* La muestra dice qué trazo es: llena la continua, con el
+                      filete punteado la que estima. */}
+                  <span
+                    className={`chart-swatch${s.dash ? ' is-punteada' : ''}`}
+                    style={s.dash ? { borderTopColor: s.color } : { background: s.color }}
+                  />
                   <span>{s.label}</span>
                   <strong style={{ color: s.color }}>
                     {shown === undefined ? '—' : `${round(shown, s.decimals ?? 1)}${s.unit || ''}`}
@@ -598,6 +618,57 @@ export const Sparkline = ({ points, color = 'var(--data-blue)', height = 28, bar
   );
 };
 
+/**
+ * LA LÍNEA DE PUNTOS: tramos rectos entre pesajes, sobre tres guías.
+ *
+ * ══ Por qué no vale `Sparkline` aquí (frame 64:290) ════════════════════════
+ *
+ * El frame del costado de la dieta dibuja la evolución del peso como SEIS
+ * puntos unidos por tramos rectos sobre tres guías horizontales, y eso
+ * `Sparkline` no lo puede hacer: va con `preserveAspectRatio: none` —el
+ * lienzo se estira al ancho de la caja— así que un círculo sale en óvalo y
+ * una curva suavizada se deforma. Su propia cabecera lo dice: «el punto del
+ * extremo NO se dibuja».
+ *
+ * Y la diferencia no es de gusto. Una curva continua dice «esto es una
+ * función»; un peso no lo es: son MEDIDAS, tomadas los días que esa persona
+ * se subió a la báscula. El punto es el dato y el tramo entre dos puntos es
+ * lo único que se puede afirmar de lo que pasó en medio, que es una recta
+ * imaginaria. Dibujarlo así es más honesto y además deja contar los pesajes.
+ *
+ * La línea va en SVG estirado —una recta estirada sigue siendo una recta— y
+ * los puntos son elementos colocados en porcentaje, que no se deforman.
+ *
+ * @param {Array} points `[{ date, value }]` en orden.
+ * @param {number} [max] Cuántos puntos dibujar como mucho, los últimos. Con
+ *                       treinta pesajes los puntos se tocan y vuelve a ser
+ *                       una línea; el histórico entero está a un clic.
+ */
+export const LineaDePuntos = ({ points, color = 'var(--data-blue)', height = 90, max = 12 }) => {
+  const todos = (points || []).map((p) => toNum(p?.value ?? p)).filter((v) => v !== null);
+  const values = todos.slice(-max);
+  if (values.length < 2) return null;
+
+  const min = Math.min(...values);
+  const tope = Math.max(...values);
+  const rango = tope - min || 1;
+  /* Un 12 % de aire arriba y abajo: pegados al canto, el primer y el último
+     punto se comen su propio borde. */
+  const y = (v) => 88 - ((v - min) / rango) * 76;
+  const x = (i) => (i / (values.length - 1)) * 100;
+  const linea = values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+
+  return (
+    <div className="linea-puntos" style={{ height }} aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polyline points={linea} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
+      {values.map((v, i) => (
+        <i key={i} style={{ left: `${x(i)}%`, top: `${y(v)}%`, background: color }} />
+      ))}
+    </div>
+  );
+};
 /** Anillo de progreso con una cifra en el centro. */
 export const ProgressRing = ({ value, max, size = 78, thickness = 8, color = 'var(--data-amber)', label, unit }) => {
   const pct = max > 0 ? Math.min(1, Math.max(0, value / max)) : 0;

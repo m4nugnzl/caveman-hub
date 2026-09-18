@@ -691,7 +691,28 @@ export const ConjuntoDelBloque = ({
                     es la primera de las tres líneas fijas de la cabecera, y es
                     lo que mantiene la fila N de todas las hojas en la misma
                     altura. Ver `.plan-col-cab`.
+
+                    ══ Y AHORA ES UNA PÍLDORA (17 sep, rediseño de Figma) ═════
+                    El rótulo era versalita suelta sobre el nombre. En el frame
+                    es una píldora con su propio fondo, del tamaño de la del
+                    estado que tiene enfrente: las dos abren la tarjeta, una
+                    dice CUÁNDO y la otra CÓMO VA. Que el día siga siendo el
+                    mando que lo cambia no cambia — la píldora se pulsa igual.
                   */}
+                  {/*
+                    ══ LA CABECERA ES UNA RETÍCULA DE DOS FILAS ═══════════════
+                    En el frame la tarjeta abre con una fila de dos extremos —el
+                    día a la izquierda, cómo va a la derecha— y el nombre debajo,
+                    con el ancho entero.
+
+                    Se monta con áreas (`.plan-col-alto`) y no con dos flex
+                    anidados por una razón que esta pantalla ya pagó una vez: en
+                    fila, el nombre pierde tanto ancho como midan sus vecinos de
+                    la derecha, y con cuatro verbos ahí eran «Emp…» a 150 px. Con
+                    áreas, el nombre ocupa las dos columnas de la fila de abajo y
+                    no negocia con nadie.
+                  */}
+                  <div className="plan-col-alto">
                   {esActual && !rotativo && onSplit ? (
                     <MenuAcciones
                       /* Sin día que decir, el rótulo guarda su sitio pero se
@@ -742,6 +763,22 @@ export const ConjuntoDelBloque = ({
                     esta pantalla arrastra desde el principio. Y «Abrir la
                     hoja» tampoco: el nombre ES la puerta.
                   */}
+                  {/*
+                    ══ EL CINTILLO: CÓMO VA LA HOJA, Y LOS VERBOS ═════════════
+                    La esquina derecha de la cabecera, enfrente del día. Lleva
+                    dos cosas y en este orden:
+
+                      · los VERBOS, que siguen apareciendo al acercarse.
+                      · CÓMO VA, que se lee siempre.
+
+                    Los verbos van a la IZQUIERDA de la píldora a propósito: el
+                    cintillo está anclado al canto derecho, así que lo que crece
+                    crece hacia dentro y la píldora no se mueve un píxel cuando
+                    aparecen los cuatro botones. Esta casa ya aprendió que un
+                    dato que se aparta del cursor es un dato que no se puede
+                    apuntar (ver `.plan-ej-quitar`).
+                  */}
+                  <div className="plan-col-cintillo">
                   {/* Nada de esto se pinta si no llega su manejador — ver «lo
                       que se puede hacer sale de lo que llega», arriba. Sin
                       ninguno, el carril entero se va: un `span` vacío de 26 px
@@ -811,6 +848,28 @@ export const ConjuntoDelBloque = ({
                     )}
                   </span>
                   )}
+                  {/*
+                    ══ CÓMO VA LA HOJA, EN UNA SOLA PÍLDORA ═══════════════════
+                    Eran dos piezas en el renglón de debajo del nombre: el
+                    semáforo («a medias · 14/20») y el peso de la hoja («20
+                    series»). En el frame son UNA píldora, y tiene sentido que lo
+                    sean: las dos contestan la misma pregunta —cuánto pide esta
+                    hoja y cuánto lleva—, y separadas obligaban a leer dos veces.
+
+                    La píldora se pinta SIEMPRE, con semáforo o sin él: sin
+                    bloque en curso no hay estado que dar pero el peso de la hoja
+                    sigue siendo un dato de la hoja. Sin ella la cabecera mediría
+                    distinto en un bloque cerrado que en uno abierto, que es
+                    exactamente el desnivel que costó dos vueltas quitar.
+                  */}
+                  <span
+                    className={`plan-col-estado${estadoHoja ? ` is-${estadoHoja.tono}` : ''}`}
+                    title={estadoHoja?.title}
+                  >
+                    {estadoHoja && <>{estadoHoja.texto} ·</>}
+                    <span className="plan-col-sub">{hoja.series} series</span>
+                  </span>
+                  </div>
                   <header className="plan-col-cab">
                     {esActual && onMoverHoja && plan.sessions.length > 1 && (
                       <button
@@ -858,42 +917,18 @@ export const ConjuntoDelBloque = ({
                         <span className="plan-col-nombre">{hoja.dayName}</span>
                       )}
                       {/*
-                        ══ UNA SOLA LÍNEA DEBAJO DEL NOMBRE ══════════════════
-                        Eran hasta TRES renglones sueltos —las series, la
-                        excepción y el semáforo— y cada hoja tenía los que le
-                        tocaran: «Push A» llevaba los tres y «Pierna A» uno, así
-                        que sus cabeceras medían distinto y sus listas de
-                        ejercicios arrancaban a alturas distintas. Medido sobre
-                        la captura del dueño: 19 px de desfase entre columnas
-                        vecinas. De ahí «las sesiones no están alineadas».
+                        ══ LA LÍNEA DE DEBAJO DEL NOMBRE SE HA IDO ═══════════
+                        Llevaba tres cosas —el semáforo, el peso de la hoja y la
+                        excepción— y existía para que no fueran tres renglones
+                        sueltos de alto variable, que era lo que descuadraba la
+                        rejilla («las sesiones no están alineadas»).
 
-                        Ahora es UNA línea, siempre, con lo mismo y en el mismo
-                        orden: el semáforo primero —que es lo que se busca—,
-                        después el peso de la hoja y al final la excepción si la
-                        hay. La cabecera mide tres renglones fijos (día, nombre,
-                        línea) en todas las hojas, y la rejilla vuelve a leerse
-                        por filas.
-
-                        El semáforo conserva su punto de color y la excepción su
-                        asterisco en tinta terciaria: una excepción no es un
-                        fallo y nunca va en semáforo. Ver `ley-del-color`.
+                        El rediseño las reparte mejor sin romper esa ley: el
+                        semáforo y el peso suben juntos al cintillo de la derecha
+                        (son la misma pregunta) y la excepción baja a la fila de
+                        chips, que es donde vive lo que califica a la hoja. Dos
+                        renglones fijos en vez de tres, y ninguno opcional.
                       */}
-                      <span className="plan-col-linea">
-                        {estadoHoja && (
-                          <span className={`plan-col-estado is-${estadoHoja.tono}`} title={estadoHoja.title}>
-                            {estadoHoja.texto}
-                          </span>
-                        )}
-                        <span className="plan-col-sub">{hoja.series} series</span>
-                        {conPlanPropio && hoja.difieren.length > 0 && (
-                          <span
-                            className="plan-col-excepcion"
-                            title={`Con una excepción en ${hoja.difieren.map(etiqueta).join(', ')}`}
-                          >
-                            ✱ {hoja.difieren.map(etiqueta).join(' · ')}
-                          </span>
-                        )}
-                      </span>
                       {/*
                         ══ Y EL CUARTO RENGLÓN: DE QUÉ SON ESAS SERIES ═══════
                         «Ver volumen y eso.» «18 series» dice cuánto pesa la
@@ -927,9 +962,23 @@ export const ConjuntoDelBloque = ({
                         {volumenDeLaHoja(hoja).length > 3 && (
                           <span className="plan-col-vol-mas">+{volumenDeLaHoja(hoja).length - 3}</span>
                         )}
+                        {/* La excepción, al final de la fila de chips: los
+                            microciclos donde esta hoja se aparta del plan. Sin
+                            semáforo a propósito —una excepción es una decisión
+                            del entrenador, no un fallo— y con su asterisco, que
+                            es lo que la distingue de un grupo muscular. */}
+                        {conPlanPropio && hoja.difieren.length > 0 && (
+                          <span
+                            className="plan-col-excepcion"
+                            title={`Con una excepción en ${hoja.difieren.map(etiqueta).join(', ')}`}
+                          >
+                            ✱ {hoja.difieren.map(etiqueta).join(' · ')}
+                          </span>
+                        )}
                       </span>
                     </div>
                   </header>
+                  </div>
 
                   <ol className="plan-ejs">
                     {hoja.exercises.map((ex, i) => {
@@ -1002,7 +1051,14 @@ export const ConjuntoDelBloque = ({
                             esconder el registro —justo la firma de la
                             pantalla— para que cupiera.
                           */}
-                          <span className={`plan-ej-nombre${hecho ? ` is-${hecho}` : ''}`} title={dicho}>
+                          {/* El nombre no lleva el semáforo: lo lleva lo
+                              REGISTRADO, que es donde está el juicio. Estuvo
+                              aquí como `is-ok`/`is-warn` y ninguna de las dos
+                              tenía regla en el CSS —un modificador muerto que
+                              pintaba exactamente nada—, mientras
+                              `.plan-ej-real.is-warn` sí existía y no se lo ponía
+                              nadie. Las dos puntas de la misma avería. */}
+                          <span className="plan-ej-nombre" title={dicho}>
                             {ex.name}
                           </span>
                           {/*
@@ -1014,8 +1070,23 @@ export const ConjuntoDelBloque = ({
                             qué va dónde». Una palabra lo resuelve, y es la
                             misma que rotula la mitad derecha de la hoja.
                           */}
+                          {/*
+                            ── Y EN EL FRAME ES UNA CHAPA, NO UN RENGLÓN ──────
+                            Lo registrado iba en tinta suelta debajo del nombre y
+                            el verde se le quitó en su día por una razón buena:
+                            ocho líneas verdes debajo de ocho nombres dejaban la
+                            pantalla entera en semáforo y el azul de lo que se
+                            pulsa se perdía dentro.
+
+                            El rediseño lo devuelve pero CONTENIDO: el color no
+                            es la letra, es un fondo tenue del tamaño de la
+                            chapa, así que dice lo mismo sin gritarlo. Verde si
+                            cumplió las series, ámbar si se quedó corto, y gris
+                            para el fantasma de la vez pasada —que no juzga
+                            nada, solo recuerda—.
+                          */}
                           {(real || fantasma) && (
-                            <span className="plan-ej-real">
+                            <span className={`plan-ej-real${hecho ? ` is-${hecho}` : ''}`}>
                               <span className="plan-ej-real-k">{real ? 'hizo' : 'antes'}</span>
                               {resumenTexto(real || fantasma)}
                             </span>
@@ -1144,7 +1215,7 @@ export const ConjuntoDelBloque = ({
                         onClick={() => setAltaEn(hoja.dayName)}
                         title={componiendo ? `Añadir un ejercicio a «${hoja.dayName}»` : `Se añade a ${todas} ${unidades} de este bloque que aún no se han entrenado`}
                       >
-                        <Plus size={13} aria-hidden="true" /> ejercicio
+                        <Plus size={15} aria-hidden="true" /> ejercicio
                       </button>
                     ) : null}
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, BookmarkPlus, ChevronDown, ClipboardPaste, Copy, CopyPlus, GripVertical, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BookmarkPlus, ChevronDown, ClipboardPaste, Copy, CopyPlus, GripVertical, Pencil, Quote, Trash2, X } from 'lucide-react';
 
 import {
   abreviarUnidad,
@@ -301,11 +301,12 @@ const FoodRow = ({
           entra por el verbo del pie. Ver `equivFilas` más abajo.
         */}
         {/*
-          ══ EL ≈ Y CUÁNTAS ═══════════════════════════════════════════════════
-          El signo de «vale por» (ver `IconoEquivalencia`) con el número de
-          raciones detrás: «≈ 4» dice ANTES de pulsar si hay una salida o doce,
-          que es lo que el ⇄ a secas obligaba a abrir para saber. Desplegado se
-          queda encendido, para que se vea de qué alimento cuelgan las filas.
+          ══ EL SIGNO Y CUÁNTAS ═══════════════════════════════════════════════
+          Las flechas del intercambio (ver `IconoEquivalencia`) con el número de
+          raciones detrás: el número dice ANTES de pulsar si hay una salida o
+          doce, que es lo que el glifo a secas obligaba a abrir para saber.
+          Desplegado se queda encendido, para que se vea de qué alimento cuelgan
+          las filas.
         */}
         {conBoton && (
           <button
@@ -483,29 +484,35 @@ const FoodRow = ({
           return (
             <div className="equiv-hijas" role="group" aria-label={`Equivalencias de ${food.name}`}>
               {primeras.map((item) => (
-                <div className={`food-row is-equiv${sinCifras ? ' sin-cifras' : ''}`} key={item.food.id || item.food.name}>
-                  {/* El ≈ en la columna del asa: cada fila hija dice «vale por lo
-                      de arriba» con el signo, en vez de una sangría y un filete
-                      que la sacaban de las columnas del padre. */}
-                  <span className="equiv-hueco equiv-signo-fila" aria-hidden="true">
-                    <IconoEquivalencia size={13} />
-                  </span>
-                  <span className="name">
-                    <span className="txt">{item.food.name}</span>
+                /*
+                  ══ UNA CAJA, NO UNA FILA DE LA TABLA (frame 64:183) ══════
+
+                  Colgaban de la rejilla del padre: el ≈ en la columna del
+                  asa, el nombre bajo el nombre, la ración bajo la cantidad.
+                  Leía bien de lejos y mal de cerca — una equivalencia no
+                  tiene P, C, G ni kcal que poner en esas columnas, así que
+                  media tabla se quedaba en blanco y las dos cifras que sí
+                  tiene («28 g de carbos · 119 kcal») acababan volcadas al
+                  otro canto, lejos de la palabra que describen.
+
+                  El frame las saca de la rejilla y las hace cajas blancas
+                  sobre la banda de acento, con lo que dicen junto: qué es,
+                  cuánto es y qué aporta. Lo que las ata al alimento de
+                  arriba es el RAÍL de la izquierda.
+                */
+                <div
+                  className={"equiv-fila" + (sinCifras ? " sin-cifras" : "")}
+                  key={item.food.id || item.food.name}
+                >
+                  <span className="equiv-nombre">
+                    {item.food.name}
                     {/*
-                      ── EL VERBO, AQUÍ MISMO ─────────────────────────────────
+                      ── EL VERBO, AQUÍ MISMO ────────────────────────────
                       Cambiar un alimento por su equivalente exigía abrir la
                       ventana, buscar la misma fila que ya estabas leyendo y
-                      pulsar «Usar». Con la ración delante, el gesto es el de la
-                      casa: la caja se enciende y el verbo aparece en azul (ver
-                      `ley-de-los-gestos`). Dentro de `.name`, que es donde esta
-                      tabla mete ya sus botones —el nombre recorta el texto, no
-                      la celda—, porque la última columna son 26 px y la palabra
-                      no cabe.
-
-                      La ventana no sobra: sigue siendo donde se ven las doce,
-                      donde se monta un grupo y donde se decide si el cliente ve
-                      la lista. Lo que deja de ser es el único camino.
+                      pulsar «Usar». Con la ración delante, el gesto es el de
+                      la casa: la caja se enciende y el verbo aparece en azul
+                      (ver `ley-de-los-gestos`).
                     */}
                     {editable && onSwap && (
                       <button
@@ -518,19 +525,20 @@ const FoodRow = ({
                       </button>
                     )}
                   </span>
-                  <span className="grams">
-                    <span className="fixed">{racionDe(item, { corta: true })}</span>
-                  </span>
+                  {/* La ración, entre rayas: es la medida de ESTA
+                      equivalencia, no una columna. Las rayas las pone el CSS. */}
+                  <span className="equiv-racion">{racionDe(item, { corta: true })}</span>
                   {!sinCifras && (
                     <span className="equiv-cifras">
-                      {item.macroGrams} g de {nombreMacro}
+                      <b>
+                        {item.macroGrams} g de {nombreMacro}
+                      </b>
                       <Desvio diff={item.macroDiff} de={item.macroGrams - item.macroDiff} campo={equivalencias.macro} />
                       <span className="sep">·</span>
                       {item.kcal} kcal
                       <Desvio diff={item.kcalDiff} de={item.kcal - item.kcalDiff} campo="kcals" />
                     </span>
                   )}
-                  {editable && <span className="equiv-hueco" aria-hidden="true" />}
                 </div>
               ))}
               {/* El pie: la ventana, que es donde se elige una y donde se decide
@@ -969,7 +977,6 @@ const Accion = ({ icon: Icon, label, onClick, danger = false }) => (
 
 export const MealCard = ({
   meal,
-  numero = null,
   editable = false,
   foodLibrary = [],
   catalogFoods = [],
@@ -1149,6 +1156,7 @@ export const MealCard = ({
   })();
 
   const hayNota = Boolean(meal.note?.trim());
+  const conNota = editable && Boolean(onNote) && (hayNota || notaAbierta);
 
   /* El dibujo de la comida, cuando la casilla de la izquierda no la ocupa su
      número. El porqué, en la cabecera. */
@@ -1184,23 +1192,33 @@ export const MealCard = ({
         )}
         {/*
           ── LA CASILLA DE LA IZQUIERDA DICE QUÉ ES ESTA COMIDA ─────────────
-          Y lo dice distinto según quién mire: al que la ORDENA le sirve su
-          número —es la hoja que está montando, y el orden es lo que toca—; al
-          que la COME le sirve el dibujo, que es lo que deja encontrar la cena
-          sin leerse las cuatro tarjetas. Es la misma casilla, no dos: dos
-          marcas a la izquierda del mismo título serían dos cosas compitiendo
-          por decir lo mismo.
+          El dibujo, y solo el dibujo: es lo que deja encontrar la cena sin
+          leerse las cuatro tarjetas. La tesela es `.list-icon`, la de las
+          filas del teléfono, y es gris: quien distingue es el dibujo. Ver
+          `la ley del color`.
 
-          La tesela es `.list-icon`, la de las filas del teléfono, y es gris:
-          quien distingue es el dibujo. Ver `la ley del color`.
+          ══ Y AQUÍ IBA EL NÚMERO DE LA COMIDA ═══════════════════════════════
+
+          «No quiero que comida sea 1 Comida 1, 2 Comida 2: quita el 1, 2.»
+          Estaba porque al que MONTA la hoja le servía el orden y al que la
+          COME el dibujo, y parecían dos lecturas de la misma casilla. No lo
+          eran: la hoja ya está en orden de arriba abajo, así que el número no
+          añadía nada que la propia lista no dijera — y con los nombres por
+          defecto lo decía dos veces en la misma línea, «1 Comida 1».
+
+          El frame la escribe así (nodo 64:132) y aquí manda el dueño: el
+          ordinal se va de las tres pantallas que lo pintaban —esta cabecera,
+          la mesa del reparto y las tarjetas de desvío—, porque media medida
+          habría sido peor que ninguna.
+
+          Con él se va su prop `numero`, que ya no la pasa nadie: la hoja del
+          entrenador (`NutritionModule`) y la del monitor del cliente
+          (`DietaEnMonitor`) le daban el índice y ninguna de las dos lo
+          necesita para nada más.
         */}
-        {numero !== null ? (
-          <span className="comida-n">{numero}</span>
-        ) : (
-          <span className="list-icon" aria-hidden="true">
-            <Dibujo size={15} />
-          </span>
-        )}
+        <span className="list-icon" aria-hidden="true">
+          <Dibujo size={15} />
+        </span>
         {renombrando && editable ? (
           <RenombrarEnSitio
             variante="is-comida"
@@ -1219,9 +1237,12 @@ export const MealCard = ({
           </h4>
         )}
         {contexto && <span className="comida-meta">{contexto}</span>}
-        {/* Lo que suma la opción abierta contra lo que pide el plan, en color. */}
+        {/* Lo que suma la opción abierta contra lo que pide el plan, en color.
+            En la ESCALA DE UNA COMIDA (`MARGEN_COMIDA_KCALS`), que es la misma
+            con la que se pinta su anillo en la ventana del día: la misma cifra
+            no puede salir verde aquí y ámbar allí. */}
         {editable && foods.length > 0 && (
-          <span className={`comida-kcal${claseDe(totals.kcal, objetivo?.kcals, 'kcals')}`}>
+          <span className={`comida-kcal${claseDe(totals.kcal, objetivo?.kcals, 'kcals', 'comida')}`}>
             <b>{Math.round(totals.kcal)}</b>
             {objetivo?.kcals ? ` / ${objetivo.kcals}` : ''} kcal
           </span>
@@ -1276,6 +1297,22 @@ export const MealCard = ({
                 otro cliente, que es lo que ninguno de los otros dos podía. Es
                 la misma corrección que ya hizo Entreno con el ⧉ de la hoja.
                 Ver `lib/portapapeles`. */}
+            {/*
+              ── LA NOTA, DONDE ESTÁN LOS DEMÁS VERBOS ────────────────────
+              Era un «+ nota para el cliente» en azul debajo del título, y
+              la hoja de entrenamiento resuelve lo mismo con un icono en la
+              fila de acciones del ejercicio. Misma pieza y mismo dibujo
+              (`Quote`, 13 px): escribirle algo a alguien sobre una comida y
+              sobre una serie es el mismo gesto, y tenerlo en dos sitios con
+              dos formas es lo que hace que la aplicación se lea como dos.
+              Ver `Coach/Workout/HojaDeSeries`.
+
+              Solo cuando no hay nota: con una escrita el hueco ya está
+              abierto debajo y un botón que lleva a él sobraría.
+            */}
+            {onNote && !conNota && (
+              <Accion icon={Quote} label="Añadir una nota" onClick={() => setNotaAbierta(true)} />
+            )}
             {onCopiarComida && <Accion icon={Copy} label="Copiar al portapapeles" onClick={onCopiarComida} />}
             {/* Sin confirmación: borrar una comida tiene inverso —el aviso con
                 «Deshacer» de `NutritionModule`— y lo que se deshace no se
@@ -1306,60 +1343,26 @@ export const MealCard = ({
         )}
       </header>
 
-      <div id={`comida-cuerpo-${meal.id}`} hidden={plegada}>
-
-      {/*
-        La pauta de esta comida: «2 h antes de dormir», «el yogur, de la marca
-        X». Va encima de los alimentos porque es el marco en el que se leen.
-        Al montar, plegada en «+ nota» hasta que hay algo que decir.
-      */}
-      {editable ? (
-        notaAbierta ? (
-          <label className="comida-nota">
-            <span className="comida-objetivo-k">Nota</span>
-            <input
-              autoFocus
-              className="comida-nota-texto"
-              value={meal.note ?? ''}
-              maxLength={200}
-              placeholder="Cómo cocinarlo, marcas, sustituciones… lo verá tal cual"
-              onChange={(e) => onNote(e.target.value)}
-              onBlur={() => setNotaAbierta(false)}
-              aria-label={`Nota de ${meal.name}`}
-            />
-          </label>
-        ) : hayNota ? (
-          /*
-            ── ESCRITA, LA NOTA ES TEXTO; SOLO AL TOCARLA ES UNA CAJA ─────────
-            Una nota de una línea venía en una caja hundida con el rótulo «Nota»
-            al canto, y era la única superficie hundida de toda la hoja: pesaba
-            en la mesa tanto como dos alimentos para decir «el plátano, mejor
-            maduro». Ahora se lee como lo que es —una frase del entrenador,
-            debajo del título de su comida— y la caja aparece al tocarla, que es
-            la ley de los gestos de la casa. El cliente ve exactamente esto,
-            sin el gesto.
-          */
-          <button
-            type="button"
-            className="comida-nota-lectura is-editable"
-            onClick={() => setNotaAbierta(true)}
-            title="Editar la nota"
-          >
-            {meal.note}
-          </button>
-        ) : (
-          <button type="button" className="comida-nota-mas" onClick={() => setNotaAbierta(true)}>
-            + nota para el cliente
-          </button>
-        )
-      ) : (
-        hayNota && <p className="comida-nota-lectura">{meal.note}</p>
-      )}
+      <div className="comida-cuerpo" id={`comida-cuerpo-${meal.id}`} hidden={plegada}>
 
       {/*
         Las opciones como pestañas —dónde estás, y añadir otra—, y a la derecha
         lo que se le hace a la abierta. Crear una alternativa te DEJA en ella:
         la nueva se añade al final (ver `addMealOption`).
+
+        ══ Y VAN PEGADAS A LA CABECERA, DENTRO DE SU BANDA (nodo 64:130) ═════
+
+        «El prototipo usa otro diseño para las opciones: van dentro de la caja.»
+        El frame mete el renglón de las alternativas DENTRO del bloque gris de
+        la cabecera —mismo fondo, mismos 16 px de sangrado, 12 de hueco—, y con
+        razón: la pestaña abierta es lo que decide qué dice todo lo de abajo,
+        así que pertenece al encabezado de la comida y no a la mesa.
+
+        Estaba debajo, sobre papel blanco y con un filete propio, o sea una
+        tercera banda entre la cabecera y la tabla.
+
+        Por eso la NOTA baja y ahora va después: estaba en medio, y una caja
+        blanca entre dos grises parte la banda en dos.
       */}
       {(options.length > 1 || editable) && (
         <div className="comida-opciones">
@@ -1396,9 +1399,12 @@ export const MealCard = ({
                   title={i === index && editable && onRenameOption ? 'Pulsa otra vez para ponerle nombre' : undefined}
                 >
                   {optionName(opt, i)}
-                  {/* Las kcal de cada alternativa, solo al programar: sirven para
-                      ver que las opciones son de verdad intercambiables. */}
-                  {editable && <small>{Math.round(optionMacros(opt).kcal)}</small>}
+                  {/* Las kcal de cada alternativa: al programar sirven para ver
+                      que las opciones son de verdad intercambiables, y al
+                      cliente para elegir sabiendo lo que pesa cada una. La
+                      misma pestaña en los dos lados (18 sep); solo se calla
+                      con las cifras ocultas. */}
+                  {!sinCifras && <small>{Math.round(optionMacros(opt).kcal)}</small>}
                 </button>
               )
             )}
@@ -1489,10 +1495,46 @@ export const MealCard = ({
         </div>
       )}
 
-      {options.length > 1 && !editable && (
-        <p className="t-xs t-tertiary">
-          Elige UNA de las {options.length} opciones, la que mejor te encaje ese día.
-        </p>
+      {/* Aquí iba «Elige UNA de las N opciones…» para el cliente, en una
+          franja suelta entre las pestañas y la tabla. Se fue el 18 sep: las
+          pestañas ya dicen que se elige una, y era lo único que hacía que su
+          comida no se dibujara como la del entrenador. */}
+
+      {/*
+        ══ LA NOTA DE LA COMIDA, IGUAL QUE LA DEL EJERCICIO ════════════════
+
+        La pauta de esta comida —«2 h antes de dormir», «el yogur, de la marca
+        X»— va encima de los alimentos porque es el marco en el que se leen.
+
+        Y con el marcado de `HojaDeSeries`: rótulo de sección y `textarea`.
+        Aquí hubo un `input` de una línea con un rótulo al canto, y antes de
+        eso una caja hundida; las dos eran una tercera forma de escribir lo
+        mismo. El verbo que la abre está arriba, con los demás.
+      */}
+      {conNota ? (
+        <label className="hoja-nota">
+          <span className="section-label">Nota para el cliente</span>
+          <textarea
+            className="textarea"
+            rows={2}
+            autoFocus={notaAbierta && !hayNota}
+            placeholder="La verá junto a la comida. Ej: el plátano, mejor maduro."
+            value={meal.note ?? ''}
+            maxLength={200}
+            onChange={(e) => onNote(e.target.value)}
+            onBlur={() => !String(meal.note || '').trim() && setNotaAbierta(false)}
+            aria-label={`Nota de ${meal.name}`}
+          />
+        </label>
+      ) : (
+        /* Al cliente, la misma nota en el mismo sitio y con su rótulo: lo que
+           el entrenador escribe en la caja, el cliente lo lee en una caja. */
+        hayNota && (
+          <div className="hoja-nota is-lectura">
+            <span className="section-label">Nota de tu entrenador</span>
+            <p className="comida-nota-lectura">{meal.note}</p>
+          </div>
+        )
       )}
 
       {/*
@@ -1570,14 +1612,16 @@ export const MealCard = ({
 
           {/*
             La SUMA, al pie de la tabla: lo puesto y, detrás y en pequeño, lo
-            pedido en el plan del día, en el color de si cuadra. Solo al montar:
-            al cliente la comparación no le toca resolverla.
+            pedido en el plan del día, en el color de si cuadra. Al cliente, la
+            suma sola, sin lo pedido ni el color: la comparación no le toca
+            resolverla, pero el total de lo que come sí es suyo, y sin esta fila
+            su tabla acababa en el último alimento y no como la del entrenador.
           */}
-          {editable && foods.length > 0 && (
+          {foods.length > 0 && (editable || !sinCifras) && (
             <div className="food-row is-suma" aria-label={`Suma de ${nombreOpcion.toLowerCase()}`}>
               <span aria-hidden="true" />
               <span className="name">
-                <span className="txt">Suma</span>
+                <span className="txt">Total {nombreOpcion.toLowerCase()}</span>
                 {/*
                   ══ LA FIBRA, EN EL HUECO QUE YA HABÍA ═══════════════════════
 
@@ -1605,14 +1649,18 @@ export const MealCard = ({
               </span>
               <span className="grams" />
               {MACRO_META.map(({ key, short }, i) => (
-                <span key={key} className={`n ${CELL[i]}${claseDe(totals[key], objetivo?.[key], key)}`} data-macro={short}>
+                <span
+                  key={key}
+                  className={`n ${CELL[i]}${editable ? claseDe(totals[key], objetivo?.[key], key, 'comida') : ''}`}
+                  data-macro={short}
+                >
                   {Math.round(totals[key])}
-                  {objetivo?.[key] ? <small>/{objetivo[key]}</small> : null}
+                  {editable && objetivo?.[key] ? <small>/{objetivo[key]}</small> : null}
                 </span>
               ))}
-              <span className={`kcal${claseDe(totals.kcal, objetivo?.kcals, 'kcals')}`}>
+              <span className={`kcal${editable ? claseDe(totals.kcal, objetivo?.kcals, 'kcals', 'comida') : ''}`}>
                 {Math.round(totals.kcal)}
-                {objetivo?.kcals ? <small>/{objetivo.kcals}</small> : null}
+                {editable && objetivo?.kcals ? <small>/{objetivo.kcals}</small> : null}
               </span>
               <span aria-hidden="true" />
             </div>

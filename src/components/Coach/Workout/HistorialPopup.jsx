@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, TrendingUp } from 'lucide-react';
 
 import { blockChangeLog, blockSummary, blocksOf, describeBlockChange, weekLabel, weeksOfBlock } from '@/domain/blocks';
 import { executedSessions, sessionTonnage } from '@/domain/sessions';
@@ -67,7 +67,14 @@ export const HistorialPopup = ({ open, onClose, program, bloque, semanaEnCurso, 
   const conDatos = barras.some((b) => b.value > 0);
 
   return (
-    <Modal open={open} size="lg" title="Historial de entrenamiento" onClose={onClose}>
+    <Modal
+      open={open}
+      size="lg"
+      icono={TrendingUp}
+      title="Historial de entrenamiento"
+      sub="Progreso del volumen de carga y cambios estructurales en la planificación"
+      onClose={onClose}
+    >
       <div className="historial">
         {conDatos && (
           <BarBandChart bars={barras} color={metricColor('tonnage')} unit=" kg" height={150} showLine={false} />

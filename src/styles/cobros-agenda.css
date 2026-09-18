@@ -1,0 +1,455 @@
+/* ==========================================================================
+   COBROS Y AGENDA, DIBUJADAS (18 sep 2026 · frames 164:2160 y 164:2324)
+   --------------------------------------------------------------------------
+   Las dos pantallas de la barra que quedaban en bandas sobre el papel pasan a
+   la gramática de la cartera: la cinta de la casa arriba y, debajo, CAJAS con
+   su canto sobre una hoja hundida (`--surface-sunken`, solo en estas
+   pantallas y solo desde 1024, que es donde existe el marco).
+
+   ── Por qué es un archivo aparte ──────────────────────────────────────────
+   Las dos pisan piezas compartidas —`.cal` y sus celdas las usa también el
+   calendario de UN cliente, `.list-row` media aplicación— y todo va colgado
+   de `.cobros` o `.agenda`, que solo montan `IncomePanel` y `CoachCalendar`.
+   Va detrás de `ajustes.css`, que es quien declara el calendario.
+
+   ── Lo que NO se copió de los frames, y por qué ───────────────────────────
+   · La cabecera en caja con icono y subtítulo: la cinta es la de la casa
+     («la cabecera no se rediseña por pantalla», dueño, 18 sep). De ella se
+     toma el verbo: «Registrar cobro» y «Apuntar algo» van en su esquina.
+   · «Historial de facturas» y «Vista lista»: no existen. La aplicación no
+     emite facturas y la agenda no tiene otra vista; un botón que no lleva a
+     nada es peor que no tenerlo.
+   · Las tintas del frame (#3b8dd4, #10b981, #f59e0b, #8e93a6) se sustituyen
+     por los tokens: las cuatro no llegan al contraste como letra.
+   · Las cifras de dinero en azul: el azul invita a tocar. Van en tinta.
+   · Las barras de la previsión van en la paleta de DATOS (`--data-blue`), no
+     en acento, como el resto de gráficas.
+   · «Pendiente» en ámbar: lo que no se ha cobrado pero aún no toca va en
+     gris. El semáforo solo juzga lo vencido y lo de hoy.
+   ========================================================================== */
+
+/* ── La hoja y sus cajas ──────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .shell-main:has(.cobros),
+  .shell-main:has(.agenda) { background: var(--surface-sunken); }
+}
+
+.cobros-cuerpo,
+.agenda-cuerpo {
+  display: flex; flex-direction: column; gap: var(--s5);
+  padding-top: var(--s5); padding-bottom: var(--s6);
+  container: hoja / inline-size;
+}
+
+.cobros-caja,
+.agenda-caja {
+  display: flex; flex-direction: column; gap: var(--s5);
+  min-width: 0;
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.cobros-caja-cab {
+  display: flex; align-items: flex-start; gap: var(--s3);
+}
+.cobros-caja-rotulo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--s1); }
+.cobros-caja-rotulo > h2,
+.agenda-caja-titulo {
+  margin: 0;
+  font-size: var(--fs-md); font-weight: 700; line-height: var(--lh-tight);
+  color: var(--text); letter-spacing: -0.01em;
+}
+.cobros-caja-rotulo > p,
+.agenda-caja-sub {
+  margin: 0; font-size: var(--fs-control); color: var(--text-secondary);
+}
+
+/* La chapa: una cifra en cápsula que resume la caja. El tinte es el del
+   frame; la letra, el token con contraste. */
+.cobros-chapa,
+.agenda-chapa {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center;
+  padding: 5px 10px; border-radius: var(--r-pill);
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 1.2;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  background: var(--info-soft); color: var(--info);
+}
+.cobros-chapa.is-ok { background: var(--positive-soft); color: var(--positive); }
+.cobros-chapa.is-bad { background: var(--negative-soft); color: var(--negative); }
+.cobros-chapa.is-neutro { background: var(--fill); color: var(--text-secondary); }
+
+.cobros-nota {
+  margin: 0; font-size: var(--fs-xs); line-height: var(--lh-base); color: var(--text-tertiary);
+}
+
+/* ══ COBROS ═════════════════════════════════════════════════════════════════ */
+
+/* «Al día»: la banda verde del frame. Es un estado, no un aviso: sin icono de
+   alarma, con el siguiente cobro al otro canto. */
+.cobros-aldia {
+  margin: 0;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s4);
+  background: var(--positive-soft);
+  border: 1px solid color-mix(in srgb, var(--positive) 45%, transparent);
+  border-radius: var(--r-md);
+  color: var(--positive);
+  font-size: var(--fs-sm); font-weight: 700;
+}
+.cobros-aldia > span:first-child { display: inline-flex; align-items: center; gap: var(--s3); }
+.cobros-aldia > span > svg { flex-shrink: 0; }
+.cobros-aldia-luego { font-size: var(--fs-control); font-weight: 500; }
+
+/* La tarea sin tarifas, ahora en caja. Su anatomía (cifra, frase, botón) no
+   cambia: vive en `superficies.css`. */
+.cobros-caja.cobros-tarea { flex-direction: row; align-items: center; }
+
+/* Las filas de «Por cobrar» y «Renuevan pronto», dentro de su caja: la fila
+   trae su propio sangrado (s4), así que la lista se tira hacia fuera y el
+   nombre cae a plomo con el titular de la caja. */
+.cobros-caja > .list {
+  margin: calc(var(--s2) * -1) calc(var(--s4) * -1);
+  /* `.list` es una tarjeta por sí sola; dentro de la caja sería una caja
+     dentro de otra. */
+  background: none; border: 0; border-radius: 0; box-shadow: none; overflow: visible;
+}
+
+/* ── Las cifras de cabecera ──────────────────────────────────────────────── */
+.cobros-cifras {
+  display: grid; gap: var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+}
+.cobros-cifra { gap: var(--s4); padding: var(--s6); }
+.cobros-cifra-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.cobros-cifra-cab > h2 {
+  margin: 0;
+  font-size: var(--fs-control); font-weight: 600; line-height: 1.3;
+  letter-spacing: 0.02em; text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.cobros-cifra-valor {
+  margin: 0;
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  font-size: 2.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.cobros-cifra-pie { margin: 0; font-size: var(--fs-sm); line-height: 1.55; color: var(--text-secondary); }
+
+.cobros-cifra-medida { display: flex; align-items: center; gap: var(--s3); }
+.cobros-cifra-medida > b {
+  font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* La barra de proporción: carril en el tinte del acento, relleno del dato. */
+.cobros-medidor {
+  flex: 1; display: block; height: 8px;
+  border-radius: var(--r-pill); overflow: hidden;
+  background: var(--fill);
+}
+.cobros-medidor > span {
+  display: block; height: 100%;
+  border-radius: inherit; background: var(--data-blue);
+}
+
+/* Quién hay detrás de la cifra del mes que viene. */
+.cobros-quien {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--s3);
+  font-size: var(--fs-control);
+}
+.cobros-quien > li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
+.cobros-quien > li > span { min-width: 0; font-weight: 600; color: var(--text); }
+.cobros-quien a { color: inherit; text-decoration: none; }
+.cobros-quien a:hover { color: var(--accent); }
+.cobros-quien > li > b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.cobros-quien > li.cobros-quien-mas { color: var(--text-tertiary); font-weight: 500; }
+
+/* ── La mesa: dos columnas, la ancha y el costado ────────────────────────── */
+.cobros-mesa {
+  display: grid; gap: var(--s5); align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container hoja (min-width: 960px) {
+  .cobros-mesa:has(> :nth-child(2)) { grid-template-columns: minmax(0, 1fr) minmax(360px, 440px); }
+}
+
+/* El fondo hundido de la gráfica, como en el frame: la caja es papel, la
+   gráfica va en su bandeja. */
+.cobros-hundido {
+  padding: var(--s5) var(--s5) var(--s3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-md);
+}
+
+.cobros-columnas {
+  margin: 0;
+  display: flex; align-items: stretch; justify-content: space-between; gap: var(--s2);
+}
+.cobros-columna {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+}
+.cobros-columna-pista {
+  width: 100%; height: 170px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 6px;
+}
+.cobros-columna-cifra {
+  font-size: var(--fs-2xs); font-weight: 700; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* La altura es proporción del máximo sobre la pista menos la cifra de
+   encima: así la columna más alta llega arriba sin pisar su número. */
+.cobros-columna-barra {
+  display: block; width: 24px; max-width: 70%;
+  height: calc((100% - 22px) * var(--alto, 0));
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  background: var(--data-blue); opacity: 0.8;
+}
+.cobros-columna.is-cero .cobros-columna-barra { background: var(--hairline-strong); opacity: 1; }
+.cobros-columna-mes {
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* Las dos teselas de debajo: la media y el salto. */
+.cobros-teselas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: var(--s3); }
+.cobros-tesela {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: var(--s4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-md);
+}
+.cobros-tesela-rotulo { font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
+.cobros-tesela > b {
+  font-size: 1.5rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums; color: var(--text);
+}
+.cobros-tesela-pie { font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+
+/* ── De dónde sale el recurrente ─────────────────────────────────────────── */
+.cobros-aportan {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.cobros-aportan > li {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-control);
+}
+.cobros-aportan-quien {
+  flex: 1; min-width: 0;
+  font-weight: 600; color: var(--text); text-decoration: none;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cobros-aportan-quien:hover { color: var(--accent); }
+.cobros-aportan-quien:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+.cobros-aportan-cuanto {
+  font-weight: 700; color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+.cobros-punto {
+  flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text-tertiary);
+}
+.cobros-punto.is-ok { background: var(--positive-grafico); }
+.cobros-punto.is-bad { background: var(--negative-grafico); }
+.cobros-punto.is-warn { background: var(--warning-grafico); }
+
+/* El estado del ciclo: la etiqueta pequeña del frame, a 4 px de esquina. */
+.cobros-estado {
+  flex-shrink: 0;
+  padding: 2px 6px; border-radius: var(--r-xs);
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 1.3; white-space: nowrap;
+  background: var(--fill); color: var(--text-secondary);
+}
+.cobros-estado.is-ok { background: var(--positive-soft); color: var(--positive); }
+.cobros-estado.is-bad { background: var(--negative-soft); color: var(--negative); }
+.cobros-estado.is-warn { background: var(--warning-soft); color: var(--warning); }
+
+.cobros-ver {
+  align-self: flex-start;
+  margin-top: calc(var(--s3) * -1);
+  padding: 0; border: 0; background: none; font: inherit; cursor: pointer;
+  font-size: var(--fs-control); font-weight: 600; color: var(--accent);
+}
+.cobros-ver:hover { text-decoration: underline; }
+.cobros-ver:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.cobros-reparto { display: flex; flex-direction: column; gap: var(--s3); }
+.cobros-reparto-cab {
+  display: flex; justify-content: space-between; gap: var(--s3);
+  font-size: var(--fs-control); font-weight: 700; color: var(--text);
+}
+.cobros-reparto-cab > b { font-variant-numeric: tabular-nums; }
+.cobros-reparto-fila {
+  display: grid; grid-template-columns: 1fr auto; gap: var(--s2) var(--s3);
+  font-size: var(--fs-xs);
+}
+.cobros-reparto-fila > span { font-weight: 600; color: var(--text-secondary); }
+.cobros-reparto-fila > b { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.cobros-reparto-fila > b.is-ok { color: var(--positive); }
+.cobros-reparto-fila > .cobros-medidor { grid-column: 1 / -1; }
+
+/* La nota de las tarifas que faltan: la caja azul clara del frame. */
+.cobros-atencion {
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: var(--s4);
+  background: var(--info-soft);
+  border: 1px solid color-mix(in srgb, var(--info) 22%, transparent);
+  border-radius: var(--r-md);
+}
+.cobros-atencion > b { font-size: var(--fs-xs); font-weight: 700; color: var(--info); }
+.cobros-atencion > p { margin: 0; font-size: var(--fs-control); line-height: 1.55; color: var(--text-secondary); }
+
+/* ══ AGENDA ═════════════════════════════════════════════════════════════════ */
+.agenda-mesa {
+  display: grid; gap: var(--s5); align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container hoja (min-width: 960px) {
+  .agenda-mesa { grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); }
+}
+
+.agenda-caja-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.agenda-caja-cab.is-rotulo { align-items: flex-start; }
+.agenda-caja-cab > div:first-child { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.agenda-mes {
+  margin: 0;
+  font-size: var(--fs-md); font-weight: 800; letter-spacing: -0.01em; color: var(--text);
+}
+.agenda-mandos { display: flex; align-items: center; gap: var(--s2); }
+.agenda-mandos-flechas { display: flex; gap: var(--s1); }
+
+/* ── El mes: una rejilla con filete de un píxel ──────────────────────────
+   El frame no separa las celdas con aire sino con el canto: la rejilla se
+   pinta sobre el color del filete y cada celda deja 1 px. Así el mes se lee
+   como una tabla, que es lo que es. */
+.agenda .cal {
+  gap: 1px;
+  background: var(--edge-card);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.agenda .cal-dow {
+  padding: var(--s3) 0;
+  background: var(--surface-sunken);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.agenda .cal-day {
+  align-items: flex-start; gap: var(--s2);
+  min-height: 90px; padding: var(--s2);
+  background: var(--surface);
+  border-radius: 0;
+}
+.agenda .cal-day:hover { background: var(--fill-subtle); }
+.agenda .cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; position: relative; z-index: 1; }
+/* Fuera del mes, el número se apaga y la celda no: el canto de la rejilla
+   tiene que seguir entero. */
+.agenda .cal-day.is-outside { opacity: 1; }
+.agenda .cal-day.is-outside > .cal-dia > .n { color: var(--text-tertiary); }
+.agenda .cal-day.is-today { box-shadow: none; background: var(--info-soft); }
+
+.agenda .cal-dia { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.agenda .cal-day .n {
+  display: inline-grid; place-items: center;
+  width: 24px; height: 24px; border-radius: 12px;
+  font-size: var(--fs-control); font-weight: 500; color: var(--text);
+}
+.agenda .cal-day.is-today .n { background: var(--accent); color: var(--accent-on); font-weight: 800; }
+
+/* La cifra de entregas del día: la etiqueta con canto del frame. */
+.agenda .cal-checkin {
+  padding: 2px 6px; border-radius: var(--r-xs);
+  font-size: var(--fs-2xs); line-height: 1.3;
+  background: var(--info-soft); color: var(--info);
+  box-shadow: inset 0 0 0 1px var(--info);
+}
+.agenda .cal-uno { max-width: 100%; }
+.agenda .cal-dots { justify-content: flex-start; }
+
+.agenda .cal-pie { padding-top: var(--s1); }
+.agenda .cal-key { gap: var(--s2) var(--s4); }
+.agenda .cal-key-item { font-size: var(--fs-xs); font-weight: 400; color: var(--text-secondary); gap: 6px; }
+.agenda .cal-key-item > .cal-dot { width: 8px; height: 8px; }
+
+/* ── Lo próximo ──────────────────────────────────────────────────────────── */
+.agenda-lado { min-width: 0; }
+@container hoja (min-width: 960px) {
+  .agenda-lado { position: sticky; top: var(--s5); }
+}
+.agenda-proximo { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.agenda-proximo > li + li { border-top: 1px solid var(--hairline); }
+.agenda-proximo .prox-fila {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px var(--s1);
+  border-radius: var(--r-sm);
+}
+.agenda-proximo .prox-cuando { width: 44px; line-height: 1; }
+.agenda-proximo .prox-cuando > b {
+  font-size: 1.75rem; font-weight: 700; line-height: 32px; letter-spacing: -0.02em; color: var(--text);
+}
+.agenda-proximo .prox-cuando > span { display: block; margin-top: 2px; font-size: var(--fs-2xs); font-weight: 700; }
+.agenda-proximo .prox-que { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s1); }
+.agenda-proximo .prox-que > span:last-child {
+  font-size: var(--fs-sm); font-weight: 600; line-height: 20px; color: var(--text);
+}
+/* El tipo, en su cápsula: tinte del color del tipo, letra en tinta — el color
+   distingue, no juzga, y así se lee con cualquier tono. */
+.agenda-chapa {
+  padding: 2px var(--s2);
+  background: color-mix(in srgb, var(--tipo, var(--info)) 12%, transparent);
+  color: var(--text);
+}
+.agenda-chapa.is-revision { background: var(--info-soft); color: var(--info); }
+
+/* ══ EL TELÉFONO ════════════════════════════════════════════════════════════
+   Las cajas se apilan con menos aire; la cinta toma el canto de las cajas,
+   como en la cartera. */
+@media (max-width: 1023.98px) {
+  .cobros-cuerpo.cartera-cuerpo,
+  .agenda-cuerpo.cartera-cuerpo { gap: var(--s3); padding-top: var(--s3); }
+  .cobros > .cartera-cab,
+  .agenda > .cartera-cab {
+    background: var(--surface);
+    border: 1px solid var(--edge-card); border-bottom-color: var(--edge);
+    border-radius: var(--r-lg);
+  }
+  .cobros-caja, .agenda-caja { padding: var(--s4); gap: var(--s4); }
+  .cobros-cifra { padding: var(--s5) var(--s4); }
+  .cobros-cifra-valor { font-size: 2rem; }
+  .cobros-cifras { gap: var(--s3); }
+  .cobros-caja.cobros-tarea { flex-wrap: wrap; }
+}
+@media (max-width: 639.98px) {
+  .agenda .cal-day { min-height: 56px; padding: var(--s1); gap: var(--s1); }
+  .agenda .cal-day .n { width: 22px; height: 22px; font-size: var(--fs-xs); }
+  .agenda .cal-checkin { font-size: 0; padding: 3px; box-shadow: none; background: var(--info); }
+  .cobros-columna-pista { height: 140px; }
+  .cobros-columna-cifra { font-size: var(--fs-3xs); }
+  .cobros-columna-mes { font-size: var(--fs-3xs); letter-spacing: 0; }
+}
+
+/* Las flechas del mes, en caja como «Hoy»: el frame las dibuja con canto, y
+   sueltas junto a un botón con canto se leían como otra familia. */
+.agenda-mandos .btn-icon {
+  background: var(--surface); color: var(--text-secondary);
+  box-shadow: inset 0 0 0 1px var(--edge-control), var(--shadow-xs);
+}
+.agenda-mandos .btn-icon:hover:not(:disabled) { background: var(--fill-subtle); color: var(--text); }

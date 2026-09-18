@@ -192,6 +192,33 @@ export const photoWeek = (photo, startDate) =>
   photo.week ?? weekFromStart(startDate, photo.date) ?? null;
 
 /**
+ * LA DE ESTA SEMANA Y LA DE LA ÚLTIMA VEZ, por ángulo.
+ *
+ * `ahora` es la foto de ese ángulo en `semana`; `antes`, la más reciente de las
+ * anteriores —manda la semana, y a igualdad de semana la que se subió
+ * después—. Es lo que enseñan los tres ángulos del asistente (`TresAngulos`) y
+ * las fotos de la semana del teléfono: la de antes, puesta donde falta la de
+ * ahora, es «hazlas siempre igual» sin tener que leerlo.
+ *
+ * Un solo recorrido: la lista puede tener cien fotos.
+ */
+export const fotosPorAngulo = (photos = [], semana, startDate) => {
+  const ahora = new Map();
+  const antes = new Map();
+  for (const foto of photos) {
+    if (!foto?.angle) continue;
+    const w = photoWeek(foto, startDate);
+    if (semana !== null && w === semana) {
+      ahora.set(foto.angle, foto);
+      continue;
+    }
+    const previa = antes.get(foto.angle);
+    if (!previa || w > photoWeek(previa, startDate)) antes.set(foto.angle, foto);
+  }
+  return { ahora, antes };
+};
+
+/**
  * Agrupa fotos en "carpetas" de semana, de la más reciente a la más antigua.
  * Las que no tienen semana determinable caen en un grupo `week: null`.
  */

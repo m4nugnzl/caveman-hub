@@ -42,7 +42,10 @@ import {
   ALERT_DAYS,
   CHECKIN_BLOCKS,
   WEIGH_INS_MAX,
+  activeQuestions,
   checkinMode,
+  checkinQuestions,
+  clientProtocol,
   isModuleOn,
   setAlertDays,
   toggleModule,
@@ -57,6 +60,7 @@ import {
   toggleStep,
 } from './intake';
 import { cuentaPreguntas } from './formularios';
+import { clientIntakeForm } from './intakeForm';
 /* La regla de «contestada y sin leer» vive en `envios.js` y se lee desde aquí:
    ningún módulo del dominio importa de éste, así que no hay ciclo posible. */
 import { sinLeer } from './envios';
@@ -362,6 +366,113 @@ export const cuentaAcciones = (plan) => accionesDe(plan).length;
 /** El día en que se le pide el check-in, dicho como se lee. */
 export const diaDelCheckin = (protocolo) =>
   DIAS.find((d) => d.id === sanitizeSchedule(protocolo?.schedule).weekday)?.corto || 'lunes';
+
+/*
+  ══ LOS MOMENTOS: el protocolo en cuatro renglones ═════════════════════════
+
+  El dibujo del protocolo (Figma 98:86, 18 sep) lo lee en filas de «qué · cuándo
+  · cuánto»: el alta al entrar, el parte tras entrenar, el check-in cada semana.
+  Es el resumen de `accionesDe` y no otra cuenta: cada cifra sale de la acción
+  que ya existe, así que la tarjeta y el banco no pueden discrepar.
+
+  Los avisos son el cuarto renglón. No salen en el dibujo, pero son lo único
+  del protocolo que le pasa al entrenador y no al cliente, y en la ficha su
+  vara necesita un sitio donde tocarse.
+*/
+
+/** «Cada lunes» · «Sábado, cada 2 semanas». */
+const cuandoCheckin = (schedule) => {
+  const { weekday, everyWeeks } = sanitizeSchedule(schedule);
+  const dia = DIAS.find((d) => d.id === weekday) || DIAS[0];
+  return everyWeeks === 1 ? `Cada ${dia.corto}` : `${dia.label}, cada ${everyWeeks} semanas`;
+};
+
+const cuantoCheckin = (preguntas, medidas) =>
+  [
+    preguntas > 0 && plural(preguntas, 'pregunta', 'preguntas'),
+    medidas > 0 && plural(medidas, 'medida', 'medidas'),
+  ]
+    .filter(Boolean)
+    .join(' + ');
+
+const cuantosAvisos = (alertDays) => ALERT_DAYS.filter((u) => (alertDays?.[u.id] || 0) > 0).length;
+
+const momentos = ({ alta, parte, checkin, avisos }) => [
+  { id: 'alta', rot: 'Alta', cuando: 'Al entrar', cuanto: alta || 'Sin cuestionario', apagado: !alta },
+  {
+    id: 'parte',
+    rot: 'El parte',
+    cuando: 'Tras entrenar',
+    cuanto: parte.on ? parte.cuanto || 'Sin preguntas' : 'Apagado',
+    apagado: !parte.on || !parte.cuanto,
+  },
+  {
+    id: 'checkin',
+    rot: 'El check-in',
+    cuando: checkin.cuando,
+    cuanto: checkin.cuanto || 'Vacío',
+    apagado: !checkin.cuanto,
+  },
+  {
+    id: 'avisos',
+    rot: 'Tus avisos',
+    cuando: 'Si no hay noticias',
+    cuanto: avisos > 0 ? plural(avisos, 'aviso', 'avisos') : 'Ninguno',
+    apagado: avisos === 0,
+  },
+];
+
+/** Los de un protocolo del entrenador, con sus formularios. */
+export const momentosDe = ({ protocolo, formularios = [] }) => {
+  const acciones = accionesDe({ protocolo, formularios });
+  const alta = acciones.find((a) => a.id === 'step:form');
+  const parte = acciones.find((a) => a.id === 'form:sesion');
+  const semana = acciones.find((a) => a.id === 'form:semana');
+  const nSemana = semana ? piezasSemana(protocolo, formularios).preguntas.length : 0;
+
+  return momentos({
+    alta: alta?.lleva || '',
+    parte: { on: isModuleOn(protocolo, 'sessionFeedback'), cuanto: parte?.lleva || '' },
+    checkin: {
+      cuando: cuandoCheckin(protocolo?.schedule),
+      cuanto: cuantoCheckin(nSemana, semana?.piezas?.length || 0),
+    },
+    avisos: cuantosAvisos(protocolo?.alertDays),
+  });
+};
+
+/**
+ * Los de UN cliente, leídos de su copia y no del protocolo del que sale.
+ *
+ * Lo que se le pregunta es lo que tiene escrito en sus preferencias —puede estar
+ * afinado a mano o haberse quedado atrás—, y su cita es la suya: si la eligió
+ * él, no es la del protocolo. Ver `citasDelProtocolo`.
+ */
+export const momentosDelCliente = (preferences) => {
+  const protocol = clientProtocol(preferences);
+  const nAlta = cuentaPreguntas({ ...clientIntakeForm(preferences), momento: 'alta' });
+  const nParte = activeQuestions(protocol).length;
+  const piezas = piezasDelCheckin({
+    weighIns: protocol.weighIns,
+    checkin: protocol.checkin,
+    askPhotos: protocol.askPhotos === true,
+  });
+  const pauta = preferences?.checkin;
+  const cita = Number.isInteger(pauta?.weekday) ? pauta : protocol.schedule;
+
+  return momentos({
+    alta: nAlta > 0 ? plural(nAlta, 'pregunta', 'preguntas') : '',
+    parte: {
+      on: isModuleOn(protocol, 'sessionFeedback'),
+      cuanto: nParte > 0 ? plural(nParte, 'pregunta', 'preguntas') : '',
+    },
+    checkin: {
+      cuando: cuandoCheckin(cita),
+      cuanto: cuantoCheckin(checkinQuestions(protocol).length, piezas.length),
+    },
+    avisos: cuantosAvisos(protocol.alertDays),
+  });
+};
 
 // ══ ESCRIBIR ═══════════════════════════════════════════════════════════════
 

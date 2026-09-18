@@ -1,3 +1,5 @@
+import { BarChart2 } from 'lucide-react';
+
 import { MRV_GOALS } from '@/domain/training';
 import { metricColor } from '@/domain/metrics';
 import { Modal } from '@/components/ui/Modal';
@@ -45,10 +47,22 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
   const cortos = grupos.filter((g) => g.corto);
   const tope = Math.max(1, ...grupos.map((g) => g.mrv || g.total));
   const u = unidad.toLowerCase();
-  const columnas = `minmax(110px, 1.3fr) repeat(${hojas.length}, minmax(44px, 1fr)) 52px minmax(120px, 1.4fr)`;
+  /* ── Las columnas del frame `202:4`, en el mismo orden ───────────────────
+     grupo · una por hoja · veces · total · el tramo útil. El total y la barra
+     eran UNA celda —«Total · MEV–MRV»— y el frame los separa: son dos lecturas
+     distintas (cuánto lleva, y dónde cae eso), y juntas en una celda la cifra
+     bailaba a la izquierda de barras de anchos distintos. */
+  const columnas = `minmax(110px, 1.3fr) repeat(${hojas.length}, minmax(44px, 1fr)) 52px 64px minmax(120px, 1.4fr)`;
 
   return (
-    <Modal open={open} size="lg" title={`Volumen · ${bloque.name}`} onClose={onClose}>
+    <Modal
+      open={open}
+      size="lg"
+      icono={BarChart2}
+      title={`Volumen · ${bloque.name}`}
+      sub={`Distribución semanal por grupo muscular y hoja de entrenamiento`}
+      onClose={onClose}
+    >
       {grupos.length === 0 ? (
         <p className="t-sm t-tertiary">Sin ejercicios todavía.</p>
       ) : (
@@ -86,7 +100,8 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
                 </span>
               ))}
               <span className="volumen-num">Veces</span>
-              <span>Total · MEV–MRV</span>
+              <span className="volumen-num">Total</span>
+              <span>MEV – MRV</span>
             </div>
             {grupos.map((g) => (
               <div key={g.name} className="volumen-fila" role="row" style={{ gridTemplateColumns: columnas }}>
@@ -97,20 +112,18 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
                   </span>
                 ))}
                 <span className="volumen-num" title={`${g.name} se trabaja en ${cuenta(g.frecuencia, 'hoja', 'hojas')} por ${u}`}>
-                  {g.frecuencia}×
+                  {g.frecuencia}
                 </span>
-                <span className="volumen-total">
-                  <span className={`volumen-v${g.pasado ? ' is-mal' : g.corto ? ' is-aviso' : ''}`}>
-                    {g.total}
-                    {g.mrv && <small>/{g.mrv}</small>}
-                  </span>
-                  <span className="volumen-barra" aria-hidden="true">
-                    <span
-                      className="volumen-relleno"
-                      style={{ width: `${Math.min(100, (g.total / (g.mrv || tope)) * 100)}%`, background: g.pasado ? 'var(--negative)' : g.corto ? 'var(--warning)' : metricColor('sets') }}
-                    />
-                    {g.mev && g.mrv && <span className="volumen-mev" style={{ left: `${(g.mev / g.mrv) * 100}%` }} title={`MEV ${g.mev}`} />}
-                  </span>
+                <span className={`volumen-v${g.pasado ? ' is-mal' : g.corto ? ' is-aviso' : ''}`}>
+                  {g.total}
+                  {g.mrv && <small>/{g.mrv}</small>}
+                </span>
+                <span className="volumen-barra" aria-hidden="true">
+                  <span
+                    className="volumen-relleno"
+                    style={{ width: `${Math.min(100, (g.total / (g.mrv || tope)) * 100)}%`, background: g.pasado ? 'var(--negative)' : g.corto ? 'var(--warning)' : metricColor('sets') }}
+                  />
+                  {g.mev && g.mrv && <span className="volumen-mev" style={{ left: `${(g.mev / g.mrv) * 100}%` }} title={`MEV ${g.mev}`} />}
                 </span>
               </div>
             ))}
@@ -122,9 +135,12 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
                 </span>
               ))}
               <span />
-              <span className="volumen-total">
-                <span className="volumen-v">{seriesTotales}</span>
-              </span>
+              {/* El total del microciclo va en la píldora llena, que es la
+                  única de la tabla: todas las demás cifras son partes de ésta.
+                  Y a su derecha, escrito, de qué es — sin eso, una cifra sola
+                  al pie de una tabla de catorce filas no dice de qué habla. */}
+              <span className="volumen-suma">{seriesTotales}</span>
+              <span className="volumen-suma-que">Total {u}</span>
             </div>
           </div>
         </div>

@@ -896,12 +896,13 @@ body:has(.pc-portal) .app-header { display: none; }
 .pc-carril-riel i { display: block; height: 100%; background: var(--accent); }
 
 /* ── La sesión: centro y costado ───────────────────────────────────────────
-   El centro en su medida legible; el costado, 360 px. Por debajo de 1.200 px
+   El centro en su medida legible; el costado, 400 px más su margen, los de la hoja del
+   entrenador: lleva sus mismas tarjetas y a menos se corta la tabla. Por debajo de 1.200 px
    el costado baja debajo de la sesión: con el carril al lado no caben las tres
    columnas sin apretar los campos. */
 .pc-puesto {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) calc(400px + var(--s5));
   align-items: start;
   max-width: var(--max-w-trabajo);
   margin: 0 auto;
@@ -1085,75 +1086,25 @@ button.pc-puesto-ant:hover { color: var(--accent); background: var(--accent-soft
   color: var(--pc-tinta-3);
 }
 
-/* ── El costado: contra qué te mides ─────────────────────────────────────── */
+/* ── El costado: las tarjetas de la hoja del entrenador ────────────────────
+   Sin filete vertical: lo que separa el costado de la sesión es el canto de
+   sus tarjetas, como en la hoja del taller. Las tarjetas se visten con las
+   reglas de `.entreno.is-hoja` (`revision.css`), abiertas a
+   `.lado-de-la-hoja`. */
 .pc-puesto-lado {
   position: sticky;
   top: 0;
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-  padding: 26px var(--s5);
-  border-left: 1px solid var(--hairline);
-  min-height: 100vh;
-  min-height: 100svh;
+  padding: 26px var(--s5) 26px 0;
+  min-width: 0;
 }
 @media (max-width: 1199.98px) {
-  .pc-puesto-lado { position: static; border-left: 0; border-top: 1px solid var(--hairline); min-height: 0; }
+  .pc-puesto-lado { position: static; padding: 0 30px var(--s6); }
 }
-.pc-puesto-k {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.pc-puesto-lado-tit {
-  margin: var(--s1) 0 0;
-  font-family: var(--font-ancha);
-  font-size: 18px;
-  font-weight: 700;
-}
-.pc-puesto-prog { display: grid; gap: 7px 9px; font-size: 13px; }
-.pc-puesto-prog-fila { display: contents; }
-.pc-puesto-hd {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.pc-puesto-sem { color: var(--text-tertiary); font-weight: 600; }
-.pc-puesto-prog [role='cell'] { color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.pc-puesto-prog .pc-pico { color: var(--text); font-weight: 700; }
-.pc-puesto-vacio { margin: 0; font-size: 13px; color: var(--text-secondary); }
-
-.pc-puesto-grafica {
-  margin: 0;
-  padding: var(--s3);
-  border-radius: 11px;
-  background: var(--surface-sunken);
-  border: 1px solid var(--hairline);
-}
-.pc-puesto-grafica svg { display: block; width: 100%; height: 94px; }
-.pc-puesto-area { fill: var(--accent-soft); }
-.pc-puesto-linea { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-.pc-puesto-punto { fill: var(--accent); }
-.pc-puesto-grafica figcaption {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.pc-puesto-sens { display: flex; flex-direction: column; gap: var(--s2); margin-top: 10px; }
-.pc-puesto-sens-fila { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-secondary); }
-.pc-puesto-sens-rot { width: 92px; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pc-puesto-barra { flex: 1; height: 5px; border-radius: 3px; background: var(--fill); overflow: hidden; }
-.pc-puesto-barra i { display: block; height: 100%; background: var(--accent); }
-.pc-puesto-sens-v { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+/* Pega el costado entero, no cada tarjeta: `.comparativa` es pegajosa sola. */
+.pc-puesto-lado .comparativa { position: relative; top: auto; }
 
 @media (prefers-reduced-motion: reduce) {
   .pc-puesto-riel i,

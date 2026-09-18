@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronRight, FolderOpen, Layers, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FolderOpen, Pencil, Trash2 } from 'lucide-react';
 
 import { blockSummary, blocksOf, blockTraits, intentLabel, weeksOfBlock } from '@/domain/blocks';
 import { executedSessions } from '@/domain/sessions';
 import { findMicrocycle } from '@/domain/training';
 import { shortDate, toISODate } from '@/lib/dates';
+import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { RenombrarEnSitio } from '@/components/ui/primitives';
 
 /**
@@ -74,18 +75,15 @@ import { RenombrarEnSitio } from '@/components/ui/primitives';
  * @param lecturas    La frase de marcha del bloque, ya compuesta por la
  *                    pantalla si quiere; si no llega, se compone aquí.
  * @param acciones    Lo que va antes del «···»: el indicador de guardado.
- * @param mandosDelMicrociclo  Los verbos del MICROCICLO, como iconos y al final
- *                    de su propio renglón. Estuvieron en la fila de arriba, que
- *                    es la del bloque: duplicar el microciclo abierto no es una
- *                    acción del bloque, y ahí no se encontraba.
- * @param menuDelMicrociclo  Y lo que BORRA, al final y en rojo. Se llama «menú»
- *                    por su sitio, no por su forma: fue un «···» de dos ítems y
- *                    hoy es la papelera, como en el bloque y en la hoja. No
- *                    queda un solo menú en esta cabecera.
+ * @param menuDelMicrociclo  Lo que BORRA el microciclo. Se llama «menú» por su
+ *                    sitio, no por su forma: fue un «···» de dos ítems y hoy es
+ *                    la papelera, como en el bloque y en la hoja. No queda un
+ *                    solo menú en esta cabecera.
  * @param derecha     Lo que se sienta al final de la fila de hojas: «+ hoja».
  * @param mandosDeLaHoja  Qué sesión se mira y cuánto lleva escrito. Van en el
- *                    renglón del microciclo, que es el nivel del que hablan:
- *                    una sesión es un entrenamiento de ESTE microciclo.
+ *                    renglón del microciclo —una sesión es un entrenamiento de
+ *                    ESTE microciclo— y al canto DERECHO, enfrentados a las
+ *                    pastillas: «la fecha de la sesión ha de ir a la derecha».
  * @param iconos      Los verbos que salen del «···» y se quedan a la vista,
  *                    como iconos. «No muestras los iconos de opciones,
  *                    muestras los ···»: lo que se usa cada día se pulsa, no se
@@ -108,7 +106,6 @@ export const TiraDelPrograma = ({
   diaDe = null,
   lecturas = null,
   acciones = null,
-  mandosDelMicrociclo = null,
   menuDelMicrociclo = null,
   derecha = null,
   mandosDeLaHoja = null,
@@ -126,6 +123,14 @@ export const TiraDelPrograma = ({
   onVerConjunto,
 }) => {
   const [renombrando, setRenombrando] = useState(false);
+  /*
+    ── EL CARRIL DE MICROCICLOS SE PLIEGA ──────────────────────────────────
+    `todosLosMicros` no vuelve a `false` sola: desplegar es una decisión de
+    quien mira, y volver a plegarle el carril en cuanto cambia de microciclo
+    sería deshacerle lo que acaba de pedir. El tramo visible se calcula abajo,
+    con el bloque abierto ya resuelto.
+  */
+  const [todosLosMicros, setTodosLosMicros] = useState(false);
   /*
     ── POR QUÉ CANTO ENTRA LA LISTA ──────────────────────────────────────────
     Deslizar solo se lee como deslizar si el sentido cuenta algo: bajando —del
@@ -219,6 +224,30 @@ export const TiraDelPrograma = ({
     semanas: weeksOfBlock(program, b),
   }));
   const abierto = tramos.find((t) => t.esEste) || null;
+  /*
+    ── CUÁNTOS MICROCICLOS CABEN EN EL RENGLÓN ─────────────────────────────
+    Cuatro, que es lo que dibuja el frame, y no es un número de diseño sino de
+    sitio: con el camino del bloque a la izquierda y los cuatro verbos a la
+    derecha, la quinta pastilla ya parte la fila en un portátil de 1440. Un
+    bloque de diez mandaba el microciclo EN CURSO —el único que se mira a
+    diario— a un segundo renglón él solo.
+
+    El tramo se cuenta desde el que MIRAS y no desde el final: abrir el M2 de
+    un bloque de diez tiene que enseñar el M2.
+  */
+  const MICROS_A_LA_VISTA = 4;
+  const semanasDelBloque = abierto?.semanas || [];
+  const desdeMicro = todosLosMicros
+    ? 0
+    : Math.max(
+        0,
+        Math.min(
+          Math.max(0, semanasDelBloque.indexOf(semana)),
+          semanasDelBloque.length - MICROS_A_LA_VISTA,
+        ),
+      );
+  const microsALaVista = semanasDelBloque.slice(desdeMicro);
+  const ocultos = desdeMicro;
   const intent = intentLabel(blockTraits(bloque).intent);
 
   /*
@@ -256,9 +285,8 @@ export const TiraDelPrograma = ({
 
     La cuenta nueva:
 
-      · Lo de DIARIO sale como botón, en el renglón de su nivel: traer
-        ejercicios y los ajustes del programa arriba; duplicar el microciclo,
-        abajo (`mandosDelMicrociclo`).
+      · Lo de DIARIO sale como botón, en el grupo de su nivel: traer ejercicios
+        y los ajustes del programa con el bloque; «+ hoja» con el microciclo.
       · Lo que se toca poco y lo que BORRA se queda en un «···» —el gesto de
         más ES la confirmación, que quitar no la pide en ninguna parte—, pero
         cada uno en SU renglón: este lleva lo del bloque y el de abajo lo del
@@ -275,19 +303,248 @@ export const TiraDelPrograma = ({
     Queda la papelera a la vista. Puede porque `onQuitarBloque` pregunta antes
     (`quitarBloque` en `WorkoutLogEditor` usa `useConfirm`); si algún día no
     preguntara, esto sería un clic que se lleva un bloque.
+
+    ── Y SE QUEDA A LA VISTA CON UN SOLO BLOQUE, APAGADA (séptima vuelta) ────
+    «Has de añadir borrar bloque.» No estaba porque con un solo bloque no se
+    puede: un bloque es el CORTE entre dos etapas —«de aquí en adelante entrena
+    otra cosa»—, quitarlo es deshacer ese corte y sus semanas pasan enteras al
+    bloque de al lado. Con uno solo no hay corte que deshacer ni vecino a quien
+    dárselas, y el dominio lo dice por escrito: `deleteBlockFrom` devuelve el
+    programa intacto (`blocks.js`, «siempre queda al menos un bloque»).
+
+    Lo que sí era un defecto es que DESAPARECIERA: el verbo existe, la fila del
+    prototipo lo dibuja, y una barra que cambia de piezas según cuántos bloques
+    tenga el programa es una barra que hay que volver a aprender. Así que se
+    queda siempre y se apaga cuando no aplica, con el porqué en su título — que
+    es lo que un botón apagado tiene que hacer para no ser un misterio.
   */
-  const menuDelBloque =
-    onQuitarBloque && tramos.length > 1 ? (
-      <button
-        type="button"
-        className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
-        title={`Quitar «${bloque.name}»`}
-        aria-label={`Quitar «${bloque.name}»`}
-        onClick={() => onQuitarBloque(bloque)}
-      >
-        <Trash2 size={15} />
-      </button>
-    ) : null;
+  const unicoBloque = tramos.length < 2;
+  const menuDelBloque = onQuitarBloque ? (
+    <button
+      type="button"
+      className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
+      disabled={unicoBloque}
+      title={
+        unicoBloque
+          ? `«${bloque.name}» es el único bloque del programa: un bloque separa dos etapas y no hay ninguna de la que separarlo. Con «+ bloque» empiezas el siguiente.`
+          : `Quitar «${bloque.name}»`
+      }
+      aria-label={unicoBloque ? `Quitar «${bloque.name}» (no se puede: es el único bloque)` : `Quitar «${bloque.name}»`}
+      onClick={() => onQuitarBloque(bloque)}
+    >
+      <Trash2 size={15} />
+    </button>
+  ) : null;
+
+  /*
+    ══ Y CON EL BLOQUE DELANTE, LAS DOS FILAS SON UNA (17 sep · frame 32:100) ══
+    El frame dibuja toda la cabecera en un renglón: el camino del bloque a la
+    izquierda y, a la derecha, el carril de microciclos y los verbos separados
+    por un filete vertical.
+
+    La vuelta anterior lo dejó en dos pisos por una razón que sigue siendo
+    buena —cada fila lleva SU nivel, y con una hoja abierta la de abajo lleva
+    además qué sesión se mira—. Lo que la contesta es que esa razón solo se
+    cumple con la hoja abierta: mirando el bloque entero, la fila de abajo no
+    tiene sesión que llevar, así que sus dos únicas piezas —el carril y «+
+    hoja»— estaban gastando una altura de cabecera entera para no decir nada
+    que no cupiera arriba.
+
+    Así que el reparto es por VISTA y no por nivel: con el bloque delante, un
+    renglón; con una hoja abierta, los dos de siempre. El filete vertical es lo
+    que mantiene la lectura por niveles dentro de la fila única — a la
+    izquierda dónde estás, a la derecha qué puedes hacer.
+  */
+  /* ── LAS OPCIONES DEL DESPLEGABLE ────────────────────────────────────────
+     Los hermanos primero, con la marca puesta en el que estás: eso es lo que
+     hace de un menú un SELECTOR y no una lista de verbos. Debajo, tras el
+     filete, lo que se le hace al abierto.
+
+     El `sub` de cada uno es lo que hacía falta para elegir y la hilera no
+     decía: cuántos microciclos lleva, desde cuándo va y si el de en curso es
+     suyo. Es el mismo menú-navegador que ya usa el microciclo — ver `sub` en
+     `MenuAcciones`, que nació para esto. */
+  const opcionesDelBloque = [
+    ...tramos.map(({ b, esEste, r, semanas }) => {
+      const cuando = r.desde
+        ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
+        : 'sin fechas';
+      const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
+      return {
+        label: b.name,
+        sub: [
+          `${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas}`,
+          cuando,
+          aqui && !esEste ? 'estás aquí' : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        on: esEste,
+        /* El abierto no navega a ninguna parte: ya estás en él. Se queda en el
+           menú porque un selector sin la opción puesta no dice dónde estás. */
+        run: () => {
+          if (!esEste) onIrBloque(b);
+        },
+      };
+    }),
+    onRenombrarBloque && null,
+    onRenombrarBloque && {
+      label: 'Renombrar este bloque',
+      icon: Pencil,
+      run: () => setRenombrando(true),
+    },
+  ];
+
+
+  const unaFila = vista !== 'hoja' && Boolean(abierto);
+
+  /* Las chapas del bloque. Con el bloque delante se van con su nombre —que es
+     de lo que hablan— y no al canto derecho; en el frame, «ABIERTO» va pegado
+     a «Bloque 1». */
+  const chapasDelBloque = (
+    <>
+      {vista !== 'hoja' && intent && <span className="bl-chapa">{intent}</span>}
+      {vista !== 'hoja' && esActual && <span className="bl-chapa is-abierto">abierto</span>}
+      {vista !== 'hoja' && cuando && <span className="tira-dato">{cuando}</span>}
+    </>
+  );
+
+  /* Lo que cierra la fila del BLOQUE: el indicador de guardado y los verbos de
+     diario como iconos. */
+  const colaDelBloque = (
+    <>
+      {acciones}
+      {/* ── LOS VERBOS DE DIARIO, A LA VISTA ────────────────────────────
+          «No muestras los iconos de opciones, muestras los ···.» Duplicar una
+          hoja o abrir sus alternativas se hace a diario y estaba a dos gestos
+          —abrir el menú, leer cinco líneas, elegir—; ahora es un icono que se
+          pulsa. Al «···» se queda lo que se toca una vez al mes y lo que
+          borra, que ahí está bien guardado. */}
+      {iconos}
+    </>
+  );
+
+  /* Y el «···» del nivel que se mira: el de la hoja cuando hay una abierta, el
+     del bloque cuando no. Un solo menú por pantalla y siempre en el mismo
+     sitio. Sale de `colaDelBloque` porque en la fila única va DETRÁS de su
+     filete, con las otras papeleras (ver la regla del cierre, más abajo). */
+  const menuDelNivel = vista === 'hoja' && menuDeLaHoja ? menuDeLaHoja : menuDelBloque;
+
+  /* ══ EL NIVEL DEL MICROCICLO ═══════════════════════════════════════════════
+     Sale del JSX de la fila 2 para poder sentarse en las dos composiciones —la
+     de un renglón y la de dos— sin escribirlo dos veces. */
+  const nivelDelMicro = abierto ? (
+    <>
+          {/*
+            ── UNA SOLA CAJA QUE ENVUELVE, Y POR ESO NADA SE VA A LA DERECHA ──
+            Las pastillas, «+ microciclo» y el selector de sesión son tres
+            piezas del MISMO nivel, así que van en una sola caja que se parte en
+            renglones cuando no caben. Con el selector fuera, la caja de las
+            pastillas —que es la que envuelve— se quedaba todo el ancho libre y
+            empujaba la sesión al canto derecho: exactamente el sitio del que el
+            dueño la mandó quitar. `.tira-micros` es `display: contents` para
+            que sus pastillas sean hijas de esta caja sin perder su `tablist`.
+          */}
+          <div className="tira-nivel">
+          <div className="tira-micros" role="tablist" aria-label={`${unidades} de ${bloque.name}`}>
+            {/*
+              ══ Y LOS VIEJOS SE PLIEGAN (17 sep · rediseño de Figma) ═══════
+              Un bloque de diez microciclos pintaba diez pastillas, y a 1440 px
+              la décima —la que está EN CURSO, o sea la única que se mira a
+              diario— caía a un segundo renglón ella sola. La fila del bloque
+              medía dos alturas para enseñar un dato que ya no cabía donde se
+              busca.
+
+              El frame lo resuelve como lo resuelve cualquier paginador: los
+              últimos a la vista y los anteriores detrás de «‹ N más». No se
+              pierde nada —el botón los despliega y no vuelve a plegarlos— y lo
+              que gana es que el microciclo en curso esté SIEMPRE en el renglón,
+              que es de lo que se trata.
+
+              El tramo visible se calcula desde el que MIRAS y no desde el
+              final: abrir el M2 de un bloque de diez tiene que enseñar el M2.
+            */}
+            {ocultos > 0 && (
+              <button
+                type="button"
+                className="hoja-semana is-mas"
+                onClick={() => setTodosLosMicros(true)}
+                title={`Ver los ${ocultos} ${ocultos === 1 ? unidadBaja : unidades.toLowerCase()} anteriores`}
+              >
+                <ChevronLeft size={13} aria-hidden="true" />
+                <span className="hoja-semana-estado">{ocultos} más</span>
+              </button>
+            )}
+            {microsALaVista.map((w) => {
+              const micro = findMicrocycle(microcycles, w) || {};
+              const iso = toISODate(micro.date);
+              const hecha = executedSessions(micro).length > 0;
+              /* Las dos marcas son distintas y pueden caer juntas: `is-on` dice
+                 CUÁL MIRAS y `is-curso` cuál es el de hoy. Excluyentes, el
+                 microciclo en curso perdía su punto azul justo cuando estabas
+                 en él, que es cuando más se mira. */
+              const estado = [w === semana ? 'is-on' : '', w === semanaEnCurso ? 'is-curso' : hecha ? 'is-hecha' : '']
+                .filter(Boolean)
+                .map((c) => ` ${c}`)
+                .join('');
+              const n = w - abierto.b.fromWeek + 1;
+              return (
+                <button
+                  key={w}
+                  type="button"
+                  role="tab"
+                  aria-selected={w === semana}
+                  className={`hoja-semana${estado}`}
+                  onClick={() => (w === semana ? onAjustesDelMicrociclo?.() : onIrSemana(w))}
+                  title={
+                    w === semana
+                      ? `${unidad} ${n} · sus fechas y sus sesiones`
+                      : `Abrir ${unidadBaja} ${n}${iso ? ` · empieza el ${shortDate(iso)}` : ''}${
+                          w === semanaEnCurso ? ' · en curso' : hecha ? ' · entrenado' : ' · por hacer'
+                        }`
+                  }
+                >
+                  <span className="hoja-semana-n">
+                    {inicial}
+                    {n}
+                  </span>
+                  {w === semanaEnCurso && <span className="hoja-semana-estado">en curso</span>}
+                </button>
+              );
+            })}
+          </div>
+            {/* Fuera del `tablist`, que es de las pastillas: añadir un
+                microciclo no es elegir uno. Envuelve con ellas porque está en
+                la misma caja, no porque comparta su lista. */}
+            {masMicrociclo}
+
+          </div>
+    </>
+  ) : null;
+
+  /* Y lo que cierra su renglón: «+ hoja», los verbos del microciclo y su
+     papelera. */
+  const colaDelMicro = abierto ? (
+    <>
+
+          {/* ── Y AQUÍ SÍ VA «+ hoja» ─────────────────────────────────────
+              Estuvo prohibido en este renglón mientras el verbo existía también
+              al final de la rejilla: el mismo verbo dos veces es la avería que
+              esta pantalla lleva nueve vueltas cazando. Abajo ya no hay
+              ninguno —caía a novecientos píxeles del titular, y como columna de
+              la retícula se descolgaba a la fila de abajo en cuanto el ancho no
+              daba para una pista más—, así que este es su sitio: el renglón del
+              microciclo, que es de quien son las hojas, al lado de «+
+              microciclo», que es el otro «uno más» de la pantalla. Lo pone
+              `WorkoutLogEditor`.
+
+              Solo con el bloque entero delante: con una hoja abierta, la tira
+              de hojas de la fila 1 ES la lista a la que añade, y el verbo se va
+              con ella. Sigue habiendo UNO solo. */}
+          {vista !== 'hoja' && derecha}
+    </>
+  ) : null;
+
 
   return (
     <nav className="tira" aria-label="El programa de esta persona">
@@ -336,7 +593,7 @@ export const TiraDelPrograma = ({
         `chasis.css`). Aquí manda la misma Archivo del resto, y lo que separa a
         un titular de su hermano es el cuerpo, el peso y el interletrado.
       */}
-      <div className="tira-fila">
+      <div className={`tira-fila${unaFila ? ' is-una' : ''}`}>
         <div className="tira-camino">
           {/* La puerta al visor de carpetas: una palabra, y la primera del
               camino. Fue un chevron pelado y luego un ítem dentro del «···», y
@@ -359,17 +616,24 @@ export const TiraDelPrograma = ({
               renglón es el error que aquí ya se ha cometido cuatro veces. */}
           {vista === 'hoja' && (
             <>
-              {/* Con su icono, por lo mismo que «Bloques» lleva la carpeta: sin
-                  él es el nombre del bloque en tinta terciaria —o sea, un
-                  título apagado— y el camino de vuelta a la rejilla no se
-                  encuentra. El teclado ya lo hacía (Esc); la vista, no. */}
+              {/* ── Y VA SIN ICONO ──────────────────────────────────────────
+                  Llevó unas capas, con el argumento de que sin glifo el nombre
+                  del bloque es tinta terciaria —un título apagado— y no se ve
+                  que sea la puerta de vuelta. El dueño: «lo único que no me
+                  gusta es el icono de las capas en Bloque 1, quítalo».
+
+                  Y tenía poco que defender: la carpeta de «Bloques» dice qué
+                  hay DETRÁS de una palabra que no es el nombre de nada, y por
+                  eso se gana el sitio. Aquí el nombre propio ya dice qué se
+                  abre, y el chevron de al lado dice que hay camino. El glifo
+                  solo añadía un segundo dibujo en un renglón que empieza con
+                  otro a cuarenta píxeles. */}
               <button
                 type="button"
                 className="tira-miga"
                 onClick={onVerConjunto}
                 title={`Ver «${bloque.name}» entero: sus hojas, su estructura y su información · Esc`}
               >
-                <Layers size={13} aria-hidden="true" />
                 {bloque.name}
               </button>
               <ChevronRight size={13} className="tira-paso" aria-hidden="true" />
@@ -396,13 +660,50 @@ export const TiraDelPrograma = ({
             data-sentido={sentido}
             ref={carril}
           >
-            <div
-              className="tira-tabs"
-              role="tablist"
-              aria-label={vista === 'hoja' ? `Hojas de ${bloque.name}` : 'Bloques del programa'}
-            >
-              {vista === 'hoja'
-                ? hojas.map((hoja, i) => {
+            {/* ── EL BLOQUE ES UN DESPLEGABLE, NO UNA HILERA ───────────────
+                «Los bloques se ven como desplegable, de manera que bloque 1 se
+                despliega y eliges bloque.» Es lo que dibuja el frame: UN mando
+                con su flecha (`block-trigger`), no seis pastillas seguidas.
+
+                Y no es solo copiar el dibujo. La hilera tenía dos averías que
+                se ven en cuanto un programa lleva año y medio:
+
+                  · CRECÍA SIN TECHO. Ocho bloques son ocho nombres propios
+                    cruzando la fila, y la fila ya lleva los microciclos, los
+                    dos «+» y los cuatro iconos. Era lo que obligaba a envolver
+                    la barra entre 1440 y 1490 px.
+                  · Y LO QUE SE MIRA PESABA LO MISMO QUE LO QUE NO. El bloque
+                    abierto es uno; sus hermanos son sitios a los que se puede
+                    saltar, y para eso no hacen falta a la vista — hacen falta
+                    cuando se va a saltar.
+
+                Lo que NO cambia es la lógica: saltar a un hermano sigue siendo
+                `onIrBloque`, y renombrar sigue siendo `onRenombrarBloque` sobre
+                el mismo campo en sitio. Lo único que se mueve es el GESTO de
+                renombrar: pulsar el titular abría el campo y ahora abre el
+                menú, así que renombrar pasa a ser un ítem CON SU VERBO ESCRITO
+                — que es más de lo que decía un cursor de texto. */}
+            {vista !== 'hoja' &&
+              (renombrando ? (
+                <RenombrarEnSitio
+                  value={bloque.name}
+                  label="Nuevo nombre del bloque"
+                  onRename={(nombre) => onRenombrarBloque(bloque.id, nombre)}
+                  onDone={() => setRenombrando(false)}
+                />
+              ) : (
+                <MenuAcciones
+                  clase="tira-eslabon is-on tira-desplegable"
+                  label={<span className="tira-eslabon-nombre">{bloque.name}</span>}
+                  ariaLabel={`Bloque abierto: ${bloque.name}. Cambiar de bloque`}
+                  alineado="izquierda"
+                  items={opcionesDelBloque}
+                />
+              ))}
+
+            {vista === 'hoja' && (
+              <div className="tira-tabs" role="tablist" aria-label={`Hojas de ${bloque.name}`}>
+                {hojas.map((hoja, i) => {
                     const estado = estadoDeHoja ? estadoDeHoja(hoja) : null;
                     const dia = diaDe ? diaDe(hoja) : null;
                     return (
@@ -422,60 +723,21 @@ export const TiraDelPrograma = ({
                         <span className="tira-eslabon-nombre">{hoja.dayName}</span>
                       </button>
                     );
-                  })
-                : tramos.map(({ b, i, esEste, r, semanas }) => {
-                    const cuandoBloque = r.desde
-                      ? `${shortDate(r.desde)}${r.abierto ? ' · abierto' : r.hasta ? ` – ${shortDate(r.hasta)}` : ''}`
-                      : 'sin fechas';
-                    const aqui = semanaEnCurso != null && semanas.includes(semanaEnCurso);
+                })}
+                {/* Y «+ hoja» cierra la tira, fuera del `tablist` porque añadir
+                    no es elegir. Es donde lo pinta el frame (`48:753`) y donde
+                    manda la ley de la casa: cada «+» toca a lo que añade, y lo
+                    que hay a su izquierda son exactamente las hojas. Con el
+                    bloque entero delante sigue en su renglón de siempre, junto
+                    a «+ microciclo». */}
+                {derecha}
+              </div>
+            )}
 
-                    /* El bloque abierto en renombrado: el campo ocupa el sitio
-                       de su titular, para que el nombre se cambie donde se lee. */
-                    if (esEste && renombrando) {
-                      return (
-                        <RenombrarEnSitio
-                          key={b.id}
-                          value={b.name}
-                          label="Nuevo nombre del bloque"
-                          onRename={(nombre) => onRenombrarBloque(b.id, nombre)}
-                          onDone={() => setRenombrando(false)}
-                        />
-                      );
-                    }
-
-                    return (
-                      <button
-                        key={b.id}
-                        type="button"
-                        role="tab"
-                        aria-selected={esEste}
-                        className={`tira-eslabon${esEste ? ' is-on' : ''}`}
-                        onClick={() => (esEste ? setRenombrando(Boolean(onRenombrarBloque)) : onIrBloque(b))}
-                        title={
-                          esEste
-                            ? `${b.name}${onRenombrarBloque ? ' · púlsalo para renombrarlo' : ''}`
-                            : `Abrir ${b.name} · ${semanas.length} ${semanas.length === 1 ? unidadBaja : unidadesBajas} · ${cuandoBloque}`
-                        }
-                      >
-                        {/* ── LA CIFRA, SOLO CUANDO EL NOMBRE NO LA DICE ────
-                            Con los bloques sin bautizar —que es como nacen— el
-                            renglón decía «Bloques · B1 Bloque 1 · B2 Bloque 2 ·
-                            + bloque»: la misma palabra cinco veces y la misma
-                            cifra dos veces dentro de cada pastilla. El dorsal
-                            existe para darle el ORDEN a un bloque con nombre
-                            propio («B2 Acumulación»); cuando el nombre YA es su
-                            número, sobra. */}
-                        {!/^bloques?\s*\d+$/i.test(String(b.name || '').trim()) && (
-                          <span className="tira-eslabon-n">B{i + 1}</span>
-                        )}
-                        <span className="tira-eslabon-nombre">{b.name}</span>
-                        {/* El punto de «aquí está el hoy»: solo sale mirando
-                            OTRO bloque, porque es el camino de vuelta. */}
-                        {aqui && !esEste && <span className="tira-eslabon-aqui">estás aquí</span>}
-                      </button>
-                    );
-                  })}
-            </div>
+            {/* Con el bloque delante, sus chapas van aquí: pegadas al nombre
+                del que hablan y antes del «+», que es como las dibuja el
+                frame. Con una hoja abierta no se pintan (son de otro nivel). */}
+            {unaFila && chapasDelBloque}
 
             {/* Fuera del `tablist` y dentro de la lista: añadir un bloque no es
                 elegir uno, pero va al final de sus hermanos porque cada «+»
@@ -486,26 +748,50 @@ export const TiraDelPrograma = ({
 
         <span className="tira-hueco" />
 
-        {/* Las chapas y la fecha, en voz baja y a la derecha: es lo que llena el
-            hueco que antes llegaba a medir 830 px. Solo con el bloque delante —
-            con una hoja abierta son datos de OTRO nivel, y eran la mitad de lo
-            que atoraba esta fila. */}
-        {vista !== 'hoja' && intent && <span className="bl-chapa">{intent}</span>}
-        {vista !== 'hoja' && esActual && <span className="bl-chapa is-abierto">abierto</span>}
-        {vista !== 'hoja' && cuando && <span className="tira-dato">{cuando}</span>}
-        {acciones}
-        {/* ── LOS VERBOS DE DIARIO, A LA VISTA ────────────────────────────
-            «No muestras los iconos de opciones, muestras los ···.» Duplicar
-            una hoja o abrir sus alternativas se hace a diario y estaba a dos
-            gestos —abrir el menú, leer cinco líneas, elegir—; ahora es un
-            icono que se pulsa. Al «···» se queda lo que se toca una vez al mes
-            y lo que borra, que ahí está bien guardado. */}
-        {iconos}
-        {/* El «···» es el del nivel que se está mirando: el de la hoja cuando
-            hay una abierta, el del bloque cuando no. Un solo menú por pantalla
-            y siempre en el mismo sitio. */}
-        {vista === 'hoja' && menuDeLaHoja ? menuDeLaHoja : menuDelBloque}
+        {/* En un renglón, a la derecha del hueco va el nivel del microciclo
+            entero y el filete que lo separa de los verbos. En dos, aquí solo
+            quedan las chapas del bloque, que es donde vivían. */}
+        {unaFila ? (
+          <>
+            {nivelDelMicro}
+            <span className="tira-divisor" aria-hidden="true" />
+            {/* ── EL CIERRE VA POR NIVELES, Y SE VE EN EL FILETE ───────────
+                «Has de poner separada la información de bloque respecto a la de
+                microciclo», y antes: «el prototipo tiene dos papeleras, una del
+                microciclo, DENTRO, y otra FUERA».
+
+                Las dos frases piden lo mismo: que el corte de la fila sea el
+                NIVEL y no otra cosa. Queda en tres grupos que se leen de
+                izquierda a derecha como se piensa —dónde estás, qué le haces a
+                esta semana, qué le haces al bloque—:
+
+                    ‹6 más M7 M8 M9 M10 + microciclo │ + hoja ⌫ │ ⟲ ⧉ ⤓ ⚙ ⌫
+
+                Cada papelera dentro de su grupo, que es lo que dice sobre qué
+                actúa: la primera se lleva el microciclo abierto, la segunda el
+                bloque entero. Antes iban mezcladas —los ajustes del microciclo,
+                su papelera, y detrás los tres verbos del bloque y la suya—, así
+                que la fila remataba con seis cuadraditos iguales entre los que
+                dos BORRAN y nada lo decía hasta pasar el ratón por encima.
+
+                Y la del microciclo va sin rojo, que también es del frame: allí
+                solo va en rojo la que se lleva el bloque entero. Dos rojos
+                seguidos no escalan nada; con uno, el que queda se ve. */}
+            {colaDelMicro}
+            {menuDelMicrociclo}
+            <span className="tira-divisor" aria-hidden="true" />
+            {colaDelBloque}
+            {menuDelNivel}
+          </>
+        ) : (
+          <>
+            {chapasDelBloque}
+            {colaDelBloque}
+            {menuDelNivel}
+          </>
+        )}
       </div>
+
 
       {/*
         ══ FILA 2 · LOS MICROCICLOS DEL BLOQUE ABIERTO ═══════════════════════
@@ -513,99 +799,34 @@ export const TiraDelPrograma = ({
         escriben las series: es la misma pregunta en las dos pantallas de
         Entreno, así que no puede tener dos dibujos.
       */}
-      {abierto && (
+      {!unaFila && abierto && (
         <div className="tira-fila is-micros">
-          {/*
-            ── UNA SOLA CAJA QUE ENVUELVE, Y POR ESO NADA SE VA A LA DERECHA ──
-            Las pastillas, «+ microciclo» y el selector de sesión son tres
-            piezas del MISMO nivel, así que van en una sola caja que se parte en
-            renglones cuando no caben. Con el selector fuera, la caja de las
-            pastillas —que es la que envuelve— se quedaba todo el ancho libre y
-            empujaba la sesión al canto derecho: exactamente el sitio del que el
-            dueño la mandó quitar. `.tira-micros` es `display: contents` para
-            que sus pastillas sean hijas de esta caja sin perder su `tablist`.
-          */}
-          <div className="tira-nivel">
-          <div className="tira-micros" role="tablist" aria-label={`${unidades} de ${bloque.name}`}>
-            {abierto.semanas.map((w) => {
-              const micro = findMicrocycle(microcycles, w) || {};
-              const iso = toISODate(micro.date);
-              const hecha = executedSessions(micro).length > 0;
-              /* Las dos marcas son distintas y pueden caer juntas: `is-on` dice
-                 CUÁL MIRAS y `is-curso` cuál es el de hoy. Excluyentes, el
-                 microciclo en curso perdía su punto azul justo cuando estabas
-                 en él, que es cuando más se mira. */
-              const estado = [w === semana ? 'is-on' : '', w === semanaEnCurso ? 'is-curso' : hecha ? 'is-hecha' : '']
-                .filter(Boolean)
-                .map((c) => ` ${c}`)
-                .join('');
-              const n = w - abierto.b.fromWeek + 1;
-              return (
-                <button
-                  key={w}
-                  type="button"
-                  role="tab"
-                  aria-selected={w === semana}
-                  className={`hoja-semana${estado}`}
-                  onClick={() => (w === semana ? onAjustesDelMicrociclo?.() : onIrSemana(w))}
-                  title={
-                    w === semana
-                      ? `${unidad} ${n} · sus fechas y sus sesiones`
-                      : `Abrir ${unidadBaja} ${n}${iso ? ` · empieza el ${shortDate(iso)}` : ''}${
-                          w === semanaEnCurso ? ' · en curso' : hecha ? ' · entrenado' : ' · por hacer'
-                        }`
-                  }
-                >
-                  <span className="hoja-semana-n">
-                    {inicial}
-                    {n}
-                  </span>
-                  {w === semanaEnCurso && <span className="hoja-semana-estado">en curso</span>}
-                </button>
-              );
-            })}
-          </div>
-            {/* Fuera del `tablist`, que es de las pastillas: añadir un
-                microciclo no es elegir uno. Envuelve con ellas porque está en
-                la misma caja, no porque comparta su lista. */}
-            {masMicrociclo}
-
-            {/*
-              ── Y LA SESIÓN, PEGADA A SU MICROCICLO ─────────────────────────
-              Qué sesión se mira es del ENTRENAMIENTO, y un entrenamiento es de
-              este microciclo: su sitio es esta caja, detrás de las pastillas de
-              las que depende. Subió a la fila 1 cuando allí estaba el nombre de
-              la hoja; ahora esa fila es de las hojas y esto la volvía a atorar.
-
-              La tira de hojas ya no está aquí: se ha ido a la fila 1, pegada a
-              la vuelta al bloque. Con el bloque entero delante no se pinta en
-              ninguna de las dos —la rejilla de debajo ES esa lista, y dibujarla
-              dos veces es el error que ya se ha cometido cuatro veces aquí—.
-            */}
-            {vista === 'hoja' && mandosDeLaHoja}
-          </div>
+          {nivelDelMicro}
 
           <span className="tira-hueco" />
 
-          {/* ── Y AQUÍ SÍ VA «+ hoja» ─────────────────────────────────────
-              Estuvo prohibido en este renglón mientras el verbo existía también
-              al final de la rejilla: el mismo verbo dos veces es la avería que
-              esta pantalla lleva nueve vueltas cazando. Abajo ya no hay
-              ninguno —caía a novecientos píxeles del titular, y como columna de
-              la retícula se descolgaba a la fila de abajo en cuanto el ancho no
-              daba para una pista más—, así que este es su sitio: el renglón del
-              microciclo, que es de quien son las hojas, al lado de «+
-              microciclo», que es el otro «uno más» de la pantalla. Lo pone
-              `WorkoutLogEditor`. */}
-          {derecha}
+          {colaDelMicro}
+          {/*
+            ── QUÉ SESIÓN SE MIRA, AL CANTO DERECHO ──────────────────────────
+            «La fecha de la sesión ha de ir a la derecha.» Es donde la dibuja el
+            frame (`227:4`), en el mismo grupo que la papelera del microciclo y
+            enfrentada a las pastillas que abren el renglón.
 
-          {/* ── Y LOS VERBOS DEL MICROCICLO, EN EL RENGLÓN DEL MICROCICLO ──
-              Duplicar el microciclo abierto vivía arriba, entre las acciones
-              del BLOQUE, y eliminarlo dentro de aquel «···» de siete ítems:
-              dos verbos de este renglón repartidos por el de encima. Aquí cada
-              fila lleva lo suyo, y sobre qué se actúa se sabe por dónde está el
-              botón y no por lo que diga su rótulo. */}
-          {mandosDelMicrociclo}
+            Vivió dentro de la caja de las pastillas, pegada a ellas, y la razón
+            era buena —una sesión es de ESTE microciclo, así que iba detrás de
+            lo que la nombra—. Lo que la contesta es que ahí no se lee como un
+            mando sino como el pie de la lista: con cinco pastillas delante, la
+            sexta pieza del renglón parece la sexta opción. Al otro canto es lo
+            que es —el único mando que dice QUÉ se está leyendo— y el renglón
+            vuelve a partirse por donde se piensa: a la izquierda dónde estás,
+            a la derecha qué miras y qué te llevas.
+
+            Y no vuelve el defecto de la vez anterior —«la caja de las pastillas
+            se quedaba todo el ancho libre y empujaba la sesión al canto»—,
+            porque ahora la lleva ahí el hueco a propósito y no el
+            desbordamiento de una caja que envuelve.
+          */}
+          {vista === 'hoja' && mandosDeLaHoja}
           {menuDelMicrociclo}
         </div>
       )}

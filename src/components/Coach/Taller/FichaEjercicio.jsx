@@ -100,15 +100,31 @@ import { SelectorDeClase } from './SelectorDeClase';
  * que las semanas ya escritas se quedan con el nombre viejo **y sin tu vídeo ni
  * tus pautas**. No es un descuido: es el modelo. Por eso el cambio de nombre
  * pasa por una confirmación que lo dice con esas palabras.
+ *
+ * ══ Y desde el frame de Figma (18 sep), se LEE antes de escribirse ═════════
+ *
+ * La ficha se abre en lectura —nombre, músculo, qué es y lo que ve tu cliente—
+ * y «Editar ejercicio» enciende las mismas casillas que antes estaban siempre
+ * puestas. Nada de la edición cambia: es la misma ficha con un interruptor
+ * delante, y guardar o cancelar la devuelve a lectura (la `key` de quien la
+ * monta la remonta). El alta nace editando.
+ *
+ * @param semilla   Lo que trae un alta que nace de otro ejercicio («Duplicar»).
+ * @param editandoAlAbrir  Para quien la abre A PROPÓSITO para corregir —la hoja
+ *   del entrenador—: allí pulsar el nombre ya era el gesto de editar.
+ * @param onDuplicar  Sin él no se ofrece «Duplicar».
  */
 export const FichaEjercicio = ({
   nombre,
   nuevo = false,
+  semilla = null,
   enCapa = false,
+  editandoAlAbrir = false,
   lista = [],
   onIr,
   onCerrar,
   onBorrado,
+  onDuplicar,
 }) => {
   const { exerciseLibrary, catalogExercises, session } = useApp();
   const { upsertLibraryExercise, saveExerciseSheet, editLibraryExercise, deleteLibraryExercise } =
@@ -120,12 +136,16 @@ export const FichaEjercicio = ({
     () => lista.find((e) => e.name.toLowerCase() === String(nombre || '').toLowerCase()) || null,
     [lista, nombre]
   );
+  /* De dónde salen las casillas: del ejercicio que se mira o, en un alta que
+     nace de otro, de ese otro. */
+  const base = nuevo ? semilla : actual;
 
-  const [name, setName] = useState(nombre || '');
-  const [muscle, setMuscle] = useState(actual?.muscle || MUSCLE_GROUPS[0]);
-  const [videoUrl, setVideoUrl] = useState(actual?.videoUrl || '');
-  const [cue, setCue] = useState(actual?.cue || '');
+  const [name, setName] = useState(nuevo ? semilla?.name || '' : nombre || '');
+  const [muscle, setMuscle] = useState(base?.muscle || MUSCLE_GROUPS[0]);
+  const [videoUrl, setVideoUrl] = useState(base?.videoUrl || '');
+  const [cue, setCue] = useState(base?.cue || '');
   const [guardando, setGuardando] = useState(false);
+  const [editando, setEditando] = useState(nuevo || editandoAlAbrir);
 
   /* Lo tocado desde que se montó. Misma mecánica y mismo porqué que en
      `FichaAlimento`: la `key` de quien monta la ficha la remonta al cambiar de
@@ -234,7 +254,7 @@ export const FichaEjercicio = ({
     toast({ text: `«${limpio}» guardado.` });
     /* Renombrar cambia la fila que la lista tiene señalada: hay que llevar el
        carril al nombre nuevo o se quedaría apuntando a uno que ya no existe. */
-    if (renombra) onIr?.(limpio);
+    if (renombra || nuevo) onIr?.(limpio);
     onCerrar();
   };
 
@@ -296,23 +316,32 @@ export const FichaEjercicio = ({
     },
   ].filter(Boolean);
 
+  /* Qué se puede escribir aquí: lo tuyo entero, y en lo del catálogo tu voz
+     (vídeo y pautas). Lo de un compañero, nada — lo corrige quien lo puso. */
+  const puedeEditar = nuevo || !deOtro;
+  const escribe = editando && puedeEditar;
+  const escribeNombre = escribe && (nuevo || esMio);
+
+  const queEs = String(general?.description || '').trim();
+  const hayAlgoTuyo = Boolean(videoUrl.trim() || cue.trim());
+
   return (
     <div className="col ficha-ej">
       {/*
         ══ QUIÉN ES, ARRIBA Y EN UNA PIEZA ═══════════════════════════════════
 
-        El nombre en grande y debajo el músculo. Cuando el ejercicio es tuyo, el
-        titular se escribe encima y el músculo es una chapa con menú — sin
-        rótulos, sin cajas hasta que se tocan. Antes eran tres piezas para dos
-        palabras: el nombre como titular de 15 px, otra vez como campo «Cómo se
-        llama», y el músculo en un `select` de 40 px con su propio rótulo.
+        El nombre en grande y debajo el músculo. Cuando el ejercicio es tuyo y
+        lo estás editando, el titular se escribe encima y el músculo es una
+        chapa con menú.
 
-        Sin «Material»: el dueño lo tumbó dos veces, la segunda con estas
-        palabras —«material y con qué se cambia en ejercicios no me gusta
-        tenerlo»—, y no queda ni aquí ni en la columna de la tabla.
+        Sin «Material», «Tipo» ni «Lado», aunque el frame de Figma los dibuja:
+        el material lo tumbó el dueño dos veces («material y con qué se cambia
+        en ejercicios no me gusta tenerlo»), y tipo y lado no existen en el
+        catálogo — pintarlos sería inventar el dato que la 0094 decidió no
+        inventar.
       */}
       <header className="ficha-id">
-        {nuevo || esMio ? (
+        {escribeNombre ? (
           <input
             className="ficha-id-nom"
             value={name}
@@ -330,19 +359,16 @@ export const FichaEjercicio = ({
 
         <div className="ficha-id-clase">
           <SelectorDeClase
-            valor={nuevo || esMio ? muscle : actual?.muscle || null}
+            valor={escribeNombre ? muscle : actual?.muscle || null}
             opciones={MUSCLE_GROUPS}
-            editable={nuevo || esMio}
+            editable={escribeNombre}
             onElegir={setMuscle}
             ariaLabel="Qué músculo trabaja"
           />
           {/* De dónde viene, en voz baja: explica por qué el nombre y el
               músculo no se tocan cuando no se tocan. */}
-          {!nuevo && !esMio && !deOtro && <span className="t-xs t-tertiary">Del catálogo</span>}
-          {/* Y que es tuyo, con la MISMA chapa que lo dice en la lista. La
-              ficha de algo tuyo y la de algo del catálogo se veían idénticas
-              hasta que pasabas el ratón por encima del nombre: que todo esto se
-              corrige entero no lo decía nada. */}
+          {!nuevo && !esMio && !deOtro && <span className="ficha-id-origen">Del catálogo</span>}
+          {/* Y que es tuyo, con la MISMA chapa que lo dice en la lista. */}
           {esMio && <span className="badge badge-info">Tuyo</span>}
         </div>
 
@@ -353,137 +379,96 @@ export const FichaEjercicio = ({
         )}
       </header>
 
+      {/* Qué es, del catálogo. Fuera del espejo porque así lo pone el frame:
+          es la referencia, y el espejo es lo tuyo. */}
+      {queEs && (
+        <section className="ficha-bloque">
+          <p className="ficha-capa-rot">Qué es</p>
+          <p className="ficha-bloque-texto">{queEs}</p>
+        </section>
+      )}
+
       {/*
-        ══ LA HOJA: EL VÍDEO A LA IZQUIERDA, TU VOZ A LA DERECHA ═════════════
+        ══ EL ESPEJO: LO QUE VE TU CLIENTE ════════════════════════════════════
 
-        Aquí vivió la CURVA DE CARGA, un dibujo que decía cómo se comporta la
-        resistencia a lo largo del recorrido deducido del material. La idea era
-        buena y el dato era honesto en lo que afirmaba; lo que se ENTENDÍA no lo
-        era. El dueño: «la información de la curva longitud-tensión y el perfil
-        no es correcto; si no es claro no lo pongas». Y llevaba razón por debajo
-        de la queja: el eje se rotulaba «estirado → contraído», que es la
-        longitud del MÚSCULO, mientras la curva hablaba del recorrido de la
-        CARGA, que no son lo mismo ni van en el mismo sentido según el gesto.
+        La tarjeta del móvil de tu cliente, montada con **el mismo componente**
+        que la pinta en su portal (`CuerpoFichaEjercicio`): un espejo construido
+        aparte deja de ser un espejo el día que uno de los dos cambie.
 
-        La salida no era rotularlo mejor: la curva de verdad depende del gesto y
-        de la persona, y eso `resistencia.js` ya declaraba que no se podía saber
-        sin inventarlo. Se fue entera —componente, dominio, prueba y CSS—.
+        Editando, el enlace se teclea donde va a salir el vídeo y la pauta donde
+        el cliente la lee — lo de siempre. Leyendo, es lo que él ve y nada más.
 
-        Lo que queda a la izquierda es lo que de verdad se viene a hacer aquí:
-        el vídeo. Su enlace y, debajo, el reproductor cuando lo hay.
+        Lo que el frame dibuja y NO está: la miniatura del vídeo (el vídeo es un
+        enlace y no se sube nada; ver la cabecera de este archivo), el botón de
+        «Subir miniatura» por lo mismo, y una segunda caja de «pautas para ti»:
+        no existe esa columna, y las pautas que escribes son las que él lee.
       */}
-      <div className="ficha-hoja es-espejo">
-        {/*
-          ══ EL ESPEJO: LO QUE VE TU CLIENTE ════════════════════════════════
-
-          La pieza que le faltaba a esta mitad, y la que contesta el encargo
-          original con el que nació todo esto: «la idea principal era poder
-          tener anotaciones y vídeo del entrenador para los ejercicios, **de
-          forma que el cliente pudiese verlos**».
-
-          Hasta aquí, escribir un enlace y una frase en dos cajas grises no
-          enseñaba nada: había que creerse que aquello llegaba a algún sitio. Es
-          literalmente lo que hacía la pantalla sosa —no había NADA que mirar—.
-          Ahora la mitad izquierda es la tarjeta del móvil de tu cliente,
-          montada con lo que estás escribiendo ahora mismo: pegas el enlace y
-          aparece el vídeo, escribes la pauta y aparece la pauta.
-
-          Y no es una maqueta parecida: es **el mismo componente** que pinta esa
-          tarjeta en su portal (`CuerpoFichaEjercicio`). Un espejo construido
-          aparte deja de ser un espejo el día que uno de los dos cambie.
-        */}
-        {/*
-          ── Y AQUÍ SE ESCRIBE, que es lo que faltaba ──────────────────────
-          Enfrente del espejo vivían «Tu vídeo» y «Tus pautas»: dos campos con
-          su rótulo, su ayuda y su caja, o sea el formulario que la otra mitad
-          de la Librería ya se había quitado cuando la etiqueta nutricional pasó
-          a ser el editor. Escribías a la derecha y comprobabas a la izquierda,
-          con el mismo dato dicho dos veces en 700 px.
-
-          Ahora el enlace se teclea donde va a salir el vídeo y la pauta donde
-          el cliente la va a leer. Las dos ayudas se van con los dos rótulos: el
-          hueco del enlace dice lo que hay que pegar, y una pauta escrita en el
-          renglón del cliente no necesita que le expliquen que la lee el cliente.
-        */}
-        <section className="ficha-capa espejo">
-          <p className="ficha-capa-rot">Lo que ve tu cliente</p>
+      <section className="ficha-capa espejo">
+        <p className="ficha-capa-rot">Lo que ve tu cliente</p>
+        {!escribe && !hayAlgoTuyo ? (
+          <p className="ficha-capa-texto">
+            Todavía no ve nada tuyo.
+            {puedeEditar && ' Con «Editar ejercicio» le pones tu vídeo y tus pautas.'}
+          </p>
+        ) : (
           <CuerpoFichaEjercicio
             nombre={limpio || 'este ejercicio'}
             vivo
-            edicion={{
-              videoUrl,
-              onVideoUrl: setVideoUrl,
-              cue,
-              onCue: setCue,
-              /* Un enlace escrito que no se reconoce. Antes eran dos mensajes a
-                 la vez —el error y la ayuda— porque los dos colgaban de la
-                 misma condición; aquí es uno, y el que dice qué hacer. */
-              error: enlaceMalo ? VIDEO_URL_HINT : null,
-            }}
+            edicion={
+              escribe
+                ? {
+                    videoUrl,
+                    onVideoUrl: setVideoUrl,
+                    cue,
+                    onCue: setCue,
+                    error: enlaceMalo ? VIDEO_URL_HINT : null,
+                  }
+                : null
+            }
             ficha={{
               videoUrl: enlaceMalo ? '' : videoUrl,
               cue,
-              /* El músculo NO: en su móvil esa línea sitúa el ejercicio, pero
-                 aquí la cabecera lo acaba de decir dos dedos más arriba, y
-                 repetirlo es el mismo eco que este rediseño ha venido a
-                 quitar. Lo único que el espejo omite, y a propósito. */
+              /* El músculo lo dice la cabecera y qué es va encima: repetirlos
+                 aquí sería el eco que esta ficha se quitó. */
               muscle: null,
-              description: general?.description || null,
+              description: null,
             }}
           />
-        </section>
-
-        {deOtro && !nuevo && (
-          <div className="es-ancho">
-            <Notice tone="info">
-              Este ejercicio lo dio de alta un compañero de equipo. La biblioteca es compartida, así
-              que su vídeo y sus pautas los corrige quien los puso.
-            </Notice>
-          </div>
         )}
+      </section>
 
-        {/*
-          ── Y aquí estuvo «Con qué se cambia» ──────────────────────────────
-          Las alternativas de BIBLIOTECA: con qué se cambia este ejercicio por
-          defecto, para que `AddExerciseForm` las trajera puestas al escribirlo
-          en una hoja. El dueño las ha tumbado dos veces, la segunda con nombre y
-          apellidos. Fuera de aquí, de la marca de la lista y del alta de la hoja.
+      {deOtro && !nuevo && (
+        <Notice tone="info">
+          Este ejercicio lo dio de alta un compañero de equipo. La biblioteca es compartida, así que
+          su vídeo y sus pautas los corrige quien los puso.
+        </Notice>
+      )}
 
-          Y el 9 sep 2026 cayeron también las del PLAN —«prever una alternativa»
-          en la hoja—, así que la idea ya no existe en ninguna parte del
-          producto: «no me gusta la idea de dar alternativas». Ver
-          `domain/training.js`.
-        */}
+      {!nuevo && parecidos.length > 0 && (
+        <Notice tone="info">
+          Tienes {parecidos.length === 1 ? 'otro que se llama' : 'otros que se llaman'} casi igual:{' '}
+          {parecidos.map((otro, i) => (
+            <span key={otro}>
+              {i > 0 && ', '}
+              <button type="button" className="cab-accion is-puerta" onClick={() => onIr?.(otro)}>
+                {otro}
+              </button>
+            </span>
+          ))}
+          . Quédate con uno y ponle ahí tu vídeo.
+        </Notice>
+      )}
 
-        {!nuevo && parecidos.length > 0 && (
-          <div className="es-ancho">
-            <Notice tone="info">
-              Tienes {parecidos.length === 1 ? 'otro que se llama' : 'otros que se llaman'} casi
-              igual:{' '}
-              {parecidos.map((otro, i) => (
-                <span key={otro}>
-                  {i > 0 && ', '}
-                  <button type="button" className="cab-accion is-puerta" onClick={() => onIr?.(otro)}>
-                    {otro}
-                  </button>
-                </span>
-              ))}
-              . Quédate con uno y ponle ahí tu vídeo.
-            </Notice>
-          </div>
-        )}
-      </div>
-      {/* El pie sólo cuando hay algo que hacer con él. El porqué largo, en el
-          mismo sitio de `FichaAlimento`: en un carril no hay nada que cerrar, y
-          un botón primario encendido sobre una ficha que no has tocado promete
-          trabajo que no hay. */}
-      {(enCapa || nuevo || tocado) && (
-        <div className="row-end ficha-ej-pie">
-          {(enCapa || nuevo) && (
-            <button type="button" className="btn btn-sm" onClick={onCerrar}>
-              Cancelar
-            </button>
-          )}
+      {/*
+        ── El pie: leyendo, editar y duplicar; editando, cancelar y guardar ───
+        «Guardar» se enciende sólo con algo tocado, como siempre: un primario
+        encendido sobre una ficha intacta promete trabajo que no hay.
+      */}
+      {escribe ? (
+        <div className="ficha-ej-pie">
+          <button type="button" className="btn btn-sm" onClick={onCerrar}>
+            Cancelar
+          </button>
           <button
             type="button"
             className="btn btn-primary btn-sm"
@@ -495,6 +480,21 @@ export const FichaEjercicio = ({
             Guardar
           </button>
         </div>
+      ) : (
+        (puedeEditar || onDuplicar) && (
+          <div className="ficha-ej-pie es-lectura">
+            {puedeEditar && (
+              <button type="button" className="btn btn-secondary btn-sm grow" onClick={() => setEditando(true)}>
+                Editar ejercicio
+              </button>
+            )}
+            {onDuplicar && (
+              <button type="button" className="link" onClick={() => onDuplicar(actual || { name: original })}>
+                Duplicar
+              </button>
+            )}
+          </div>
+        )
       )}
     </div>
   );

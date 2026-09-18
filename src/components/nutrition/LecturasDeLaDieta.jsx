@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
 
 import { lastKcalChange, rollingWeightAverage, weightSeries } from '@/domain/anthropometry';
 import { MICROS, coverageSaid, microSaid, microVerdict, sumMicros } from '@/domain/micros';
@@ -7,7 +6,7 @@ import { cuadra, cycleAverage, cycleMap, macroSplit, optionMacros, targetsFor } 
 import { metricColor } from '@/domain/metrics';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { toNum0 } from '@/lib/num';
-import { Sparkline } from '@/components/ui/charts';
+import { LineaDePuntos } from '@/components/ui/charts';
 import { MACRO_META, Medidor, opcionElegida } from './macros';
 import { EvolucionPopup } from './EvolucionPopup';
 
@@ -183,9 +182,7 @@ export const ObjetivoDelDia = ({
      dieta. La fecha del último va al lado: un g/kg contra un peso de hace tres
      meses es una cifra que parece fresca y no lo es. */
   const media = rollingWeightAverage(history, 3);
-  const puntos = weightSeries(history);
   const peso = media?.average ?? null;
-  const cuando = puntos.length > 0 ? puntos[puntos.length - 1].date : null;
 
   const real = meals.reduce(
     (acc, meal) => {
@@ -202,9 +199,6 @@ export const ObjetivoDelDia = ({
   const kcalReal = Math.round(real.kcal);
   const objetivoKcal = toNum0(targets?.targetKcals);
 
-  /* Qué opción está abierta en cada comida, para que se vea con qué se suma. */
-  const abiertas = meals.map((meal) => Math.min((elegidas[meal.id] ?? 0) + 1, Math.max(1, (meal.options || []).length)));
-  const hayAlternativas = meals.some((meal) => (meal.options || []).length > 1);
 
   /*
     ══ LA FIBRA QUE NO SUMABA ═══════════════════════════════════════════════
@@ -249,100 +243,76 @@ export const ObjetivoDelDia = ({
         />
       )}
 
+      {/*
+        ══ UN RENGLÓN, Y EL VERBO ESCRITO (frame 71:2) ═══════════════════
+
+        Eran tres piezas en dos alturas: el rótulo «Objetivo», debajo el
+        nombre del día y un lápiz al canto. El frame lo deja en «Objetivo
+        High» y «Ajustar →», que es más corto y dice más: un lápiz no
+        promete a dónde lleva, y lo que hay detrás no es escribir un campo
+        sino un asistente de tres pasos.
+      */}
       <div className="lado-cab">
-        <span className="section-label">{titulo ? 'Objetivo' : 'El día'}</span>
-        {titulo ? (
-          <div className="lado-cab-fila">
-            <span className="lado-titulo">{titulo}</span>
-            {/* El lápiz es su propio blanco dentro de la tarjeta-puerta: la caja
-                entera abre la ventana del día y esto abre el editor del
-                objetivo. Dos destinos, dos blancos. Va fuera del `task-hit`
-                porque esa capa está DEBAJO del contenido (ver «LA TARJETA-
-                PUERTA»), no envolviéndolo. */}
-            {onEditar && (
-              <button
-                type="button"
-                className="btn btn-plain btn-icon btn-icon-compact"
-                onClick={onEditar}
-                aria-label={`Cambiar el objetivo de ${titulo.toLowerCase()}`}
-                title="Cambiar el objetivo"
-              >
-                <Pencil size={15} />
-              </button>
-            )}
-          </div>
-        ) : (
-          <span className="lado-desde">
-            {hayMenu
-              ? hayAlternativas
-                ? `con las opciones abiertas: ${abiertas.join(' · ')}`
-                : 'con lo que hay en cada comida'
-              : 'lo que le pides'}
-          </span>
-        )}
+        <div className="lado-cab-fila">
+          <span className="lado-titulo">{titulo ? `Objetivo ${titulo}` : 'El día'}</span>
+          {/* Fuera del `task-hit`, que es su propio blanco: la caja entera
+              abre la ventana del día y esto abre el asistente. */}
+          {titulo && onEditar && (
+            <button
+              type="button"
+              className="lado-ajustar"
+              onClick={onEditar}
+              aria-label={`Cambiar el objetivo de ${titulo.toLowerCase()}`}
+            >
+              Ajustar →
+            </button>
+          )}
+        </div>
       </div>
+      {/*
+        ══ AQUÍ ESTABA LA CIFRA GRANDE, Y SOBRABA ════════════════════════
 
-      {/* Lo que le PIDES al día, en grande. Debajo, los renglones dicen lo que
-          suma su menú contra ella: la cifra grande no se repite ahí —el renglón
-          de kcal es «3072/3100», que la lleva dentro—. */}
-      {titulo && (
-        <>
-          <div className="objetivo-cifra">
-            <span className="v">{pautado > 0 ? pautado : '—'}</span>
-            <span className="u">kcal</span>
-          </div>
-          {!objetivoEscrito && pautado > 0 && (
-            <p className="t-xs t-tertiary">calculadas a partir de los macros</p>
-          )}
-          {pautado === null && (
-            <p className="t-sm t-secondary">
-              Sin objetivo puesto{onEditar ? ' — pulsa el lápiz para ponerlo.' : '.'}
-            </p>
-          )}
-          <span className="lado-desde">
-            {suma
-              ? hayAlternativas
-                ? `Su menú, con las opciones abiertas: ${abiertas.join(' · ')}`
-                : 'Su menú, con lo que hay en cada comida'
-              : soloPautado
-                ? 'lo que te toca este día'
-                : 'Sin menú que sumar: lo que cuadra es el día entero'}
-          </span>
-        </>
+        «3100 kcal» a 30 px y, tres renglones más abajo, «3072 / 3100 kcal»
+        en el de energía: la misma cifra dos veces en catorce centímetros de
+        panel. El frame se queda con el renglón, que además dice lo que la
+        cifra sola no decía —cuánto suma su menú contra ella—.
+      */}
+      {titulo && !objetivoEscrito && pautado > 0 && (
+        <p className="t-xs t-tertiary">calculadas a partir de los macros</p>
       )}
-
-      {/* `is-filas`: los tres macros son una LISTA, no una rejilla de dos con un
-          hueco. Ver la cabecera de este archivo. */}
-      <div className="medidores is-filas">
-        {/* En RENGLÓN como los tres de abajo, y no en columna. Era la única de
-            las cuatro cifras que se pintaba con el rótulo encima y el valor
-            debajo, así que «1455/3100» caía tres píxeles a la izquierda de
-            «83/120 g» y las cuatro no se podían leer en vertical — que es
-            exactamente lo que esta sección existe para permitir desde que el
-            objetivo y el día son una sola. Sigue separada por su filete: es el
-            total de las tres que la descomponen. */}
-        {suma && (
-          <Medidor
-            total
-            fila
-            label="Kcal"
-            campo="kcals"
-            juzga={juzga}
-            valor={kcalReal}
-            objetivo={objetivoKcal}
-            lectura={juzga ? lecturaKcal(kcalReal, objetivoKcal) : undefined}
-          />
-        )}
+      {titulo && pautado === null && (
+        <p className="t-sm t-secondary">
+          Sin objetivo puesto{onEditar ? ' — pulsa «Ajustar» para ponerlo.' : '.'}
+        </p>
+      )}
+      {/*
+        Los cuatro renglones del frame: nombre, lo que suma contra lo pedido
+        y la barra debajo. La energía va SIEMPRE —también sin menú, donde es
+        lo que le pides y nada más—, que es lo que permite que aquí arriba ya
+        no haga falta la cifra grande.
+      */}
+      <div className="medidores is-costado">
+        <Medidor
+          costado
+          barra={suma}
+          label="Energía"
+          campo="kcals"
+          juzga={juzga && suma}
+          valor={suma ? kcalReal : pautado > 0 ? pautado : '—'}
+          objetivo={suma ? objetivoKcal : null}
+          unidad="kcal"
+          lectura={juzga && suma ? lecturaKcal(kcalReal, objetivoKcal) : undefined}
+        />
 
         {MACRO_META.map(({ key, label }) => {
           const objetivo = toNum0(targets?.[`${key}Grams`]);
           const valor = suma ? Math.round(real[key]) : objetivo;
           const diff = valor - objetivo;
-          const porKilo = gkg(objetivo, peso);
           return (
             <Medidor
               key={key}
-              fila
+              costado
+              barra={suma}
               label={label}
               campo={key}
               juzga={juzga && suma}
@@ -356,26 +326,46 @@ export const ObjetivoDelDia = ({
                     : `${diff > 0 ? '+' : '−'}${Math.abs(diff)} g`
                   : undefined
               }
-              /* Los gramos por kilo, del OBJETIVO y no de lo que suma el menú:
-                 es la cifra con la que se decide si el plan está bien planteado,
-                 y no cambia porque hoy se elija otra opción del desayuno. */
-              apunte={!conGkg || porKilo === null ? undefined : `${localeNumber(porKilo)} g/kg`}
+              /* Los g/kg NO van en el renglón. Estuvieron pegados al nombre
+                 —«Proteína 2,12 g/kg»— y el renglón pasó a tener cuatro
+                 cosas donde el frame tiene dos. Bajan al pie, los tres
+                 juntos y en una línea: es la cifra con la que se juzga si
+                 el plan está bien planteado, y eso se mira una vez, no cada
+                 vez que se lee cuánto suma el menú. */
             />
           );
         })}
       </div>
+      {/*
+        El pie, en una línea: de qué menú hablan las cifras y sobre qué peso
+        están los g/kg. Eran dos renglones y un tercero bajo el titular.
 
-      {/* El pie de los g/kg solo donde los g/kg existen. En el portal la
-          columna no los lleva —no es su cifra, es con la que su entrenador
-          juzga el plan— y «g/kg: sin pesajes todavía» allí sería anunciarle que
-          le falta algo que nadie le ha pedido. */}
+        En el portal la columna de g/kg no existe —no es su cifra, es con la
+        que su entrenador juzga el plan— y «g/kg: sin pesajes todavía» allí
+        sería anunciarle que le falta algo que nadie le ha pedido.
+      */}
+      {/*
+        EL PIE, UNA LÍNEA. Fueron dos —de qué menú hablan las cifras y sobre
+        qué peso están los g/kg— más un apunte en cada renglón. El frame no
+        tiene ninguna, y con razón: lo que suma el menú ya lo dicen las cuatro
+        cifras de arriba. Queda lo único que NO está dicho en otra parte, que
+        son los gramos por kilo, y van los tres juntos.
+      */}
       {conGkg && (
         <p className="t-xs t-tertiary lado-pie">
-          {peso ? `g/kg sobre ${localeNumber(peso)} kg` : 'g/kg: sin pesajes todavía'}
-          {peso && cuando ? ` · último el ${shortDate(cuando)}` : ''}
+          {peso
+            ? [
+                `g/kg sobre ${localeNumber(peso)} kg`,
+                ...MACRO_META.map(({ key, short }) => {
+                  const k = gkg(toNum0(targets?.[`${key}Grams`]), peso);
+                  return k === null ? null : `${short} ${localeNumber(k)}`;
+                }),
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : 'g/kg: sin pesajes todavía'}
         </p>
       )}
-
       {/*
         ══ LAS CUATRO DEL ENVASE ═══════════════════════════════════════════════
 
@@ -548,6 +538,25 @@ const TarjetaEvolucion = ({ registros, onAmpliar }) => {
   const puntos = weightSeries(registros);
   const ultimo = lastKcalChange(registros);
 
+  /*
+    ── CUÁNTO SE HA MOVIDO, EN CHAPA (frame 64:288) ─────────────────────────
+    El frame pone en la cabecera lo que ha cambiado el peso en el tramo que
+    dibuja la gráfica. Es la respuesta de la tarjeta, y estaba metida dentro de
+    una frase o directamente ausente.
+
+    **Y NO VA EN VERDE, que es como lo pinta el frame.** Bajar 1,2 kg no es
+    bueno ni malo: depende de qué esté haciendo esta persona, y a alguien en
+    volumen el mismo dato le dice lo contrario. El semáforo de esta casa solo
+    aparece pegado a una cifra que se pueda JUZGAR contra algo pautado (ver la
+    ley del color y «la app no receta»), y aquí no hay nada pautado contra lo
+    que juzgar. La chapa dice el dato en la voz de un dato.
+  */
+  const movido =
+    puntos.length > 1 ? Math.round((puntos[puntos.length - 1].value - puntos[0].value) * 10) / 10 : null;
+  /* Los tres últimos pesajes, del más reciente al más viejo (frame 64:305): la
+     gráfica dice la forma y estas tres líneas dicen los números. */
+  const ultimos = puntos.slice(-3).reverse();
+
   return (
     <section className="lado-tarjeta tarjeta-puerta" aria-label="La evolución">
       <button
@@ -558,13 +567,34 @@ const TarjetaEvolucion = ({ registros, onAmpliar }) => {
         title="Lo pautado contra el peso, fecha a fecha"
       />
       <div className="lado-cab">
-        <span className="section-label">La evolución</span>
+        <div className="lado-cab-fila">
+          <span className="section-label">La evolución</span>
+          {movido !== null && (
+            <span className="lado-chapa">
+              {movido > 0 ? '+' : movido < 0 ? '−' : '±'}
+              {localeNumber(Math.abs(movido))} kg
+            </span>
+          )}
+        </div>
         <span className="lado-desde">
           {puntos.length === 0 ? 'sin pesajes' : `${puntos.length} ${puntos.length === 1 ? 'pesaje' : 'pesajes'}`}
         </span>
       </div>
 
-      {puntos.length > 1 && <Sparkline points={puntos} color={metricColor('weight')} height={34} />}
+      {/* Puntos unidos, no una curva: cada punto es un pesaje. Ver
+          `LineaDePuntos`. */}
+      {puntos.length > 1 && <LineaDePuntos points={puntos} color={metricColor('weight')} height={90} />}
+
+      {ultimos.length > 1 && (
+        <ul className="lado-lineas">
+          {ultimos.map((p) => (
+            <li key={p.date}>
+              <span className="n">{shortDate(p.date)}</span>
+              <span className="d">{localeNumber(p.value)} kg</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <p className="t-sm t-secondary">
         {!ultimo

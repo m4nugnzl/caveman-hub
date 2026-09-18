@@ -1,5 +1,3 @@
-import { ListFilter } from 'lucide-react';
-
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 
 /**
@@ -47,12 +45,13 @@ export const SelectorDeGrupo = ({ titulo, opciones = [], valor, onElegir }) => {
       alineado="izquierda"
       ariaLabel={`Filtrar por ${titulo.toLowerCase()}`}
       label={
+        /* El eje y lo elegido, en dos voces (frame de Figma, 18 sep): «Músculo
+           Dorsal». Lo elegido ES la información, y esconderlo obligaría a abrir
+           el menú para saber por dónde estás mirando. Sin la cifra: la dice ya
+           el título del grupo, debajo. */
         <>
-          <ListFilter size={13} aria-hidden="true" />
-          {/* El rótulo dice lo elegido con su cifra, no «1 filtro»: el nombre de
-              la categoría ES la información, y esconderlo obligaría a abrir el
-              menú para saber por dónde estás mirando. */}
-          {valor ? `${valor} ${opciones.find(([v]) => v === valor)?.[1] ?? ''}` : titulo}
+          <span className="lib-eje-rot">{titulo}</span>
+          <span className="lib-eje-valor">{valor || 'Todos'}</span>
         </>
       }
       items={opciones.map(([v, n]) => ({

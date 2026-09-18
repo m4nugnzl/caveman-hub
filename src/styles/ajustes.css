@@ -1640,19 +1640,6 @@ button.log-answer:hover { background: var(--fill); }
 }
 .proto-toggle:hover { color: var(--text-secondary); }
 
-/* ── Las dos mitades del protocolo de una persona ──────────────────────────
-   «Cómo es su app» y «Qué le pasa». Eran once secciones seguidas con el mismo
-   peso, y dentro había dos naturalezas distintas —un estado y unos hechos— que
-   se propagan de forma distinta y que nada separaba.
-
-   Lo que las separa es lo mismo que separa los bloques del cuerpo de la ficha:
-   el AIRE, y un filete que lo confirma. Sin caja: dos cajas dentro de una
-   ventana que ya es una caja son tres cantos para decir una jerarquía. */
-.hoja-protocolo { display: flex; flex-direction: column; min-width: 0; }
-.hoja-protocolo > .bloque-desnudo { padding: var(--s6) 0; border-top: 1px solid var(--hairline); }
-.hoja-protocolo > .bloque-desnudo:first-child { border-top: 0; padding-top: 0; }
-.hoja-protocolo > .bloque-desnudo:last-child { padding-bottom: 0; }
-
 @media (max-width: 639.98px) {
   .warmup-edit { flex-direction: column; }
   .warmup-edit-tools { flex-direction: row; align-self: flex-end; }
@@ -1682,10 +1669,8 @@ button.log-answer:hover { background: var(--fill); }
    calendario de un cliente): su caso normal era una fila de cajas punteadas
    de «Libre» repitiendo la semana que el mes ya enseña. Lo que viene se dice
    como lista, en personas y fechas, y cada fila abre la hoja de su día. */
-.agenda-pagina { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
 .agenda-lado { min-width: 0; position: sticky; top: var(--s5); }
 @media (max-width: 1023.98px) {
-  .agenda-pagina { grid-template-columns: 1fr; }
   /* En el teléfono, lo próximo va delante: es la pregunta con la que se abre
      una agenda, y el mes es el archivo. */
   .agenda-lado { position: static; order: -1; }

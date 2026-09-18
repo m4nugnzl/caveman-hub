@@ -436,7 +436,12 @@ describe('AppProvider', () => {
     // quita el candado de una comida —la que no se mueve cuando cambian las
     // kcal del día—. Es del reparto y no del ajuste: se decide una vez en la
     // mesa y vale para todos los ajustes que vengan. Ver `repartoAlObjetivo`.
-    expect(Object.keys(visto.app).length).toBe(290);
+    //
+    // Y 291 desde EL BORRADOR DEL CUESTIONARIO (0121, teléfono del 18 sep):
+    // `saveCheckInAnswers` guarda las respuestas de la semana sin entregarla,
+    // porque en el teléfono la revisión se hace por pasos sueltos y se entrega
+    // al final con un botón aparte.
+    expect(Object.keys(visto.app).length).toBe(291);
   });
 
   /*

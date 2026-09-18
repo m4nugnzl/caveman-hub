@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react';
 import {
+  AlignLeft,
   ArrowLeft,
+  ArrowRight,
+  Bed,
+  Calculator,
   ChevronDown,
   ChevronUp,
+  CircleCheck,
   CircleDot,
+  Clock,
   CornerDownRight,
   Eye,
   GripVertical,
@@ -11,9 +17,11 @@ import {
   HeartPulse,
   ListChecks,
   Plus,
+  RadioReceiver,
   Ruler,
   Scale,
   SlidersHorizontal,
+  Sparkles,
   Text,
   ToggleLeft,
   Trash2,
@@ -24,7 +32,11 @@ import {
   MAX_CUSTOM,
   MAX_LABEL,
   addCustom,
+  camposDelCapitulo,
+  formSections,
+  isFormEmpty,
   isRequired,
+  moverEnCapitulo,
   removeCustom,
   toggleAsked,
   toggleRequired,
@@ -49,7 +61,8 @@ import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
 import { Pliegue } from '@/components/ui/Pliegue';
 /* Los controles del cliente, tal cual. Ver el porqué en el carril, más abajo. */
-import { Pregunta } from '@/components/Client/IntakeQuestions';
+import { CuerpoDelAlta, Pregunta, conRespuesta } from '@/components/Client/IntakeQuestions';
+import { useArrastreOrden } from '@/lib/useArrastreOrden';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { GUIAS, GuiaDeMedidas, guiaById } from './GuiaDeMedidas';
 import { VistaPreviaFormulario } from './VistaPreviaFormulario';
@@ -235,6 +248,17 @@ export const ConstructorFormulario = ({ form, onChange, onVolver }) => {
         </div>
       </header>
 
+      {esAlta ? (
+        <LienzoDelAlta
+          form={form}
+          onChange={onChange}
+          puestos={puestos}
+          vacio={vacio}
+          enchufes={enchufes}
+          onAnadir={() => setAnadiendo(true)}
+          onGuia={setGuia}
+        />
+      ) : (
       <div className="constructor-cuerpo">
         {/* ══ EL LIENZO ═══════════════════════════════════════════════════ */}
         <div className="lienzo">
@@ -421,6 +445,7 @@ export const ConstructorFormulario = ({ form, onChange, onVolver }) => {
           )}
         </aside>
       </div>
+      )}
 
       {anadiendo && (
         <Modal size="lg" title="¿Qué quieres preguntar?" onClose={() => setAnadiendo(false)}>
@@ -448,6 +473,315 @@ export const ConstructorFormulario = ({ form, onChange, onVolver }) => {
           ficha— y el ensayo lo monta desde el formulario mismo. */}
       {ensayando && <VistaPreviaFormulario form={form} onCerrar={() => setEnsayando(false)} />}
     </div>
+  );
+};
+
+/* ══ EL LIENZO DEL ALTA (frame 98:275, 18 sep) ═══════════════════════════════
+   Dos columnas a partes iguales: a la izquierda el formulario por capítulos, a
+   la derecha la VISTA DEL CLIENTE, en vivo. El carril de ajustes de la derecha
+   se va: lo de cada pregunta se abre en su propia fila, y «cómo la ve él» deja
+   de ser una pregunta apagada para ser el alta entera, contestable. */
+
+/*
+  EL TIPO, CON SU COLOR. Excepción explícita del dueño a la ley del color
+  (18 sep): en el constructor cada manera de contestar lleva su tinta, como en
+  el dibujo. Solo aquí; el cliente no ve ninguna. Las tintas son las de la casa
+  (`--accent`, `--positive`, `--data-amber`, `--text-secondary`), no los hex del
+  frame, que no llegaban al contraste.
+*/
+const ICONO_DEL_TIPO = { choice: RadioReceiver, yesno: CircleCheck, number: Hash, text: AlignLeft };
+/* Tres números del catálogo llevan un dibujo propio, como en el frame. */
+const ICONO_DEL_CAMPO = { daysAvailable: Calculator, sessionMinutes: Clock, sleepHours: Bed };
+const iconoDe = (campo) => ICONO_DEL_CAMPO[campo.id] || ICONO_DEL_TIPO[campo.kind] || AlignLeft;
+
+const LienzoDelAlta = ({ form, onChange, puestos, vacio, enchufes, onAnadir, onGuia }) => {
+  /* Qué fila está abierta: `{ tipo: 'enchufe' | 'field' | 'custom', id }`. */
+  const [abierta, setAbierta] = useState(null);
+  const [plegados, setPlegados] = useState(() => new Set());
+  /* El capítulo que enseña la vista del cliente. Lo mueven las dos columnas. */
+  const [capitulo, setCapitulo] = useState(0);
+
+  const tandas = formSections(form);
+  const enVista = tandas[Math.min(capitulo, Math.max(tandas.length - 1, 0))]?.id;
+
+  const capitulos = [
+    ...PROFILE_GROUPS.map((g) => ({ id: g.id, label: g.label, campos: camposDelCapitulo(form, g.id) })),
+    {
+      id: 'custom',
+      label: 'Lo que preguntas tú',
+      campos: (form.custom || []).map((q) => ({ ...q, custom: true })),
+    },
+  ].filter((c) => c.campos.length > 0);
+
+  /* La cuenta corre por encima de los capítulos, como en el dibujo. */
+  let antes = 0;
+  const desde = capitulos.map((c) => {
+    const d = antes;
+    antes += c.campos.length;
+    return d;
+  });
+
+  const tocar = (tipo, id, capituloId = null) => {
+    const misma = abierta?.tipo === tipo && abierta.id === id;
+    setAbierta(misma ? null : { tipo, id });
+    if (capituloId) {
+      const k = tandas.findIndex((t) => t.id === capituloId);
+      if (k >= 0) setCapitulo(k);
+    }
+  };
+
+  const plegar = (id) =>
+    setPlegados((previos) => {
+      const siguiente = new Set(previos);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+
+  return (
+    <div className="constructor-cuerpo es-alta">
+      <div className="lienzo alta-lienzo">
+        {vacio ? (
+          <Selector form={form} onChange={onChange} enchufes={enchufes} esAlta inline />
+        ) : (
+          <>
+            {puestos.length > 0 && (
+              <section className="alta-auto" aria-labelledby="alta-auto-tit">
+                <header className="alta-auto-cab">
+                  <span className="alta-auto-ico" aria-hidden="true">
+                    <Sparkles size={15} />
+                  </span>
+                  <h2 id="alta-auto-tit" className="alta-auto-tit">
+                    Datos automáticos de perfil
+                  </h2>
+                  <span className="alta-auto-chapa">Ficha</span>
+                </header>
+                <ul className="alta-auto-lista">
+                  {puestos.map((e) => {
+                    const esta = abierta?.tipo === 'enchufe' && abierta.id === e.id;
+                    return (
+                      <li key={e.id} className={`alta-auto-fila${esta ? ' is-abierta' : ''}`}>
+                        <button
+                          type="button"
+                          className="alta-auto-boton"
+                          aria-expanded={esta}
+                          onClick={() => tocar('enchufe', e.id)}
+                        >
+                          <span>{e.label}</span>
+                          <span className="alta-auto-donde">
+                            {e.donde}
+                            <ArrowRight size={13} aria-hidden="true" />
+                          </span>
+                        </button>
+                        {esta && (
+                          <div className="alta-fila-ajustes">
+                            <AjustesEnchufe
+                              enchufe={e}
+                              form={form}
+                              onChange={onChange}
+                              esAlta
+                              onGuia={onGuia}
+                              sinCabecera
+                            />
+                            <button
+                              type="button"
+                              className="link alta-quitar"
+                              onClick={() => {
+                                onChange({ ...form, [e.id]: false });
+                                setAbierta(null);
+                              }}
+                            >
+                              <Trash2 size={13} aria-hidden="true" /> Quitar del alta
+                            </button>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {capitulos.map((c, i) => (
+              <CapituloDelAlta
+                key={c.id}
+                numero={i + 1}
+                capitulo={c}
+                primero={desde[i]}
+                enVista={c.id === enVista}
+                plegado={plegados.has(c.id)}
+                onPlegar={() => plegar(c.id)}
+                form={form}
+                onChange={onChange}
+                abierta={abierta}
+                onTocar={(campo) => tocar(c.id === 'custom' ? 'custom' : 'field', campo.id, c.id)}
+                onCerrar={() => setAbierta(null)}
+              />
+            ))}
+
+            <BotonMas palabra="pregunta" onClick={onAnadir} />
+          </>
+        )}
+      </div>
+
+      <VistaDelCliente form={form} capitulo={capitulo} onCapitulo={setCapitulo} />
+    </div>
+  );
+};
+
+/**
+ * Un capítulo del alta: su caja, su cabecera plegable y sus filas, que se
+ * reordenan arrastrando por el asa (`useArrastreOrden`, ratón y dedo) o con
+ * Alt + flechas. Solo DENTRO del capítulo: el capítulo de una pregunta del
+ * catálogo lo fija su campo en la ficha.
+ */
+const CapituloDelAlta = ({
+  numero,
+  capitulo,
+  primero,
+  enVista,
+  plegado,
+  onPlegar,
+  form,
+  onChange,
+  abierta,
+  onTocar,
+  onCerrar,
+}) => {
+  const mover = (d, h) => onChange(moverEnCapitulo(form, capitulo.id, d, h));
+  const orden = useArrastreOrden({ onMove: mover, eje: 'y' });
+  const n = capitulo.campos.length;
+  const esPropia = capitulo.id === 'custom';
+
+  return (
+    <section className={`alta-cap${plegado ? ' is-plegado' : ''}`}>
+      <button type="button" className="alta-cap-cab" aria-expanded={!plegado} onClick={onPlegar}>
+        <span className="alta-cap-tit">
+          {numero} · {capitulo.label}
+        </span>
+        <span className={`alta-cap-cuenta${enVista ? ' is-en-vista' : ''}`}>
+          {n} {n === 1 ? 'pregunta' : 'preguntas'}
+        </span>
+        <ChevronDown size={15} className="alta-cap-pliegue" aria-hidden="true" />
+      </button>
+
+      {!plegado && (
+        <ol
+          className={`alta-filas${orden.arrastrando !== null ? ' is-ordenando' : ''}`}
+          ref={orden.carrilRef}
+        >
+          {capitulo.campos.map((campo, k) => {
+            const Icono = iconoDe(campo);
+            const esta = abierta?.id === campo.id;
+            return (
+              <li
+                key={campo.id}
+                data-tipo={campo.kind}
+                className={`alta-fila${esta ? ' is-abierta' : ''}${
+                  orden.arrastrando === k ? ' is-viajando' : ''
+                }${orden.arrastrando !== null ? ' is-en-orden' : ''}`}
+                {...orden.pieza(k)}
+              >
+                <div className="alta-fila-linea">
+                  <span className="alta-fila-marca" aria-hidden="true" />
+                  <button
+                    type="button"
+                    className="alta-fila-asa"
+                    {...orden.asa(k)}
+                    aria-label={`Mover ${campo.label}. Alt y flechas para moverla.`}
+                    title="Arrastra para moverla (o Alt + ↑/↓)"
+                    onKeyDown={(e) => {
+                      if (!e.altKey) return;
+                      if (e.key === 'ArrowUp' && k > 0) {
+                        e.preventDefault();
+                        mover(k, k - 1);
+                      } else if (e.key === 'ArrowDown' && k < n - 1) {
+                        e.preventDefault();
+                        mover(k, k + 1);
+                      }
+                    }}
+                  >
+                    <GripVertical size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    className="alta-fila-cuerpo"
+                    aria-expanded={esta}
+                    onClick={() => onTocar(campo)}
+                  >
+                    <span className="alta-fila-n">{String(primero + k + 1).padStart(2, '0')}</span>
+                    <span className="alta-fila-tit">{campo.label}</span>
+                    {isRequired(form, campo.id) && <span className="q-oblig">obligatoria</span>}
+                    <span className="alta-tipo">
+                      <Icono size={13} aria-hidden="true" />
+                      {TIPO[campo.kind] || 'Texto'}
+                    </span>
+                  </button>
+                </div>
+                {esta && (
+                  <div className="alta-fila-ajustes">
+                    <AjustesPregunta
+                      form={form}
+                      onChange={onChange}
+                      id={campo.id}
+                      esPropia={esPropia}
+                      pregunta={esPropia ? campo : fieldById(campo.id)}
+                      sinCabecera
+                    />
+                    <button
+                      type="button"
+                      className="link alta-quitar"
+                      onClick={() => {
+                        onChange(esPropia ? removeCustom(form, campo.id) : toggleAsked(form, campo.id));
+                        onCerrar();
+                      }}
+                    >
+                      <Trash2 size={13} aria-hidden="true" /> Quitar la pregunta
+                    </button>
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+};
+
+/**
+ * LA VISTA DEL CLIENTE: su alta de verdad —`CuerpoDelAlta`, la misma pieza del
+ * portal—, contestable, con un borrador que muere al salir. Cambia en cuanto
+ * cambia el formulario de la izquierda.
+ */
+const VistaDelCliente = ({ form, capitulo, onCapitulo }) => {
+  const [borrador, setBorrador] = useState({});
+  const contestado = Object.keys(borrador).length > 0;
+
+  return (
+    <aside className="alta-vista" aria-labelledby="alta-vista-rot">
+      <p id="alta-vista-rot" className="alta-vista-rot">
+        <Eye size={15} aria-hidden="true" /> Vista del cliente
+      </p>
+      <div className="alta-simulador">
+        {isFormEmpty(form) ? (
+          <p className="ajustes-nada">Cuando le preguntes algo, aquí verás cómo le llega.</p>
+        ) : (
+          <CuerpoDelAlta
+            form={form}
+            borrador={borrador}
+            onChange={(campo, valor) => setBorrador((b) => conRespuesta(b, campo, valor))}
+            capitulo={capitulo}
+            onCapitulo={onCapitulo}
+          />
+        )}
+        {contestado && (
+          <button type="button" className="link alta-vista-reset" onClick={() => setBorrador({})}>
+            Empezar de nuevo
+          </button>
+        )}
+      </div>
+    </aside>
   );
 };
 
@@ -787,13 +1121,16 @@ const ListaDeSitios = ({ rot, guia }) => {
   );
 };
 
-const AjustesPregunta = ({ form, onChange, id, esPropia, pregunta }) => (
+const AjustesPregunta = ({ form, onChange, id, esPropia, pregunta, sinCabecera = false }) => (
   <div className="col">
-    <Cabecera
-      icono={ICONO_TIPO[pregunta.kind] || Text}
-      titulo={pregunta.label}
-      dice={TIPO[pregunta.kind] || 'Texto'}
-    />
+    {/* Abierta dentro de su fila, la cabecera repetiría la fila de encima. */}
+    {!sinCabecera && (
+      <Cabecera
+        icono={ICONO_TIPO[pregunta.kind] || Text}
+        titulo={pregunta.label}
+        dice={TIPO[pregunta.kind] || 'Texto'}
+      />
+    )}
 
     <Switch
       label="Hace falta para dar el alta por hecha"
@@ -911,7 +1248,7 @@ const AjustesEscala = ({ form, onChange, pregunta, esPropia }) => (
  * Lo que un enchufe deja configurar, que es sobre todo: qué se le pide
  * exactamente, y —cuando se mide— cómo se mide.
  */
-const AjustesEnchufe = ({ enchufe, form, onChange, esAlta, onGuia }) => (
+const AjustesEnchufe = ({ enchufe, form, onChange, esAlta, onGuia, sinCabecera = false }) => (
   <div className="col">
     {/*
       ── EL CARRIL EMPIEZA POR DÓNDE SE ESTÁ ─────────────────────────────────
@@ -926,11 +1263,17 @@ const AjustesEnchufe = ({ enchufe, form, onChange, esAlta, onGuia }) => (
       aplicación sabe hacer con un dato (ver `.q-donde`). Deja de ser una frase
       que se lee y pasa a ser una etiqueta que se reconoce.
     */}
-    <Cabecera icono={enchufe.icon} enchufe titulo={enchufe.label} dice={enchufe.dice} />
-    <p className="carril-donde">
-      <CornerDownRight size={13} aria-hidden="true" />
-      {enchufe.donde}
-    </p>
+    {sinCabecera ? (
+      <p className="ajustes-nota">{enchufe.dice}.</p>
+    ) : (
+      <>
+        <Cabecera icono={enchufe.icon} enchufe titulo={enchufe.label} dice={enchufe.dice} />
+        <p className="carril-donde">
+          <CornerDownRight size={13} aria-hidden="true" />
+          {enchufe.donde}
+        </p>
+      </>
+    )}
 
     {/* Los de la semana llevan su mando: cuántos pesajes, y en qué modo va el
         bloque. Es lo que vivía en `CheckinBlocksSection`, en su sitio. */}

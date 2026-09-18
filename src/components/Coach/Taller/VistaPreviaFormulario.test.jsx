@@ -172,10 +172,8 @@ describe('VistaPreviaFormulario', () => {
         ven igual y esta prueba no distinguiría entre las dos.
 
     Sin contestar ni pulsar nada: esto es `renderToStaticMarkup` y no hay DOM.
-    Lo que NO puede comprobar, por eso mismo, es que la cuenta de preguntas siga
-    corrida al cambiar de capítulo —el «04» de la primera del segundo— porque
-    para eso hay que pulsar. Lo que sí queda fijado es el otro extremo de esa
-    misma regla: el primer capítulo empieza en «01».
+    Desde el 18 sep (frame 104:80) cada pregunta del capítulo es una CAJA y el
+    capítulo se ve entero: ni ventana con foco ni número.
   */
   it('el alta se ensaya por capítulos: el carril los nombra y la hoja enseña uno', () => {
     const form = {
@@ -201,11 +199,10 @@ describe('VistaPreviaFormulario', () => {
     expect(html).toContain('Lo que te pregunta tu entrenador');
     expect(html).toContain('Paso 1 de 3');
 
-    /* LA HOJA ES LA DEL PRIMER CAPÍTULO: sus DOS preguntas, numeradas y
-       corridas desde el 01. */
-    expect(html).toContain('campo-q es-numerada');
-    expect(html).toContain('>01<');
-    expect(html).toContain('>02<');
+    /* LA HOJA ES LA DEL PRIMER CAPÍTULO: sus DOS preguntas, cada una en su
+       caja, y la cifra al canto (`.es-cifra`). */
+    expect(html.match(/campo-q alta-caja/g)).toHaveLength(2);
+    expect(html).toContain('alta-caja es-cifra');
     expect(html).toContain('Días que puedes entrenar');
     expect(html).toContain('Cuánto tiempo tienes por sesión');
 
@@ -215,17 +212,8 @@ describe('VistaPreviaFormulario', () => {
     expect(html).not.toContain('Lo que te gusta');
     expect(html).not.toContain('¿Has hecho alguna dieta antes?');
 
-    /* Y el capítulo se ve POR UNA VENTANA, no apilado: una sola pregunta puesta
-       y el resto apagadas, con la mira de un punto por pregunta. Si vuelve la
-       lista de la compra, aquí desaparece la clase de la puesta. */
-    expect(html).toContain('alta-ventana');
-    expect(html.match(/alta-q is-activa/g)).toHaveLength(1);
-    expect(html).toContain('alta-mira');
-
-    /* El pie arranca moviendo la ventana, no el capítulo. Que el que cambia de
-       capítulo lleve el nombre solo se ve en la última pregunta, y eso pide
-       desplazar: no se puede con `renderToStaticMarkup`. */
-    expect(html).toContain('Siguiente');
+    /* El pie cambia de capítulo y lleva escrito a dónde va. */
+    expect(html).toContain('alta-sigue-k">Cómo comes<');
     /* En la primera no hay ni «Atrás» ni «Anterior»: un botón apagado en la
        primera pantalla es cromo muerto. */
     expect(html).not.toContain('Atrás');
@@ -261,9 +249,8 @@ describe('VistaPreviaFormulario', () => {
     expect(html).not.toContain('Lo que él dice que tiene');
     expect(html).not.toContain('apartado-tit');
     expect(html).not.toContain('wiz-rail');
-    /* Una pregunta sola no pasa por ninguna ventana: ni mira ni pie. */
-    expect(html).toContain('data-sola="1"');
-    expect(html).not.toContain('alta-mira');
+    /* Una tanda sola no tiene a dónde ir: su caja y ningún pie. */
+    expect(html).toContain('campo-q alta-caja');
     expect(html).not.toContain('alta-pie');
   });
 

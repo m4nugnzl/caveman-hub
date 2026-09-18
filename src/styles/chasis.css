@@ -133,7 +133,12 @@
 .tab {
   font-family: inherit; padding: 6px 0;
   background: transparent; border: 0; color: var(--text-secondary);
-  font-weight: 600; font-size: var(--fs-sm); border-radius: 0;
+  /* ── Y EL PESO LO LLEVA LA ACTIVA, NO EL CARRIL (17 sep · frame 32:119) ──
+     Los cinco destinos iban en 600: un renglón entero en semibold donde el que
+     estabas se distinguía solo por el color. En el frame el carril está en
+     medio (500) y solo la abierta sube a 600, así que «dónde estoy» se ve por
+     TRES cosas a la vez —peso, tinta y raya— en vez de por una. */
+  font-weight: 500; font-size: var(--fs-sm); border-radius: 0;
   display: flex; align-items: center; gap: 6px;
   white-space: nowrap; cursor: pointer; position: relative; z-index: 1;
   transition: color var(--fast);
@@ -142,7 +147,14 @@
 /* `.active` la pone react-router en los NavLink; `aria-selected` la ponían las
    pestañas de botón. Se aceptan las dos para que un `<a>` y un `<button>` se
    vean idénticos. */
-.tab[aria-selected='true'], .tab.active { color: var(--text); }
+/* ── Y LA ACTIVA VA EN ACENTO (17 sep · rediseño de Figma) ────────────────
+   Iba en tinta plena, con la raya azul debajo como única señal. En el frame la
+   palabra se tiñe con su raya, y eso no es una licencia del dibujo: la ley del
+   color de esta casa reserva el acento para «donde se puede tocar o DONDE
+   ESTÁS», y un destino abierto es el caso de manual del segundo. Con la raya
+   sola, la marca de «aquí estás» eran dos píxeles al pie de la palabra —lo
+   primero que se pierde en una pantalla con brillo—. */
+.tab[aria-selected='true'], .tab.active { color: var(--accent); font-weight: 600; }
 
 /* ── La marca que viaja ────────────────────────────────────────────────────
    Hermana de los destinos, no uno de ellos: la coloca `useMarcaDeslizante`
@@ -818,6 +830,47 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
      cabecera sobresaldría del radio del expediente en las dos puntas. */
   border-radius: var(--r-xl) var(--r-xl) 0 0;
 }
+/* ── Y LA LÍNEA DEL EXPEDIENTE NO CRUZA ENTERA (17 sep · frame 32:101) ─────
+   «La línea en Figma es difusa, no ocupa todo, como si fuese un conjunto.»
+
+   Y es literal: en el frame la cabecera es una caja de 1112 px dentro de un
+   panel de 1152, así que su filete de abajo se queda a 20 px de cada canto.
+   Parece un detalle y no lo es — es lo que cambia lo que la pieza DICE. Un
+   filete que muere en los dos bordes del papel PARTE la hoja en dos mitades;
+   uno que se retira antes de llegar cierra un GRUPO: la identidad, sus
+   destinos y la raya de dónde estás son una sola cosa, y debajo empieza el
+   trabajo.
+
+   El papel sigue cruzando de canto a canto —la cabecera es pegajosa y al
+   quedarse quieta tiene que tapar lo que pasa por detrás—; lo que se retira es
+   solo la raya. Por eso es un `::after` posicionado y no un `border`.
+
+   La sangría es `--s4` y no el sangrado del contenido: la mitad, más o menos,
+   que es la proporción del frame (20 contra 44). Retirarla hasta el sangrado
+   del texto convertiría el filete en un subrayado del contenido, que es otra
+   cosa.
+
+   La cartera se queda con su filete de canto a canto: allí la cabecera lleva
+   el rótulo de la pantalla y sus tramos, y lo de debajo es una tabla que SÍ
+   empieza donde muere la línea.
+
+   La raya va colgada de `.cliente-cab-in` y no de la cinta: la cinta es
+   `position: sticky` en escritorio y declararle aquí un `position` la
+   descolgaría —la media query que la pega va doscientas líneas más arriba y en
+   CSS, a igual especificidad, manda la última—. El interior mide lo mismo que
+   la cinta (es su único hijo y la cinta no tiene relleno), así que el `right`
+   y el `left` cuentan desde el mismo canto. */
+.cliente-cab { border-bottom-color: transparent; }
+.cliente-cab-in { position: relative; }
+.cliente-cab-in::after {
+  content: ''; position: absolute;
+  left: var(--s4); right: var(--s4); bottom: 0; height: 1px;
+  background: var(--edge);
+}
+/* Y la marca de «estás aquí» pasa por ENCIMA de la raya: son dos piezas
+   posicionadas en el mismo plano y sin esto ganaba la última del árbol, que es
+   la raya — la marca azul quedaba mordida por un filete gris de 1 px. */
+.cliente-cab-tabs > .tabs-marca { z-index: 1; }
 .cliente-cab-in,
 .cartera-cab-in {
   margin: 0 auto;
@@ -866,17 +919,59 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    que cede es el carril —que sabe rodar— y no el nombre, que solo sabe
    recortarse con puntos suspensivos. Un nombre a medias en la cabecera se lee
    como un fallo; un carril rodado, no. */
-.cliente-cab-quien { display: flex; align-items: center; gap: var(--s3); min-width: 0; flex-shrink: 1; }
-/* La puerta del perfil: la cara y el nombre. La anatomía se queda FUERA y en
-   la misma línea, como en la variante B del estudio — dentro del enlace era la
-   segunda puerta al mismo sitio, y apilada debajo partía la banda en dos
-   alturas y la convertía en una tarjeta con título. Una cinta es una línea. */
+/* ── Y LA IDENTIDAD PASA A DOS RENGLONES (17 sep · rediseño de Figma) ──────
+   Estaba todo en una línea: cara, nombre, anatomía y microciclo seguidos. Con
+   seis piezas en fila, el nombre —que es el titular— pesaba lo mismo que el
+   dato que tenía al lado, y en un portátil la línea se quedaba sin sitio y era
+   el nombre el que se cortaba.
+
+   El frame lo reparte como lo reparten todas las fichas de este oficio: arriba
+   QUIÉN ES (la cara, el nombre y su estado), debajo y en voz baja LO QUE MIDE Y
+   POR DÓNDE VA. Dos renglones, y el de abajo sangrado a plomo bajo el nombre
+   —no bajo la cara—, que es lo que hace que se lean como una sola ficha y no
+   como dos filas sueltas. */
+.cliente-cab-quien {
+  display: flex; align-items: center;
+  gap: var(--s3); min-width: 0; flex-shrink: 1;
+}
+/* ── LA FICHA: LA CARA, Y A SU DERECHA LOS DOS RENGLONES ──────────────────
+   La cara es HERMANA de la columna de texto, no vecina de su primera línea.
+   Es toda la diferencia: envolviendo (`flex-wrap`), cada línea se alinea sola
+   y el avatar de 38 px hacía un primer renglón de 38 con la línea de datos
+   ENTERA por debajo — la ficha medía 58 px de alto para decir lo que en el
+   frame (nodo `32:103`) cabe en 40. Como hermanas, `align-items: center`
+   centra la cara contra las DOS líneas y la de abajo cae a plomo bajo el
+   nombre sin que nadie escriba su sangría.
+
+   Y con eso muere `margin-left: calc(38px + 10px)`: el alto del avatar más su
+   hueco, escritos otra vez a mano en una regla que no tenía forma de enterarse
+   si el avatar cambiaba de talla. */
+.cliente-cab-ficha {
+  display: flex; align-items: center; gap: var(--s3); min-width: 0;
+}
+/* Sin `gap` propio: la cara es lo único que lleva, y la separa el de la ficha.
+   `flex-shrink: 0` para que el avatar no se ovale al estrecharse la banda. */
+.cliente-cab-cara { display: flex; flex-shrink: 0; }
+.cliente-cab-say {
+  display: flex; flex-direction: column; gap: var(--s1); min-width: 0;
+}
+/* El primer renglón: el nombre, su estado, la nube y —en el móvil— el selector
+   de cliente. El hueco es el del frame (8 px), más corto que el de la ficha
+   para que la chapa se lea como parte del nombre y no como una pieza suelta. */
+.cliente-cab-fila {
+  display: flex; align-items: center; gap: var(--s2); min-width: 0;
+}
+/* La puerta del perfil es el NOMBRE. La cara es un enlace gemelo sin rótulo
+   —`aria-hidden` y fuera del orden de tabulación— así que para el teclado y el
+   lector de pantalla sigue habiendo una sola puerta; para el ratón, un blanco
+   más grande. Por eso el color lo enciende la ficha entera y no el enlace: al
+   pasar por la cara tiene que responder el nombre. */
 .cliente-cab-puerta {
-  display: flex; align-items: center; gap: 10px; min-width: 0;
+  display: inline-flex; align-items: center; min-width: 0;
   color: inherit; text-decoration: none;
   transition: color var(--fast);
 }
-.cliente-cab-puerta:hover:not(.is-quieta) { color: var(--accent); }
+.cliente-cab-ficha:not(.is-quieta):hover .cliente-cab-nombre { color: var(--accent); }
 /* El nombre habla en la ancha y a cuerpo de título de sección: con los
    destinos en su propio raíl, la línea de identidad es la portada del
    expediente y el nombre ES su titular — 18 px (el cuerpo de la banda de
@@ -910,26 +1005,32 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
    distancia no se sabe de qué habla. Pegado al nombre se lee como lo que es:
    de qué se fía lo que estás mirando. Es el sitio de Google Docs, y el que el
    dueño señaló en Efort. Ver `ui/EstadoDeRed`. */
-.cliente-cab-quien > .nube { margin-left: calc(var(--s2) - var(--s3)); }
+/* En el expediente la nube ya vive dentro del renglón del nombre
+   (`.cliente-cab-fila`), cuyo hueco es exactamente el que esta regla fabricaba
+   a base de margen negativo. Queda la de la cartera, donde el titular sí tiene
+   al lado un raíl con otro hueco. */
 .cartera-cab-titulo + .nube { margin-left: calc(var(--s2) - var(--s4)); }
 .cliente-cab-selector { display: none; }
 .cliente-cab-volver { display: none; }
 /* En la MISMA línea que el nombre y en voz baja: quién es —las chapas de la
    anatomía, más abajo— y por dónde va, en texto llano. Lo que es ESTADO que
    puede avisar —la chapa del cobro— se va al otro extremo con las acciones. */
+/* El segundo renglón de la columna. Ya no necesita bajarse de línea ni
+   sangrarse: es la segunda fila de `.cliente-cab-say`, y quien lo pone a plomo
+   bajo el nombre es la propia columna. */
 .cliente-cab-meta {
   display: flex; align-items: center; gap: var(--s2); min-width: 0;
-  font-size: var(--fs-sm); color: var(--text-tertiary);
+  font-size: var(--fs-xs); color: var(--text-secondary);
   white-space: nowrap; overflow: hidden;
 }
 .cliente-cab-meta > span + span::before {
   content: '\00b7'; margin-right: var(--s2); color: var(--text-tertiary);
 }
-/* Las chapas ya separan solas: el interpunto entre la anatomía y el
-   microciclo ataría una cápsula a un texto, que es justo lo que las chapas
-   vinieron a desatar. (Con `.cliente-cab-meta >` delante a propósito: sin él,
-   la regla del punto de arriba gana por especificidad y el punto se queda.) */
-.cliente-cab-meta > .cliente-cab-anatomia + span::before { content: none; }
+/* Aquí vivía un `content: none` que quitaba el interpunto entre la anatomía y
+   el microciclo, y su motivo era la cápsula: atar una pastilla a un texto con
+   un punto es justo lo que las chapas vinieron a desatar. Sin cápsula el
+   motivo desaparece y el punto vuelve, que es como lo escribe el frame:
+   «27 años · 182 cm · Hombre · Microciclo 3 · en curso», una sola frase. */
 .cliente-cab-acciones,
 .cartera-cab-acciones {
   margin-left: auto; display: flex; align-items: center; gap: var(--s2); flex-shrink: 0;
@@ -992,27 +1093,31 @@ a.tab { text-decoration: none; font-size: var(--fs-sm); }
 @media (max-width: 1023.98px) {
   /* En el móvil el nombre lo dice el selector de cliente —hay que poder cambiar
      de persona sin barra lateral—, así que la puerta entera se retira: dejar la
-     cara suelta al lado del selector serían dos identidades en la misma fila. */
-  .cliente-cab-puerta { display: none; }
-  .cliente-cab-quien {
-    /* Tres columnas y no dos: la vuelta, el selector —que aquí hace de nombre,
-       porque la puerta se retira— y el signo de la red al final de la fila.
-       Con dos, la nube empujaba el selector a una línea propia. */
-    flex: 1; display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: var(--s2) var(--s2); align-items: center;
-  }
+     cara suelta al lado del selector serían dos identidades en la misma fila.
+     Se van las dos mitades, el nombre y su gemela sin rótulo. */
+  .cliente-cab-puerta,
+  .cliente-cab-cara { display: none; }
+  /* La ficha se queda con el ancho que deja la vuelta, y su columna con lo que
+     deja la ficha: sin esto, el botón del selector —que con nombre y subtítulo
+     largos mide 241 px— no encoge y se sale por el canto derecho. */
+  .cliente-cab-quien { flex: 1; min-width: 0; }
+  .cliente-cab-ficha { flex: 1; min-width: 0; }
+  .cliente-cab-say { flex: 1; min-width: 0; }
+  /* El renglón del nombre envuelve: sin nombre, lo que queda —el selector, la
+     chapa de estado y la nube— es lo único que lo llena, y en un teléfono de
+     360 px no siempre cabe en una línea. */
+  .cliente-cab-fila { flex-wrap: wrap; row-gap: var(--s1); }
   .cliente-cab-volver { display: inline-flex; }
-  .cliente-cab-selector { display: block; min-width: 0; }
+  /* Y el selector se pone EL PRIMERO. En el marcado va el último —en escritorio
+     no se pinta y ahí no puede colarse entre el nombre y su estado—, pero aquí
+     ocupa el hueco del nombre, así que abre el renglón. */
+  .cliente-cab-selector { display: block; min-width: 0; order: -1; }
   /* El botón del selector no encogía a su celda: con nombre y subtítulo largos
      medía 241 px dentro de un hueco de 110 y se salía POR ENCIMA de «Ver como
      …», que a 430 px quedaba tapado y no se podía pulsar. Sus dos rótulos ya
      saben recortarse con puntos suspensivos; les faltaba el tope. */
   .cliente-cab-selector > div,
   .cliente-cab-selector .btn { max-width: 100%; }
-  .cliente-cab-meta { grid-column: 1 / -1; }
-  /* Aquí el signo tiene columna propia al final de la fila, no un vecino del
-     que colgar: el sangrado de arriba sobra. */
-  .cliente-cab-quien > .nube { margin-left: 0; }
   /* Aquí la línea deja de ser línea: sin nombre ni carril, lo que queda —el
      selector, la línea de estado y las dos acciones— no cabe en una. */
   .cliente-cab-in, .cartera-cab-in { padding: var(--s3) var(--s4); }
@@ -1235,7 +1340,23 @@ button.side-link {
    los gestos manda. El microciclo se queda en texto llano al lado: la
    diferencia entre lo que mide (chapa) y por dónde va (estado) se ve ahora en
    el dibujo. */
-.cliente-cab-anatomia { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; }
+/* El hueco sube de 8 a 12 al irse la cápsula: sin fondo que las cierre, lo que
+   separa una medida de la siguiente es el aire y su propio signo. */
+.cliente-cab-anatomia { display: inline-flex; align-items: center; gap: var(--s3); min-width: 0; }
+/* ── Y EN EL SEGUNDO RENGLÓN SE QUITAN LA CÁPSULA (17 sep) ─────────────────
+   En el frame esta línea es texto corrido: «27 años · 182 cm · Hombre ·
+   Microciclo 3 · en curso». Aquí vivían en chapas, y por una razón que sigue
+   siendo buena (Q-08): tres medidas seguidas en texto corrido hay que leerlas
+   para saber cuál es cuál, y el signo las cuenta de un vistazo.
+
+   Se queda el signo y se va la cápsula. Arriba, en la línea del nombre, la
+   cápsula hacía falta para separar el dato del titular; abajo, en 12 px y en
+   su propio renglón, lo que separa ya es el renglón — y tres pastillas grises
+   bajo un nombre convierten un pie de ficha en una barra de filtros. */
+.cliente-cab-anatomia .chapa-hecho {
+  background: transparent; padding: 0; font-size: inherit; color: inherit;
+}
+.cliente-cab-anatomia .chapa-hecho > svg { color: inherit; opacity: 0.7; }
 .chapa-hecho {
   display: inline-flex; align-items: center; gap: var(--s1); flex-shrink: 0;
   padding: 3px 9px; border-radius: var(--r-pill);
@@ -1265,8 +1386,15 @@ button.side-link {
    después. */
 @media (max-width: 1199.98px) {
   .cliente-cab-anatomia { display: none; }
-  /* Su interpunto ya no necesita retirada aparte: el separador que seguía a
-     la anatomía se suprime siempre desde que las chapas separan solas. */
+  /* ── Y SU INTERPUNTO CON ELLA ───────────────────────────────────────────
+     Aquí ponía que el separador «se suprime siempre», y dejó de ser cierto el
+     17 sep: el punto entre la anatomía y el microciclo volvió —es como escribe
+     el frame la línea de datos, «24 años · 160 cm · Mujer · Microciclo 3»—
+     pero esta retirada no se actualizó. Resultado, por debajo de 1200 px: la
+     línea abría con un «· Microciclo 25» y el punto no separaba de nada.
+     `display: none` esconde la caja; al hermano siguiente lo sigue viendo el
+     selector. */
+  .cliente-cab-meta > .cliente-cab-anatomia + span::before { content: none; }
 }
 
 
@@ -1572,3 +1700,75 @@ button.side-link {
     min-width: 220px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CABECERA DEL CLIENTE, CONTRA EL FRAME (17 sep 2026 · nodo 32:101)
+   --------------------------------------------------------------------------
+   «Aún siento que hay muchas cosas a mejorar, lo primero de todo el
+   encabezado, el cómo se ve ahora la navegación y el contenido del perfil del
+   cliente.»
+
+   Medida la nuestra al lado del frame, la diferencia no era de gusto: era de
+   RANGO. El nombre iba a 20 px y en semibold —cuerpo de titular de página— con
+   todo lo demás de la banda en 12. O sea, una portada con un pie, cuando lo
+   que hay ahí es una FICHA: la cara, el nombre, cómo va, qué mide y qué paga.
+   El frame lo escribe entero en voz baja (15/12/14) y por eso se lee de un
+   tirón en vez de leerse el nombre y luego lo demás.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── EL NOMBRE SE DESPEGA DEL NOMBRE DE LA PANTALLA ───────────────────────
+   Iban juntos a 20/600, y el argumento de arriba era bueno: «el titular no
+   puede engordar al volver a la lista». Lo que ha cambiado es que ya no son la
+   misma clase de cosa. «Clientes» sigue siendo el RÓTULO de una pantalla —la
+   etiqueta de dónde estás—; el nombre de una persona, desde que lleva al lado
+   su estado, su anatomía y su cobro, es el titular de una FICHA. Una ficha no
+   preside: se lee.
+
+   15 px no está en la escala, y no se le hace token por una sola pieza: la
+   escala salta de 14 (secundario) a 16 (cuerpo), y este nombre no es ninguna
+   de las dos cosas. Es el valor del frame, escrito una vez y con su porqué.
+   El peso sube a 700 —el frame usa Geist Bold— porque al encoger es lo único
+   que le queda para presidir su renglón. */
+.cliente-cab-nombre {
+  font-size: 0.9375rem; /* 15px — el nombre en el frame (nodo 32:109) */
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* ── CÓMO VA: LA CHAPA PEGADA AL NOMBRE ───────────────────────────────────
+   `.badge` con el tono que le pone el semáforo, y aquí en versales pequeñas:
+   es una ETIQUETA DE ESTADO, no una frase. En versales y a 11 px ocupa menos
+   que el nombre que tiene delante, que es justo lo que tiene que pasar — si
+   compitiera, la banda tendría dos titulares. Radio pequeño y no píldora: la
+   píldora es de las cifras (las deltas), y esto es una palabra. */
+.cliente-cab-estado {
+  padding: 2px var(--s2); border-radius: var(--r-sm);
+  font-size: var(--fs-2xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── EL COBRO: DOS RENGLONES, NO UNA CÁPSULA ──────────────────────────────
+   «Cuándo» arriba y en voz baja, «cuánto» debajo y en tinta llena, los dos
+   alineados al canto derecho de la banda — que es donde muere la línea, y por
+   eso el número no baila cuando cambia la fecha. Ver `CobroDeLaCabecera`.
+
+   Alineado a la DERECHA y no al principio: son dos datos de anchos distintos
+   («Renueva en 4 días» / «170 € / mes») y alineados por la izquierda dibujan
+   un escalón dentado contra el canto de la hoja. */
+.cliente-cab-cobro {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  text-align: right; white-space: nowrap;
+}
+.cliente-cab-cobro-cuando { font-size: var(--fs-xs); font-weight: 500; color: var(--text-secondary); }
+.cliente-cab-cobro-tarifa { font-size: var(--fs-control); font-weight: 700; color: var(--text); }
+/* Lo vencido es la única tarea de esta esquina, y entonces sí juzga: se tiñe
+   la CIFRA y la fecha, que son las dos partes de la deuda. Sin cápsula: el
+   rojo sobre el papel ya es la señal, y una cápsula roja permanente en la
+   cabecera es el aviso que se aprende a ignorar (ver `paymentState`). */
+.cliente-cab-cobro.is-vencido .cliente-cab-cobro-cuando,
+.cliente-cab-cobro.is-vencido .cliente-cab-cobro-tarifa { color: var(--negative); }
+
+/* Lo único que está PASANDO en un renglón de datos quietos. `<em>` porque es
+   énfasis de verdad —«en curso» frente a «Microciclo 9»—, no una cápsula ni
+   una chapa: el color basta y aquí ya hay una chapa (la del estado). */
+.cliente-cab-vivo { font-style: normal; font-weight: 600; color: var(--positive); }

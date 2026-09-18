@@ -211,7 +211,10 @@ export const VistaPreviaFormulario = ({ form, elementos = [], medidas = [], onCe
         </div>
       }
     >
-      <div className="col gap-4">
+      {/* El alta se lee sobre el papel hundido del portal, como en el dibujo
+          (104:80): sus cajas blancas encima del gris. Sobre el fondo del
+          diálogo eran recuadros sueltos. */}
+      <div className={`col gap-4${esAlta && !vacio ? ' ensayo-papel' : ''}`}>
         {vacio ? (
           <Notice tone="info">
             <Eye size={15} aria-hidden="true" /> Todavía no le preguntas nada: añade la primera y

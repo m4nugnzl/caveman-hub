@@ -3,13 +3,14 @@ import { Apple, Plus, Search, StickyNote } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { clientPath } from '@/routes';
-import { FOOD_TAG_LABELS, groupInOrder, mergeCatalog, similarNames } from '@/domain/catalog';
+import { groupInOrder, mergeCatalog, similarNames } from '@/domain/catalog';
 import { foodClientsByName } from '@/domain/nutrition';
 import { norm } from '@/lib/texto';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { EmptyState } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
 import { Cinta } from '@/components/ui/Cinta';
+import { MandoDeOrden, ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import { SelectorDeGrupo } from './SelectorDeGrupo';
 import { FichaAlimento } from './FichaAlimento';
 
@@ -74,6 +75,9 @@ export const AlimentosPanel = ({ banda }) => {
   const [elegido, setElegido] = useState(null);
   const [alta, setAlta] = useState(null); // null | {} | {…prerrelleno}
   const [revision, setRevision] = useState(0);
+  /* El orden: el menú de la barra y las cabeceras de las cifras son el MISMO
+     estado (`useOrden`), como en la cartera. Por defecto, el alfabeto. */
+  const orden = useOrden();
 
   /* El mismo corte que en `/ejercicios`, y por el mismo motivo: por debajo no
      cabe la ficha al lado y se vuelve a la capa. Se reutiliza el número en vez
@@ -155,9 +159,23 @@ export const AlimentosPanel = ({ banda }) => {
      categoría nunca estuvo en la tabla—, así que lo que se gana es lo otro: se
      ve cuántos lácteos tienes y se salta a ellos sin filtrar. El orden es el
      del selector de filtros; ver `groupInOrder`. */
+  /* Ordenar reordena DENTRO de cada categoría: `groupInOrder` respeta el orden
+     con el que le llegan las filas. */
+  const ordenadas = useMemo(
+    () =>
+      ordenar(visibles, orden, {
+        kcal: kcal100,
+        p: (f) => Number(f.proteinPer100) || 0,
+        hc: (f) => Number(f.carbsPer100) || 0,
+        g: (f) => Number(f.fatsPer100) || 0,
+        dietas: (f) => f.usos,
+      }),
+    [visibles, orden]
+  );
+
   const grupos = useMemo(
-    () => groupInOrder(visibles, 'category', categorias.map(([c]) => c)),
-    [visibles, categorias]
+    () => groupInOrder(ordenadas, 'category', categorias.map(([c]) => c)),
+    [ordenadas, categorias]
   );
 
   /* El carril no enseña nunca «elige algo de la izquierda»: sin elección manda
@@ -192,7 +210,8 @@ export const AlimentosPanel = ({ banda }) => {
      sea válida desde el primer momento. */
   const crearElMio = (base) =>
     abrirAlta({
-      name: `${base.name} (el mío)`,
+      /* Del catálogo sale «el mío»; de uno tuyo («Duplicar»), una copia. */
+      name: `${base.name} ${base.mio ? '(copia)' : '(el mío)'}`,
       /* Y con su grupo puesto: tu «Pan integral Bimbo» sale del «Pan integral»
          del catálogo y sigue siendo un cereal. Sin esto nacía sin clasificar y
          desaparecía del filtro por categoría el día que se creaba. */
@@ -219,6 +238,21 @@ export const AlimentosPanel = ({ banda }) => {
   };
 
   const nMios = todos.filter((f) => f.mio).length;
+
+  /* Lo que se puede preguntar a la despensa además del alfabeto. Son las
+     columnas de cifras, y sus cabeceras hacen lo mismo (`ThOrden`). */
+  const camposDeOrden = [
+    { id: 'kcal', label: 'kcal', num: true },
+    { id: 'p', label: 'Proteína', num: true },
+    { id: 'hc', label: 'Hidratos', num: true },
+    { id: 'g', label: 'Grasas', num: true },
+    {
+      id: 'dietas',
+      label: 'Dietas',
+      num: true,
+      sentidos: { desc: 'los más puestos primero', asc: 'los que no usa nadie primero' },
+    },
+  ];
 
   /* A quién se lo das, con nombre y con puerta. La cuenta ya estaba hecha en
      `quienes`; aquí solo se le pone cara a cada id y se descartan los que ya no
@@ -276,7 +310,10 @@ export const AlimentosPanel = ({ banda }) => {
 
         <div className={`cartera-cuerpo${conCarril ? ' es-banco' : ''}`}>
           <div className="plano-lista">
-            <div className="cartera-barra">
+            {/* La misma barra que la otra mitad de la librería, en el mismo
+                orden: el buscador arriba; de quién es, de qué es y cómo se
+                ordena debajo. El porqué de `rail-wrap`, en la otra mitad. */}
+            <div className="lib-barra">
               <div className="searchbox">
                 <Search size={15} aria-hidden="true" />
                 <input
@@ -289,39 +326,39 @@ export const AlimentosPanel = ({ banda }) => {
                 />
               </div>
 
-              {/* La misma barra que la otra mitad de la librería, en el mismo
-                  orden: de quién es y después de qué es. `rail-wrap` y no
-                  `rail` por el motivo largo que está escrito en la otra mitad:
-                  el `overflow` del carril recortaba el menú de «Categoría» y
-                  pulsarlo no hacía nada. */}
-              <div className="rail rail-wrap" role="group" aria-label="Filtrar la lista">
-                <button
-                  type="button"
-                  className="chip"
-                  aria-pressed={origen === 'mios'}
-                  onClick={() => setOrigen(origen === 'mios' ? null : 'mios')}
-                >
-                  Tuyos
-                  <span className="chip-count">{nMios}</span>
-                </button>
-                <button
-                  type="button"
-                  className="chip"
-                  aria-pressed={origen === 'catalogo'}
-                  onClick={() => setOrigen(origen === 'catalogo' ? null : 'catalogo')}
-                >
-                  Del catálogo
-                  <span className="chip-count">{todos.length - nMios}</span>
-                </button>
+              <div className="lib-barra-filtros">
+                <div className="rail rail-wrap" role="group" aria-label="De quién es">
+                  <button
+                    type="button"
+                    className="chip"
+                    aria-pressed={origen === 'mios'}
+                    onClick={() => setOrigen(origen === 'mios' ? null : 'mios')}
+                  >
+                    Tuyos
+                    <span className="chip-count">{nMios}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="chip"
+                    aria-pressed={origen === 'catalogo'}
+                    onClick={() => setOrigen(origen === 'catalogo' ? null : 'catalogo')}
+                  >
+                    Del catálogo
+                    <span className="chip-count">{todos.length - nMios}</span>
+                  </button>
+                </div>
 
-                {categorias.length > 1 && <span className="rail-corte" aria-hidden="true" />}
-                {/* Las categorías son diez y no caben; ver `SelectorDeGrupo`. */}
-                <SelectorDeGrupo
-                  titulo="Categoría"
-                  opciones={categorias}
-                  valor={categoria}
-                  onElegir={setCategoria}
-                />
+                <div className="lib-barra-fin">
+                  <SelectorDeGrupo
+                    titulo="Categoría"
+                    opciones={categorias}
+                    valor={categoria}
+                    onElegir={setCategoria}
+                  />
+                  {visibles.length > 1 && (
+                    <MandoDeOrden orden={orden} campos={camposDeOrden} defecto="Nombre" clase="chip p-orden" />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -336,117 +373,100 @@ export const AlimentosPanel = ({ banda }) => {
                 }
               />
             ) : (
-              <div className="plantilla">
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col" className="lib-nombre">
-                        Alimento
-                      </th>
-                      <th scope="col" className="al-num">
-                        kcal/100 g
-                      </th>
-                      <th scope="col" className="al-num">
-                        P
-                      </th>
-                      <th scope="col" className="al-num">
-                        HC
-                      </th>
-                      <th scope="col" className="al-num">
-                        G
-                      </th>
-                      <th scope="col" className="al-oculta">
-                        Unidad
-                      </th>
-                      <th scope="col" className="al-oculta">
-                        Lleva
-                      </th>
-                      <th scope="col" className="al-num">
-                        Dietas
-                      </th>
-                    </tr>
-                  </thead>
-                  {grupos.map(({ grupo, filas }) => (
-                  <tbody key={grupo || '(sin categoría)'}>
-                    {/* La cabecera del grupo, con su cuenta. `th` de `colgroup`
-                        para que se pueda decir a qué categoría pertenece lo que
-                        viene debajo. */}
-                    <tr className="fila-grupo">
-                      <th scope="colgroup" colSpan={8}>
-                        {grupo || 'Sin clasificar'}
-                        <span className="chip-count">{filas.length}</span>
-                      </th>
-                    </tr>
-                    {filas.map((f) => (
-                      <tr
-                        key={f.id || f.name}
-                        className={conCarril && actual?.name === f.name ? 'is-elegida' : ''}
-                        aria-current={conCarril && actual?.name === f.name ? 'true' : undefined}
-                        onClick={() => elegir(f.name)}
-                      >
-                        <td>
-                          <span className="p-name f-nombre">
-                            {/* Sigue siendo un botón aunque la fila entera
-                                valga: es por donde entra el teclado, igual que
-                                en la cartera. */}
-                            <button
-                              type="button"
-                              className="p-abrir"
-                              onClick={() => elegir(f.name)}
-                            >
-                              {f.name}
-                            </button>
-                            {/* ── De quién es, PEGADO AL NOMBRE ─────────────
-                                Era la última columna de la tabla: una cápsula a
-                                setecientos píxeles del nombre que califica, y
-                                vacía en dos de cada tres filas —una columna
-                                entera reservada para la excepción, que es
-                                exactamente lo que le pasaba a «Lo tuyo» en los
-                                ejercicios antes de bajar al renglón—. Con ella
-                                fuera, la fila termina en la cifra de dietas, que
-                                es un número y sabe alinearse. */}
-                            {f.mio && <span className="badge badge-info">Tuyo</span>}
-                            {/* Que le has puesto tu nota. Un glifo y no una
-                                columna: es el equivalente de «Lo tuyo» en los
-                                ejercicios y aquí solo hay una cosa que marcar. */}
-                            {f.note && (
-                              <StickyNote
-                                size={15}
-                                className="al-nota"
-                                aria-label="Tiene tu nota"
-                              />
-                            )}
-                          </span>
-                        </td>
-                        <td className="al-num">{kcal100(f)}</td>
-                        <td className="al-num">{Number(f.proteinPer100) || 0}</td>
-                        <td className="al-num">{Number(f.carbsPer100) || 0}</td>
-                        <td className="al-num">{Number(f.fatsPer100) || 0}</td>
-                        <td className="al-oculta">
-                          {f.unitLabel ? `1 ${f.unitLabel} = ${f.unitGrams} g` : '—'}
-                        </td>
-                        {/* Lo que contiene. Nunca a quién se le puede dar: eso lo
-                            decide el cruce con sus condicionantes, en la dieta. */}
-                        <td className="al-oculta">
-                          {(f.tags || []).length > 0 ? (
-                            <span className="al-tags">
-                              {f.tags.map((t) => (
-                                <span key={t} className="badge">
-                                  {FOOD_TAG_LABELS[t] || t}
-                                </span>
-                              ))}
-                            </span>
-                          ) : null}
-                        </td>
-                        {/* En cuántas dietas está. El cero se dice con un guion
-                            y no con un «0»: es «en ninguna», no una medida que
-                            valga cero. */}
-                        <td className="al-num">{f.usos > 0 ? f.usos : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  ))}
-                </table>
+              /*
+                ══ UNA CAJA POR CATEGORÍA, CADA UNA CON SU CABECERA ═════════════
+                Como dibuja el frame: el nombre del grupo con su cuenta ENCIMA de
+                la caja, y dentro la tabla con la cabecera en banda hundida. Una
+                tabla por grupo y no una sola con filas de grupo, así cada caja
+                se lee sola — y al bajar por la despensa las columnas siguen
+                rotuladas.
+
+                Fuera «Unidad» y «Lleva»: la lista se queda con lo que se
+                compara en vertical (las cifras) y lo demás lo dice la ficha, a
+                un palmo. Ya se escondían con el carril puesto.
+              */
+              <div className="lib-grupos">
+                {grupos.map(({ grupo, filas }) => (
+                  <section key={grupo || '(sin categoría)'} className="lib-grupo">
+                    <h3 className="lib-grupo-tit">
+                      {grupo || 'Sin clasificar'} · {filas.length}{' '}
+                      {filas.length === 1 ? 'alimento' : 'alimentos'}
+                    </h3>
+                    <div className="plantilla lib-caja">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th scope="col">
+                              Alimento
+                            </th>
+                            <ThOrden orden={orden} campo="kcal" num clase="al-num">
+                              kcal/100 g
+                            </ThOrden>
+                            <ThOrden orden={orden} campo="p" num clase="al-num">
+                              P (g)
+                            </ThOrden>
+                            <ThOrden orden={orden} campo="hc" num clase="al-num">
+                              HC (g)
+                            </ThOrden>
+                            <ThOrden orden={orden} campo="g" num clase="al-num">
+                              G (g)
+                            </ThOrden>
+                            <ThOrden orden={orden} campo="dietas" num clase="al-num">
+                              Dietas
+                            </ThOrden>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filas.map((f) => {
+                            const esta = conCarril && actual?.name === f.name;
+                            return (
+                              <tr
+                                key={f.id || f.name}
+                                className={esta ? 'is-elegida' : ''}
+                                aria-current={esta ? 'true' : undefined}
+                                onClick={() => elegir(f.name)}
+                              >
+                                <td>
+                                  <span className="p-name f-nombre">
+                                    {/* Sigue siendo un botón aunque la fila
+                                        entera valga: es por donde entra el
+                                        teclado. */}
+                                    <button
+                                      type="button"
+                                      className="p-abrir"
+                                      onClick={() => elegir(f.name)}
+                                    >
+                                      {f.name}
+                                    </button>
+                                    {f.mio && <span className="badge badge-info">Tuyo</span>}
+                                    {/* Que le has puesto tu nota: lo único de
+                                        «lo tuyo» que hay que marcar aquí. */}
+                                    {f.note && (
+                                      <StickyNote size={13} className="al-nota" aria-label="Tiene tu nota" />
+                                    )}
+                                  </span>
+                                </td>
+                                <td className="al-num al-kcal">{kcal100(f)}</td>
+                                <td className="al-num">{Number(f.proteinPer100) || 0}</td>
+                                <td className="al-num">{Number(f.carbsPer100) || 0}</td>
+                                <td className="al-num">{Number(f.fatsPer100) || 0}</td>
+                                {/* En cuántas dietas está. El cero se dice con
+                                    un guion: es «en ninguna», no una medida.
+                                    En tinta y no en el azul del frame: el azul
+                                    de la casa dice «esto se pulsa», y la cifra
+                                    no lleva a ninguna parte — los nombres están
+                                    en la ficha. */}
+                                <td className={`al-num al-dietas${f.usos > 0 ? '' : ' es-cero'}`}>
+                                  {f.usos > 0 ? f.usos : '—'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                ))}
               </div>
             )}
           </div>
@@ -484,6 +504,9 @@ export const AlimentosPanel = ({ banda }) => {
           }}
         >
           <FichaAlimento
+            /* La `key` del carril también aquí: «Duplicar» pasa al alta sin
+               cerrar la capa y sin remontar llevaría el borrador de antes. */
+            key={`${alta ? '+nuevo' : elegido}-${revision}`}
             alimento={alta || todos.find((f) => f.name === elegido) || null}
             nuevo={Boolean(alta)}
             enCapa

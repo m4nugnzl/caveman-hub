@@ -59,7 +59,22 @@ import { useMediaQuery } from '@/lib/useMediaQuery';
   quien decide si esto es una hoja es el ancho, igual que en el CSS. Los dos
   sitios usan los mismos dos números de la escala (ver `tokens.css`).
 */
-export const Modal = ({ open, title, onClose, children, footer, size = 'md', labelledBy }) => {
+/*
+  ── LA CABECERA PUEDE LLEVAR SIGNO Y SUBTÍTULO (17 sep · frames 202:4 y 208:5)
+  Los dos popups del bloque —el volumen y el historial— los dibuja Figma con la
+  misma anatomía: una placa con el signo de lo que se mira, el titular al lado
+  y, debajo, una frase que dice de qué va la ventana.
+
+  Va en `Modal` y no en cada popup porque es la cabecera de TODAS: una ventana
+  que se abre con un signo y otra sin él son dos ventanas distintas, y esta
+  casa lleva dos años pagando el haber dibujado la misma pieza de dos maneras.
+  Las dos son opcionales: sin ellas sale la cabecera de siempre, el titular y
+  la equis.
+
+  `icono` es el componente, no el nodo: el tamaño lo pone la ventana (20 px,
+  como el frame) y no cada sitio que la abre.
+*/
+export const Modal = ({ open, title, sub, icono: Icono, onClose, children, footer, size = 'md', labelledBy }) => {
   const titleId = useId();
   const { mounted, closing, ref } = useDismissable(open === undefined ? true : open);
 
@@ -104,10 +119,7 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
     >
       <div
         ref={hojaRef}
-        /* `capa` LLEVA `modal-lg` a propósito: es el grande crecido, y las
-           reglas que distinguen «ventana ancha» de «ventana estrecha» con
-           `:not(.modal-lg)` tienen que contarla como ancha sin enterarse. */
-        className={`modal${size === 'lg' || size === 'capa' ? ' modal-lg' : ''}${size === 'capa' ? ' modal-capa' : ''}${size === 'side' ? ' modal-side' : ''}`}
+        className={`modal${size === 'lg' ? ' modal-lg' : ''}${size === 'side' ? ' modal-side' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy || titleId}
@@ -119,9 +131,22 @@ export const Modal = ({ open, title, onClose, children, footer, size = 'md', lab
         {esHoja && <span className="modal-grip" aria-hidden="true" {...asaProps} />}
         {title && (
           <header className="modal-header">
-            <h2 className="modal-title" id={titleId}>
-              {title}
-            </h2>
+            <div className="modal-say">
+              {Icono && (
+                <span className="modal-signo" aria-hidden="true">
+                  <Icono size={20} />
+                </span>
+              )}
+              <div className="modal-rotulo">
+                <h2 className="modal-title" id={titleId}>
+                  {title}
+                </h2>
+                {/* La frase de debajo no repite el titular: dice qué se está
+                    mirando exactamente, que es lo que un titular de tres
+                    palabras no cabe a decir. */}
+                {sub && <p className="modal-sub">{sub}</p>}
+              </div>
+            </div>
             <button type="button" className="btn btn-icon" onClick={onClose} aria-label="Cerrar">
               <X size={15} />
             </button>

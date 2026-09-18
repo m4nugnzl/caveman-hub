@@ -99,6 +99,13 @@ import { useOculto } from '@/components/Client/Oculto';
  *   delante. Cambia dos cosas y ninguna más —lo dice el pie y terminar no
  *   escribe—, porque lo que se viene a ver es exactamente esto. Ver
  *   `Coach/Taller/VistaPreviaFormulario`.
+ * @param soloMedidas  EL TELÉFONO DEL CLIENTE desde el 18 sep 2026: ahí la
+ *   revisión es una lista de pasos que se guardan sueltos y se entrega con un
+ *   botón aparte, así que este asistente solo toma las medidas —pliegues,
+ *   perímetros, aparatos— y guarda sin entregar. Ver `ClientRevisionRoute`.
+ * @param respuestasIniciales  Lo que ya estaba contestado: el borrador que el
+ *   teléfono guarda en la fila de la semana (migración 0121). Sin esto el
+ *   cuestionario del monitor empezaría en blanco encima de algo ya contestado.
  */
 export const ReviewWizard = ({
   client,
@@ -116,6 +123,8 @@ export const ReviewWizard = ({
   weeks = 1,
   pasoInicial = null,
   ensayo = false,
+  soloMedidas = false,
+  respuestasIniciales = null,
   onClose,
 }) => {
   const isClient = audience === 'client';
@@ -215,9 +224,12 @@ export const ReviewWizard = ({
         puedeSubirFotos && { id: 'fotos', titulo: 'Las fotos', icono: Camera },
         preguntas.length > 0 && { id: 'cuestionario', titulo: 'Tu semana', icono: MessageSquare },
       ].filter(Boolean);
-      return lista.length > 0 ? lista : [{ id: 'entrega', titulo: 'Tu semana', icono: Check }];
+      const suyos = soloMedidas
+        ? lista.filter((p) => ['pliegues', 'perimetros', 'aparatos'].includes(p.id))
+        : lista;
+      return suyos.length > 0 ? suyos : [{ id: 'entrega', titulo: 'Tu semana', icono: Check }];
     },
-    [sinPeso, pideFolds, pidePerimetros, medidas.length, puedeSubirFotos, preguntas.length]
+    [sinPeso, pideFolds, pidePerimetros, medidas.length, puedeSubirFotos, preguntas.length, soloMedidas]
   );
 
   /*
@@ -256,7 +268,7 @@ export const ReviewWizard = ({
   /* Lo apuntado con aparato, por id de medida. Como los pliegues: texto mientras
      se escribe, número al guardar (ver `compactMedidas`). */
   const [valores, setValores] = useState({});
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(() => respuestasIniciales || {});
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -289,7 +301,19 @@ export const ReviewWizard = ({
   /* El peso que se registra y se entrega. Sin paso de peso es el promedio de sus
      propios pesajes —exactamente el que habría confirmado— y, si esa semana no
      se pesó, no hay ninguno: se entrega sin él, como una semana atrasada. */
-  const pesoEfectivo = sinPeso ? (suggestedWeight === null ? '' : String(suggestedWeight)) : weight;
+  /* Con `soloMedidas` no se confirma ningún peso, pero el registro del día se
+     guarda ENTERO (`addAnthropometryLog` sustituye la fila de la fecha): lleva
+     el peso que ya hubiera apuntado ese día, o se lo borraría. */
+  const pesoDelDia = history.find((h) => h.date === date)?.weight;
+  const pesoEfectivo = soloMedidas
+    ? pesoDelDia === null || pesoDelDia === undefined
+      ? ''
+      : String(pesoDelDia)
+    : sinPeso
+      ? suggestedWeight === null
+        ? ''
+        : String(suggestedWeight)
+      : weight;
 
   /* Cómo se llama la ventana en la frase que explica de dónde sale el número.
      «de esta semana» sería mentira con cadencia quincenal, y «del periodo» es
@@ -532,7 +556,13 @@ export const ReviewWizard = ({
 
   return (
     <Modal
-      title={isClient ? 'Mi revisión de la semana' : `Nueva revisión de ${client.name}`}
+      title={
+        soloMedidas
+          ? 'Tus medidas'
+          : isClient
+            ? 'Mi revisión de la semana'
+            : `Nueva revisión de ${client.name}`
+      }
       size="lg"
       onClose={onClose}
       footer={
@@ -577,7 +607,9 @@ export const ReviewWizard = ({
                 ? 'Enviando…'
                 : onSubmitWeek || ensayo
                   ? 'Terminar y entregar'
-                  : 'Terminar y guardar'}
+                  : soloMedidas
+                    ? 'Guardar mis medidas'
+                    : 'Terminar y guardar'}
             </button>
           ) : (
             <button type="button" className="btn btn-primary" onClick={avanzar}>

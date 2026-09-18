@@ -1,57 +1,67 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   EL PORTAL DEL CLIENTE EN EL TELÉFONO — «La app del cliente»
+   EL PORTAL DEL CLIENTE EN EL TELÉFONO — los frames de Figma del 18 sep 2026
 
-   Es el prototipo de `docs/estudio-la-app-del-cliente.html` (13 sep 2026)
-   construido tal cual: 390 px, cuatro destinos, el modo sesión y la ficha que
-   sube. El dueño lo señaló como el aparato que sí le gusta —«cajas más
-   redondas, más amistoso, mejor diseñado»— y de aquí salió además la escala de
-   radios del monitor (`portal-pc.css`).
+   Diez frames del archivo `baKmzhKuQCLI53sduv2D3X` rehacen el teléfono entero
+   «partiendo de las premisas del protocolo y del diseño nuevo de la web del
+   entrenador»: Hoy `327:8`, Entreno `327:148`, Comer `327:234`, Revisión
+   `328:111`, la sesión `327:337`, el perfil `328:7`, el peso `328:206`, la
+   hoja antes de empezar `328:299`, las fotos `328:518` y el cuestionario.
 
-   ── La tesis, que es lo que explica cada decisión de aquí ─────────────────
-   La app de hoy es un lector de planes; esto es un REGISTRO de entrenamiento
-   que además trae un plan dentro. El plan caduca —se acaba el bloque, se acaba
-   el entrenador—; el registro no.
+   ── La gramática, que es una ────────────────────────────────────────────────
+   Lienzo BLANCO, y lo que separa es un filete a todo lo ancho, no una tarjeta
+   con sombra. Cada tramo: 24 px de aire y su rótulo en versalitas de 11 px.
+   Las cajas con canto son la excepción y dicen «esto se pulsa entero». Es la
+   gramática de la web desde el rediseño de Figma (ver `figma-lienzo-y-chasis`
+   en la memoria): el canto separa, el lienzo no se tiñe.
 
-   Las tres leyes:
-     1. El sujeto eres tú. El entrenador es una fuente, no el protagonista.
-     2. Toda pantalla tiene pasado, repartido. No hay sección «Historial»:
-        es donde el pasado se va a morir.
-     3. Lo que hay que hacer cabe en la primera pantalla.
+   ── Y la paleta ya no es propia ─────────────────────────────────────────────
+   Hasta aquí el teléfono llevaba su papel cálido y su tinta en hexadecimal, y
+   un bloque entero para la noche. Ahora cada `--tel-*` apunta a un token de la
+   casa, así que el teléfono y la web son la misma paleta y la noche sale sola.
 
-   ── Por qué tiene paleta propia y no la del monitor ───────────────────────
-   Porque son dos aparatos, y el dueño eligió uno para cada uno. El teléfono se
-   queda con el papel cálido de la casa y la tarjeta SIN canto, sostenida por su
-   sombra; el monitor estrena lienzo frío y canto (ver `portal-pc.css`). Lo que
-   comparten es lo que de verdad manda: el acento `--accent`, el verde, el ámbar
-   y la ley del color.
-
-   ── Y por qué la tarjeta no lleva foto ────────────────────────────────────
-   Donde las otras apps ponen la miniatura del ejercicio, aquí va TU CIFRA: la
-   última marca y la línea de tus ocho últimas sesiones. Medido: de 246
-   ejercicios de la demo, 3 podrían tener miniatura —el 1,2 %—, y una columna
-   de huecos es peor que no tener fotos. Ver `estudio-la-app-del-cliente.md`.
+   ── Lo que no se copia del dibujo ──────────────────────────────────────────
+   El verde `#10b981` de acción es el azul de la casa (`--accent`): el dueño lo
+   eligió así el 18 sep. El verde queda para «hecho». Y no hay reloj de sesión
+   ni botón «Escribir» al entrenador. Ver `figma-movil-del-cliente`.
    ══════════════════════════════════════════════════════════════════════════ */
 
 .tel-portal {
-  --tel-papel: #f1efe8;
-  --tel-hoja: #ffffff;
-  --tel-grafito: #1b1a17;
-  --tel-hundido: #f5f3ed;
-  --tel-relleno: #eceae1;
-  --tel-tinta: #191713;
-  --tel-tinta-2: #514d45;
-  --tel-tinta-3: #767166;
-  --tel-filete: #e7e3d9;
-  --tel-filete-2: #cfc9bb;
-  --tel-senal-suave: rgba(59, 73, 223, 0.08);
-  --tel-senal-linea: rgba(59, 73, 223, 0.3);
-  --tel-verde: #10774c;
-  --tel-verde-suave: #e3f1ea;
-  --tel-ambar: #a4530e;
-  --tel-foto: linear-gradient(160deg, #eceae1, #ded9cc);
-  --tel-sombra: 0 1px 2px rgba(38, 32, 20, 0.06), 0 14px 30px -22px rgba(38, 32, 20, 0.5);
-  /* El hueco que deja la barra del pulgar, más el borde seguro del aparato. */
-  --tel-pulgar-alto: calc(62px + env(safe-area-inset-bottom, 0px));
+  --tel-papel: var(--surface);
+  --tel-hoja: var(--surface);
+  /* La tinta de la barra lateral de la web (`barra-tinta`): el disco de tus
+     iniciales y el del vídeo. Fija en las dos pieles, como la barra. */
+  --tel-grafito: #12151d;
+  --tel-sobre-grafito: #ffffff;
+  /* El tic de «hecho» sobre el verde: blanco en las dos pieles. */
+  --tel-sobre-verde: #ffffff;
+  --tel-hundido: var(--surface-sunken);
+  --tel-relleno: var(--fill);
+  --tel-tinta: var(--text);
+  --tel-tinta-2: var(--text-secondary);
+  --tel-tinta-3: var(--text-tertiary);
+  --tel-filete: var(--hairline);
+  --tel-filete-2: var(--hairline-strong);
+  --tel-canto: var(--edge-card);
+  --tel-senal-suave: var(--accent-soft);
+  --tel-senal-linea: var(--accent-wash);
+  --tel-verde: var(--positive);
+  --tel-verde-suave: var(--positive-soft);
+  --tel-ambar: var(--warning);
+  --tel-foto: linear-gradient(160deg, var(--fill), var(--fill-strong));
+  --tel-sombra: var(--shadow-sm);
+  /* Lo que ocupa la barra flotante: 68 de alto, 15 de aire debajo y el borde
+     seguro del aparato, más un respiro para que lo último no quede debajo. */
+  --tel-pulgar-alto: calc(68px + 15px + var(--s4) + env(safe-area-inset-bottom, 0px));
+
+  /* LA ESCALA ENTERA, sin el encogimiento del teléfono. `responsive.css` baja
+     `--s5/6/7` a 16/24/32 por debajo de 640 px para las pantallas de la web,
+     que se dibujaron para el monitor. Estas se dibujaron YA a 390 px (los
+     frames del 18 sep), así que encogerlas otra vez era encogerlas dos veces:
+     el titular del entreno salía a 24 en vez de 32, los botones de 44 a 32 y
+     cada tramo con menos aire que el dibujo. Medido contra el frame `327:148`. */
+  --s5: 22px;
+  --s6: 32px;
+  --s7: 44px;
 
   background: var(--tel-papel);
   color: var(--tel-tinta);
@@ -61,436 +71,1140 @@
   min-height: 100svh;
   padding-bottom: var(--tel-pulgar-alto);
 }
-/* ── La noche del teléfono ─────────────────────────────────────────────────
-   El menú de la cuenta —que en «Tú» monta el mismo `AccountMenu` que el
-   entrenador— lleva el interruptor de tema desde siempre, y aquí no hacía
-   NADA: los veinte valores de arriba son hexadecimales y un hexadecimal no
-   escucha a `[data-theme]`. Un mando que no mueve nada es peor que no tenerlo.
 
-   La piel cálida se queda como la decisión de DÍA que es —papel templado,
-   tarjeta sin canto sostenida por su sombra— y de noche el aparato pasa al
-   hierro de la casa, el mismo del panel del entrenador y el de las pantallas
-   del portal que este rediseño no tocó. La alternativa era inventarse un papel
-   oscuro cálido: una tercera paleta que nadie ha mirado, para que a las dos de
-   la mañana el teléfono no pegue con nada de lo que tiene al lado.
+/* Entrenando, la barra se retira entera: salir tiene que ser un gesto
+   explícito y no un resbalón del pulgar. */
+.tel-portal.tel-en-sesion { padding-bottom: 0; }
 
-   Solo se redefinen los valores. Ni una regla de forma cambia aquí abajo: los
-   radios, las sombras y la geometría son los mismos a las nueve y a las once.
+/* Sin cabecera de la casa: el hueco seguro de arriba lo pone la de cada
+   pantalla. */
+body:has(.tel-portal) .app-header { display: none; }
 
-   `.tel-hoja` es `--surface-raised` y no `--surface` a propósito: sobre papel
-   la tarjeta se separa con su sombra, y en hierro una sombra no se ve. Lo que
-   la separa del lienzo de noche es el escalón de claridad. */
-[data-theme='dark'] .tel-portal {
-  --tel-papel: var(--canvas);
-  --tel-hoja: var(--surface-raised);
-  --tel-grafito: var(--surface-glass);
-  --tel-hundido: var(--surface-sunken);
-  --tel-relleno: var(--fill);
-  --tel-tinta: var(--text);
-  --tel-tinta-2: var(--text-secondary);
-  --tel-tinta-3: var(--text-tertiary);
-  --tel-filete: var(--hairline);
-  --tel-filete-2: var(--hairline-strong);
-  --tel-senal-suave: var(--accent-soft);
-  --tel-senal-linea: var(--accent-wash);
-  --tel-verde: var(--positive);
-  --tel-verde-suave: var(--positive-soft);
-  --tel-ambar: var(--warning);
-  --tel-foto: linear-gradient(160deg, var(--surface-sunken), var(--surface));
-  --tel-sombra: var(--shadow-sm);
+/* El envoltorio de las pantallas que aún pintan en su tramo (el cierre de la
+   sesión, «Mi progreso»). */
+.tel-tramo { padding: 0 24px; }
+
+/* ══ LA BARRA DEL PULGAR — flotante, en la tinta de la barra lateral ══════ */
+.tel-pulgar {
+  position: fixed;
+  left: 15px;
+  right: 15px;
+  bottom: calc(15px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  height: 68px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: center;
+  padding: 0 var(--s2);
+  border-radius: var(--r-pill);
+  /* El canto de la tinta: de noche el lienzo y la barra son casi el mismo
+     hierro, y sin él la barra no se despega. */
+  border: 1px solid var(--edge);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-float);
 }
-
-/* Entrenando el aparato cambia de piel: la barra de estado del sistema y la
-   cabecera van en grafito, y la barra del pulgar se retira entera. */
-.tel-portal.tel-en-sesion { padding-bottom: 26px; }
-
-.tel-tramo { padding: 0 18px; }
-
-/* ── La cabecera del día ───────────────────────────────────────────────────
-   No es un titular con subtítulo explicativo: es la FECHA y, debajo, un dato
-   —«Bloque 1 · microciclo 10 de 10»—. Regla 1 de la voz. */
-.tel-cabecera-dia {
-  padding: 10px 18px var(--s4);
-}
-.tel-cabecera-dia .tel-fecha {
-  font-family: var(--font-ancha);
-  font-size: 23px;
-  font-weight: 800;
-  letter-spacing: -0.026em;
-  line-height: 1.05;
-}
-.tel-cabecera-dia .tel-donde {
-  font-size: 12.5px;
-  color: var(--tel-tinta-3);
+.tel-pulgar a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  padding: 6px 0;
+  font-size: 10px;
   font-weight: 500;
-  margin-top: 3px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-radius: var(--r-pill);
 }
-/* Aquí vivía `.tel-avatar`, el disco verde con tus iniciales de la esquina
-   derecha. Se fue el 14 sep: no se podía pulsar y el verde es el del semáforo.
-   El porqué entero está en `CabeceraDia`. */
+.tel-pulgar a.tel-aqui { color: var(--text); font-weight: 700; }
+.tel-pulgar a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tel-pulgar-ico { position: relative; display: grid; place-items: center; }
+.tel-pulgar .tel-punto {
+  position: absolute;
+  top: -2px;
+  right: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 2px var(--surface-glass);
+}
 
-/* ── La tarjeta ───────────────────────────────────────────────────────────
-   Sin canto: la sostiene su sombra sobre el papel cálido. Es la diferencia
-   deliberada con el monitor, donde la caja sí lleva canto. */
-.tel-tarjeta {
-  background: var(--tel-hoja);
-  border-radius: var(--r-lg);
-  padding: 18px;
-  box-shadow: var(--tel-sombra);
-  margin-bottom: 14px;
+/* ══ LA CABECERA ═══════════════════════════════════════════════════════════ */
+.tel-cab {
+  padding: calc(env(safe-area-inset-top, 0px) + var(--s4)) 24px var(--s2);
 }
-.tel-tarjeta.tel-plana {
-  box-shadow: none;
-  border: 1px solid var(--tel-filete);
-}
-.tel-tarjeta.tel-lista { padding: 6px var(--s4) 10px; }
-.tel-tarjeta.tel-corta { padding: 15px var(--s4); }
-
-.tel-eyebrow {
-  font-size: 11px;
+.tel-cab-linea { display: flex; align-items: center; gap: var(--s2); }
+.tel-cab-tit {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 24px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  line-height: 28px;
+  letter-spacing: -0.015em;
+}
+.tel-cab-grande .tel-cab-tit { font-size: 32px; font-weight: 800; line-height: 36px; letter-spacing: -0.025em; }
+.tel-cab-atras .tel-cab-tit { font-size: 18px; line-height: 22px; }
+.tel-cab-sub {
+  margin: var(--s1) 0 0;
+  font-size: var(--fs-xs);
+  line-height: var(--s4);
+  color: var(--tel-tinta-3);
+}
+/* Con flecha, el dato cae bajo el titular y no bajo la flecha: 20 de flecha
+   y 8 de hueco. */
+.tel-cab-atras .tel-cab-sub { padding-left: 28px; font-size: 13px; }
+.tel-atras {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -4px;
+  border: 0;
+  background: none;
+  color: var(--tel-tinta);
+  cursor: pointer;
+  flex: none;
+}
+.tel-cab-perfil {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--fill-strong);
+  background: var(--tel-hundido);
+  color: var(--tel-tinta-2);
+}
+.tel-cab-perfil:focus-visible,
+.tel-atras:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ══ LAS PIEZAS ════════════════════════════════════════════════════════════ */
+
+/* El tramo: filete encima y 24 de aire. La unidad de la pantalla. */
+.tel-seccion { padding: 24px; border-top: 1px solid var(--tel-filete); }
+
+.tel-rotulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--tel-tinta-3);
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
-.tel-eyebrow.tel-viva { color: var(--accent); }
-
-.tel-meta { font-size: 13.5px; color: var(--tel-tinta-3); }
-
-/* La regla de la sesión: un tramo por ejercicio, una muesca por serie. */
-.tel-regla { display: flex; gap: 3px; margin: 14px 0 0; }
-.tel-regla i {
-  height: var(--s1);
-  flex: 1;
-  border-radius: 2px;
-  background: var(--tel-relleno);
-  display: block;
-}
-.tel-regla i.tel-hecha { background: var(--accent); }
-.tel-regla i.tel-parcial {
-  background: linear-gradient(90deg, var(--accent) 50%, var(--tel-relleno) 50%);
-}
-.tel-regla.tel-suelta { margin-bottom: var(--s4); }
-
-/* ── El renglón de ejercicio ──────────────────────────────────────────────
-   La cara no la pone una foto: la pone tu cifra. */
-.tel-renglon {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--s3);
-  align-items: center;
-  padding: var(--s3) 0;
-  border-top: 1px solid var(--tel-filete);
-  width: 100%;
-  text-align: left;
-  background: none;
-  border-left: 0;
-  border-right: 0;
-  border-bottom: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.tel-renglon:first-of-type { border-top: 0; }
-.tel-renglon .tel-nom {
-  display: block;
-  font-size: 15px;
+.tel-rotulo a,
+.tel-rotulo button {
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.25;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
 }
-.tel-renglon .tel-pauta {
-  display: block;
+.tel-rotulo-suelto { margin-top: var(--s5); }
+.tel-rotulo-dato {
   font-size: 13px;
-  color: var(--tel-tinta-3);
-  font-variant-numeric: tabular-nums;
-  margin-top: 1px;
-}
-.tel-renglon .tel-flecha { color: var(--tel-filete-2); font-size: var(--fs-md); }
-.tel-renglon:hover .tel-nom { color: var(--accent); }
-.tel-renglon:hover .tel-flecha { color: var(--accent); }
-.tel-marca { display: flex; align-items: center; gap: 10px; }
-.tel-marca .tel-kg {
-  font-size: 15.5px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.012em;
-  white-space: nowrap;
-}
-.tel-marca .tel-kg.tel-nada {
-  font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--tel-tinta-3);
 }
-/* Aquí vivió `.tel-chispa`, la polilínea de 46×17 px que el renglón llevaba
-   junto a la cifra. Fuera el 14 sep por orden del dueño: en 46 px normalizados
-   al propio tramo, subir 2,5 kg y subir 40 dibujan la misma cuesta. Ver
-   `movil/Piezas · Marca`. */
+.tel-rotulo-dato.tel-hecho { color: var(--tel-verde); }
+/* La cuenta de la entrega: en negrita, como en el dibujo. */
+.tel-rotulo-cuenta { font-weight: 700; }
 
-/* ── El botón. PASTILLA de 50 px ─────────────────────────────────────────── */
+/* El botón: la píldora de 48 px. */
 .tel-boton {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s2);
   width: 100%;
-  height: 50px;
+  height: 48px;
+  margin-top: var(--s4);
   border: 0;
-  border-radius: 25px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--accent-on);
-  font-size: var(--fs-base);
-  font-weight: 600;
-  margin-top: 14px;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  text-decoration: none;
-}
-.tel-boton.tel-callado { background: var(--tel-relleno); color: var(--tel-tinta); }
-
-/* ── Las tres cifras del día ─────────────────────────────────────────────── */
-.tel-trio {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s2);
-  margin-bottom: 14px;
-}
-.tel-trio > button,
-.tel-trio > a {
-  background: var(--tel-hoja);
-  border: 0;
-  border-radius: var(--r-md);
-  padding: 13px var(--s3);
-  text-align: left;
-  box-shadow: var(--tel-sombra);
-  cursor: pointer;
-  color: inherit;
   font: inherit;
-  text-decoration: none;
-}
-.tel-trio .tel-k {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-}
-.tel-trio .tel-v {
-  font-family: var(--font-ancha);
-  font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.028em;
-  font-variant-numeric: tabular-nums;
-  margin-top: 3px;
-  line-height: 1;
-}
-.tel-trio .tel-v small {
-  font-family: var(--font);
-  font-size: 11px;
-  white-space: nowrap;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--tel-tinta-3);
-  letter-spacing: 0;
+  text-decoration: none;
+  cursor: pointer;
+  touch-action: manipulation;
 }
-.tel-barrita {
-  height: 3px;
-  border-radius: 2px;
-  background: var(--tel-relleno);
-  margin-top: var(--s2);
+.tel-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tel-boton.tel-callado,
+.tel-boton:disabled { background: var(--fill-strong); color: var(--tel-tinta-3); cursor: default; }
+.tel-boton.tel-boton-44 { height: var(--s7); font-size: var(--fs-sm); }
+
+/* La caja con canto: lo que se pulsa entero. */
+.tel-caja {
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s4);
+  background: var(--tel-hoja);
+}
+
+/* El anillo de lo que llevas. */
+.tel-anillo { position: relative; display: grid; place-items: center; flex: none; }
+.tel-anillo svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.tel-anillo-fondo { fill: none; stroke: var(--fill-strong); stroke-width: 5; }
+.tel-anillo-arco {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.4s var(--ease);
+}
+.tel-anillo-n { font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Las chapas: un dato pequeño con canto. */
+.tel-chapas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.tel-chapa {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border: 1px solid var(--fill-strong);
+  border-radius: var(--r-xs);
+  background: var(--tel-hundido);
+  font-size: var(--fs-2xs);
+  font-weight: 500;
+  color: var(--tel-tinta-3);
+  white-space: nowrap;
+}
+
+/* El estado de una fila. */
+.tel-estado {
+  flex: none;
+  padding: var(--s1) var(--s2);
+  border-radius: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  background: var(--tel-hundido);
+  color: var(--tel-tinta-3);
+}
+.tel-estado.tel-hecho { background: var(--tel-verde-suave); color: var(--tel-verde); }
+.tel-estado.tel-medias,
+.tel-estado.tel-hoy { background: var(--tel-senal-suave); color: var(--accent); }
+
+/* La lista en caja y su fila. */
+.tel-lista-caja {
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s4);
+  background: var(--tel-hoja);
   overflow: hidden;
 }
-.tel-barrita i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
-/* Aquí estuvo `.tel-gorda`, la barra ancha del recuento de kcal. Se fue con
-   las tres barritas de macro el 14 sep: medía lo mismo —lo que suman las
-   opciones abiertas contra lo pautado— y por lo mismo salía llena siempre. */
-
-/* ── El récord: la cifra que hace que la app valga sin entrenador ─────────
-   Iba sobre grafito, y era lo único oscuro de todo el teléfono. La idea era que
-   fuese el REGISTRO hablando —lo que no caduca cuando se acaba el bloque— y que
-   se distinguiera por eso. El dueño lo tumbó el 14 sep: *«tampoco me gusta que
-   algunas boxes sean negras»*.
-
-   Lo que quedaba en pie del argumento era «que se note que esto es otra cosa»,
-   y eso lo hace igual de bien la FORMA: tres cifras centradas con su filete
-   entre medias son una tabla, y las demás piezas de la portada no lo son. Lo
-   que hacía el grafito era además pelearse con la única superficie que de
-   verdad tiene que destacar, que es la sesión de arriba. */
-.tel-record {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  text-align: center;
-  background: var(--tel-hoja);
-  border-radius: var(--r-lg);
-  box-shadow: var(--tel-sombra);
-  padding: var(--s4) var(--s2);
-  margin-bottom: 14px;
-}
-.tel-record div + div { border-left: 1px solid var(--tel-filete); }
-.tel-record .tel-v {
-  font-family: var(--font-ancha);
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-}
-.tel-record .tel-k {
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  font-weight: 600;
-  margin-top: 2px;
-}
-
-.tel-titulillo {
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  margin: var(--s5) 0 9px;
+.tel-fila {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-}
-.tel-titulillo a,
-.tel-titulillo button {
-  font-size: var(--fs-xs);
-  letter-spacing: 0;
-  text-transform: none;
-  font-weight: 600;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-}
-
-/* ── Lo que te han pedido: solo cuando lo hay ──────────────────────────────
-   Y a ras del papel. Esto era una caja aparte —fondo de hoja, canto azulado y
-   un filo de 3 px en acento— y el dueño la señaló el 14 sep: *«no me gusta la
-   box con profundidad de cierra la semana»*.
-
-   El relieve no lo daba una sombra sino los DOS cantos: un contorno claro más
-   un filo grueso a la izquierda leen como una placa levantada sobre la hoja.
-   Y no hacía falta: encima ya está el titulillo «Te han pedido», que es quien
-   dice que esto es una petición. Marcarlo otra vez con un color y un relieve es
-   decirlo tres veces.
-
-   Así que pasa a ser lo que son las demás listas del teléfono —la comida, el
-   menú de «Tú»—: un renglón con su filete, y el verbo en azul a la derecha.
-   Es la ley de los gestos: el verbo lleva el color, la caja no. */
-.tel-pedido {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
-  background: none;
-  border: 0;
-  border-top: 1px solid var(--tel-filete);
-  border-radius: 0;
-  padding: 14px 0;
+  gap: var(--s3);
   width: 100%;
-  text-align: left;
+  padding: var(--s4);
+  border: 0;
+  background: none;
   color: inherit;
   font: inherit;
-  cursor: pointer;
+  text-align: left;
   text-decoration: none;
 }
-.tel-pedido:last-of-type { border-bottom: 1px solid var(--tel-filete); }
-.tel-pedido .tel-q { display: block; font-size: 15px; font-weight: 600; }
-.tel-pedido .tel-c {
-  display: block;
-  font-size: 12.5px;
+.tel-fila + .tel-fila { border-top: 1px solid var(--tel-filete); }
+a.tel-fila,
+button.tel-fila { cursor: pointer; }
+a.tel-fila:active,
+button.tel-fila:active { background: var(--fill-subtle); }
+a.tel-fila:focus-visible,
+button.tel-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tel-fila-tx { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tel-fila-tit { font-size: 15px; font-weight: 600; line-height: 1.3; }
+.tel-fila-sub {
+  font-size: var(--fs-xs);
   color: var(--tel-tinta-3);
-  margin-top: 1px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.tel-pedido .tel-ir {
+.tel-fila.tel-apagada .tel-fila-tit { color: var(--tel-tinta-2); }
+.tel-galon { color: var(--tel-tinta-3); flex: none; }
+.tel-marca { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tel-espera { font-size: 13px; font-weight: 600; color: var(--accent); white-space: nowrap; }
+
+/* Una lista sin caja: filas con su filete a ras del lienzo. */
+.tel-lista-suelta { border: 0; border-radius: 0; overflow: visible; }
+.tel-lista-suelta .tel-fila { padding: var(--s3) 0; }
+
+/* La línea del peso. En la señal y no en el semáforo: el verde del dibujo es
+   el azul de la casa, y hacia dónde DEBE ir no lo sabe la pantalla. */
+.tel-linea { flex: none; overflow: visible; }
+.tel-linea path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tel-linea circle { fill: var(--accent); }
+
+/* La barrita: una cifra sobre su máximo. Neutra salvo que la pregunta diga
+   hacia dónde es mejor: entonces es el semáforo (ver `tonoDeEscala`). */
+.tel-barrita {
+  display: block;
+  height: var(--s1);
+  border-radius: 2px;
+  background: var(--fill-strong);
+  overflow: hidden;
+}
+.tel-barrita i { display: block; height: 100%; background: var(--tel-tinta-2); border-radius: inherit; }
+.tel-barrita.tel-bien i { background: var(--tel-verde); }
+.tel-barrita.tel-medio i { background: var(--tel-ambar); }
+.tel-barrita.tel-mal i { background: var(--negative); }
+/* La de lo HECHO —la entrega, las series de la sesión— sí va en verde. */
+.tel-barrita.tel-barrita-6 { height: 6px; border-radius: 3px; }
+.tel-barrita.tel-barrita-6 i { background: var(--tel-verde); transition: width 0.4s var(--ease); }
+
+.tel-pie {
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--tel-tinta-3);
+}
+.tel-pie.tel-centrado { text-align: center; }
+.tel-pie.tel-pie-arriba { margin-top: 0; }
+
+.tel-aire { height: var(--s2); }
+
+/* ══ HOY ══════════════════════════════════════════════════════════════════ */
+
+/* La semana: siete discos. */
+.tel-dias {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  margin: 0;
+  padding: var(--s3) 24px var(--s4);
+  list-style: none;
+}
+.tel-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.tel-dia-disco {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid transparent;
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
+  color: var(--tel-tinta-3);
 }
+.tel-dia.tel-pasado .tel-dia-disco,
+.tel-dia.tel-hecho .tel-dia-disco { border-color: var(--tel-canto); color: var(--tel-tinta); }
+.tel-dia.tel-hoy .tel-dia-disco { background: var(--accent); color: var(--accent-on); border-color: transparent; }
+.tel-dia-punto { width: var(--s1); height: var(--s1); border-radius: 50%; background: transparent; }
+.tel-dia.tel-hecho .tel-dia-punto { background: var(--tel-verde); }
+.tel-dia.tel-toca .tel-dia-punto { background: var(--tel-filete-2); }
 
-/* ── Lo que viene de su entrenador ────────────────────────────────────────
-   La misma fila que «Te han pedido» —el mismo renglón con su filete— y dos
-   diferencias: la fila deja de ser el enlace (lo es su texto, para que el aspa
-   se pueda pulsar sin abrir nada) y el grupo va envuelto para cerrarse por
-   abajo. `:last-of-type` no vale aquí: mira el último DIV de la pantalla, que
-   es el aire del final. */
-.tel-aviso { cursor: auto; }
-.tel-aviso > .tel-fin { display: flex; align-items: center; gap: var(--s2); }
-.tel-avisos > .tel-aviso:last-child { border-bottom: 1px solid var(--tel-filete); }
+/* Tu entreno de hoy. */
+.tel-entreno { display: flex; align-items: center; gap: var(--s3); }
+.tel-entreno-tx { flex: 1; min-width: 0; }
+.tel-entreno-tit {
+  margin: 0;
+  font-size: var(--s6);
+  font-weight: 800;
+  line-height: 36px;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+.tel-entreno-sub { margin: var(--s1) 0 0; font-size: 13px; color: var(--tel-tinta-3); }
+
+/* Lo que viene de su entrenador. */
+.tel-avisos { display: flex; flex-direction: column; }
+.tel-aviso {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+}
+.tel-aviso + .tel-aviso { border-top: 1px solid var(--tel-filete); }
+.tel-aviso-punto { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 .tel-dicho {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: inherit;
+  font: inherit;
+  text-align: left;
   text-decoration: none;
 }
-a.tel-dicho { cursor: pointer; }
-/* El aspa: 36 px de caja para el pulgar, con el trazo dentro. La cifra de la
-   casa para lo que se toca (ver `familia B`). */
+a.tel-dicho,
+button.tel-dicho { cursor: pointer; }
+.tel-aviso .tel-fila-tit { font-size: var(--fs-sm); }
 .tel-aspa {
   width: 36px;
   height: 36px;
-  margin-right: -8px;
+  margin-right: -10px;
   display: grid;
   place-items: center;
-  background: none;
+  flex: none;
   border: 0;
+  background: none;
   padding: 0;
   color: var(--tel-tinta-3);
   cursor: pointer;
 }
-.tel-aspa:active { color: var(--tel-tinta); }
 
-/* ── La barra del pulgar: CUATRO destinos ────────────────────────────────── */
-.tel-pulgar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 30;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border-top: 1px solid var(--tel-filete);
-  /* El cristal de la casa y no un blanco al 88 %: es el mismo token que usa la
-     cabecera del entrenador, y de noche vale hierro translúcido. Con el blanco
-     escrito, encender la noche dejaba una losa blanca pegada abajo. */
-  background: var(--surface-glass);
-  backdrop-filter: blur(14px);
-  padding: var(--s2) 6px calc(var(--s5) + env(safe-area-inset-bottom, 0px));
-}
-.tel-pulgar a {
-  display: grid;
-  justify-items: center;
-  gap: var(--s1);
-  padding: var(--s1) 0;
-  font-size: 11px;
+/* El verbo callado: «Abrir», «Leer», «Ver». */
+.tel-ir {
+  font-size: 13px;
   font-weight: 600;
-  color: var(--tel-tinta-3);
-  letter-spacing: 0.01em;
-  text-decoration: none;
-  position: relative;
-}
-.tel-pulgar a svg { width: 23px; height: 23px; stroke-width: 1.7; }
-.tel-pulgar a.tel-aqui { color: var(--accent); }
-.tel-pulgar a.tel-aqui svg { stroke-width: 2.2; }
-.tel-pulgar .tel-punto {
-  position: absolute;
-  top: 2px;
-  margin-left: var(--s5);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--tel-ambar);
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
-/* ── Modo sesión ──────────────────────────────────────────────────────────
-   La barra de la sesión ocupa el sitio de la cabecera, y la del pulgar se
-   retira: salir tiene que ser un gesto explícito y no un resbalón del dedo. */
+/* El peso de la portada: una puerta entera. */
+.tel-peso-puerta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  color: inherit;
+  text-decoration: none;
+}
+.tel-peso-izq { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tel-peso-izq .tel-rotulo { margin-bottom: 0; }
+.tel-peso-fila { display: flex; align-items: baseline; gap: var(--s2); }
+.tel-peso-n {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tel-peso-delta { font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+/* Sensaciones: cuatro cifras sobre su escala. */
+.tel-sensaciones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  gap: 10px;
+}
+.tel-sensacion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: var(--s3);
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s3);
+  background: var(--tel-hundido);
+}
+.tel-sensacion-cab {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s1);
+  font-size: var(--fs-xs);
+  color: var(--tel-tinta-3);
+  white-space: nowrap;
+}
+.tel-sensacion-cab span { overflow: hidden; text-overflow: ellipsis; }
+.tel-sensacion-cab b { color: var(--tel-tinta); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Lo último. */
+.tel-ultimo { display: flex; flex-direction: column; gap: var(--s3); margin: 0; padding: 0; list-style: none; }
+.tel-ultimo li {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+}
+.tel-ultimo i { width: 6px; height: 6px; border-radius: 50%; background: var(--tel-filete-2); }
+.tel-ultimo li.tel-de-hoy i { background: var(--tel-verde); }
+.tel-ultimo-cuando { font-size: var(--fs-xs); color: var(--tel-tinta-3); white-space: nowrap; }
+
+/* ══ ENTRENO ══════════════════════════════════════════════════════════════ */
+
+/* Una raya por microciclo del bloque. */
+.tel-rayas { display: flex; gap: 6px; padding: var(--s1) 24px 20px; }
+.tel-rayas i { flex: 1; height: var(--s1); border-radius: 2px; background: var(--fill-strong); }
+.tel-rayas i.tel-raya-hecha { background: var(--tel-tinta); }
+.tel-rayas i.tel-raya-ahora { background: var(--accent); }
+
+.tel-proxima { padding: 20px; }
+.tel-proxima-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.tel-proxima-tx { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.tel-proxima-rot {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.tel-proxima-tit { font-size: var(--fs-md); font-weight: 600; line-height: 22px; }
+.tel-proxima-sub { font-size: var(--fs-xs); color: var(--tel-tinta-3); }
+
+/* Tus bloques, como línea de tiempo. */
+.tel-bloques { margin: 0; padding: 0; list-style: none; }
+.tel-bloques li { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) 0; }
+.tel-bloques li + li { border-top: 1px solid var(--tel-filete); }
+.tel-bloque-cuando {
+  width: 40px;
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--tel-tinta-3);
+}
+.tel-bloque-cuando b { display: block; font-size: var(--fs-base); font-weight: 800; color: var(--tel-tinta); }
+.tel-en-curso {
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ── La hoja antes de empezar ─────────────────────────────────────────────── */
+.tel-resumen {
+  margin: var(--s2) 0 0;
+  padding: var(--s3) 24px;
+  background: var(--tel-hundido);
+  font-size: var(--fs-xs);
+  color: var(--tel-tinta-3);
+}
+.tel-resumen b { color: var(--tel-tinta); font-weight: 600; }
+.tel-antes { display: flex; flex-direction: column; gap: var(--s3); }
+.tel-indicacion {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--tel-tinta-2);
+  white-space: pre-line;
+}
+.tel-indicacion .tel-rotulo { margin-bottom: var(--s1); }
+.tel-hoja { margin: 0; padding: 0; list-style: none; }
+.tel-hoja li + li { border-top: 1px solid var(--tel-filete); }
+.tel-hoja-ej {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: 100%;
+  padding: var(--s4) 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.tel-hoja li:first-child .tel-hoja-ej { padding-top: 0; }
+button.tel-hoja-ej { cursor: pointer; }
+.tel-hoja-fila { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.tel-hoja-nom {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.tel-hoja-nom svg { color: var(--accent); flex: none; }
+.tel-hoja-pauta { font-size: var(--fs-sm); font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tel-hoja-ultima { font-size: var(--fs-2xs); font-weight: 500; color: var(--tel-tinta-3); white-space: nowrap; }
+.tel-hoja-ultima b { font-weight: 600; color: var(--tel-tinta-2); }
+.tel-hoja-nota { font-size: var(--fs-xs); line-height: 1.4; color: var(--tel-tinta-2); }
+.tel-hoja-pie { padding: 0 24px; }
+
+/* ══ COMER ════════════════════════════════════════════════════════════════ */
+
+/* La semana de la dieta: los mismos discos, más pequeños, con la sigla. */
+.tel-dias-dieta { padding-top: var(--s1); padding-bottom: 20px; }
+.tel-dias-dieta .tel-dia {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  cursor: pointer;
+}
+.tel-dias-dieta .tel-dia:disabled { cursor: default; }
+.tel-dias-dieta .tel-dia-disco {
+  width: var(--s6);
+  height: var(--s6);
+  font-size: 13px;
+  border-color: var(--tel-canto);
+}
+.tel-dia-sigla { font-size: 10px; font-weight: 600; color: var(--tel-tinta-3); line-height: 1; }
+.tel-dias-dieta .tel-dia:focus-visible .tel-dia-disco { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Los tres macros, con el arco de su parte de las kcal. */
+.tel-macros { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.tel-macro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--s3);
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s4);
+}
+.tel-arco { width: 48px; height: 26px; margin-bottom: var(--s2); overflow: visible; }
+.tel-arco path { fill: none; stroke-width: 5; stroke-linecap: round; }
+.tel-arco-fondo { stroke: var(--fill-strong); }
+.tel-arco-lleno { transition: stroke-dashoffset 0.4s var(--ease); }
+.tel-macro-v { font-size: var(--fs-base); font-weight: 700; font-variant-numeric: tabular-nums; }
+.tel-macro-k {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tel-tinta-3);
+}
+
+/* Las comidas: la abierta en su caja, las demás plegadas. */
+.tel-comidas { display: flex; flex-direction: column; gap: var(--s4); }
+.tel-comida { padding: var(--s4); }
+.tel-comida-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.tel-comida-tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.tel-comida-nom { font-size: var(--fs-base); font-weight: 700; }
+.tel-comida-kc { font-size: var(--fs-xs); font-weight: 600; color: var(--accent); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tel-comida-que {
+  font-size: var(--fs-xs);
+  color: var(--tel-tinta-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tel-comida-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--tel-filete);
+}
+.tel-comida-plegada {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s4);
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s3);
+  background: var(--tel-hundido);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tel-comida-plegada .tel-comida-nom { font-size: var(--fs-sm); font-weight: 600; }
+.tel-comida-plegada .tel-comida-kc { font-size: 13px; color: var(--tel-tinta); }
+
+/* Las opciones de una comida: un punto cada una, y el botón a la medida del
+   dedo, no del punto. */
+.tel-opciones { display: flex; align-items: center; flex: none; }
+.tel-opcion {
+  width: 20px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.tel-opcion i { width: 6px; height: 6px; border-radius: 50%; background: var(--fill-strong); }
+.tel-opcion[aria-pressed='true'] i { background: var(--accent); }
+.tel-opcion:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r-xs); }
+
+/* Un alimento, y lo que puede ir en su lugar. */
+.tel-al {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  font-size: var(--fs-sm);
+}
+.tel-al.tel-cambiable {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.tel-al-nom { min-width: 0; }
+.tel-al-g {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 13px;
+  color: var(--tel-tinta-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tel-al.tel-abierto .tel-al-nom,
+.tel-al.tel-abierto svg { color: var(--accent); }
+.tel-cambios {
+  display: grid;
+  gap: 5px;
+  margin: calc(var(--s1) * -1) 0 0;
+  padding: 0 0 0 var(--s3);
+  border-left: 2px solid var(--tel-filete);
+}
+.tel-cambio {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--tel-tinta-2);
+}
+.tel-cambios-pie { margin: 3px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--tel-tinta-3); }
+
+/* La escalera de lo pautado. */
+.tel-escalera { display: block; width: 100%; height: 56px; margin-top: var(--s2); }
+.tel-escalera path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ══ REVISIÓN ═════════════════════════════════════════════════════════════ */
+.tel-entrega-estado { padding: var(--s3) 24px var(--s4); }
+.tel-pasos { padding-top: var(--s2); padding-bottom: var(--s2); }
+.tel-circulo {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1.5px solid var(--fill-strong);
+  color: var(--tel-sobre-grafito);
+}
+.tel-circulo.tel-hecho { background: var(--tel-verde); border-color: transparent; }
+.tel-respuesta { padding: var(--s4); }
+.tel-respuesta-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--tel-filete);
+  font-size: 13px;
+}
+.tel-respuesta-cab span { font-size: var(--fs-2xs); color: var(--tel-tinta-3); }
+.tel-respuesta p {
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-sm);
+  line-height: 20px;
+  color: var(--tel-tinta-2);
+  white-space: pre-line;
+}
+
+/* ══ EL REGISTRO DE PESO ══════════════════════════════════════════════════ */
+.tel-peso-grande {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s6) 24px 24px;
+}
+.tel-peso-cifra {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tel-peso-cambio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+}
+.tel-peso-cambio i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tel-tendencia { display: block; width: 100%; height: auto; max-height: 110px; }
+.tel-tendencia line { stroke: var(--tel-filete-2); stroke-width: 1; stroke-dasharray: 3 3; }
+.tel-tendencia path {
+  fill: none;
+  stroke: var(--tel-tinta-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tel-tendencia path.tel-tramo-ultimo { stroke: var(--accent); stroke-width: 2.5; }
+.tel-tendencia circle { fill: var(--tel-tinta-3); }
+.tel-tendencia circle.tel-ultimo-punto { fill: var(--accent); }
+.tel-medias { margin: var(--s3) 0 0; font-size: var(--fs-xs); color: var(--tel-tinta-3); text-align: center; }
+.tel-medias b { font-weight: 600; color: var(--tel-tinta); }
+
+.tel-paso-grande { display: flex; align-items: center; justify-content: center; gap: var(--s4); }
+.tel-paso-grande > button {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--tel-canto);
+  background: var(--tel-hundido);
+  color: var(--tel-tinta);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tel-paso-cifra { display: flex; align-items: baseline; gap: var(--s1); padding: 0 20px; }
+.tel-paso-cifra input {
+  min-width: 2.6ch;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  /* A la derecha: «kg» va pegado a la cifra, como en el dibujo. */
+  text-align: right;
+  color: var(--tel-tinta);
+  font-variant-numeric: tabular-nums;
+}
+.tel-paso-cifra input:focus { outline: none; border-bottom-color: var(--accent); }
+.tel-paso-cifra span { font-size: 20px; font-weight: 600; color: var(--tel-tinta-3); }
+
+.tel-pesajes { margin: 0; padding: 0; list-style: none; }
+.tel-pesajes li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 64px;
+  align-items: baseline;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+}
+.tel-pesajes li + li { border-top: 1px solid var(--tel-filete); }
+.tel-pesaje-dia { font-size: var(--fs-sm); color: var(--tel-tinta-3); }
+.tel-pesajes b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tel-pesaje-cambio {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--tel-tinta-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══ LAS FOTOS DE LA SEMANA (frame `328:518`) ═════════════════════════════
+   Tres huecos, uno por ángulo. Vacío: canto discontinuo, la foto de la última
+   vez apagada al fondo y el signo de sumar encima. Elegida y sin guardar:
+   canto azul, que es «aquí estás». Guardada: canto quieto y el tic verde, que
+   es «hecho» y lo único verde de la pantalla. */
+.tel-huecos {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s3);
+  margin: var(--s4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.tel-hueco { position: relative; display: flex; flex-direction: column; gap: var(--s2); margin: 0; }
+.tel-hueco-marco {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  padding: 0;
+  overflow: hidden;
+  border: 1px dashed var(--tel-filete-2);
+  border-radius: var(--s3);
+  background: var(--tel-hundido);
+  color: var(--tel-tinta-2);
+  font: inherit;
+}
+button.tel-hueco-marco { cursor: pointer; touch-action: manipulation; }
+button.tel-hueco-marco:disabled { cursor: default; }
+button.tel-hueco-marco:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tel-hueco-marco img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tel-hueco-fantasma { position: absolute; inset: 0; opacity: 0.3; filter: grayscale(1); }
+.tel-vacio .tel-hueco-marco > svg {
+  position: relative;
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--tel-hoja);
+  box-shadow: var(--tel-sombra);
+}
+.tel-guardada .tel-hueco-marco { border-style: solid; border-color: var(--tel-canto); }
+.tel-esperando .tel-hueco-marco { border-style: solid; border-color: var(--accent); }
+.tel-hueco-tic {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--tel-verde);
+  color: var(--tel-sobre-verde);
+}
+.tel-hueco-quitar {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-glass);
+  color: var(--tel-tinta);
+  box-shadow: var(--tel-sombra);
+  cursor: pointer;
+}
+.tel-hueco-quitar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tel-hueco-pie { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: 0; text-align: center; }
+.tel-hueco-pie b { font-size: var(--fs-xs); font-weight: 600; }
+.tel-hueco-pie span { font-size: var(--fs-2xs); line-height: 1.3; color: var(--tel-tinta-3); }
+.tel-esperando .tel-hueco-pie span { color: var(--accent); }
+.tel-guardada .tel-hueco-pie span { color: var(--tel-verde); }
+
+/* Los consejos: plegados, en su caja hundida, como en el dibujo. */
+.tel-consejos { border-radius: var(--s3); background: var(--tel-hundido); }
+.tel-consejos summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s4);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+}
+.tel-consejos summary::-webkit-details-marker { display: none; }
+.tel-consejos summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--s3); }
+.tel-consejos summary svg { flex: none; color: var(--tel-tinta-3); transition: transform var(--fast); }
+.tel-consejos[open] summary svg { transform: rotate(180deg); }
+.tel-consejos ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: 0;
+  padding: 0 var(--s4) var(--s4) 34px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--tel-tinta-2);
+}
+
+/* Un enlace de texto, callado: lo secundario de una pantalla empujada. */
+.tel-enlace {
+  display: block;
+  margin-top: var(--s4);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tel-tinta-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tel-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+
+/* Lo que ha fallado, dicho en su sitio. */
+.tel-pie.tel-error { color: var(--negative); }
+
+/* ══ EL CUESTIONARIO (frame `128:195`) ════════════════════════════════════
+   Las preguntas son las de `SessionFeedback`, el mismo componente con el que
+   las lee el entrenador; aquí solo se visten: cada una en su caja con canto,
+   el enunciado en negrita y el control debajo. La escala se queda como es en
+   toda la casa (`controles.css`). */
+.tel-cuestionario { margin-top: var(--s4); }
+.tel-cuestionario .feedback-list { gap: var(--s3); }
+.tel-cuestionario .feedback-q {
+  gap: 14px;
+  padding: var(--s4);
+  border: 1px solid var(--tel-canto);
+  border-radius: 20px;
+  background: var(--tel-hoja);
+}
+.tel-cuestionario .feedback-q > .k { font-size: var(--fs-sm); font-weight: 700; line-height: 20px; }
+.tel-cuestionario .feedback-q > .hint { margin-top: calc(var(--s2) * -1); }
+.tel-cuestionario .textarea { min-height: 80px; border-radius: var(--s3); background: var(--tel-hundido); }
+/* Cada instrumento a lo ancho de su caja, como los discos del dibujo, con sus
+   dos puntas en los cantos. En la casa miden lo que su contenido; aquí la caja
+   es suya entera y la fila ceñida a la izquierda dejaba media caja vacía. El
+   depósito no se reparte: sus tramos crecen, para seguir siendo UNA batería. */
+.tel-cuestionario .rampa-marco,
+.tel-cuestionario .rampa-marco[data-instrumento] { width: 100%; max-width: none; }
+.tel-cuestionario .instrumento { width: 100%; justify-content: space-between; }
+.tel-cuestionario .is-deposito { width: auto; }
+.tel-cuestionario .is-deposito > .tramo { flex: 1; }
+
+/* La cabecera del cuestionario (frame `128:195`): la flecha en su disco con
+   canto y el titular en negro, como en el dibujo. */
+.tel-cab.tel-cab-disco .tel-atras {
+  width: 40px;
+  height: 40px;
+  margin-left: 0;
+  border: 1px solid var(--tel-canto);
+  border-radius: 50%;
+  background: var(--tel-hoja);
+}
+.tel-cab.tel-cab-disco .tel-cab-linea { gap: var(--s3); }
+.tel-cab.tel-cab-disco .tel-cab-tit { font-size: 22px; font-weight: 800; line-height: 1.2; }
+.tel-cab.tel-cab-disco .tel-cab-sub { margin-top: 2px; padding-left: 52px; }
+
+.tel-guardado-estado { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2); min-height: 1.45em; }
+.tel-reintentar {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+/* ══ TU PERFIL ════════════════════════════════════════════════════════════ */
+.tel-quien {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px 20px;
+  border-bottom: 1px solid var(--tel-filete);
+  text-align: center;
+}
+.tel-quien-disco {
+  width: 80px;
+  height: 80px;
+  display: grid;
+  place-items: center;
+  margin-bottom: var(--s3);
+  border-radius: 50%;
+  background: var(--tel-grafito);
+  color: var(--tel-sobre-grafito);
+  font-size: 24px;
+  font-weight: 800;
+}
+.tel-quien-nom { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.2; letter-spacing: -0.015em; }
+.tel-quien-desde { font-size: 13px; color: var(--tel-tinta-3); }
+
+/* Debajo, sin filetes: las cifras y las acciones a 20 px del canto, como en el
+   dibujo. */
+.tel-perfil { padding: var(--s4) 20px 20px; }
+.tel-perfil > .tel-record { margin-bottom: var(--s3); }
+.tel-perfil .tel-rotulo-suelto { margin: var(--s6) 0 var(--s3); }
+
+/* Una caja por acción. */
+.tel-acciones { display: flex; flex-direction: column; gap: var(--s3); }
+.tel-acciones > .tel-fila {
+  gap: 14px;
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s4);
+  background: var(--tel-hoja);
+}
+.tel-acciones > .tel-fila + .tel-fila { border-top: 1px solid var(--tel-canto); }
+.tel-acciones .tel-fila-tit { font-size: var(--fs-sm); font-weight: 700; }
+.tel-acciones .tel-fila-sub { font-size: var(--fs-2xs); }
+
+/* Las tres cifras, cada una en su caja. */
+.tel-record { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2); }
+.tel-record > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  padding: var(--s3);
+  border: 1px solid var(--tel-canto);
+  border-radius: 14px;
+  text-align: center;
+}
+.tel-record .tel-v { font-size: var(--fs-md); font-weight: 800; font-variant-numeric: tabular-nums; }
+.tel-record .tel-k {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tel-tinta-3);
+}
+
+/* La tesela del icono: el verde suave del dibujo es el azul suave de la casa. */
+.tel-tesela {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--tel-senal-suave);
+  color: var(--accent);
+}
+/* La cuenta es el menú de siempre con su traje de fila. */
+.tel-fila.tel-fila-cuenta { display: block; padding: 0; }
+
+/* ══ «MI PROGRESO» — sin frame propio, con las piezas de antes ════════════ */
+.tel-tarjeta {
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s4);
+  background: var(--tel-hoja);
+}
+.tel-tramo > .tel-record { margin-bottom: 14px; }
+.tel-aguja { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--s3); }
+.tel-aguja .tel-n {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.tel-aguja .tel-n small { font-size: 15px; font-weight: 600; color: var(--tel-tinta-3); letter-spacing: 0; }
+.tel-aguja .tel-delta { font-size: var(--fs-sm); font-weight: 700; color: var(--tel-tinta-2); }
+.tel-aguja .tel-delta.tel-sube { color: var(--tel-tinta-2); }
+.tel-eje-peso {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--s1);
+  font-size: var(--fs-2xs);
+  color: var(--tel-tinta-3);
+}
+.tel-tarjeta .tel-al + .tel-al { margin-top: 6px; }
+.tel-tarjeta .tel-g { color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; }
+
 /* ── TU NOTA DEL EJERCICIO ─────────────────────────────────────────────────
    Al pie de las series, donde se escribe: al acabar la última, con los kilos
    delante. En reposo es una palabra. El porqué entero, en `pc/PantallaSesion`. */
@@ -792,417 +1506,6 @@ a.tel-dicho { cursor: pointer; }
   line-height: 1.5;
 }
 
-/* ── Comer ───────────────────────────────────────────────────────────────── */
-.tel-cinta-dias {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
-  margin: 2px 0 18px;
-}
-.tel-cinta-dias button {
-  display: grid;
-  justify-items: center;
-  gap: 6px;
-  padding: 0 0 2px;
-  background: none;
-  border: 0;
-  cursor: pointer;
-}
-.tel-cinta-dias .tel-d { font-size: 11.5px; font-weight: 600; color: var(--tel-tinta-3); }
-.tel-cinta-dias .tel-l {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-  font-weight: 700;
-  background: var(--tel-relleno);
-  color: var(--tel-tinta-2);
-}
-.tel-cinta-dias button[aria-current='date'] .tel-l { background: var(--accent); color: var(--accent-on); }
-.tel-cinta-dias button[aria-current='date'] .tel-d { color: var(--tel-tinta); }
-
-.tel-kcal { display: flex; align-items: baseline; gap: var(--s2); }
-.tel-kcal .tel-n {
-  font-family: var(--font-ancha);
-  font-size: 46px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 0.9;
-  font-variant-numeric: tabular-nums;
-}
-.tel-kcal .tel-u { font-size: var(--fs-sm); color: var(--tel-tinta-3); font-weight: 600; }
-.tel-macros {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s3);
-  margin-top: var(--s4);
-}
-.tel-macros .tel-k {
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  font-weight: 700;
-}
-.tel-macros .tel-v {
-  font-family: var(--font-ancha);
-  font-size: 19px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.tel-macros .tel-v small {
-  font-family: var(--font);
-  font-size: 11px;
-  color: var(--tel-tinta-3);
-  font-weight: 600;
-}
-
-/* ── La comida, en su caja ────────────────────────────────────────────────
-   Fue un renglón con filete entre el 12 y el 14 de septiembre, para no apilar
-   nueve planos en una pantalla de 390 px. El dueño pidió la caja de vuelta, y
-   con las opciones dentro se sostiene sola: una comida es un mando y una lista
-   —lo que se mira delante de la nevera—, y el filete dejaba el mando colgando
-   entre dos comidas sin decir de cuál era.
-
-   Hereda de `.tel-tarjeta` el fondo, el radio, la sombra y el aire; aquí solo
-   está lo que la distingue por dentro. */
-.tel-comida .tel-cab {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: baseline;
-}
-.tel-comida .tel-nom {
-  font-family: var(--font-ancha);
-  font-size: var(--fs-md);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-}
-.tel-comida .tel-kc {
-  font-size: 13px;
-  color: var(--tel-tinta-3);
-  font-variant-numeric: tabular-nums;
-}
-.tel-comida .tel-lista { margin-top: var(--s3); display: grid; gap: 6px; }
-.tel-comida .tel-al {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  font-size: var(--fs-sm);
-  gap: 10px;
-}
-.tel-comida .tel-al .tel-g { color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; }
-
-/* ── Lo que puede ir en lugar de este alimento ─────────────────────────────
-   La fila con alternativas es un botón, y se distingue por el símbolo de
-   intercambio pegado al nombre —el mismo que usa su entrenador en la comida del
-   taller—. Sin alternativas sigue siendo un renglón muerto: lo que no se puede
-   tocar no se dibuja como si se tocara. Ver `movil/PantallaComer`. */
-.tel-comida .tel-al.tel-cambiable {
-  background: none;
-  border: 0;
-  padding: 0;
-  width: 100%;
-  text-align: left;
-  color: inherit;
-  font: inherit;
-  font-size: var(--fs-sm);
-  cursor: pointer;
-}
-.tel-al-nom { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.tel-al-nom svg { color: var(--tel-tinta-3); flex: none; }
-.tel-al.tel-abierto .tel-al-nom { color: var(--accent); }
-.tel-al.tel-abierto .tel-al-nom svg { color: var(--accent); }
-.tel-cambios {
-  display: grid;
-  gap: 5px;
-  margin: 2px 0 var(--s1);
-  padding: var(--s2) 0 0 var(--s3);
-  border-left: 2px solid var(--tel-filete);
-}
-.tel-cambio {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--tel-tinta-2);
-}
-.tel-cambio .tel-g { color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; }
-.tel-cambios-pie {
-  font-size: 11.5px;
-  line-height: 1.35;
-  color: var(--tel-tinta-3);
-  margin: 3px 0 0;
-}
-
-/* ── Las opciones de una comida: el rótulo, y los números ─────────────────
-   Tercera forma de la misma cosa, y la que se queda (14 sep).
-
-   Fueron un pie —«Opción 1 de 4 · Cambiar»— que obligaba a pasar por la 2 para
-   ver la 3. Luego cajas de 96 px con las kcal de cada una, que con cinco
-   opciones se salían de un teléfono de 390 y había que arrastrar. Ahora son
-   pastillas con el número, que es lo único que las distingue de verdad: las
-   kcal de las opciones de una comida se parecen entre sí por construcción —908,
-   915, 917, 903— y la de la que eliges ya está arriba, en la cabecera.
-
-   Cabe todo en una línea hasta siete opciones, y si el entrenador les puso
-   nombre —«Con avena»— la fila se reparte en dos y no se rompe nada. */
-.tel-opciones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-top: 11px;
-}
-.tel-o-rot {
-  font-size: 10.5px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  font-weight: 700;
-  margin-right: 2px;
-}
-/* Sin canto y con el relleno gris, como los discos de la cinta de días: dentro
-   de una caja, un borde de pastilla es un canto más contra el canto de la caja.
-   Y la elegida se pinta como el día de hoy, en accent pleno — es la misma cosa
-   dicha dos veces en la misma pantalla: dónde estás. */
-.tel-opcion {
-  min-width: 36px;
-  height: 32px;
-  padding: 0 11px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--tel-relleno);
-  color: var(--tel-tinta-2);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background-color var(--fast), color var(--fast);
-}
-/* La pastilla se enciende; no hay palomita ni flecha. Ley de los gestos. */
-.tel-opcion[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-on);
-}
-
-/* ── Tú ──────────────────────────────────────────────────────────────────── */
-.tel-aguja { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--s3); }
-.tel-aguja .tel-n {
-  font-family: var(--font-ancha);
-  font-size: 44px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 0.9;
-  font-variant-numeric: tabular-nums;
-}
-.tel-aguja .tel-n small {
-  font-family: var(--font);
-  font-size: 15px;
-  color: var(--tel-tinta-3);
-  font-weight: 600;
-  letter-spacing: 0;
-}
-.tel-aguja .tel-delta { font-size: var(--fs-sm); font-weight: 700; color: var(--tel-verde); }
-.tel-aguja .tel-delta.tel-sube { color: var(--tel-ambar); }
-.tel-eje-peso {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--tel-tinta-3);
-  margin-top: var(--s1);
-}
-
-.tel-fila-menu {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 0;
-  border-top: 1px solid var(--tel-filete);
-  font-size: 15.5px;
-  font-weight: 500;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border-left: 0;
-  border-right: 0;
-  border-bottom: 0;
-  color: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-.tel-menu:first-child > .tel-fila-menu { border-top: 0; }
-.tel-fila-menu .tel-flecha { color: var(--tel-filete-2); }
-.tel-fila-menu .tel-val { color: var(--tel-tinta-3); font-size: var(--fs-sm); font-weight: 400; }
-.tel-fila-menu .tel-val.tel-espera { color: var(--accent); font-weight: 600; }
-.tel-menu { margin-top: 20px; }
-
-.tel-tiras-foto {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 10px;
-}
-.tel-tiras-foto i,
-.tel-tiras-foto img {
-  aspect-ratio: 3 / 4;
-  border-radius: 10px;
-  background: var(--tel-foto);
-  display: block;
-  width: 100%;
-  object-fit: cover;
-}
-
-/* ── Los bloques como línea de tiempo ────────────────────────────────────── */
-.tel-bloque-fila {
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  gap: var(--s3);
-  padding: 11px 0;
-  border-top: 1px solid var(--tel-filete);
-}
-.tel-bloque-fila .tel-cuando {
-  font-size: 10.5px;
-  color: var(--tel-tinta-3);
-  font-weight: 600;
-  line-height: 1.2;
-}
-.tel-bloque-fila .tel-cuando b {
-  display: block;
-  font-family: var(--font-ancha);
-  font-size: var(--fs-base);
-  color: var(--tel-tinta);
-  font-weight: 800;
-}
-.tel-bloque-fila .tel-nom { font-size: 15px; font-weight: 600; }
-.tel-en-curso {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-left: var(--s1);
-}
-
-/* ── La tarjeta de una sesión del microciclo ─────────────────────────────── */
-.tel-sesion-cab {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: baseline;
-}
-.tel-sesion-cab .tel-nom {
-  font-family: var(--font-ancha);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.tel-sesion-cab .tel-hoy {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-.tel-sesion-cab .tel-est { font-size: var(--fs-xs); color: var(--tel-tinta-3); }
-
-/* El aire del final: lo que impide que el último renglón quede pegado a la
-   barra del pulgar. */
-.tel-aire { height: var(--s5); }
-
-/* ── Sin cabecera de la casa ───────────────────────────────────────────────
-   El teléfono ya se la quitaba por `body:has(.layout-portal)` (jornada.css);
-   esta línea la mantiene retirada ahora que el portal rediseñado no monta ese
-   envoltorio. El hueco seguro de arriba lo pone la cabecera del día. */
-body:has(.tel-portal) .app-header { display: none; }
-.tel-portal .tel-cabecera-dia { padding-top: calc(env(safe-area-inset-top, 0px) + 10px); }
-/* La tarjeta de una sesión es tocable entera: el botón ocupa su caja sin
-   añadir una capa de relleno. */
-.tel-sesion-boton {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-/* La línea de tiempo de los bloques: el primero no lleva filete arriba. */
-.tel-linea-bloques > .tel-bloque-fila:first-child { border-top: 0; }
-
-/* La escalera de lo pautado: una línea a todo lo ancho de su tarjeta. */
-.tel-escalera { width: 100%; height: 56px; display: block; margin-top: 6px; }
-
-/* ── La báscula ───────────────────────────────────────────────────────────
-   El verbo va DENTRO de la casilla: con la cifra escrita justo encima, un botón
-   a todo lo ancho diciendo «Apuntar 61,0» la decía dos veces en dos dedos de
-   pantalla. Apuntado y sin tocar nada el verbo se retira: la ley del reposo. */
-.tel-bascula { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-.tel-lectura {
-  flex: 1;
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  background: var(--tel-hundido);
-  border: 1px solid var(--tel-filete);
-  border-radius: var(--r-md);
-  padding: var(--s3) 14px;
-}
-.tel-lectura input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  background: none;
-  padding: 0;
-  font-family: var(--font-ancha);
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  color: inherit;
-}
-.tel-lectura:focus-within { border-color: var(--accent); }
-.tel-lectura .tel-u { font-size: 13px; color: var(--tel-tinta-3); font-weight: 600; }
-.tel-apuntar {
-  height: 50px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 25px;
-  background: var(--accent);
-  color: var(--accent-on);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.tel-apuntar:disabled { opacity: .5; cursor: not-allowed; }
-
-.tel-semana-puntos { display: flex; justify-content: space-between; margin: 18px var(--s1) 0; }
-.tel-semana-puntos span {
-  display: grid;
-  justify-items: center;
-  gap: 7px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--tel-filete-2);
-}
-.tel-semana-puntos span i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--tel-filete-2);
-}
-.tel-semana-puntos span.tel-pesado { color: var(--tel-tinta); }
-.tel-semana-puntos span.tel-pesado i { background: var(--accent); }
-.tel-semana-puntos span.tel-hoy { color: var(--accent); }
-.tel-semana-puntos span.tel-hoy i { background: transparent; border: 1.5px solid var(--accent); }
-
 /* La curva del peso y las columnas del tonelaje: los dos únicos dibujos del
    teléfono fuera de la ficha, y los dos de un solo trazo. */
 .tel-trazo { width: 100%; height: 70px; margin-top: var(--s3); display: block; }
@@ -1221,489 +1524,282 @@ body:has(.tel-portal) .app-header { display: none; }
 }
 .tel-columnas span.tel-ahora i { background: var(--accent); }
 
-/* Y la cuenta, igual: el menú de siempre con su traje de fila. */
-.tel-fila-menu.tel-cuenta { padding: 0; display: block; }
-
 /* El panel de la pestaña «Pauta»: separa el trío de cifras de las pestañas. */
 .tel-pauta-panel { margin-top: 14px; }
 
-/* El panel de la pestaña «Pauta»: separa el trio de cifras de las pestañas. */
-.tel-pauta-panel { margin-top: 14px; }
+/* ══ LA SESIÓN — el frame `327:337` ════════════════════════════════════════
+   La cabecera en la tinta de la barra lateral, con el carril de ejercicios
+   dentro. Debajo, el ejercicio: sus series hechas arriba (se tocan para
+   corregir), la viva en su caja con − y + por campo, y las que quedan. El pie
+   se queda pegado abajo con lo que llevas y el siguiente paso.
 
-/* El verbo callado de un renglón: «Abrir», «Cambiar», «Todas». Sin caja y sin
-   subrayado — lo que dice que se puede pulsar es que está en azul y al lado de
-   lo que abre. Ver `la ley de los gestos`. */
-.tel-ir {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  white-space: nowrap;
-}
+   Sin reloj de sesión: el dueño lo quitó el 11 sep («estresante») y lo
+   confirmó el 18. En su sitio va lo que llevas, «16/19 series». */
 
-/* ══════════════════════════════════════════════════════════════════════════
-   «LA SESIÓN MANDA» — la portada, el modo entreno, el descanso y el cierre
-   (15 sep 2026, `docs/la-sesion-manda.md`)
-
-   Sale del prototipo aprobado con las correcciones del dueño: el descanso solo
-   con pauta, sin reloj de sesión, y moverse y corregir por delante de todo.
-   Todo pinta con los tokens de la casa, así que el papel y la noche salen
-   solos: el prototipo iba de noche porque es la piel del gimnasio, no porque
-   la pantalla tenga que serlo.
-   ══════════════════════════════════════════════════════════════════════════ */
-
-/* ── 1 · La portada: el héroe ──────────────────────────────────────────────
-   La única superficie encendida de la pantalla: su luz es `--luz`, la de la
-   señal, en una esquina. Lo demás de la portada va sin luz. */
-.tel-heroe {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s1);
-  padding: 18px 18px var(--s4);
-  margin-bottom: var(--s3);
-  border-radius: var(--r-lg);
-  background:
-    radial-gradient(90% 120% at 100% 0%, var(--luz), transparent 68%),
-    var(--tel-hoja);
-  box-shadow: var(--tel-sombra);
-}
-.tel-heroe-rot {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-}
-.tel-heroe.tel-viva .tel-heroe-rot { color: var(--accent); }
-.tel-heroe-tit {
-  font-family: var(--font-ancha);
-  font-size: var(--fs-xl);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.08;
-}
-.tel-heroe-sub {
-  font-size: 13px;
-  color: var(--tel-tinta-3);
-  font-variant-numeric: tabular-nums;
-}
-.tel-heroe .tel-boton { margin-top: var(--s3); }
-.tel-heroe-pie {
-  font-size: var(--fs-xs);
-  color: var(--tel-tinta-3);
-  text-align: center;
-  margin-top: var(--s2);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── La tira de la semana ──────────────────────────────────────────────────
-   Siete casillas y un punto. El punto dice el estado —verde hecho, vacío
-   descanso— y la casilla de hoy se enciende con el azul de la señal: es
-   «aquí», no un juicio. */
-.tel-semana {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
-  list-style: none;
-  margin: 0 0 var(--s3);
-  padding: 0;
-}
-.tel-semana-dia {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s1);
-  padding: var(--s2) 2px 9px;
-  border-radius: 10px;
-  background: var(--tel-hoja);
-  border: 1px solid transparent;
-  box-shadow: var(--tel-sombra);
-}
-.tel-semana-d {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--tel-tinta-3);
-}
-.tel-semana-m {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--tel-filete-2);
-}
-.tel-semana-dia.tel-hecho .tel-semana-m { background: var(--tel-verde); }
-.tel-semana-dia.tel-hecho .tel-semana-d { color: var(--tel-tinta-2); }
-.tel-semana-dia.tel-libre { box-shadow: none; background: transparent; }
-.tel-semana-dia.tel-libre .tel-semana-m { background: transparent; border: 1px solid var(--tel-filete-2); }
-.tel-semana-dia.tel-hoy { border-color: var(--accent); background: var(--tel-senal-suave); }
-.tel-semana-dia.tel-hoy .tel-semana-d { color: var(--accent); }
-.tel-semana-dia.tel-hoy.tel-toca .tel-semana-m { background: var(--accent); }
-
-/* ── «Tu entrenador te ha contestado» ──────────────────────────────────────
-   La única fila con canto azul de la portada: es lo que cierra el círculo. */
-.tel-contestado {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  padding: 13px 15px;
-  margin-bottom: var(--s3);
-  border-radius: var(--r-md);
-  border: 1px solid var(--tel-senal-linea);
-  background: linear-gradient(90deg, var(--tel-senal-suave), var(--tel-hoja) 60%);
-  color: inherit;
-  text-decoration: none;
-}
-.tel-contestado-punto {
-  width: var(--s2);
-  height: var(--s2);
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  flex: none;
-}
-.tel-contestado-tx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.tel-contestado-tx b { font-size: var(--fs-sm); font-weight: 600; }
-.tel-contestado-tx span {
-  font-size: var(--fs-xs);
-  color: var(--tel-tinta-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.tel-contestado .tel-flecha { margin-left: auto; color: var(--tel-filete-2); font-size: var(--fs-md); }
-
-/* ── Mi progreso ─────────────────────────────────────────────────────────── */
-.tel-progreso-tit {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin: var(--s4) 2px var(--s2);
-}
-.tel-progreso-tit span {
-  font-family: var(--font-ancha);
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.015em;
-}
-.tel-progreso-tit a {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  text-decoration: none;
-}
-.tel-cifras {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s2);
-  margin-bottom: var(--s3);
-}
-.tel-cifra {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--s3) var(--s3) 13px;
-  border-radius: var(--r-md);
-  background: var(--tel-hoja);
-  box-shadow: var(--tel-sombra);
-  min-width: 0;
-}
-.tel-cifra-k {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-}
-.tel-cifra-v {
-  font-family: var(--font-ancha);
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.tel-cifra-v small {
-  font-family: var(--font);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--tel-tinta-3);
-  margin-left: 3px;
-  letter-spacing: 0;
-}
-/* El cambio de peso no juzga la dirección: bajar no es «bien» para quien está
-   ganando masa. Dice cuánto, en tinta; el verde y el ámbar son del semáforo, y
-   aquí nadie ha dicho hacia dónde hay que ir. */
-.tel-cifra-v .tel-delta { color: var(--tel-tinta-2); }
-.tel-cifra-u { font-size: 11px; color: var(--tel-tinta-3); }
-
-/* ══ 2 · EL MODO ENTRENO ═════════════════════════════════════════════════ */
-
-/* La cabecera: en hierro en las dos pieles, pegada arriba. `barra-tinta` le da
-   la paleta de noche, así que dentro se pinta con `--text` y no con literales. */
 .tel-ses-cab {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--tel-grafito);
+  padding: calc(env(safe-area-inset-top, 0px) + var(--s3)) 24px var(--s3);
+  background: var(--surface-glass);
   color: var(--text);
-  padding: var(--s2) var(--s4) var(--s3);
-  padding-top: calc(env(safe-area-inset-top, 0px) + var(--s2));
 }
-.tel-ses-linea {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  min-height: 36px;
-}
-.tel-ses-cab .tel-atras {
-  font-size: 22px;
-  line-height: 1;
-  color: var(--text-secondary);
-  background: none;
-  border: 0;
-  padding: 0 var(--s1) 0 0;
-  cursor: pointer;
-}
-.tel-ses-nombre {
-  font-family: var(--font-ancha);
-  font-size: var(--fs-base);
-  font-weight: 700;
-  min-width: 0;
+.tel-ses-linea { display: flex; align-items: center; gap: var(--s3); min-height: 40px; }
+.tel-ses-cab .tel-atras { color: var(--text-secondary); }
+.tel-ses-quien { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.tel-ses-rot {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.tel-ses-cuenta {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
+.tel-ses-cuenta { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
 .tel-ses-reposo {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--brasa);
-  background: var(--fill);
+  flex: none;
+  padding: 6px var(--s3);
   border: 0;
   border-radius: var(--r-pill);
-  padding: 5px 10px;
+  background: var(--fill);
+  color: var(--brasa);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 .tel-ses-cab .tel-terminar {
-  margin-left: auto;
-  background: var(--fill-strong);
+  flex: none;
+  padding: 6px var(--s3);
   border: 0;
+  border-radius: var(--r-pill);
+  background: var(--fill-strong);
   color: var(--text);
-  border-radius: var(--r-md);
-  padding: 7px 14px;
-  font-size: 13.5px;
-  font-weight: 600;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 700;
   cursor: pointer;
 }
-.tel-ses-reposo + .tel-terminar { margin-left: 0; }
-.tel-ses-riel {
-  height: 3px;
-  margin-top: 10px;
-  border-radius: 2px;
-  background: var(--fill-strong);
-  overflow: hidden;
-}
-.tel-ses-riel i {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: 2px;
-  transition: width 0.4s var(--ease);
-}
 
-/* ── El carril de ejercicios ───────────────────────────────────────────────
-   Se desplaza en horizontal y por eso el deslizado de la hoja no lo coge: el
-   gancho se aparta de los carriles con scroll propio. */
+/* El carril: se desplaza en horizontal, y por eso el deslizado de la hoja no
+   lo coge. */
 .tel-ses-carril {
   display: flex;
-  gap: 6px;
+  gap: var(--s2);
+  margin: 0 -24px;
+  padding: var(--s3) 24px 0;
   overflow-x: auto;
-  padding: var(--s3) var(--s4) var(--s1);
   scrollbar-width: none;
+  scroll-padding-inline: 24px;
 }
 .tel-ses-carril::-webkit-scrollbar { display: none; }
 .tel-ses-chip {
   flex: none;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px var(--s3);
-  min-height: 34px;
+  padding: 6px var(--s3);
+  border: 0;
   border-radius: var(--r-pill);
-  border: 1px solid transparent;
-  background: var(--tel-hoja);
-  box-shadow: var(--tel-sombra);
-  color: var(--tel-tinta-3);
+  background: var(--fill-strong);
+  color: var(--text-tertiary);
   font: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-xs);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
-.tel-ses-chip.tel-ok { color: var(--tel-tinta-2); }
-.tel-ses-chip.tel-ok span { color: var(--tel-verde); }
-.tel-ses-chip.tel-viva {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--tel-senal-suave);
-  box-shadow: none;
-}
+.tel-ses-chip.tel-ok { color: var(--text-secondary); }
+.tel-ses-chip.tel-ok svg { color: var(--positive); }
+.tel-ses-chip.tel-viva { background: var(--accent); color: var(--accent-on); font-weight: 700; }
 
-.tel-ses-cuerpo { padding: 0 var(--s4); touch-action: pan-y; }
+.tel-ses-cuerpo { padding: 0 24px var(--s4); touch-action: pan-y; }
 
-.tel-ses-ej {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: var(--s4) 2px 2px;
-}
+.tel-ses-ej { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding-top: 20px; }
 .tel-ses-titulo {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
   min-width: 0;
-  background: none;
-  border: 0;
   padding: 0;
+  border: 0;
+  background: none;
   color: inherit;
   font: inherit;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
   text-align: left;
   cursor: pointer;
 }
-.tel-ses-n {
-  font-family: var(--font-ancha);
-  font-size: 25px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-}
-.tel-ses-meta { font-size: var(--fs-xs); color: var(--tel-tinta-3); }
-.tel-ses-pos {
-  margin-left: auto;
-  flex: none;
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--tel-tinta-3);
-  font-variant-numeric: tabular-nums;
-}
+.tel-ses-pos { flex: none; font-size: 13px; font-weight: 600; color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; }
+.tel-chapa.tel-chapa-grupo { border-color: transparent; background: var(--tel-senal-suave); color: var(--accent); font-weight: 600; }
 
-.tel-ses-series { display: flex; flex-direction: column; gap: var(--s2); padding-top: 14px; }
-
-/* La nota de su entrenador para el ejercicio, antes de las series: la misma
-   raya de acento que llevaba en la hoja antigua (`.hcl-nota`). */
+/* La nota de su entrenador, antes de las series: es la condición con la que se
+   hacen. */
 .tel-ses-indicacion {
-  margin: 10px 2px 0;
-  padding-left: 11px;
-  border-left: 2px solid var(--accent-soft);
+  margin: var(--s3) 0 0;
+  padding-left: var(--s3);
+  border-left: 2px solid var(--tel-senal-linea);
   font-size: 13.5px;
   line-height: 1.45;
   color: var(--tel-tinta-2);
   white-space: pre-line;
 }
-/* Antes del primer ejercicio: la indicación del día y el calentamiento
-   (`WarmupView`, la pieza de la casa, con su fondo hundido). */
 .tel-ses-preambulo { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s4); }
-.tel-ses-preambulo .tel-ses-indicacion { margin: 0 2px; }
+.tel-ses-preambulo .tel-ses-indicacion { margin: 0; }
 .tel-ses-indicacion .tel-ses-k { display: block; margin-bottom: var(--s1); text-align: left; }
 
-/* La serie viva: alzada, con su sombra. Es lo único de la pantalla que se toca
-   sesenta veces. */
-.tel-ses-viva {
+.tel-ses-k {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tel-tinta-3);
+  text-align: center;
+}
+.tel-ses-k.tel-ses-k-izq { text-align: left; font-size: var(--fs-2xs); }
+
+.tel-ses-series {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 13px 13px 14px;
-  border-radius: var(--r-md);
-  background: var(--tel-hoja);
-  border: 1px solid var(--tel-filete-2);
-  box-shadow: var(--shadow-md);
+  margin-top: var(--s4);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--tel-filete);
 }
-.tel-ses-viva-cab { display: flex; align-items: baseline; gap: var(--s2); }
+
+/* Las filas: la hecha dice lo que se hizo y se toca para corregir; la
+   pendiente, lo que se pide. */
+.tel-ses-fila {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: var(--s7);
+  padding: var(--s3);
+  border: 1px solid var(--tel-canto);
+  border-radius: var(--s3);
+  background: var(--tel-hundido);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.tel-ses-fila.tel-pendiente { background: none; opacity: 0.65; }
+.tel-ses-fila.tel-cerrada .tel-ses-res { color: var(--tel-tinta); }
+.tel-ses-num {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--fill-strong);
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--tel-tinta-3);
+}
+.tel-ses-res { font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tel-ses-toca { margin-left: auto; font-size: var(--fs-xs); color: var(--tel-tinta-3); }
+.tel-ses-tic { color: var(--tel-verde); flex: none; }
+
+/* La serie viva: su caja, con − y + por campo. Es lo que se toca sesenta
+   veces. */
+.tel-ses-viva {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  padding: var(--s4);
+  border: 1.5px solid var(--tel-canto);
+  border-radius: var(--s4);
+  background: var(--tel-hoja);
+}
+.tel-ses-viva-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--tel-filete);
+}
 .tel-ses-idx {
-  font-size: 11px;
+  padding: 3px var(--s2);
+  border-radius: var(--r-xs);
+  background: var(--tel-tinta);
+  color: var(--tel-papel);
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  white-space: nowrap;
 }
-.tel-ses-viva .tel-ses-idx { color: var(--accent); }
-.tel-ses-obj { margin-left: auto; font-size: var(--fs-xs); color: var(--tel-tinta-3); }
+.tel-ses-obj { font-size: var(--fs-xs); color: var(--tel-tinta-3); }
 
-.tel-ses-campos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
-.tel-ses-campos.tel-dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.tel-ses-campo { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.tel-ses-k {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--tel-tinta-3);
-  text-align: center;
-}
-.tel-ses-paso {
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) 30px;
-  align-items: center;
-  height: 48px;
-  border-radius: 11px;
-  background: var(--tel-hundido);
-  border: 1px solid var(--tel-filete-2);
-}
-.tel-ses-paso:focus-within { border-color: var(--accent); }
+.tel-ses-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tel-ses-campos.tel-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tel-ses-campo { display: flex; flex-direction: column; align-items: center; gap: var(--s1); min-width: 0; }
+.tel-ses-campo + .tel-ses-campo { border-left: 1px solid var(--tel-filete); }
+.tel-ses-paso { display: flex; align-items: center; gap: 6px; }
 .tel-ses-paso button {
-  height: 100%;
-  background: none;
-  border: 0;
-  color: var(--tel-tinta-2);
-  font: inherit;
-  font-size: 19px;
-  font-weight: 600;
-  line-height: 1;
+  width: var(--s6);
+  height: var(--s6);
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--tel-canto);
+  border-radius: 50%;
+  background: var(--tel-hundido);
+  color: var(--tel-tinta);
   cursor: pointer;
   touch-action: manipulation;
 }
-.tel-ses-paso button:active { color: var(--accent); }
+.tel-ses-paso button:active { border-color: var(--accent); color: var(--accent); }
 .tel-ses-paso input {
-  width: 100%;
+  width: 3.2ch;
   min-width: 0;
+  padding: 0;
   border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--tel-tinta);
   font: inherit;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  padding: 0;
   -moz-appearance: textfield;
   appearance: textfield;
 }
 .tel-ses-paso input::-webkit-outer-spin-button,
 .tel-ses-paso input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .tel-ses-paso input::placeholder { color: var(--tel-filete-2); font-weight: 600; }
-.tel-ses-paso input:focus { outline: none; }
+.tel-ses-paso input:focus { outline: none; border-bottom-color: var(--accent); }
+/* Con el RIR son tres campos en 300 px: los mandos bajan a 28. */
+.tel-tres .tel-ses-paso { gap: 2px; }
+.tel-tres .tel-ses-paso button { width: 28px; height: 28px; }
+.tel-tres .tel-ses-paso input { font-size: 20px; width: 2.8ch; }
 
-.tel-ses-viva-pie { display: flex; align-items: center; gap: 10px; }
-.tel-ses-ult { font-size: 11.5px; color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; }
+.tel-ses-viva-pie {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--tel-filete);
+  color: var(--tel-tinta-3);
+}
+.tel-ses-ult { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.tel-ses-ult b { color: var(--tel-tinta); font-weight: 700; }
 .tel-ses-igual {
-  margin-left: auto;
+  margin-left: var(--s1);
   flex: none;
-  padding: 6px var(--s3);
+  padding: var(--s1) 10px;
+  border: 1px solid var(--tel-canto);
   border-radius: var(--r-pill);
-  border: 1px solid var(--tel-filete-2);
-  background: var(--tel-relleno);
+  background: var(--tel-hundido);
   color: var(--tel-tinta-2);
   font: inherit;
   font-size: var(--fs-xs);
@@ -1715,57 +1811,16 @@ body:has(.tel-portal) .app-header { display: none; }
   height: 48px;
   width: 100%;
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--accent-on);
   font: inherit;
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   touch-action: manipulation;
 }
-.tel-ses-hecha:disabled { opacity: 0.45; cursor: default; }
-
-/* Las filas cerradas y las pendientes: dos botones, dos pesos. La cerrada dice
-   lo que se hizo y se toca para corregir; la pendiente, lo que se pide. */
-.tel-ses-fila {
-  display: flex;
-  align-items: center;
-  gap: var(--s3);
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 13px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--tel-filete);
-  background: var(--tel-hoja);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.tel-ses-fila .tel-ses-idx { width: 58px; flex: none; }
-.tel-ses-fila.tel-cerrada { background: var(--tel-hundido); border-color: transparent; }
-.tel-ses-fila.tel-cerrada .tel-ses-idx { color: var(--tel-verde); }
-.tel-ses-fila.tel-pendiente { opacity: 0.6; }
-.tel-ses-res {
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  color: var(--tel-tinta-2);
-  font-variant-numeric: tabular-nums;
-}
-.tel-ses-toca { margin-left: auto; font-size: 11px; color: var(--tel-tinta-3); }
-.tel-ses-tic {
-  width: 26px;
-  height: 26px;
-  flex: none;
-  display: grid;
-  place-items: center;
-  border-radius: var(--r-pill);
-  background: var(--tel-verde-suave);
-  color: var(--tel-verde);
-  font-size: 13px;
-  font-weight: 700;
-}
+.tel-ses-hecha:disabled { background: var(--fill-strong); color: var(--tel-tinta-3); cursor: default; }
 
 .tel-ses-fin {
   display: flex;
@@ -1784,23 +1839,33 @@ body:has(.tel-portal) .app-header { display: none; }
 .tel-ses-fin-n { font-size: var(--fs-sm); font-weight: 600; color: var(--tel-tinta-2); }
 .tel-ses-fin-ir { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--accent); }
 
-/* El pie: donde está el pulgar, pegado abajo mientras se baja por la hoja. */
+/* El pie: pegado abajo, donde está el pulgar. */
 .tel-ses-pie {
   position: sticky;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + var(--s2));
+  bottom: 0;
   z-index: 15;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
-  margin: var(--s4) var(--s4) 0;
-  padding: 11px 14px;
-  border-radius: var(--r-md);
-  background: var(--tel-hoja);
-  border: 1px solid var(--tel-filete);
-  box-shadow: var(--shadow-md);
-  font-size: var(--fs-xs);
+  padding: var(--s4) 24px calc(env(safe-area-inset-bottom, 0px) + var(--s4));
+  border-top: 1px solid var(--tel-filete);
+  background: var(--tel-papel);
 }
-.tel-ses-guardado { color: var(--tel-tinta-3); font-weight: 600; white-space: nowrap; }
+.tel-ses-pie-linea { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.tel-ses-pie-cuenta { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tel-ses-sig {
+  padding: var(--s1) 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tel-ses-guardado { font-size: var(--fs-2xs); color: var(--tel-tinta-3); font-weight: 600; }
+.tel-ses-guardado:empty { display: none; }
 .tel-ses-guardado.tel-si { color: var(--tel-verde); }
 .tel-ses-guardado.tel-no { color: var(--negative); display: inline-flex; gap: 6px; align-items: center; }
 .tel-ses-guardado.tel-no button {
@@ -1810,19 +1875,6 @@ body:has(.tel-portal) .app-header { display: none; }
   color: var(--accent);
   font: inherit;
   font-weight: 700;
-  cursor: pointer;
-}
-.tel-ses-pie-cuenta { color: var(--tel-tinta-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tel-ses-sig {
-  margin-left: auto;
-  background: none;
-  border: 0;
-  padding: var(--s1) 0;
-  color: var(--accent);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  white-space: nowrap;
   cursor: pointer;
 }
 

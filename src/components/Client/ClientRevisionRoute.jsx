@@ -2,21 +2,30 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
+  foldsSum,
   reverseChronological,
   weeklyCheckIn,
   weeklyWeightAverages,
 } from '@/domain/anthropometry';
 import { clientCycleSlots } from '@/domain/blocks';
-import { periodoAEntregar } from '@/domain/calendar';
 import { cycleFoto } from '@/domain/nutrition';
 import { weekFromStart } from '@/domain/photos';
-import { checkinQuestions, clientProtocol, weighInsTarget } from '@/domain/protocol';
-import { shortDate, todayISO, weekStart } from '@/lib/dates';
+import {
+  checkinQuestions,
+  clientProtocol,
+  medidasDeRevision,
+  requiredBlocks,
+  requiresBlock,
+  weighInsTarget,
+} from '@/domain/protocol';
+import { shortDate, weekdayName } from '@/lib/dates';
+import { traduceDbError } from '@/lib/dbErrors';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { ReviewWizard } from '@/components/anthropometry/ReviewWizard';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { pasosDeLaEntrega } from './PasosDeLaEntrega';
 import { useOculto } from './Oculto';
+import { useSemanaDeEntrega } from './useSemanaDeEntrega';
 import { RevisionEnMonitor } from './RevisionEnMonitor';
 import { PantallaRevision as RevisionEnTelefono } from './movil/PantallaRevision';
 
@@ -71,7 +80,6 @@ export const ClientRevisionRoute = () => {
     anthropometry,
     nutrition,
     progressPhotos,
-    checkIns,
     workoutData,
     addAnthropometryLog,
     uploadProgressPhoto,
@@ -107,21 +115,16 @@ export const ClientRevisionRoute = () => {
       · Y entregarse con dos días de retraso archivaba la revisión en la semana
         NUEVA, consumiéndola sin haberla vivido y dejando la vieja sin entregar.
         Una entrega y dos semanas contadas — ver `periodoAEntregar`.
-  */
-  const entrega = checkIns?.[activeClient?.id];
-  const periodo = activeClient
-    ? periodoAEntregar({
-        preferences: activeClient.preferences,
-        startDate: activeClient.startDate,
-        entrega,
-        today: todayISO(),
-      })
-    : null;
-  const semana = periodo?.start || weekStart(todayISO());
-  const semanasDelPeriodo = periodo?.everyWeeks || 1;
 
-  const deEste = entrega?.weekStart >= semana ? entrega : null;
-  const yaEntregada = Boolean(deEste?.submittedAt);
+    Sale de `useSemanaDeEntrega` porque las fotos y el cuestionario del
+    teléfono tienen que guardar contra ESTE MISMO lunes.
+  */
+  const { periodo, semana, semanasDelPeriodo, deEste, yaEntregada, cerrada, semanaFoto } =
+    useSemanaDeEntrega();
+
+  /* La entrega directa del teléfono: su estado mientras viaja, y lo que falló. */
+  const [entregando, setEntregando] = useState(false);
+  const [errorEntrega, setErrorEntrega] = useState(null);
 
   /*
     ══ LO QUE CIERRA LA PANTALLA ES TU RESPUESTA, NO SU ENTREGA ══════════════
@@ -138,8 +141,8 @@ export const ClientRevisionRoute = () => {
     Revisada, ahí sí se acaba: reentregar contra una fila ya contestada no
     volvería a la cola del entrenador, o sea que sería mandar algo que nadie va a
     ver. Si subió algo mal y ya le contestaste, eso es una conversación.
+    (`cerrada`, arriba, en `useSemanaDeEntrega`.)
   */
-  const cerrada = Boolean(deEste?.reviewedAt);
 
   const photos = useMemo(
     () => progressPhotos.filter((p) => p.clientId === activeClient?.id),
@@ -166,8 +169,10 @@ export const ClientRevisionRoute = () => {
   useEffect(() => {
     if (!location.state?.abrirCheckIn) return;
     navigate(location.pathname, { replace: true, state: null });
-    if (!yaEntregada) setAsistente('peso');
-  }, [location.state, location.pathname, navigate, yaEntregada]);
+    /* En el teléfono no hay asistente que abrir: la lista ES la entrega, y
+       quien llega pidiéndola ya la tiene delante. */
+    if (!yaEntregada && enEscritorio) setAsistente('peso');
+  }, [location.state, location.pathname, navigate, yaEntregada, enEscritorio]);
 
   /*
     LA FOTO DEL PLAN que se guarda con el pesaje. Hace falta el CICLO de esta
@@ -197,10 +202,6 @@ export const ClientRevisionRoute = () => {
 
   if (!activeClient) return null;
 
-  /* La semana de las FOTOS se cuenta desde su alta y no es la misma cifra que el
-     lunes del periodo: una fecha para agrupar entregas, un ordinal para fechar
-     fotos. Ver `domain/photos`. */
-  const semanaFoto = weekFromStart(activeClient.startDate, todayISO());
   const hechas = new Set(
     photos
       .filter((p) => p.angle && (p.week ?? weekFromStart(activeClient.startDate, p.date)) === semanaFoto)
@@ -227,6 +228,7 @@ export const ClientRevisionRoute = () => {
     fotos: hechas,
     preguntas: checkinQuestions(protocol),
     respuestas: deEste?.answers ?? null,
+    entregada: yaEntregada,
     sinPeso: oculto.weight,
   });
 
@@ -338,12 +340,118 @@ export const ClientRevisionRoute = () => {
       : null,
   };
 
+  /*
+    ══ EL TELÉFONO: el frame `328:111` (18 sep 2026) ═════════════════════════
+
+    Una lista de pasos que se hacen SUELTOS y un verbo que entrega. Cada paso
+    tiene su pantalla y guarda al momento: el peso en su registro, las fotos al
+    subirlas, el cuestionario en el borrador de la semana (migración 0121). Las
+    medidas abren el asistente con sus pasos y nada más, y guardan sin
+    entregar.
+
+    Así que «Entregar mi semana» ya no abre nada: todo lo que se entrega está
+    guardado, y entregar es avisar a su entrenador de que puede mirarlo. Es el
+    cambio de modelo que piden los frames —el monitor sigue con su asistente,
+    donde terminar es entregar—.
+
+    Va aparte de `datos` porque el monitor monta otra pieza con otra forma.
+  */
+  const plazo = periodo?.tarde
+    ? `todavía puedes mandar la del ${shortDate(periodo.dueOn)}`
+    : periodo?.dueOn
+      ? `entrégala el ${weekdayName(periodo.dueOn)}`
+      : null;
+
+  /*
+    Lo que la entrega no puede llevar en blanco, que es lo mismo que el
+    asistente no dejaba pasar: el peso (salvo que esté oculto) y las medidas que
+    su entrenador marca como obligatorias, tomadas en ESTE periodo. Si faltan
+    medidas se abre su asistente, que dice cuáles; si falta el peso, se dice.
+  */
+  const pideMedidasObligatorias =
+    requiredBlocks(protocol).length > 0 ||
+    medidasDeRevision(protocol).some((m) => requiresBlock(protocol, m.id));
+  const medidasDelPeriodo = history.some(
+    (h) =>
+      h.date >= semana &&
+      (foldsSum(h.folds) > 0 ||
+        Object.values(h.perimeters || {}).some((v) => Number(v) > 0) ||
+        Object.values(h.medidas || {}).some((v) => v !== null && v !== ''))
+  );
+
+  const entregarDesdeElTelefono = async () => {
+    if (!oculto.weight && resumen.average === null) {
+      setErrorEntrega('Te falta pesarte en este periodo. Apunta tu peso y vuelve a entregar.');
+      return;
+    }
+    if (pideMedidasObligatorias && !medidasDelPeriodo) {
+      setErrorEntrega(null);
+      setAsistente('medidas');
+      return;
+    }
+    setEntregando(true);
+    setErrorEntrega(null);
+    /* Las respuestas no viajan: ya están en la fila (borrador) y la entrega las
+       conserva, porque `submit_check_in` hace COALESCE con lo que había. */
+    const res = await submitCheckIn(activeClient.id, { weekStart: semana, weight: resumen.average });
+    setEntregando(false);
+    if (res && res.ok === false) setErrorEntrega(`No se ha podido entregar: ${traduceDbError(res.error)}`);
+  };
+
+  const RUTA_DEL_PASO = {
+    peso: '/mi/evolucion/peso',
+    fotos: '/mi/evolucion/fotos-de-la-semana',
+    cuestionario: '/mi/evolucion/cuestionario',
+  };
+  /* Los nombres del dibujo (`328:111`). El monitor sigue con los suyos
+     («Tu peso», «Cómo lo has llevado»): es otra pantalla y otro frame. */
+  const TITULO_DEL_PASO = {
+    peso: 'Peso corporal',
+    medidas: 'Medidas corporales',
+    fotos: 'Fotos de progreso',
+    cuestionario: 'Cuestionario semanal',
+  };
+
+  const datosTelefono = {
+    titulo: 'Revisión semanal',
+    periodo: [semanaFoto ? `Semana ${semanaFoto}` : null, cerrada ? 'revisada' : yaEntregada ? 'entregada' : plazo]
+      .filter(Boolean)
+      .join(' · '),
+    pasos: pasos.map((p) => ({
+      id: p.id,
+      titulo: TITULO_DEL_PASO[p.id] || p.titulo,
+      sub: p.estado || null,
+      hecho: p.hecho,
+      to: RUTA_DEL_PASO[p.id] || null,
+      /* Las medidas: su asistente, y solo mientras la semana no esté revisada. */
+      onAbrir: cerrada ? undefined : () => setAsistente(p.id),
+    })),
+    entrega: {
+      verbo: entregando ? 'Entregando…' : datos.entrega.verbo,
+      ocupado: entregando,
+      onEntregar: entregarDesdeElTelefono,
+      error: errorEntrega,
+      pie: cerrada
+        ? 'Tu entrenador ya la ha revisado.'
+        : yaEntregada
+          ? 'Tu entrenador ya la tiene. Si cambias algo, vuelve a entregarla y le llega corregida.'
+          : 'No hace falta que sea el día exacto, y llegar tarde no te salta la revisión.',
+    },
+    respuesta: ultimaRespuesta
+      ? {
+          titulo: ultimaRespuesta.reviewedAt ? `Revisión del ${shortDate(ultimaRespuesta.reviewedAt)}` : 'Tu última revisión',
+          texto: ultimaRespuesta.coachNotes,
+        }
+      : null,
+    atrasadas,
+  };
+
   return (
     <>
       {enEscritorio ? (
         <RevisionEnMonitor datos={datos} />
       ) : (
-        <RevisionEnTelefono datos={datos} />
+        <RevisionEnTelefono datos={datosTelefono} />
       )}
 
       {asistente && (
@@ -357,7 +465,11 @@ export const ClientRevisionRoute = () => {
           onAdd={(log) => addAnthropometryLog(activeClient.id, log)}
           photos={photos}
           onUploadPhoto={uploadProgressPhoto}
-          onSubmitWeek={(datos) => submitCheckIn(activeClient.id, datos)}
+          /* En el teléfono el asistente solo toma medidas y NO entrega: la
+             entrega es el botón de la lista (ver «EL TELÉFONO», arriba). */
+          onSubmitWeek={enEscritorio ? (datos) => submitCheckIn(activeClient.id, datos) : null}
+          soloMedidas={!enEscritorio}
+          respuestasIniciales={deEste?.answers ?? null}
           weekStart={semana}
           weeks={semanasDelPeriodo}
           pasoInicial={asistente}

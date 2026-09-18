@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-import { estadoDeDiff, mealKcalRange, mealTarget, optionMacros } from '@/domain/nutrition';
+import { estadoDeDiff, margenDe, mealKcalRange, mealTarget, optionMacros } from '@/domain/nutrition';
 import { Modal } from '@/components/ui/Modal';
-import { SegmentedControl } from '@/components/ui/primitives';
+import { useMarcaDeslizante } from '@/components/ui/carril';
 import { MacroDonut } from '@/components/ui/charts';
-import { MACRO_META, macroBreakdown, opcionElegida } from './macros';
+import { MACRO_META, opcionElegida } from './macros';
 import { PlanDia } from './PlanDia';
 import { RepartoComparado } from './RepartoComparado';
 
@@ -34,8 +34,22 @@ const signo = (n) => (n > 0 ? `+${n}` : `${n}`);
    5 % pelado y con ella los anillos de una comida de 9 g de grasa salían
    siempre en rojo. Ver `estadoDe` en `domain/nutrition.js`. */
 const tono = (diff, objetivo, campo = 'kcals') => {
-  const estado = estadoDeDiff(diff, objetivo, campo);
+  /* En la ESCALA DE UNA COMIDA, que es más estrecha que la del día: aquí todo
+     lo que se juzga es una comida contra lo que se le pautó a ella. Ver
+     `MARGEN_COMIDA_KCALS` en `domain/nutrition.js`. */
+  const estado = estadoDeDiff(diff, objetivo, campo, 'comida');
   return estado === 'none' ? '' : ` is-${estado}`;
+};
+
+/* La tinta del arco: la del semáforo de la cifra de dentro, en su peso de
+   FIGURA. El aro no es texto —lo que hay que leer es el número del centro, y
+   ese se queda en la tinta que se lee—, así que se pinta con el escalón vivo de
+   la misma familia (ver `--positive-grafico` en `tokens.css`). Es la diferencia
+   entre un dibujo apagado y uno que se ve desde el otro lado de la mesa. */
+const TINTA = {
+  ' is-ok': 'var(--positive-grafico)',
+  ' is-over': 'var(--negative-grafico)',
+  ' is-under': 'var(--warning-grafico)',
 };
 
 export const DiaPopup = ({
@@ -54,9 +68,22 @@ export const DiaPopup = ({
      ventana y abrir la del otro. Ver `RepartoComparado`. */
   dias = [],
   onTargetDia = null,
+  /* El título que habla en la voz del que reparte. El cliente abre la
+     misma ventana en lectura y la lee desde su lado; como en `ComoLoLlevo`,
+     va con el del entrenador por defecto. */
+  tituloReparto = 'Reparto · lo que le asignas a cada comida',
+  /* El DESVÍO —lo real sobre lo pautado— es lectura del que reparte. El
+     cliente no reparte: lo que come ES lo pautado, así que a él la ventana le
+     enseña la planificación y la comparación entre días, sin la cifra de
+     desvío, sin los anillos y sin las cifras de arriba —el rango y la
+     cuenta de alternativas no son planificación, son el tanteo del que
+     monta el menú— (el dueño, 18 sep). */
+  desvio = true,
 }) => {
   const [todos, setTodos] = useState(false);
-  const comparable = dias.length > 1 && Boolean(onTargetDia);
+  const carril = useMarcaDeslizante();
+  /* El entrenador compara y escribe; el cliente (sin `onTarget`) solo compara. */
+  const comparable = dias.length > 1 && (Boolean(onTargetDia) || !onTarget);
   const comparando = todos && comparable;
   const filas = meals.map((meal, i) => {
     const pautado = mealTarget(meal);
@@ -91,25 +118,56 @@ export const DiaPopup = ({
   return (
     <Modal open={open} size="lg" title={comparando ? 'El reparto · todos los días' : `El día · ${label}`} onClose={onClose}>
       <div className="col gap-4 dia-ventana">
+        {/*
+          ══ SON PESTAÑAS, NO UN INTERRUPTOR (17 sep · frame 73:13) ══════════
+
+          Era un `SegmentedControl` —dos cajas dentro de una— y el frame lo
+          dibuja como el carril de pestañas de la casa: dos palabras con la raya
+          de acento debajo de la abierta, pegado al filete de la cabecera.
+
+          No es un cambio de dibujo por gusto: lo que hay debajo son DOS
+          PANTALLAS distintas —una tabla de un día y otra de todos—, y eso es lo
+          que una pestaña dice y un interruptor no. Un segmentado promete que lo
+          de debajo se queda igual y solo cambia un filtro.
+        */}
         {comparable && (
-          <SegmentedControl
-            label="Qué días se ven"
-            value={comparando ? 'todos' : 'uno'}
-            onChange={(v) => setTodos(v === 'todos')}
-            options={[
+          <nav ref={carril} className="tabs dia-ventana-tabs" aria-label="Qué días se ven">
+            {[
               { id: 'uno', label: 'Este día' },
-              { id: 'todos', label: 'Todos los días', hint: 'El reparto de cada comida en todos los días a la vez' },
-            ]}
-          />
+              { id: 'todos', label: 'Todos los días' },
+            ].map(({ id, label: rotulo }) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={(id === 'todos') === comparando}
+                className={`tab${(id === 'todos') === comparando ? ' active' : ''}`}
+                onClick={() => setTodos(id === 'todos')}
+                title={id === 'todos' ? 'El reparto de cada comida en todos los días a la vez' : undefined}
+              >
+                {rotulo}
+              </button>
+            ))}
+            <span className="tabs-marca" aria-hidden="true" />
+          </nav>
         )}
 
         {comparando ? (
           <section className="bloque-seccion">
-            <RepartoComparado dias={dias} elegidas={elegidas} onTarget={onTargetDia} />
+            <RepartoComparado dias={dias} elegidas={elegidas} onTarget={onTargetDia} juzga={juzga} />
           </section>
         ) : (
         <>
-        <div className="bloque-cifras">
+        {/*
+          ── DOS CIFRAS EN CAJA, Y LA TERCERA ES UNA LÍNEA (frame 73:22) ─────
+          Eran tres celdas del mismo rango. El frame le da caja a las dos que
+          son LECTURAS del día —cuánto se desvía y entre qué kcal se mueve— y
+          baja la cuenta de alternativas a un renglón en voz baja, que es lo que
+          es: el tamaño del menú, no una medida de cómo está montado.
+        */}
+        {desvio && (
+        <>
+        <div className="bloque-cifras is-cajas">
           <div className="bloque-cifra">
             <span className="v">{desvioMedio === null ? '—' : `±${desvioMedio}`}</span>
             <span className="k">kcal de desvío medio por comida</span>
@@ -128,21 +186,23 @@ export const DiaPopup = ({
             </span>
             <span className="k">kcal según la alternativa que elija</span>
           </div>
-          <div className="bloque-cifra">
-            <span className="v">{totalOpciones}</span>
-            <span className="k">
-              {totalOpciones === 1 ? 'alternativa' : 'alternativas'} en {meals.length} {meals.length === 1 ? 'comida' : 'comidas'}
-            </span>
-          </div>
         </div>
 
+        <p className="dia-ventana-dice">
+          {totalOpciones} {totalOpciones === 1 ? 'alternativa' : 'alternativas'} en {meals.length}{' '}
+          {meals.length === 1 ? 'comida' : 'comidas'}
+        </p>
+        </>
+        )}
+
         <section className="bloque-seccion">
-          <h3 className="bloque-titulo">Reparto · lo que le asignas a cada comida</h3>
+          <h3 className="bloque-titulo">{tituloReparto}</h3>
           <PlanDia meals={meals} targets={targets} elegidas={elegidas} onTarget={onTarget} onIrA={irA} juzga={juzga} />
         </section>
 
+        {desvio && (
         <section className="bloque-seccion">
-          <h3 className="bloque-titulo">Desvío · lo real sobre lo pautado, con las opciones abiertas</h3>
+          <h3 className="bloque-titulo">Desvío · lo real sobre lo pautado</h3>
           {/*
             Un anillo por comida: el reparto real de sus macros, el desvío de
             kcal en el centro y, debajo, lo que suma sobre lo pautado y las
@@ -153,21 +213,83 @@ export const DiaPopup = ({
             {filas.map((f) => {
               const pautado = f.pautado?.kcals || 0;
               const t = juzga ? tono(f.desvio ?? 0, pautado, 'kcals') : '';
-              const energia = macroBreakdown({ protein: f.real.protein, carbs: f.real.carbs, fats: f.real.fats, kcals: f.kcal });
+              /*
+                ══ UN ARCO, NO TRES (frame 73:99) ═══════════════════════════
+
+                El anillo era el reparto de macros de la comida —rosa, ámbar,
+                violeta— con el desvío escrito en el centro: dos lecturas en
+                el mismo dibujo, y la de fuera contestando una pregunta que
+                aquí nadie hace (el reparto de UNA comida no se juzga contra
+                nada). El frame lo deja en un solo arco del color del semáforo
+                con el desvío en el centro.
+
+                Los colores de macro no se pierden: siguen en los puntos de la
+                línea de abajo, que es donde distinguen una serie de otra.
+
+                ══ Y EL ARCO SE MIDE CONTRA EL MARGEN, NO CONTRA LO PAUTADO ══
+
+                «Los 3 anillos son del mismo color», y era peor que eso: eran
+                el mismo dibujo. El arco medía lo que la comida CUBRE de lo
+                pautado —910 de 900, 1121 de 1100, 1098 de 1100—, o sea el
+                99, el 102 y el 100 por ciento. Sobre una escala de cien, tres
+                comidas bien montadas son tres círculos cerrados idénticos, y
+                el único dato que quedaba era la cifra del centro.
+
+                El arco mide ahora LO CLAVADA que está la comida en la escala
+                de su propio margen (`margenDe` en escala de comida: el 2 %,
+                nunca menos de 15 kcal). Lleno = en el clavo; medio aro = justo
+                en el filo de lo que se le tolera; vacío = al doble de eso.
+
+                ══ Y LA ESCALA ES LA DE LA COMIDA, NO LA DEL DÍA ════════════
+
+                «Los 3 anillos son del mismo color, en el prototipo se ve
+                distinto.» El margen del semáforo era el del PLAN —el 5 %, con
+                suelo de 25 kcal— y sobre una comida de 1.100 eso son 55 kcal
+                de holgura: la tercera comida del ejemplo se sale por 30 y aún
+                salía verde, como las otras dos. Con la escala de la comida
+                (`MARGEN_COMIDA_KCALS`) el margen es 22 y esa comida se pinta
+                en ámbar, que es lo que el prototipo enseña: dos verdes y una
+                ámbar. Las tres se dibujan además con arcos distintos —78 %,
+                86 % y 32 %—: dos largos y uno corto.
+
+                Y la escala del arco va al DOBLE del margen a propósito.
+                Contra el margen pelado, todo lo que se sale salía con el aro
+                vacío: la comida que se pasa de 30 y la que se pasa de 300 se
+                dibujaban igual, y justo cuando el color ya está gritando es
+                cuando hace falta saber por cuánto. Al doble, el filo del
+                margen cae en la mitad del aro y lo que se sale sigue teniendo
+                dónde caer.
+
+                Y por qué el margen y no una escala fija: porque lo que es
+                «mucho» en un desayuno de 900 kcal no lo es en una cena de
+                1400, y ese suelo ya está decidido en el dominio y lo usa todo
+                lo demás que juzga en esta pantalla. El anillo no inventa un
+                segundo criterio: dibuja el que ya hay.
+              */
+              const margen = pautado > 0 ? margenDe(pautado, 'kcals', 'comida') : 0;
+              const cubre =
+                margen > 0
+                  ? Math.max(0, Math.min(100, Math.round(100 - (Math.abs(f.desvio) / (margen * 2)) * 100)))
+                  : 100;
+              const tinta = TINTA[t] || 'var(--text-tertiary)';
               return (
                 <button key={f.id} type="button" className={`dia-anillo${t}`} onClick={() => irA(f.i)} title="Ir a la comida">
                   <MacroDonut
+                    /* 76 y no los 72 del frame: la escala de figuras de la casa
+                       no tiene ese escalón y `verify-styles` lo vigila. */
                     size={76}
-                    thickness={9}
-                    slices={MACRO_META.map(({ key, label: l, color }) => ({ key, label: l, color, value: energia.energy[key] }))}
+                    thickness={8}
+                    slices={[
+                      { key: 'cubre', label: 'lo clavada que está', color: tinta, value: cubre },
+                      { key: 'resto', label: 'lo que se sale', color: 'transparent', value: 100 - cubre },
+                    ]}
                     label={f.desvio === null ? f.kcal || '—' : signo(f.desvio)}
                     unit="kcal"
-                    sub={f.desvio === null ? 'sin pauta' : 'de desvío'}
                   />
-                  <span className="dia-anillo-nombre">
-                    <span className="plan-dia-n">{f.i + 1}</span>
-                    {f.nombre}
-                  </span>
+                  {/* Sin ordinal delante: ver `PlanDia`. Una comida se llama
+                      por su nombre, y estas tres van en fila de izquierda a
+                      derecha en el mismo orden que la hoja. */}
+                  <span className="dia-anillo-nombre">{f.nombre}</span>
                   <span className="dia-anillo-kcal">
                     <b>{f.kcal}</b>
                     {pautado ? ` de ${pautado} kcal` : ' kcal'}
@@ -202,6 +324,7 @@ export const DiaPopup = ({
             ventana quepa de una pieza, sin deslizar.
           */}
         </section>
+        )}
         </>
         )}
       </div>

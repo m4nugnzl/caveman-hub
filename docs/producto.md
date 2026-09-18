@@ -702,6 +702,96 @@ una medida lleva su placa, y la placa mide los caracteres que va a llevar dentro
 (`digitos`, en el catálogo del perfil). Una caja de seis caracteres para un «4»
 no es un campo: es un hueco.
 
+### 5.10 La mesa de trabajo, y es una sola
+
+Desde el 17 de septiembre de 2026 el diseño llega dibujado en Figma y aquí se
+reproduce. Entreno (nodo `32:100`) y Dieta (`64:55` y `62:434`) dibujan **el
+mismo mueble**, y eso deja de ser una coincidencia para ser la norma: toda
+pantalla de trabajo del taller —la que monta algo para alguien— se compone de
+las mismas piezas y en este orden.
+
+```
+┌─ las tarjetas de lo que se elige ────────────────────────────────────────┐
+│  High  ×6 días                     │  Low  ×3 días                       │
+│  P 120g · C 531g · G 55g           │  P 120g · C 410g · G 50g            │
+│  3 comidas · 14 alternativas        3100 kcal   ·   ·   ·     2600 kcal   │
+└──────────────────────────────────────────────────────────────────────────┘
+┌─ la barra ───────────────────────────────────────────────────────────────┐
+│  D1 D2 D4 D5 D7 D8 ·············· + cosa  CÓMO ESTÁ PAUTADO  ⧉ ⧉ ⚙ 🗑    │
+└──────────────────────────────────────────────────────────────────────────┘
+┌─ la mesa (1fr) ─────────────────────────┐ ┌─ el costado (300 px) ───────┐
+│  una CAJA por unidad de trabajo         │ │  un panel, secciones con    │
+│  (una comida, un ejercicio)             │ │  filete entre ellas         │
+└─────────────────────────────────────────┘ └─────────────────────────────┘
+```
+
+1. **Primero se elige, después se opera.** Las tarjetas de lo que se elige van
+   ARRIBA del todo y la barra debajo, porque la barra habla del que está
+   abierto: con la barra encima, sus casillas y sus verbos se referían a un día
+   que todavía no se había elegido. Esta es la corrección del 17 de septiembre
+   —el primer intento las puso al revés— y es la regla, no el caso de la dieta.
+2. **Lo que se elige va en tarjetas**, no en pastillas, en cuanto haya algo que
+   distinga una opción de otra además del nombre. Una pastilla obliga a abrir
+   para saber qué hay dentro. Con una sola opción no se pintan.
+3. **La barra** (`.tira`) lleva, a la izquierda, el segundo nivel de la elección
+   —las casillas del ciclo, los microciclos— en pastillas de UN renglón, y a la
+   derecha los «+ cosa», cómo está pautado en voz de rótulo y **todos** los
+   verbos, con la papelera al final. Un titular solo cuando no hay tarjetas
+   encima; si las hay, repetiría el nombre a veinte píxeles. **Su chasis lo
+   dice su propio frame**: en Entreno va en caja hundida y en la dieta va libre
+   sobre el papel. Lo que es norma es qué lleva y en qué orden, no la caja —y
+   el relleno de la caja era además lo que echaba los verbos a un segundo
+   renglón en un portátil.
+4. **El acento de la barra dice UNA cosa**: qué le toca a lo que está abierto.
+   Por eso el rótulo del tipo de plan no lleva chapa de color — dos azules en
+   la misma barra significando cosas distintas es un azul que no significa nada.
+5. **Cada unidad de trabajo es una caja** con canto: banda de cabecera gris con
+   su nombre, su cuenta y sus verbos; el cuerpo sobre papel blanco; la mesa de
+   cifras a sangre, con banda de encabezado y banda de suma al pie. **Sin panel
+   que las envuelva**: lo que separa dos cajas es su propio canto.
+6. **Lo que cuelga de una fila no vive en su rejilla.** Las alternativas de un
+   alimento colgaron de las columnas del padre —el nombre bajo el nombre, la
+   ración bajo la cantidad— y leía mal de cerca: una equivalencia no tiene P, C,
+   G ni kcal que poner ahí, así que media fila quedaba vacía y lo que sí dice
+   acababa volcado al otro canto. Van en cajas propias sobre una banda de
+   acento, atadas a su fila por un raíl.
+7. **Lo que se le escribe a alguien se escribe igual en toda la casa.** La
+   nota para el cliente de una comida y la de un ejercicio son la misma pieza:
+   un icono (`Quote`) en la fila de verbos y un `.hoja-nota` debajo. Tres
+   formas del mismo gesto es lo que hace que la aplicación se lea como tres.
+8. **Las cifras no se escriben en cajas hundidas.** La caja sale al acercarse
+   (§5.8), nunca en reposo: una mesa de veinte cantidades en reposo es un
+   formulario, no una hoja.
+9. **El costado es UN panel** con secciones separadas por filete, y contiene
+   lecturas —con qué se comprueba lo de la mesa—, nunca trabajo. Cada renglón
+   es nombre + «lo que hay / lo pedido» + una barra debajo, y NADA MÁS: los
+   g/kg y el descuadre bajan al pie o los dice la barra, que **la pinta el
+   semáforo** —llena y verde significa «cuadra», no «vas bien»—. Y una serie
+   de medidas se dibuja por PUNTOS unidos, no como una curva: el punto es el
+   dato y el tramo entre dos es lo único que se puede afirmar de lo que pasó
+   en medio.
+Y la mesa y el costado **se pliegan a la vez** en toda la casa: una columna a
+partir de 1199,98 px.
+
+Dos cosas que el rediseño NO trae, y que hay que releer antes de proponerlas
+otra vez, porque los frames las dibujan:
+
+- **El color por categoría sigue prohibido** (§5.3). Una barra de macros lleva
+  la tinta de su serie porque es un gráfico; la palabra «Proteína» no lleva
+  ninguna.
+- **El semáforo solo se pega a una cifra que se pueda juzgar contra algo
+  pautado.** Un peso que baja 1,2 kg no es verde: depende de qué esté haciendo
+  esa persona.
+- **Una banda entera solo se tiñe en verde, y solo para dar el visto bueno.**
+  El pie de «Suman» se pinta cuando cuadran las cuatro cifras; cuando no
+  cuadran se queda neutro y hablan las cifras en rojo. No es medio semáforo:
+  que algo cuadre se comprueba de una pasada y se deja de mirar, y que no
+  cuadre hay que leerlo cifra a cifra.
+
+**Cómo se apunta una pantalla nueva a esta norma:** añadiendo su raíz a las
+listas de selectores de `piezas.css` que describen la cinta. No se copian las
+reglas — es la misma pieza y tiene que envejecer a la vez.
+
 ---
 
 ## 6. Pantalla de muestra: «La semana de Javier»

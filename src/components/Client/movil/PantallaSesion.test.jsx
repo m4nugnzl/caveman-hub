@@ -90,7 +90,7 @@ describe('PantallaSesion — moverse', () => {
     expect(html.match(/aria-current="step"/g)).toHaveLength(1);
     expect(html).toMatch(/aria-current="step"[^>]*>Remo con barra/);
     /* Elevaciones está terminado: lleva su visto en el carril. */
-    expect(html).toMatch(/tel-ok"[^>]*><span aria-label="terminado">✓<\/span>Elevaciones laterales/);
+    expect(html).toMatch(/tel-ok"[^>]*><svg[^>]*aria-label="terminado"[^>]*>.*?<\/svg>Elevaciones laterales/);
   });
 
   it('dice en cuál estás y el pie ofrece el siguiente — y en el último, terminar', () => {
@@ -110,26 +110,26 @@ describe('PantallaSesion — moverse', () => {
 });
 
 describe('PantallaSesion — rellenar y corregir', () => {
-  it('la serie viva tiene − y + por campo, lo de la vez anterior y «Hecha»', () => {
+  it('la serie viva tiene − y + por campo, lo de la vez anterior y «Registrar serie»', () => {
     const html = pinta();
     expect(html).toContain('aria-label="Bajar Kilos de la serie 2"');
     expect(html).toContain('aria-label="Subir Repeticiones de la serie 2"');
-    expect(html).toContain('La última vez: 80 kg · 8');
+    expect(html).toContain('Última vez: <b>80 kg · 8</b>');
     expect(html).toContain('= Igual');
-    expect(html).toContain('>Hecha</button>');
+    expect(html).toContain('>Registrar serie</button>');
   });
 
   it('una serie hecha es un botón para corregirla, con sus valores dentro', () => {
     const html = pinta();
     expect(html).toContain('aria-label="Corregir la serie 1: 80 kg · 8"');
-    expect(html).toContain('corregir');
+    expect(html).toContain('>Corregir<');
   });
 
   it('el RIR solo sale con su módulo', () => {
     expect(pinta()).not.toContain('RIR de la serie');
     const conRir = pinta({ showRir: true });
     expect(conRir).toContain('aria-label="RIR de la serie 2 de Press banca"');
-    expect(conRir).toContain('La última vez: 80 kg · 8 · RIR 1');
+    expect(conRir).toContain('Última vez: <b>80 kg · 8 · RIR 1</b>');
   });
 
   it('sin vez anterior ni pauta que sea un número, no hay nada que cerrar', () => {
@@ -139,7 +139,7 @@ describe('PantallaSesion — rellenar y corregir', () => {
       ],
       cabecera: { nombre: 'Torso A', hechas: 0, series: 1 },
     });
-    expect(html).toMatch(/disabled=""[^>]*>Hecha/);
+    expect(html).toMatch(/disabled=""[^>]*>Registrar serie/);
     expect(html).toContain('Es la primera vez que haces esta serie');
   });
 

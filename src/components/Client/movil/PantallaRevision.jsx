@@ -1,157 +1,111 @@
-import { useState } from 'react';
+import { Check } from 'lucide-react';
 
-import { buildWeightLog, weekDates } from '@/domain/anthropometry';
-import { inicialDelDia } from '@/domain/blocks';
-import { localeNumber, todayISO } from '@/lib/dates';
-import { Aire, Boton, CabeceraDia, FilaMenu, Tarjeta, Titulillo } from './Piezas';
+import { Aire, Boton, Cabecera, Fila, Lista, Tramo } from './Piezas';
 
 /**
- * «ENTREGA TU SEMANA» EN EL TELÉFONO.
+ * «REVISIÓN» EN EL TELÉFONO — el frame `328:111` del 18 de septiembre de 2026.
  *
- * ══ Por qué esta pantalla no está en la barra del pulgar ═══════════════════
+ * ══ Vuelve a la barra, y esta pantalla es una lista de lo que se entrega ════
  *
- * Porque el prototipo del teléfono tiene CUATRO destinos —Hoy · Entreno · Comer
- * · Tú— y este no es uno. Se llega desde la fila *Cerrar la semana* de «Tú», que
- * lleva su estado en azul, y desde el pedido de la portada el día que toca. Ver
- * `CLIENT_SECTIONS`.
+ * El titular, el plazo, cuánto llevas de la entrega en una barra, y los pasos
+ * uno debajo de otro, cada uno con su círculo: verde lleno si está hecho,
+ * vacío si no. Cada paso se toca y abre su parte, que guarda al momento: el
+ * peso, su registro; las fotos (`328:518`) y el cuestionario (`128:195`), sus
+ * pantallas; las medidas, su asistente. Debajo, el verbo de entregar —que ya no
+ * abre nada: lo entregado está guardado y entregar es avisar— y lo que te dijo
+ * tu entrenador la vez pasada, que es lo que se lee mientras se prepara la
+ * siguiente.
  *
- * No estar en la barra no la esconde: la convoca lo que de verdad la convoca,
- * que es tener algo pendiente. Es la ley del reposo.
+ * ── Lo que el dibujo pide y aquí no está ───────────────────────────────────
+ * «Nota al entrenador» como quinto paso. No existe como paso: la nota de la
+ * semana es una pregunta de texto del cuestionario (`week_note`) y va dentro de
+ * él. Un paso que abre lo mismo que otro son dos puertas a un sitio.
  *
- * ══ Un solo trabajo ═══════════════════════════════════════════════════════
- *
- * La báscula arriba —dos gestos, la cifra ya puesta— y debajo el estado de la
- * entrega con su verbo. Nada más: la curva del peso está en «Tú» y las semanas
- * anteriores detrás de su propia fila.
+ * ── El botón no se apaga ───────────────────────────────────────────────────
+ * El dibujo lo pinta gris hasta que está todo. Aquí se puede entregar sin las
+ * fotos —eso no es un aviso, es un permiso que ya existía—, así que el botón
+ * sigue en azul; lo que falta lo dicen los círculos vacíos.
  */
 export const PantallaRevision = ({ datos }) => {
-  const { periodo, pasos, entrega, peso, atrasadas, respuesta } = datos;
-  /* Revisada, nada se enciende ni se abre: ya no hay entrega que rehacer. */
-  const siguiente = entrega.cerrada ? null : pasos.find((p) => !p.hecho)?.id || null;
+  const { titulo, periodo, pasos, entrega, respuesta, atrasadas } = datos;
+  const hechos = pasos.filter((p) => p.hecho).length;
 
   return (
     <>
-      <CabeceraDia fecha={entrega.titular} donde={periodo} />
-      <div className="tel-tramo">
-        {peso ? <Bascula {...peso} /> : null}
+      <Cabecera titulo={titulo} sub={periodo} grande />
 
-        <Titulillo>{entrega.rotulo}</Titulillo>
-        <Tarjeta lista>
+      {pasos.length > 0 ? (
+        <div className="tel-entrega-estado">
+          <div className="tel-rotulo">
+            <span>Estado de la entrega</span>
+            <span className={`tel-rotulo-dato tel-rotulo-cuenta${hechos > 0 ? ' tel-hecho' : ''}`}>
+              {hechos} de {pasos.length} {pasos.length === 1 ? 'completado' : 'completados'}
+            </span>
+          </div>
+          <span className="tel-barrita tel-barrita-6" aria-hidden="true">
+            <i style={{ width: `${(hechos / pasos.length) * 100}%` }} />
+          </span>
+        </div>
+      ) : null}
+
+      <Tramo className="tel-pasos">
+        <Lista className="tel-lista-suelta">
           {pasos.map((p) => (
-            <FilaMenu
+            <Fila
               key={p.id}
-              rotulo={p.titulo}
-              valor={p.hecho ? 'hecho' : entrega.cerrada ? 'sin hacer' : 'te toca'}
-              /* En azul SOLO el siguiente, no los tres que faltan: tres avisos
-                 encendidos a la vez dejan de decir «mira aquí» y pasan a ser el
-                 aspecto normal de la lista. Ver `la ley del color`. */
-              espera={p.id === siguiente}
-              onClick={p.hecho || entrega.cerrada ? undefined : () => entrega.onPaso(p.id)}
+              delante={
+                <span className={`tel-circulo${p.hecho ? ' tel-hecho' : ''}`} aria-hidden="true">
+                  {p.hecho ? <Check size={13} strokeWidth={3} /> : null}
+                </span>
+              }
+              titulo={p.titulo}
+              sub={p.sub}
+              apagada={!p.hecho}
+              to={p.to}
+              onClick={p.to ? undefined : p.onAbrir}
             />
           ))}
-        </Tarjeta>
-        {entrega.cerrada ? (
-          <p className="tel-pie-nota">Tu entrenador ya la ha revisado.</p>
-        ) : (
-          <>
-            <Boton onClick={entrega.onEntregar}>{entrega.verbo}</Boton>
-            <p className="tel-pie-nota">
-              No hace falta que sea el domingo exacto, y llegar tarde no te salta la revisión.
-            </p>
-          </>
-        )}
+        </Lista>
+      </Tramo>
 
-        {respuesta ? (
-          <>
-            <Titulillo>Lo que te dijo la vez pasada</Titulillo>
-            <Tarjeta plana>
-              <div className="tel-meta">{respuesta.cuando}</div>
-              <p className="tel-pauta-frase">{respuesta.texto}</p>
-            </Tarjeta>
-          </>
+      <Tramo>
+        {entrega.verbo ? (
+          <Boton onClick={entrega.onEntregar} disabled={entrega.ocupado}>
+            {entrega.verbo}
+          </Boton>
         ) : null}
+        {entrega.error ? (
+          <p className="tel-pie tel-error" role="alert">
+            {entrega.error}
+          </p>
+        ) : null}
+        <p className="tel-pie">{entrega.pie}</p>
+      </Tramo>
 
-        {atrasadas > 0 ? (
-          <div className="tel-menu">
-            <FilaMenu
-              rotulo={`${atrasadas} semanas sin entregar`}
-              to="/mi/evolucion/medidas"
-            />
+      {respuesta ? (
+        <Tramo rotulo="Lo que te dijo tu entrenador">
+          <div className="tel-caja tel-respuesta">
+            <div className="tel-respuesta-cab">
+              <b>{respuesta.titulo}</b>
+              {respuesta.cuando ? <span>{respuesta.cuando}</span> : null}
+            </div>
+            <p>{respuesta.texto}</p>
           </div>
-        ) : null}
+        </Tramo>
+      ) : null}
 
-        <Aire />
-      </div>
+      <Tramo>
+        <Lista>
+          <Fila
+            titulo="Semanas anteriores"
+            sub={atrasadas > 0 ? `${atrasadas} sin entregar` : 'tus medidas y lo que entregaste'}
+            to="/mi/evolucion/medidas"
+          />
+          <Fila titulo="Tus fotos" sub="todas, por semana" to="/mi/evolucion/fotos" />
+        </Lista>
+      </Tramo>
+
+      <Aire />
     </>
   );
 };
-
-/** La báscula: la cifra viene puesta y solo hay que pulsar. */
-const Bascula = ({ resumen, semana, ultimo, foto, onApuntar }) => {
-  const [escrito, setEscrito] = useState(null);
-  const hoy = todayISO();
-  const deHoy = (resumen.entries || []).find((e) => e.date === hoy) || null;
-  const propuesta = deHoy?.weight ?? ultimo?.weight ?? null;
-  const valor = escrito ?? (propuesta === null ? '' : String(propuesta));
-  const numero = Number(String(valor).replace(',', '.'));
-  const valido = Number.isFinite(numero) && numero > 0;
-  const yaEsta = deHoy !== null && numero === Number(deHoy.weight);
-
-  const dias = weekDates(semana);
-  const conPeso = new Set((resumen.entries || []).map((e) => e.date));
-
-  return (
-    <Tarjeta>
-      <div className="tel-eyebrow">Tu peso de hoy</div>
-      <div className="tel-bascula">
-        <span className="tel-lectura">
-          <input
-            type="text"
-            inputMode="decimal"
-            value={valor}
-            onChange={(e) => setEscrito(e.target.value)}
-            aria-label="Tu peso de hoy, en kilos"
-          />
-          <span className="tel-u">kg</span>
-        </span>
-        {!yaEsta ? (
-          <button
-            type="button"
-            className="tel-apuntar"
-            disabled={!valido}
-            onClick={() => {
-              if (!valido) return;
-              onApuntar(buildWeightLog({ date: hoy, weight: numero, nutritionFoto: foto }));
-              setEscrito(null);
-            }}
-          >
-            Apuntar
-          </button>
-        ) : null}
-      </div>
-
-      <div className="tel-semana-puntos" aria-hidden="true">
-        {dias.map((fecha) => (
-          <span
-            key={fecha}
-            className={[conPeso.has(fecha) ? 'tel-pesado' : '', fecha === hoy ? 'tel-hoy' : '']
-              .filter(Boolean)
-              .join(' ')}
-          >
-            {inicialDelDia(fecha)}
-            <i />
-          </span>
-        ))}
-      </div>
-
-      {resumen.average !== null ? (
-        <p className="tel-pie-nota">
-          Media de esta semana {kg(resumen.average)} kg
-          {resumen.previousAverage !== null ? ` · la anterior ${kg(resumen.previousAverage)}` : ''}
-        </p>
-      ) : null}
-    </Tarjeta>
-  );
-};
-
-const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });

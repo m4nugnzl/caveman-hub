@@ -14,14 +14,12 @@ import { todayISO } from '@/lib/dates';
 import { clientPath } from '@/routes';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { useReviewTrack } from '@/components/review/useReviewTrack';
-import { useElementWidth } from '@/lib/useElementWidth';
 import { lazyRoute } from '@/lib/lazyRoute';
-import { useOculto } from '@/components/Client/Oculto';
+
 import { TarjetaArranque } from './TarjetaArranque';
-import { TarjetaComoVa } from './TarjetaComoVa';
-import { TarjetaDesde } from './TarjetaDesde';
-import { TarjetaCuerpo } from './TarjetaCuerpo';
-import { TarjetaEntreno } from './TarjetaEntreno';
+import { TarjetaProgreso } from './TarjetaProgreso';
+import { TarjetaTonelaje } from './TarjetaTonelaje';
+import { TarjetaVolumen } from './TarjetaVolumen';
 import { TarjetaPlan } from './TarjetaPlan';
 import { TarjetaSensaciones } from './TarjetaSensaciones';
 import { TarjetaHilo } from './TarjetaHilo';
@@ -44,38 +42,42 @@ const PanelEntreno = lazyRoute(() => import('./PanelEntreno').then((m) => ({ def
  *
  * ══ La forma ═══════════════════════════════════════════════════════════════
  *
- *     Trimestral · 240 € · desde 18 may
- *     ┌── CÓMO VA ──────────────────────┐ ┌ DESDE QUE ──┐  ┌── EL PLAN ─────┐
- *     │ 80,7 → 76,9 → 75   ╲__●· · ·○  │ │ −3,4 kg     │  │ Objetivo       │
- *     │ ✓ En rumbo          ▓▓▓▓░░ S8/12│ │ −2,8 cm     │  │ 2.300 kcal     │
- *     └─────────────────────────────────┘ │ +29,5 kg    │  │ 11.000 pasos   │
- *     ┌── EL CUERPO ───────────  a fondo →┐│ 15 semanas  │  │ cardio · días  │
- *     │ 77,3 kg ▼0,4                      │└─────────────┘  │ Ajustar →      │
- *     │ [curva + escalera de kcal]        │                 └────────────────┘
- *     └───────────────────────────────────┘                 ┌ CÓMO LO LLEVA ─┐
- *     ┌── EL ENTRENO ──────────  a fondo →┐                 │ dieta  ▓▓▓▓ 7  │
- *     │ la fuerza ╱ 109 ▲29 │ volumen ▓▓▏ │                 │ fatiga ▓▓▓▓ 9  │
- *     └───────────────────────────────────┘                 └────────────────┘
+ *     ┌── EL PROGRESO ───── [En rumbo] [kcal|pasos] a fondo ┐ ┌ EL PLAN ─── ✎┐
+ *     │  82 ┼············│BLOQUE 2···┌──────────┐            │ │ Objetivo     │
+ *     │     │      ●───●─│──●───●────│ HOY      │            │ │ Macros ▓▓▓░  │
+ *     │  80 ┼─●──●───────│···········│ 76,9 kg  │            │ │ 2.300 kcal   │
+ *     │     │ ▓  ▓  ▓  ▓ │▓  ▓  ▓  ▓ └──────────┘            │ │ 11.000 pasos │
+ *     │  78 ┼[80,7 EMPEZÓ]▓  ▓  ▓  ▓  [76,1 OBJETIVO]        │ │ cardio · días│
+ *     │     S1  S2  S3  S4  S5  S6  S7  S8                   │ └──────────────┘
+ *     │ ───────────────────────────────────────────────────  │ ┌ CÓMO LO LLEVA┐
+ *     │ PESO −3,8 kg  CINTURA −2,8 cm  ENTRENOS 47  FASE …   │ │ dieta ▓▓▓▓ 7 │
+ *     └──────────────────────────────────────────────────────┘ │ fatiga ▓▓▓▓ 9│
+ *     ┌── TONELAJE ─────────┐ ┌── VOLUMEN POR GRUPO ────────┐ └──────────────┘
+ *     │ ▃▄▅▆▇█  M3 … M10    │ │ pecho ▓▓▓▓▓░░  11 de 20     │ ┌ LO ÚLTIMO ───┐
+ *     └─────────────────────┘ └─────────────────────────────┘ │ ◍ Pull A  2 h│
+ *                                                             └──────────────┘
  *
- * ══ Por qué esta forma, después del mosaico de nueve ═══════════════════════
+ * ══ Por qué esta forma (frame de Figma 50:81, 17 sep 2026) ═════════════════
  *
- * El mosaico de nueve tarjetas se leía como una hoja llena: todo a la vista,
- * nada agrupado y ninguna profundidad que abrir. Entreno y Dieta ya habían
- * encontrado la forma —el trabajo a lo ancho y, al lado, lo que se decidió una
- * vez y se consulta muchas— y el Resumen la sigue:
+ * La anterior eran SEIS tarjetas y tres de ellas contaban el peso: «Cómo va»
+ * (la cuenta y el veredicto), «Desde que empezó» (el cambio total) y «El
+ * cuerpo» (la curva). El prototipo las funde en una sola —ver `TarjetaProgreso`,
+ * donde está la razón entera— y, a cambio, parte «El entreno» en las DOS que
+ * siempre fue: el tonelaje y el volumen.
  *
- *   · A la IZQUIERDA, lo que PASA: cómo va la fase (con su trayectoria), cuánto
- *     ha cambiado desde el primer día, el cuerpo y el entreno. Tres piezas y
- *     una tira de cifras, cada una con UNA forma.
- *   · A la DERECHA, lo que le has PUESTO para que pase —la receta— y lo que él
- *     cuenta de cómo lo lleva. Es lo que se mira antes de escribirle.
+ *   · A la IZQUIERDA, lo que PASA: el progreso en una caja, y debajo el entreno
+ *     en dos de media fila. Cada caja, UNA pregunta.
+ *   · A la DERECHA, lo que le has PUESTO para que pase —la receta—, lo que él
+ *     cuenta de cómo lo lleva, y lo último que hizo. Es lo que se mira antes de
+ *     escribirle. Tres cajas sueltas y no un panel fundido: el frame las dibuja
+ *     con su canto y su hueco, igual que el costado de la Dieta desde el 17 sep.
  *   · La PROFUNDIDAD, en ventanas: el cuerpo y el entreno se abren «a fondo» en
  *     la misma ventana grande que el bloque de Entreno, con las tablas semana
  *     a semana que en la página no caben ni deben caber.
  *
- * Ninguna tarjeta lleva icono decorativo, y ninguna cuenta lo que se da por
- * hecho: las series anotadas y los pesajes de la semana no son un dato, son
- * una obligación, y de que falten ya avisa la cabecera.
+ * Ninguna tarjeta cuenta lo que se da por hecho: las series anotadas y los
+ * pesajes de la semana no son un dato, son una obligación, y de que falten ya
+ * avisa la cabecera.
  *
  * ── El cliente ve lo mismo, menos tus decisiones ────────────────────────────
  * Su portal monta este mismo panel (`Client/ClientStart`). Cambian dos cosas:
@@ -88,13 +90,12 @@ export const Dashboard = ({ audience = 'coach' }) => {
   /*
     ══ Lo que su entrenador le oculta A ÉL ════════════════════════════════════
 
-    Dos de las seis tarjetas de este mosaico son el peso: «Cómo vas» cuenta la
-    trayectoria —de dónde salió, dónde está, dónde acaba— y «Tu cuerpo» es la
-    curva. A quien tiene el peso oculto no se le enseñan a medias: se le retiran
-    enteras, con sus ventanas, y el panel queda con lo que sí puede leer —lo que
-    lleva hecho, su entreno, su plan y sus sensaciones—. Ver Oculto.jsx.
+    La decisión ya no se toma aquí. Eran dos tarjetas enteras las que se
+    retiraban —la trayectoria y la curva—, y con la fusión del 17 sep son una
+    MITAD de «El progreso»: la de arriba. Quitarla o no lo decide la propia
+    tarjeta, que es la que sabe qué parte suya es el peso; el panel solo dice
+    qué monta. Ver `TarjetaProgreso` y `Oculto.jsx`.
   */
-  const oculto = useOculto();
 
   const [ventana, setVentana] = useState(null);
   /* Con qué pregunta se llegó: una fila de «Cómo lo lleva» abre su ventana con
@@ -151,10 +152,12 @@ export const Dashboard = ({ audience = 'coach' }) => {
   */
   const track = useReviewTrack(revisiones);
 
-  /* El ancho de la tarjeta del peso, para dibujar la gráfica a píxel real. Se
-     mide un contenedor SIEMPRE montado: el observador se engancha al montar, y
-     uno condicional llega después y no se mide nunca. */
-  const [refPeso, ancho] = useElementWidth();
+  /* Aquí se medía el ancho de la tarjeta del peso para dibujar la gráfica a
+     píxel real. Ya no hace falta: `GraficaDelProgreso` se mide a sí misma, que
+     es donde tiene que medirse — así la pieza sirve igual en una tarjeta, en una
+     ventana o en el portal, sin que quien la monta tenga que saber su relleno
+     (aquel `ancho - 44` era exactamente eso: el relleno de la tarjeta,
+     escrito en la pantalla que la montaba). */
 
   const program = workoutData[activeClient.id];
   const microcycles = useMemo(() => program?.microcycles || [], [program]);
@@ -349,96 +352,74 @@ export const Dashboard = ({ audience = 'coach' }) => {
           hoja en papel/noche del lienzo, tarjeta con su canto encima.
         */}
         <div className="mosaico cascada">
-          {/* La trayectoria del peso: no existe para quien lo tiene oculto. */}
-          {!oculto.weight && (
-            <TarjetaComoVa
-              goal={goal}
-              canEditGoal={!isClient}
-              /* El peso objetivo se fija en la ventana de fases, que es donde se
-                 decide el proceso: la tarjeta lee, no configura. */
-              onSetGoal={(direction) =>
-                updateClientPreferences(
-                  activeClient.id,
-                  'goal',
-                  /* Al desmarcar se escribe `direction: null` en vez de borrar la
-                     clave: `updateClientPreferences` fusiona por sección y no puede
-                     quitar claves, y `clientGoal` ya lee un `direction` inválido
-                     como «sin objetivo». Un camino, sin excepciones. */
-                  goalFromDirection(direction) || { direction: null }
-                )
-              }
-              fases={fases}
-              hoy={hoy}
-              history={history}
-              trend={trend}
-              veredicto={direccion}
-              isClient={isClient}
-              onAbrirFases={() => abrirVentana('fases')}
-            />
-          )}
-
-          <TarjetaDesde
-            /* Sola en su fila cuando la trayectoria no se pinta: cuatro columnas
-               de doce con el resto vacío no es una tarjeta, es un hueco. */
-            span={oculto.weight ? 12 : 4}
+          {/* EL PROGRESO: la caja que manda. Lleva dentro lo que antes eran tres
+              —el veredicto, la curva y el cambio total—, y a quien tiene el peso
+              oculto se le queda en su tira de cifras (ver `TarjetaProgreso`). */}
+          <TarjetaProgreso
+            serie={serie}
+            track={track}
+            conAjustes={conAjustes}
+            program={program}
+            banda={banda}
+            onBanda={setBanda}
+            hayPasos={hayPasos}
+            pesoWow={pesoWow}
+            checkIn={checkIn}
+            trend={trend}
+            veredicto={direccion}
+            goal={goal}
+            canEditGoal={!isClient}
+            /* El peso objetivo se fija en la ventana de fases, que es donde se
+               decide el proceso: la tarjeta lee, no configura. */
+            onSetGoal={(direction) =>
+              updateClientPreferences(
+                activeClient.id,
+                'goal',
+                /* Al desmarcar se escribe `direction: null` en vez de borrar la
+                   clave: `updateClientPreferences` fusiona por sección y no puede
+                   quitar claves, y `clientGoal` ya lee un `direction` inválido
+                   como «sin objetivo». Un camino, sin excepciones. */
+                goalFromDirection(direction) || { direction: null }
+              )
+            }
+            fases={fases}
+            hoy={hoy}
             history={history}
             microcycles={microcycles}
-            program={program}
             startDate={activeClient.startDate}
-            hoy={hoy}
             isClient={isClient}
+            onAbrir={() => abrirVentana('cuerpo')}
+            onAbrirFases={() => abrirVentana('fases')}
+            aFotos={aFotos}
+            aPesaje={aPesaje}
           />
 
-          {/* La curva del peso, con su ventana «a fondo»: fuera entera para quien
-              lo tiene oculto —a medias sería enseñarle el eje sin la línea—. */}
-          {/* El medidor va en una celda propia y siempre montada: dentro, la
-              tarjeta le quita su relleno a cada lado. */}
-          {!oculto.weight && (
-            <div className="mosaico-celda is-12" ref={refPeso}>
-              <TarjetaCuerpo
-                serie={serie}
-                track={track}
-                conAjustes={conAjustes}
-                program={program}
-                ancho={ancho - 44}
-                banda={banda}
-                onBanda={setBanda}
-                hayPasos={hayPasos}
-                pesoActual={pesoActual}
-                pesoWow={pesoWow}
-                checkIn={checkIn}
-                isClient={isClient}
-                onAbrir={() => abrirVentana('cuerpo')}
-                aFotos={aFotos}
-                aPesaje={aPesaje}
-              />
-            </div>
-          )}
-
+          {/* El entreno, en las dos cajas que siempre fue: cuánto movió y dónde
+              se lo pusiste. Media fila cada una. */}
           {conEntreno && (
-            <TarjetaEntreno
+            <TarjetaTonelaje
               program={program}
               microcycles={microcycles}
               cycleType={activeClient.cycleType}
-              latestWeek={latestWeek}
               isClient={isClient}
               onAbrir={() => abrirVentana('entreno')}
+            />
+          )}
+          {conEntreno && (
+            <TarjetaVolumen
+              program={program}
+              cycleType={activeClient.cycleType}
+              isClient={isClient}
               aRutina={isClient ? null : aEntreno}
             />
           )}
-        </div>
 
-        {/* `es-panel`: la columna es UN panel con apartados separados por
-            filete, no tres cajas flotando al lado de un mosaico de cinco. Es
-            la misma gramática que el costado de la dieta, y la corrección es
-            la misma — ocho cantos redondeados en una pantalla, cada uno
-            anunciando que lo suyo es otra cosa, cuando lo que hay ahí dentro
-            es una cosa: con qué se juzga a esta persona. La regla vive en
-            `revision.css`, «EL COSTADO ES UN PANEL». */}
-        <aside className="resumen-lado es-panel">
-          {/* El hilo va lo primero de la columna: es lo que se lee antes de
-              escribirle. El cliente no lo ve —su portal ya cuenta su semana en
-              cada sección— y sus respuestas tuyas las lee en la revisión. */}
+          {/* «Lo último», la última fila del mosaico y a todo lo ancho. Vivía
+              al pie de la columna de al lado, como en el frame, y colgaba por
+              debajo del trabajo, suelto («el lo último debajo apartado»): la
+              columna ya mide lo que el centro con «El plan» y «Cómo lo lleva».
+              El cliente no lo ve —su portal ya cuenta su semana en cada
+              sección— y sus respuestas tuyas las lee en la revisión. */}
           {!isClient && (
             <TarjetaHilo
               client={activeClient}
@@ -450,6 +431,18 @@ export const Dashboard = ({ audience = 'coach' }) => {
               hoy={hoy}
             />
           )}
+        </div>
+
+        {/* ── LA COLUMNA DEJA DE SER UN PANEL (frame 50:277, 17 sep) ────────
+            Llevaba `es-panel`: una sola caja con los apartados separados por
+            filete, con el argumento de que ahí dentro hay una sola cosa —con
+            qué se juzga a esta persona—. El frame la dibuja como TRES cajas de
+            canto con 20 px de papel entre ellas, y es la misma corrección que
+            se le hizo al costado de la Dieta ese mismo día: el argumento era
+            falso porque ahí no hay una cosa, hay tres —lo que le pusiste, lo
+            que él contesta y lo que ha hecho—, y cada una se lee por separado.
+            Con las cajas, además, las dos columnas vuelven a hablar igual. */}
+        <aside className="resumen-lado">
           <TarjetaPlan
             goal={goal}
             pesoActual={pesoActual}

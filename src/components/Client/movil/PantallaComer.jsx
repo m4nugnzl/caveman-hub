@@ -1,222 +1,197 @@
 import { useMemo, useState } from 'react';
-import { IconoEquivalencia } from '@/components/ui/IconoEquivalencia';
+import { RefreshCw } from 'lucide-react';
 
 import { MACROS } from '@/domain/nutrition';
 import { equivalencesFor, racionDe } from '@/domain/foodEquiv';
 import { grupoDe } from '@/domain/gruposEquiv';
-import { Aire, CabeceraDia, Tarjeta, Titulillo } from './Piezas';
+import { Aire, Cabecera, Tramo } from './Piezas';
 
 /**
- * «COMER» EN EL TELÉFONO — lo pautado del día, y cada comida en su caja.
+ * «COMER» EN EL TELÉFONO — el frame `327:234` del 18 de septiembre de 2026.
  *
- * ══ Por qué se llama «Comer» y en el monitor «Dieta» ═══════════════════════
+ * ══ Qué dice cada pieza ════════════════════════════════════════════════════
  *
- * Es la única palabra en la que los dos prototipos que eligió el dueño
- * discrepan, y se respetan los dos porque son dos aparatos. Aquí manda la ley 1
- * del estudio del teléfono —se nombra lo que HACES, no lo que te dan—; arriba,
- * en una línea de seis destinos junto a «Entreno» y «Revisión», manda que sea un
- * sustantivo. La ruta es la misma (`/mi/dieta`), así que ningún enlace guardado
- * se entera. Ver `CLIENT_SECTIONS`.
+ *   · **La cabecera**: el día y la dieta que toca, con sus kcal.
+ *   · **La semana**: siete discos. Tocar uno enseña la dieta de ese día; debajo
+ *     de cada disco, la sigla de la dieta que le toca.
+ *   · **Los tres macros**: los gramos pautados, y el arco dice qué parte de las
+ *     kcal del día pone cada uno. No es un anillo de progreso —la app no
+ *     trackea, nadie apunta lo que se come—: el dueño ya tumbó en septiembre
+ *     tres barras que salían siempre llenas. Un reparto sí se mueve: cambia de
+ *     un día alto a uno bajo, y es lo que el dibujo pide sin mentir.
+ *   · **Las comidas**: la abierta en su caja, con sus opciones como puntos
+ *     arriba a la derecha y cada alimento con su ración. Las demás, plegadas
+ *     debajo, se abren al tocarlas. Delante de la nevera se mira UNA comida.
+ *   · **El símbolo de cambio** junto a un alimento dice que tiene
+ *     equivalencias; tocar la fila las despliega debajo. Sin equivalencias, la
+ *     fila no se toca.
  *
- * ══ La comida es una caja, y las opciones un renglón de números ════════════
- *
- * Esto ha ido y ha vuelto, y conviene dejar escrito el porqué de cada vuelta.
- *
- * La comida empezó siendo una fila con su filete —tres tarjetas con sombra en
- * una pantalla de 390 px son tres planos apilados para una lista— y las
- * opciones, un pie: *Opción 1 de 4 · Cambiar*, que pasaba a la SIGUIENTE. Eso
- * obliga a elegir a ciegas: para ver la cuarta hay que pasar por la segunda y
- * la tercera.
- *
- * El arreglo fue poner las cuatro a la vista, en cajas con sus kcal. Y con
- * cinco opciones —que las hay— cinco cajas de 96 px no caben en un teléfono: la
- * tira se desbordaba a lo ancho y la quinta se leía fuera de la pantalla, cada
- * comida con su propio desplazamiento lateral.
- *
- * Lo que hay ahora lo pidió el dueño el 14 de septiembre, y cierra las dos
- * cosas: la comida VUELVE a la caja —una por comida, que es la unidad que se
- * mira delante de la nevera— y dentro, bajo su nombre, las opciones son un
- * renglón de pastillas numeradas, «1 2 3 4 5», que caben de sobra en el ancho.
- *
- * Las kcal de cada opción salen de las pastillas y se quedan una sola vez en la
- * cabecera de la comida, donde cambian al elegir. Decían lo mismo: en la demo,
- * las cuatro opciones del desayuno suman 908, 915, 917 y 903 kcal — cuatro
- * cifras casi iguales que piden compararse para desayunar. Las opciones de una
- * comida son intercambiables por construcción; esa es justo la razón de que
- * existan.
- *
- * Siguen yendo ENCIMA de los alimentos porque el orden de la decisión es ese:
- * primero cuál, luego qué lleva. Y el titular vuelve a ser un titular: el
- * nombre de la comida ya no cambia de opción al tocarlo.
- *
- * ══ Y los macros son tres cifras, no tres anillos ══════════════════════════
- *
- * Es lo que se decidió NO copiarle a Coachway ni a Efort: un anillo dice «vas
- * por la mitad» y tres cifras con su gramo dicen cuánto te queda. Ver `la app no
- * receta`.
- *
- * ══ Y sin barras, y sin dos varas de medir ═════════════════════════════════
- *
- * Cada cifra llevaba una barrita, y la gorda de las kcal encima. El dueño:
- * *«esas 3 rayas no tienen sentido, como la app no trackea solo quedan como 3
- * rayas siempre»*. Está medido en el código: la barra dibujaba lo que suman las
- * opciones abiertas contra lo pautado, y como el menú se escribe PARA cuadrar
- * con la pauta, las cuatro salían llenas todos los días de todo el mundo.
- *
- * Debajo de la estética había una avería, y sobrevivió a las barras metida en
- * el titular: la tarjeta decía «3.072 de 3.100 kcal» —lo que suman las comidas
- * escritas, contra el objetivo— y justo debajo tres macros que eran LO PAUTADO.
- * Dos varas de medir en una pieza de cuatro cifras. El dueño, el 14 sep:
- * *«muestra los macros reales, no los estipulados, es un error»*.
- *
- * Ahora las cuatro cifras vienen de la misma fuente y dicen lo mismo: lo que te
- * han pautado hoy. Nada de progreso — no hay nada que trackear, nadie apunta lo
- * que se come. Ver `ClientDietRoute`.
- *
- * ══ Y cada alimento dice por qué se puede cambiar ══════════════════════════
- *
- * Es lo que faltaba delante de la nevera: «no tengo plátanos» se resolvía
- * escribiéndole al entrenador. La lista existía —la ve él montando— y a esta
- * pantalla no llegaba el catálogo con el que se calcula. Ver `Alimento`, aquí
- * abajo.
+ * Los colores del arco son los de los macros de la casa (`MACROS`): el color
+ * es del dato, y en toda la aplicación la proteína es la misma.
  */
 export const PantallaComer = ({ datos }) => {
   const { cabecera, dias, dia, comidas, historia, catalogo = [], grupos = [], sinCifras } = datos;
+  const [abierta, setAbierta] = useState(comidas[0]?.id ?? null);
+  const hoyKey = dias.find((d) => d.esHoy)?.key ?? null;
+  const [elegido, setElegido] = useState(hoyKey);
+
+  const reparto = useMemo(() => repartoDeKcal(dia), [dia]);
+  const abiertaId = comidas.some((c) => c.id === abierta) ? abierta : comidas[0]?.id;
 
   return (
     <>
-      <CabeceraDia {...cabecera} />
-      <div className="tel-tramo">
-        {/* La cinta de los siete días con la sigla de la dieta que toca en cada
-            uno. Una letra y no un color: el color por categoría murió con el
-            replanteo de la dieta. */}
-        {dias.length > 1 ? (
-          <div className="tel-cinta-dias">
-            {dias.map((d) => (
-              <button
-                key={d.key}
-                type="button"
-                aria-current={d.esHoy ? 'date' : undefined}
-                onClick={() => d.onElegir?.()}
-              >
-                <span className="tel-l">{d.sigla}</span>
-                <span className="tel-d">{d.letra}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
+      <Cabecera
+        titulo={cabecera.fecha}
+        sub={[cabecera.donde, dia && !sinCifras ? `${dia.kcal} kcal` : null].filter(Boolean).join(' · ')}
+      />
 
-        {dia ? (
-          <Tarjeta>
-            <div className="tel-kcal">
-              <span className="tel-n">{dia.kcal}</span>
-              <span className="tel-u">kcal</span>
-            </div>
-            <div className="tel-macros">
-              {dia.macros.map((m) => (
-                <div key={m.k}>
-                  <div className="tel-k">{m.k}</div>
-                  <div className="tel-v">
-                    {m.v}
-                    <small> g</small>
-                  </div>
+      {/* La semana solo si dice algo: con una sola dieta para todos los días
+          —un plan por macros sin reparto— siete discos iguales que no se
+          pueden tocar son un mando roto. */}
+      {dias.length > 1 && dias.some((d) => d.onElegir) ? (
+        <div className="tel-dias tel-dias-dieta" role="group" aria-label="Tu dieta de cada día">
+          {dias.map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              className={`tel-dia${(elegido ?? hoyKey) === d.key ? ' tel-hoy' : ''}`}
+              aria-pressed={(elegido ?? hoyKey) === d.key}
+              aria-label={`${d.letra}${d.esHoy ? ', hoy' : ''}: dieta ${d.sigla}`}
+              disabled={!d.onElegir}
+              onClick={() => {
+                setElegido(d.key);
+                d.onElegir?.();
+              }}
+            >
+              <span className="tel-dia-disco">{d.letra}</span>
+              <span className="tel-dia-sigla">{d.sigla}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {dia && !sinCifras ? (
+        <Tramo>
+          <div className="tel-macros">
+            {dia.macros.map((m) => {
+              const parte = reparto[m.key] ?? 0;
+              return (
+                <div className="tel-macro" key={m.k}>
+                  <Arco parte={parte} color={m.color} etiqueta={`${Math.round(parte * 100)} % de las kcal`} />
+                  <span className="tel-macro-v">{m.v}g</span>
+                  <span className="tel-macro-k">{m.k}</span>
                 </div>
-              ))}
-            </div>
-          </Tarjeta>
-        ) : null}
+              );
+            })}
+          </div>
+        </Tramo>
+      ) : null}
 
-        {comidas.map((c) => (
-          <Tarjeta className="tel-comida" key={c.id}>
-            <div className="tel-cab">
-              <span className="tel-nom">{c.nombre}</span>
-              {c.kcal ? <span className="tel-kc">{c.kcal} kcal</span> : null}
-            </div>
-
-            {/* Las opciones: el rótulo una vez y los números al lado. Una comida
-                con una sola no lleva mando — en reposo no está—, y por eso el
-                rótulo va aquí dentro y no en la cabecera de la comida.
-
-                La pastilla se ENCIENDE, no se marca: ni palomita ni flecha. Ley
-                de los gestos. Y `aria-pressed` es lo que se lo cuenta a quien no
-                ve el encendido. */}
-            {c.opciones > 1 ? (
-              <div className="tel-opciones" role="group" aria-label={`Opciones de ${c.nombre}`}>
-                <span className="tel-o-rot">Opción</span>
-                {c.lista.map((o) => (
-                  <button
-                    key={o.id}
-                    type="button"
-                    className="tel-opcion"
-                    aria-pressed={o.puesta}
-                    aria-label={o.nombre}
-                    onClick={o.onElegir}
-                  >
-                    {o.etiqueta}
-                  </button>
-                ))}
+      {comidas.length > 0 ? (
+        <Tramo className="tel-comidas">
+          {comidas.map((c) =>
+            c.id === abiertaId ? (
+              <div className="tel-caja tel-comida" key={c.id}>
+                <div className="tel-comida-cab">
+                  <span className="tel-comida-tx">
+                    <span className="tel-comida-nom">{c.nombre}</span>
+                    {c.kcal && !sinCifras ? <span className="tel-comida-kc">{c.kcal} kcal</span> : null}
+                  </span>
+                  {/* Las opciones: un punto cada una, y la puesta en azul. Se
+                      tocan con la yema entera, no con el punto: el botón mide
+                      28 px aunque el punto mida 6. */}
+                  {c.opciones > 1 ? (
+                    <span className="tel-opciones" role="group" aria-label={`Opciones de ${c.nombre}`}>
+                      {c.lista.map((o) => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className="tel-opcion"
+                          aria-pressed={o.puesta}
+                          aria-label={o.nombre}
+                          onClick={o.onElegir}
+                        >
+                          <i aria-hidden="true" />
+                        </button>
+                      ))}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="tel-comida-lista">
+                  {c.alimentos.map((a) => (
+                    <Alimento key={a.id} alimento={a} catalogo={catalogo} grupos={grupos} sinCifras={sinCifras} />
+                  ))}
+                </div>
               </div>
-            ) : null}
+            ) : (
+              <button type="button" className="tel-comida-plegada" key={c.id} onClick={() => setAbierta(c.id)}>
+                <span className="tel-comida-tx">
+                  <span className="tel-comida-nom">{c.nombre}</span>
+                  <span className="tel-comida-que">{c.alimentos.map((a) => a.nombre).join(', ')}</span>
+                </span>
+                {c.kcal && !sinCifras ? <span className="tel-comida-kc">{c.kcal} kcal</span> : null}
+              </button>
+            )
+          )}
+        </Tramo>
+      ) : null}
 
-            <div className="tel-lista">
-              {c.alimentos.map((a) => (
-                <Alimento
-                  key={a.id}
-                  alimento={a}
-                  catalogo={catalogo}
-                  grupos={grupos}
-                  sinCifras={sinCifras}
-                />
-              ))}
-            </div>
-          </Tarjeta>
-        ))}
+      {comidas.length === 0 && dia && !sinCifras ? (
+        <Tramo>
+          <p className="tel-pie tel-pie-arriba">
+            Tu dieta va por cifras: estas son las de hoy, y cómo llegar a ellas lo eliges tú.
+          </p>
+        </Tramo>
+      ) : null}
 
-        {historia ? (
-          <>
-            <Titulillo>Cómo van tus calorías</Titulillo>
-            <Tarjeta plana>
-              <div className="tel-pie-nota">{historia.frase}</div>
-              {historia.puntos.length > 1 ? (
-                <Escalera puntos={historia.puntos} />
-              ) : null}
-            </Tarjeta>
-          </>
-        ) : null}
+      {historia ? (
+        <Tramo rotulo="Tus calorías">
+          <p className="tel-pie tel-pie-arriba">{historia.frase}</p>
+          {historia.puntos.length > 1 ? <Escalera puntos={historia.puntos} /> : null}
+        </Tramo>
+      ) : null}
 
-        <Aire />
-      </div>
+      <Aire />
     </>
+  );
+};
+
+/** Qué parte de las kcal pone cada macro: 4 kcal el gramo de proteína y de
+    carbos, 9 el de grasa. */
+const repartoDeKcal = (dia) => {
+  if (!dia) return {};
+  const kcal = { protein: 4, carbs: 4, fats: 9 };
+  const suyas = Object.fromEntries(dia.macros.map((m) => [m.key, (Number(m.v) || 0) * (kcal[m.key] || 0)]));
+  const total = Object.values(suyas).reduce((a, b) => a + b, 0);
+  if (total <= 0) return {};
+  return Object.fromEntries(Object.entries(suyas).map(([k, v]) => [k, v / total]));
+};
+
+/** El arco de un macro: media circunferencia, llena en la parte que le toca. */
+const Arco = ({ parte, color, etiqueta }) => {
+  const r = 20;
+  const largo = Math.PI * r;
+  return (
+    <svg className="tel-arco" viewBox="0 0 48 26" role="img" aria-label={etiqueta}>
+      <path className="tel-arco-fondo" d="M4,4 A20,20 0 0 0 44,4" />
+      <path
+        className="tel-arco-lleno"
+        d="M4,4 A20,20 0 0 0 44,4"
+        style={{ stroke: color }}
+        strokeDasharray={largo}
+        strokeDashoffset={largo * (1 - Math.max(0, Math.min(1, parte)))}
+      />
+    </svg>
   );
 };
 
 /**
  * UN ALIMENTO DEL MENÚ, Y LO QUE PUEDE IR EN SU LUGAR.
  *
- * ══ Por qué el teléfono no las tenía ═══════════════════════════════════════
- *
- * Porque nadie se las pasaba: las equivalencias se calculan contra el catálogo
- * (`equivalencesFor`) y esta pantalla no lo recibía, así que un cliente en la
- * frutería sin plátanos tenía que escribirle a su entrenador para saber cuántas
- * fresas son. El dueño, el 14 de septiembre: *«no muestra las alternativas de
- * cada alimento, debería hacerlo»*.
- *
- * ══ Se calculan aquí, y a propósito ════════════════════════════════════════
- *
- * Memoizado sobre la entrada: solo se rehace al cambiar de alimento —elegir otra
- * opción de la comida, otro día del ciclo—, no en cada render. Y se calculan
- * ANTES de abrir nada porque son lo que decide si esta fila se puede pulsar: una
- * fila que al tocarla dijera «no hay alternativas» enseña a desconfiar de la
- * pantalla. Es la misma razón, escrita en `MealCard`, por la que el entrenador
- * tampoco ve un botón vacío.
- *
- * ══ Y aquí no se cambia nada ═══════════════════════════════════════════════
- *
- * Se lee. Tu plan sigue siendo lo que te pautaron: esto dice cuánto pesar de
- * otra cosa para que cuadre, no reescribe la dieta. Por eso no hay ningún verbo
- * —el «Usar» del taller es del que la monta— y el pie dice qué se conserva, que
- * es lo que convierte una lista de nombres en una decisión: igualar el macro de
- * la familia deja libres los otros dos, y esa diferencia se ve.
+ * Se lee, no se cambia: tu plan sigue siendo lo que te pautaron, y esto dice
+ * cuánto pesar de otra cosa para que cuadre. Las equivalencias se calculan
+ * antes de abrir nada porque son lo que decide si la fila se puede pulsar: una
+ * fila que al tocarla dijera «no hay alternativas» enseña a desconfiar.
  */
 const Alimento = ({ alimento, catalogo, grupos, sinCifras }) => {
   const [abierto, setAbierto] = useState(false);
@@ -233,8 +208,8 @@ const Alimento = ({ alimento, catalogo, grupos, sinCifras }) => {
   if (!equivalencias) {
     return (
       <div className="tel-al">
-        <span>{alimento.nombre}</span>
-        <span className="tel-g">{alimento.racion}</span>
+        <span className="tel-al-nom">{alimento.nombre}</span>
+        <span className="tel-al-g">{alimento.racion}</span>
       </div>
     );
   }
@@ -250,11 +225,11 @@ const Alimento = ({ alimento, catalogo, grupos, sinCifras }) => {
         aria-label={`Qué puedes comer en lugar de ${alimento.nombre}`}
         onClick={() => setAbierto((v) => !v)}
       >
-        <span className="tel-al-nom">
-          {alimento.nombre}
-          <IconoEquivalencia size={13} />
+        <span className="tel-al-nom">{alimento.nombre}</span>
+        <span className="tel-al-g">
+          {alimento.racion}
+          <RefreshCw size={13} aria-hidden="true" />
         </span>
-        <span className="tel-g">{alimento.racion}</span>
       </button>
 
       {abierto ? (
@@ -262,7 +237,7 @@ const Alimento = ({ alimento, catalogo, grupos, sinCifras }) => {
           {equivalencias.items.map((item) => (
             <div className="tel-cambio" key={item.food.id || item.food.name}>
               <span>{item.food.name}</span>
-              <span className="tel-g">{racionDe(item, { corta: true })}</span>
+              <span className="tel-al-g">{racionDe(item, { corta: true })}</span>
             </div>
           ))}
           <p className="tel-cambios-pie">
@@ -278,19 +253,9 @@ const Alimento = ({ alimento, catalogo, grupos, sinCifras }) => {
 
 /**
  * LA ESCALERA de lo que te han pautado: una línea que salta cuando te cambian
- * las calorías, y plana mientras no te las cambian.
- *
- * Es la respuesta a «tu entrenador no ha cambiado tus calorías desde que
- * empezaste», que era una frase con el entrenador de sujeto. El hecho es la
- * línea recta, y se ve.
- *
- * ── Los escalones son cuadrados a propósito ───────────────────────────────
- * Una pauta no sube en rampa: estuvo en 2.150 hasta un día y al siguiente en
- * 1.970. Una diagonal entre los dos puntos dibujaría dos semanas de bajada
- * lenta que nadie escribió.
- *
- * Y una serie sin cambios se pinta CENTRADA, no pegada al suelo: el trazo no
- * está diciendo «cero», está diciendo «lo mismo».
+ * las calorías y plana mientras no. Los escalones son cuadrados: una pauta no
+ * sube en rampa. Una serie sin cambios se pinta centrada: dice «lo mismo», no
+ * «cero».
  */
 const Escalera = ({ puntos }) => {
   const min = Math.min(...puntos);
@@ -309,14 +274,7 @@ const Escalera = ({ puntos }) => {
 
   return (
     <svg viewBox="0 0 300 60" preserveAspectRatio="none" className="tel-escalera" aria-hidden="true">
-      <path
-        d={d}
-        stroke="var(--accent)"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d={d} />
     </svg>
   );
 };

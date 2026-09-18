@@ -403,9 +403,13 @@ export const EditarObjetivo = ({
       title={title || 'Objetivo diario'}
       footer={
         <>
+          {/* En el primer paso «Cancelar» va SIN caja y en los demás
+              «← Atrás» con ella (frames 66:136 y 66:212): irse de una
+              ventana sin haber tocado nada no es un mando que compita con
+              «Siguiente», y volver un paso sí. */}
           <button
             type="button"
-            className="btn btn-secondary"
+            className={indice === 0 ? 'btn btn-plain' : 'btn btn-secondary'}
             onClick={indice === 0 ? onClose : () => setPaso(indice - 1)}
           >
             {indice === 0 ? (
@@ -571,7 +575,10 @@ export const EditarObjetivo = ({
                     en el mismo orden: en estrecho se van «antes» y la flecha, y
                     con ellos su rótulo. */}
                 <div className="macro-fila es-cab" aria-hidden="true">
-                  <span />
+                  {/* La columna del nombre también se rotula (frame 66:178):
+                      sin ella la cabecera empieza a mitad de la tabla y las
+                      tres palabras parecen colgar del aire. */}
+                  <span>Macro</span>
                   <span className="cifra es-antes">Antes</span>
                   <span className="es-flecha" />
                   <span className="cifra es-ahora">Ahora</span>

@@ -49,7 +49,8 @@ import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
 import { PlanDia } from '@/components/nutrition/PlanDia';
 import { RepartoComparado } from '@/components/nutrition/RepartoComparado';
 import { TiraDeLaDieta } from '@/components/nutrition/TiraDeLaDieta';
-import { ClientSettingsSheet, PieDeProtocolo } from './ClientSettings';
+import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
+import { PieDeProtocolo } from './ClientSettings';
 import { PastePlanDialog } from './Import/PastePlanDialog';
 import { CopyToClientPanel } from './Workout/CopyToClientPanel';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
@@ -218,10 +219,6 @@ export const NutritionModule = () => {
   /* El reparto de un plan por macros. Ver `elReparto` más abajo: sin nada
      repartido no es una tabla plegada, es una decisión sin tomar. */
   const [repartoAbierto, setRepartoAbierto] = useState(null);
-  /* Su protocolo entero, abierto desde el pie del interruptor de equivalencias:
-     ahí se declara una excepción sobre esta persona, y la pregunta que sigue es
-     de qué se está haciendo la excepción. */
-  const [protocoloAbierto, setProtocoloAbierto] = useState(false);
   /*
     ══ ⌘C Y ⌘V TAMBIÉN AQUÍ ═══════════════════════════════════════════════════
 
@@ -713,6 +710,16 @@ export const NutritionModule = () => {
   const parejaParaElSplit = dias.length === 2 ? { entreno: dias[0].id, descanso: dias[1].id } : null;
 
   const mapaCiclo = cycleMap(plan, casillas);
+  /* Cuántas casillas del ciclo le tocan a cada día: el «×6 días» de su tarjeta.
+     Sin ciclo repartido no hay cuenta que dar y el mapa sale vacío, que es lo
+     correcto —la tarjeta calla en vez de decir «×0 días»—. */
+  const vecesEnElCiclo = useMemo(() => {
+    const cuenta = {};
+    for (const dayId of Object.values(mapaCiclo)) {
+      if (dayId) cuenta[dayId] = (cuenta[dayId] || 0) + 1;
+    }
+    return cuenta;
+  }, [mapaCiclo]);
   const cicloRepartido = hasCycleMap(plan);
   const cicloCuadra =
     hayEntreno && parejaParaElSplit ? cycleMatchesSplit(plan, casillas, parejaParaElSplit) : true;
@@ -1181,25 +1188,47 @@ export const NutritionModule = () => {
         <div className="dieta-menu">
           <div className="dieta-hoja">
             {/*
-              LA CINTA es la cabecera de la caja, como en Entreno: dentro de la
-              hoja y con su fondo hundido, no flotando encima de las dos
-              columnas. Dice qué día del plan se está mirando, y es de donde
-              cuelga el día que se añade.
+              ══ LOS DÍAS, EN TARJETAS (frame 64:88) ═══════════════════════
+
+              Eran pastillas dentro de la cinta y ahora son tarjetas del ancho
+              de la mesa, con lo que distingue a un día de otro dentro: sus
+              macros, cuántas veces cae en el ciclo, cuánto menú tiene montado
+              y su cifra. Ver `TarjetasDeDia`.
+
+              Y aquí es donde CAE la comida que llevas en la mano: encima del
+              día al que vaya. Nunca sobre el abierto —pegar en el menú que ya
+              se está mirando es el verbo de la mano, no un arrastre—, y por eso
+              la pieza filtra el activo.
             */}
-            <TiraDeLaDieta
+            <TarjetasDeDia
               dias={dias}
               activo={comparando ? null : variant}
               onDia={(id) => {
                 setComparar(false);
                 setDietView(id);
               }}
-              /* Dónde cae la comida que llevas: encima del día al que vaya. Ver
-                 «Y LAS PESTAÑAS DE LOS DÍAS SON DONDE CAE». Nunca sobre el día
-                 abierto —pegar una comida en el menú que ya se está mirando es
-                 el verbo de la mano, no un arrastre— y por eso la cinta filtra
-                 el activo: una zona que hace lo que ya hace un botón a la vista
-                 es una oferta de más. */
+              onRenombrar={(id, nombre) => renameDietDay(activeClient.id, id, nombre)}
+              veces={vecesEnElCiclo}
               soltar={alDia.pieza ? { sobre: alDia.sobre, zona: alDia.zona, pegar: pegarEnElMenu } : null}
+            />
+
+            {/*
+              ══ Y DEBAJO LA BARRA, no encima (frame 64:107) ════════════════
+
+              El orden del dibujo es el de la pregunta: primero QUÉ DÍA se mira
+              —las tarjetas—, y solo después a qué casillas del ciclo le toca
+              ese día, cómo se le pauta y qué se puede hacer con el plan. Con la
+              barra arriba, las casillas hablaban de un día que todavía no se
+              había elegido.
+            */}
+            <TiraDeLaDieta
+              dias={dias}
+              /* Qué día está abierto: sus casillas del ciclo van en acento. */
+              activo={comparando ? null : variant}
+              /* Cómo se le pauta: la ficha técnica del plan, al canto derecho y
+                 en voz de rótulo (frame 64:109). Fue chapa junto a un titular
+                 que ya no existe. */
+              tipo={cerrado ? 'dieta cerrada' : 'por macros'}
               /* «+ día», a secas. Decía «+ día de descanso» porque lo único que
                  sabía hacer el plan era encender su segunda columna; ahora el
                  día nuevo puede ser el alto en hidratos, el de piernas o el
@@ -1248,7 +1277,8 @@ export const NutritionModule = () => {
                       ]}
                     />
                   )}
-                  <span className="tira-dato">{cerrado ? 'dieta cerrada' : 'por macros'}</span>
+                  {/* Cómo se le pauta se fue a la chapa del nombre (frame
+                      62:469): es de lo que habla el titular, no un verbo. */}
                   <SaveIndicator
                     status={save.status}
                     error={save.error}
@@ -1331,10 +1361,7 @@ export const NutritionModule = () => {
                        decía en ninguna parte: es un módulo del protocolo de esta
                        persona, y tocarlo aquí lo separa de su plantilla. */
                     pie={
-                      <PieDeProtocolo
-                        client={activeClient}
-                        onAbrir={() => setProtocoloAbierto(true)}
-                      />
+                      <PieDeProtocolo client={activeClient} />
                     }
                     /* El segundo peldaño de la misma elección, que vivía en la
                        mesa como dos tarjetas. Ver «AQUÍ ESTABAN LAS DOS MANERAS
@@ -1571,7 +1598,6 @@ export const NutritionModule = () => {
                   <MealCard
                     key={meal.id}
                     meal={meal}
-                    numero={mealIndex + 1}
                     opcion={elegidas[meal.id] ?? 0}
                     onOpcion={(i) => setElegidas((e) => ({ ...e, [meal.id]: i }))}
                     arrastre={{
@@ -1762,8 +1788,19 @@ export const NutritionModule = () => {
 
           Los pasos y el cardio son del PLAN, no de un día —lo que esta persona
           hace cada día, entrene o no—, y van una vez, al final.
+
+          ── Y NO ES UN PANEL: SON CAJAS SUELTAS (frame 64:244) ──────────────
+          Llevó `es-panel`, que funde la columna en una caja con las secciones
+          separadas por un filete. El frame las dibuja como TRES CAJAS con su
+          canto y dieciséis píxeles de papel entre cada dos, igual que la mesa
+          de la izquierda separa una comida de la siguiente. Es la misma regla
+          en las dos columnas: desde que el panel se fue, lo que separa una cosa
+          de otra es su propio canto.
+
+          `es-panel` sigue en pie donde se escribió —el costado del Resumen y el
+          del portal—: esto es lo que dice ESTE frame de ESTA pantalla.
         */}
-        <aside className="dieta-lado es-panel" aria-label="El objetivo y cómo va">
+        <aside className="dieta-lado" aria-label="El objetivo y cómo va">
           {/*
             ══ AQUÍ ESTABA LA TARJETA «OBJETIVO», Y SE HA FUNDIDO CON «EL DÍA» ═
 
@@ -1807,7 +1844,7 @@ export const NutritionModule = () => {
           <EditarObjetivo
             open={Boolean(objetivoAbierto)}
             onClose={() => setObjetivoAbierto(null)}
-            title={`Objetivo · ${dias.find((d) => d.id === objetivoAbierto)?.name || diaActual.name}`}
+            title={`Ajustar objetivo · ${dias.find((d) => d.id === objetivoAbierto)?.name || diaActual.name}`}
             targets={targetsFor(plan, objetivoAbierto || variant)}
             onSave={guardarObjetivo(objetivoAbierto || variant)}
             avanzado={avanzado}
@@ -1929,17 +1966,6 @@ export const NutritionModule = () => {
         />
       )}
 
-      {/*
-        Su protocolo entero, desde el pie del interruptor de equivalencias. La
-        MISMA hoja que abre la cartera y que abre su ficha: el interruptor de
-        aquí es un atajo a una decisión que vive ahí, y lo honesto es que la
-        puerta lleve al sitio de verdad y no a una copia.
-      */}
-      <ClientSettingsSheet
-        client={activeClient}
-        open={protocoloAbierto}
-        onClose={() => setProtocoloAbierto(false)}
-      />
     </div>
   );
 };

@@ -995,10 +995,15 @@
 .macro-legend-item > i { width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0; }
 .macro-legend-item > .k { color: var(--text-secondary); }
 .macro-legend-item > .g { font-weight: 600; font-variant-numeric: tabular-nums; }
+/* ── EL PORCENTAJE NO ES UNA PÍLDORA (17 sep · frame 66:169) ──────────────
+   Iba en cápsula gris y el frame lo escribe en negrita, a secas, pegado a los
+   gramos. Tiene razón el dibujo: la leyenda es UNA frase por macro —«Proteína
+   120 g 15 %»— y la cápsula partía la frase en dos pedazos de distinto rango,
+   con el que menos pesa dentro de la caja. Y en la misma ventana hay píldoras
+   de verdad (los mandos de −/+), así que la cápsula prometía algo que se
+   pulsa. */
 .macro-legend-item > .p {
-  font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary);
-  background: var(--fill); border-radius: var(--r-pill); padding: 1px 6px;
-  font-variant-numeric: tabular-nums;
+  font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums;
 }
 
 /* ── Reparto de una comida o de una opción: anillo + leyenda ────────────────
@@ -1188,7 +1193,7 @@
    pulsa» sin ocupar más sitio. Vale para los dos: equivalencias y editar. */
 .food-row > .name > .btn-icon { color: var(--text-tertiary); flex-shrink: 0; }
 .food-row > .name > .btn-icon:hover { color: var(--accent); }
-/* ── EL ≈ Y CUÁNTAS, pegado al nombre ───────────────────────────────────────
+/* ── EL SIGNO Y CUÁNTAS, pegado al nombre ──────────────────────────────────
    Una chapa de 22 px con el signo y el número: la geometría de los botones de
    la fila (`--h-control-sm` de alto) y la tinta terciaria de lo que es puerta y
    no dato. Desplegada se queda encendida en acento, que es lo que ata las filas
@@ -1485,66 +1490,82 @@
 }
 .food-fibra > em { font-style: normal; opacity: 0.72; }
 
-/* ══ LAS EQUIVALENCIAS, DEBAJO DEL ALIMENTO Y EN SU MISMA REJILLA ═══════════
-   Saber por qué se puede cambiar un alimento costaba abrir un diálogo con velo,
-   leerlo y cerrarlo — por CADA alimento, y el cliente en la frutería tiene
-   diecisiete. Ahora las tres primeras raciones caen debajo, en la misma tabla:
-   la ración bajo la columna de cantidad y el nombre bajo el nombre, así que la
-   comida se sigue leyendo como UNA tabla y no como dos.
+/* ══ LAS EQUIVALENCIAS SON CAJAS, NO FILAS (17 sep · frame 64:180) ═════════
+   Vivieron dentro de la rejilla del alimento: el ≈ en la columna del asa, el
+   nombre bajo el nombre y la ración bajo la cantidad. La idea era que la
+   comida se leyera como UNA tabla; lo que pasaba de verdad es que una
+   equivalencia no tiene P, C, G ni kcal que poner en esas cuatro columnas, así
+   que media fila se quedaba vacía y las dos cifras que sí tiene («28 g de
+   carbos · 119 kcal») acababan volcadas al canto derecho, a seis centímetros
+   de la palabra que describen.
 
-   Eran sangradas con un filete a la izquierda, y la sangría las sacaba de las
-   columnas del padre: la ración no caía bajo la cantidad. Ahora continúan la
-   LOSA del alimento —la fila abierta pierde el redondeo de abajo y las hijas
-   lo recogen— y cada una lleva el ≈ en la columna del asa. Una sola pieza: el
-   alimento y lo que vale por él. */
-.food-row.con-equiv-abiertas { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+   El frame las saca de la tabla: cajas blancas sobre la banda de acento del
+   alimento, con las tres cosas que dicen una al lado de otra —qué es, cuánto
+   es, qué aporta—. Lo que las ata a su alimento es el RAÍL de la izquierda,
+   que es la misma pieza con la que Entreno ata las series a su ejercicio. */
 .equiv-hijas {
-  display: flex; flex-direction: column; gap: 0;
-  width: max-content; min-width: 100%;
-  margin-top: -3px; /* el `gap` de `.food-table`: pegadas a su alimento */
-  padding: 2px 0 var(--s1);
-  background: var(--surface-sunken);
-  border-radius: 0 0 var(--r-md) var(--r-md);
-  box-shadow: inset 0 1px 0 var(--hairline);
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--s2);
+  padding: 0 var(--s4) var(--s3) var(--s5);
+  background: var(--accent-soft);
 }
-.equiv-signo-fila { display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); }
-.equiv-hijas-pie {
-  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1);
-  /* Bajo la columna del nombre: el relleno de la fila + el asa + su hueco,
-     menos el relleno propio del verbo. */
-  padding: 2px var(--s3) 0 calc(var(--s3) + 20px);
+/* El raíl. Va en la capa de fondo y no como borde de cada caja: es UNA línea
+   que recorre el grupo, que es lo que dice «todas estas cuelgan de aquella». */
+.equiv-hijas::before {
+  content: ""; position: absolute; left: 18px; top: var(--s1); bottom: 30px;
+  width: 2px; border-radius: 1px; background: var(--accent); opacity: 0.4;
 }
-/* Y más apretadas que las del menú: son una consulta, no el plan. La losa de
-   `.food-row` da 44 px de alto por fila y tres seguidas abultaban más que el
-   alimento del que cuelgan. */
-.food-row.is-equiv {
-  min-height: 0; padding-top: 3px; padding-bottom: 3px;
-  background: transparent; border-radius: 0;
-  font-size: var(--fs-sm);
-  color: var(--text-secondary);
+.equiv-fila {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s3);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  font-size: var(--fs-control);
+  transition: border-color var(--fast);
 }
-.food-row.is-equiv:hover { background: var(--fill-subtle); }
-.food-row.is-equiv > .name { font-size: var(--fs-sm); font-weight: 500; }
-/* Los dos huecos de la fila hija: reservan la columna del asa a la izquierda y
-   la de la equis a la derecha, para que el nombre caiga bajo el nombre. Vacíos
-   a propósito —una fila hija no se arrastra ni se borra—; en el teléfono
-   desaparecen, que es donde esas dos columnas no existen. */
-.food-row.is-equiv > .equiv-hueco { min-width: 0; }
-.food-row.is-equiv > .grams > .fixed { font-weight: 500; color: var(--text-secondary); }
-/* ── EL VERBO DE LA FILA HIJA ───────────────────────────────────────────────
+.equiv-fila:hover, .equiv-fila:focus-within { border-color: var(--hairline-strong); }
+.equiv-nombre {
+  display: flex; align-items: center; min-width: 0;
+  font-weight: var(--peso-fuerte); color: var(--text);
+}
+/* La ración, entre rayas: es la medida de ESTA equivalencia y no una columna
+   de la tabla, y las rayas son lo que la separa del nombre sin gastar un
+   filete. Las pone el CSS —no son texto que nadie tenga que oír—. */
+.equiv-racion { color: var(--text-tertiary); white-space: nowrap; }
+.equiv-racion::before { content: "— "; }
+.equiv-racion::after { content: " —"; }
+.equiv-cifras {
+  display: flex; align-items: center; gap: var(--s1); min-width: 0;
+  color: var(--text-tertiary); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Lo que APORTA, que es la razón de que esta equivalencia exista: en tinta de
+   dato. Las kcal van detrás y en voz baja — son la consecuencia, no el
+   criterio. */
+.equiv-cifras > b { font-weight: var(--peso-fuerte); color: var(--text-secondary); }
+.equiv-cifras > .sep { padding: 0 2px; opacity: 0.5; }
+.equiv-cifras > .dif { font-weight: var(--peso-cifra); margin-left: 2px; }
+.equiv-cifras > .dif.is-mas { color: var(--negative); }
+.equiv-cifras > .dif.is-menos { color: var(--warning); }
+/* Dentro del margen, la diferencia se escribe pero no juzga: la información no
+   se esconde y el semáforo se calla. Ver `Desvio` en `MealCard`. */
+.equiv-cifras > .dif.is-dentro { color: var(--text-tertiary); font-weight: var(--peso-fuerte); }
+
+/* ── EL VERBO DE LA CAJA ───────────────────────────────────────────────────
    En reposo no está, que es la ley: una oferta que no se apaga es mobiliario, y
    aquí hay tres por alimento y hasta diecisiete alimentos. Se enciende con la
-   fila —también con el teclado, por eso `:focus-within` y no solo `:hover`— y
+   caja —también con el teclado, por eso `:focus-within` y no solo `:hover`— y
    va en azul, que es lo que invita. */
 .equiv-usar {
   flex: none; margin-left: var(--s2); padding: 1px 6px;
   background: transparent; border: 0; border-radius: var(--r-sm);
-  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+  font: inherit; font-size: var(--fs-xs); font-weight: var(--peso-fuerte); color: var(--accent);
   cursor: pointer; opacity: 0;
   transition: opacity var(--fast), background-color var(--fast);
 }
-.food-row.is-equiv:hover .equiv-usar,
-.food-row.is-equiv:focus-within .equiv-usar { opacity: 1; }
+.equiv-fila:hover .equiv-usar,
+.equiv-fila:focus-within .equiv-usar { opacity: 1; }
 .equiv-usar:hover { background: var(--accent-soft); }
 .equiv-usar:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
 /* Sin ratón no hay «al pasar por encima», así que el verbo se queda puesto: es
@@ -1552,61 +1573,28 @@
 @media (hover: none) {
   .equiv-usar { opacity: 1; }
 }
-/* Las cuatro columnas de cifras se funden en una: «61 g de proteína +2 · 579
-   kcal −4» es UNA frase, y repartida en cuatro celdas de 42 px no cabe ni se
-   lee. Va al canto derecho, que es donde termina la última columna del padre. */
-.food-row.is-equiv > .equiv-cifras {
-  grid-column: 4 / span 4; text-align: right;
-  font-size: var(--fs-xs); color: var(--text-tertiary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+
+/* El pie: la ventana, que es donde se ven las doce y donde se decide si el
+   cliente ve la lista; y «+ equivalencia», para meter una a mano. */
+.equiv-hijas-pie {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2);
+  padding-left: 2px;
 }
-.food-row.is-equiv > .equiv-cifras > .sep { padding: 0 var(--s1); opacity: 0.5; }
-.food-row.is-equiv > .equiv-cifras > .dif { font-weight: 700; margin-left: 3px; }
-.food-row.is-equiv > .equiv-cifras > .dif.is-mas { color: var(--negative); }
-.food-row.is-equiv > .equiv-cifras > .dif.is-menos { color: var(--warning); }
-/* El verbo del pie: la ventana, que es donde se elige una de verdad y donde se
-   decide si el cliente ve la lista. En azul, como cualquier verbo de la casa. */
 .equiv-hijas-mas {
-  padding: var(--s1) var(--s2);
+  padding: var(--s1) 0;
   background: transparent; border: 0; border-radius: var(--r-sm);
-  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
-  cursor: pointer; transition: background-color var(--fast);
+  font: inherit; font-size: var(--fs-control); font-weight: var(--peso-fuerte); color: var(--accent);
+  cursor: pointer; transition: color var(--fast);
 }
-.equiv-hijas-mas:hover { background: var(--accent-soft); }
+.equiv-hijas-mas:hover { color: var(--text); }
 .equiv-hijas-mas:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-/* Dentro del margen, la diferencia se escribe pero no juzga: la información no
-   se esconde y el semáforo se calla. Ver `Desvio` en `MealCard`. */
-.food-row.is-equiv > .equiv-cifras > .dif.is-dentro { color: var(--text-tertiary); font-weight: 600; }
 
-/* ── LAS EQUIVALENCIAS EN EL TELÉFONO ──────────────────────────────────────
-   Aquí no había ni una regla, y las filas hijas heredaban las áreas del
-   alimento: el nombre a la fila 1 columnas 1-3, la ración a la fila 2… y las
-   cifras pidiendo `grid-column: 4 / span 4` en una rejilla que en el teléfono
-   tiene CINCO columnas. La equivalencia no se repliega como su padre porque no
-   tiene sus cuatro cifras: es ≈ + NOMBRE + RACIÓN en una línea, y lo que se
-   paga debajo.
-
-   Al FINAL del archivo y no en el bloque del teléfono de más arriba: las
-   reglas de escritorio de las filas hijas van después con la misma
-   especificidad, y allí perdían — la `grid-column: 4 / span 4` de las cifras
-   se comía el área del teléfono. */
+/* ── EN EL TELÉFONO ───────────────────────────────────────────────────────
+   La caja se parte en dos renglones —lo que es y lo que aporta— y el raíl se
+   arrima, que a 390 px treinta y dos píxeles de sangría son una columna. */
 @media (max-width: 639.98px) {
-  .food-row.is-equiv {
-    grid-template-columns: var(--s4) minmax(0, 1fr) auto;
-    row-gap: 2px;
-    width: auto; min-width: 0;
-  }
-  .food-row.is-equiv > .equiv-signo-fila { grid-area: 1 / 1 / 2 / 2; }
-  .food-row.is-equiv > .name { grid-area: 1 / 2 / 2 / 3; padding-left: 0; }
-  .food-row.is-equiv > .grams { grid-area: 1 / 3 / 2 / 4; justify-content: flex-end; }
-  .food-row.is-equiv > .equiv-cifras {
-    grid-area: 2 / 2 / 3 / 4;
-    text-align: left; white-space: normal;
-  }
-  /* El hueco que en el escritorio reserva la columna de la equis: aquí no hay
-     columna que reservar. El del ≈ se queda, en su columna de `--s4`. */
-  .food-row.is-equiv > .equiv-hueco:not(.equiv-signo-fila) { display: none; }
-
-  .equiv-hijas { width: auto; }
-  .equiv-hijas-pie { padding-left: calc(var(--s3) + var(--s4)); }
+  .equiv-hijas { padding-left: var(--s4); }
+  .equiv-hijas::before { left: 10px; }
+  .equiv-fila { gap: var(--s2); }
+  .equiv-cifras { flex-basis: 100%; white-space: normal; }
 }

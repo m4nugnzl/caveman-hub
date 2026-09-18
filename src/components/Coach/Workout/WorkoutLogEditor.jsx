@@ -45,7 +45,6 @@ import { mergeCatalog } from '@/domain/catalog';
 import { activeQuestions, clientProtocol, isModuleOn, isServiceOn } from '@/domain/protocol';
 import { EmptyState, SaveIndicator } from '@/components/ui/primitives';
 import { ConditionsNote } from '@/components/conditions/ConditionsNote';
-import { EquipmentNote } from '@/components/equipment/EquipmentNote';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { deepClone } from '@/lib/ids';
@@ -54,7 +53,7 @@ import { useProgramNavigation } from './useProgramNavigation';
 import { useDaySession } from './useDaySession';
 import { CycleSettings } from './CycleSettings';
 import { CopyToClientPanel } from './CopyToClientPanel';
-import { ClientSettingsSheet, PieDeProtocolo } from '../ClientSettings';
+import { PieDeProtocolo } from '../ClientSettings';
 import { PastePlanDialog } from '../Import/PastePlanDialog';
 import { ImportDayDialog } from './ImportDayDialog';
 import { ExerciseList } from './ExerciseList';
@@ -220,6 +219,9 @@ export const WorkoutLogEditor = () => {
     catalogFoods,
     importDiet,
     upsertLibraryFood,
+    /* La ficha del ejercicio —tu vídeo y tu pauta—, para que la hoja marque
+       cuáles tienen algo que ver. Ver `videoDe` en `HojaDeSeries`. */
+    sheetOf,
   } = useApp();
 
   const [copyOpen, setCopyOpen] = useState(false);
@@ -862,9 +864,8 @@ export const WorkoutLogEditor = () => {
          «poner al día» deja de pasarle por encima. */
       onProtocolChange={(next) => saveClientException(activeClient.id, { protocol: next })}
       /* Y de dónde salen esos interruptores, con la puerta a su protocolo
-         entero. Cambiar `panel` cierra este diálogo y abre la hoja: una sola
-         cosa delante, que es la regla de esta pantalla. */
-      pie={<PieDeProtocolo client={activeClient} onAbrir={() => setPanel('protocolo')} />}
+         entero, que es su pestaña «Protocolo». */
+      pie={<PieDeProtocolo client={activeClient} />}
     />
   );
 
@@ -2114,33 +2115,35 @@ export const WorkoutLogEditor = () => {
     avisa con «Deshacer» durante diez segundos y devuelve hasta el bloque entero
     si era su último microciclo.
   */
-  const mandosDelMicrociclo = (
-    <>
-      {/* ── AQUÍ ESTUVO EL ⧉ DE DUPLICAR EL MICROCICLO ───────────────────
-          Se ha ido dentro del «+ microciclo», que está a dos dedos y ahora
-          pregunta de qué parte. Era la mitad escondida de una decisión que el
-          botón de al lado tomaba a ciegas: «+» añadía siempre en blanco y este
-          añadía siempre copiado, sin que ninguno de los dos dijera que existía
-          el otro. Una decisión con dos salidas es un menú, no dos botones. */}
-      {/* Lo mismo que hace pulsar la pastilla encendida. Sigue habiendo dos
-          puertas al mismo panel a propósito: una es el gesto rápido de quien ya
-          lo sabe, y esta es la que se ve sin saberlo. */}
-      <button
-        type="button"
-        className="btn btn-icon btn-icon-compact"
-        title={`Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
-        aria-label={`Fechas y sesiones de ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
-        onClick={() => setPanel('semana')}
-      >
-        <Settings2 size={15} />
-      </button>
-    </>
-  );
+  /* ── AQUÍ ESTUVO EL ⧉ DE DUPLICAR EL MICROCICLO ─────────────────────────
+     Se ha ido dentro del «+ microciclo», que está a dos dedos y ahora pregunta
+     de qué parte. Era la mitad escondida de una decisión que el botón de al
+     lado tomaba a ciegas: «+» añadía siempre en blanco y este añadía siempre
+     copiado, sin que ninguno de los dos dijera que existía el otro. Una
+     decisión con dos salidas es un menú, no dos botones.
 
+     ── Y AQUÍ ESTUVO EL ⚙ DE LAS FECHAS DEL MICROCICLO (séptima vuelta) ────
+     «Has de eliminar el ajustes de microciclo: solo ajustes de bloque.»
+
+     Era la segunda puerta al mismo panel —la primera es pulsar la pastilla
+     ENCENDIDA, que sigue estando— y se dibujaba igual que el ⚙ del programa,
+     que está a cuatro píxeles. Dos ruedas dentadas idénticas en el mismo
+     renglón, una del microciclo y otra del programa: el único modo de saber
+     cuál era cuál era pasar el ratón y leer. La que se queda es la del nivel
+     que NO tiene otra puerta. */
+  /* Sin `btn-icon-danger`, y es del frame: en la barra del bloque el rojo es
+     de UNA papelera, la que se lleva el bloque entero. Esta se lleva un
+     microciclo —una semana de una estructura que sigue ahí— y va detrás de su
+     propio filete, que es lo que la separa de su vecina (ver el cierre de la
+     fila en `TiraDelPrograma`). Con las dos en rojo, el rojo dejaba de decir
+     cuál de las dos no tiene vuelta atrás — y aquí sí la tiene: `eliminarSemana`
+     quita y ofrece «Deshacer» diez segundos (producto.md §5.7), mientras que
+     quitar el bloque pregunta antes con `useConfirm`. El rojo se queda en la
+     que pregunta. */
   const menuDelMicrociclo = (
     <button
       type="button"
-      className="btn btn-icon btn-icon-compact btn-icon-danger tira-menu"
+      className="btn btn-icon btn-icon-compact tira-menu"
       title={`Quitar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
       aria-label={`Quitar ${unidad.toLowerCase()} ${enBloque(nav.week)}`}
       onClick={eliminarSemana}
@@ -2181,8 +2184,16 @@ export const WorkoutLogEditor = () => {
     —abajo ya no queda ninguno— y queda al lado de «+ microciclo», que es el
     otro «uno más» de esta pantalla: los dos juntos, cada uno con su palabra.
   */
+  /*
+    ── «+ HOJA» TAMBIÉN CON UNA HOJA ABIERTA ──────────────────────────────────
+    Estaba acotado a la vista de conjunto, y ahí no había ley detrás: era que
+    en la hoja este verbo no tenía renglón propio donde sentarse. Ahora lo
+    tiene —el frame `46:114` lo dibuja al final de la tira de hojas (`48:753`),
+    que es justo lo que añade— y con las hojas convertidas en pastillas se lee
+    como una más de la fila, que es lo que es: el sitio que todavía no existe.
+  */
   const altaDeHojaEnLaTira =
-    vista === 'bloque' && esBloqueActual && nav.days ? (
+    esBloqueActual && nav.days ? (
       nuevaHojaEnTira === null ? (
         /* La misma pieza que «+ bloque» y «+ microciclo»: los tres son el
            mismo verbo y se ven a la vez. Ver `.tira-mas`. */
@@ -2199,6 +2210,7 @@ export const WorkoutLogEditor = () => {
         */
         <BotonMas
           palabra="hoja"
+          destacado
           ariaLabel={`Añadir una hoja a «${bloque.name}»`}
           /*
             ── EL ORDEN LO MANDA LO QUE LLEVAS ─────────────────────────────
@@ -2277,12 +2289,18 @@ export const WorkoutLogEditor = () => {
       }
       acciones={accionesDeLaCabecera}
       mandosDeLaHoja={mandosDeLaHoja}
-      /* Los verbos del microciclo solo con el bloque delante: con una hoja
-         abierta, la fila 1 ya lleva su propio «duplicar» —el de la hoja— y dos
-         iconos iguales seguidos, uno por nivel, es justo lo que hacía
-         irreconocible esta cabecera. */
-      mandosDelMicrociclo={vista === 'bloque' ? mandosDelMicrociclo : null}
-      menuDelMicrociclo={vista === 'bloque' ? menuDelMicrociclo : null}
+      /* ── LA PAPELERA DEL MICROCICLO, TAMBIÉN CON LA HOJA ABIERTA ─────────
+         Estuvo solo con el bloque delante, y el motivo era la fila ÚNICA: allí
+         las dos papeleras —la del microciclo y la de la hoja— caían seguidas,
+         dos cuadraditos iguales entre los que uno borra una semana y el otro
+         un día, sin nada que lo dijera.
+
+         Con la hoja abierta la barra tiene dos renglones y ese choque no
+         existe: la de la hoja va en el renglón de las hojas y esta en el de
+         los microciclos, así que cada una está en la fila de aquello que se
+         lleva. Es lo que dibuja el frame (`227:5`) y lo que pidió el dueño:
+         «añadir un botón papelera en la segunda línea para los microciclos». */
+      menuDelMicrociclo={menuDelMicrociclo}
       /* Deshacer va PRIMERO y en las dos vistas: el plan se toca en la hoja y
          en el conjunto, y lo que se deshace es el mismo plan. Detrás, los
          verbos de la vista que esté delante. */
@@ -2397,7 +2415,22 @@ export const WorkoutLogEditor = () => {
         />
       ) : (
       <>
-      <EquipmentNote />
+      {/*
+        ══ AQUÍ ESTUVO «SU MAQUINARIA» ════════════════════════════════════════
+        Un pliegue con las fotos de su gimnasio, encima de la barra del bloque y
+        en las dos vistas de Entreno. El dueño lo retira con el rediseño de
+        Figma —«elimina su maquinaria»—, y el frame `32:100` no lo dibuja: la
+        pantalla abre con la cabecera del cliente y, debajo, la barra del
+        bloque.
+
+        No se pierde nada, y por eso se puede quitar de aquí: las fotos siguen
+        en los dos sitios donde se CONSULTAN de verdad —la ficha del cliente
+        (`EquipmentPanel`, que es además donde se suben y se ordenan) y el
+        compositor (`CajonDeMaterial`), que es donde se elige el ejercicio
+        mirando lo que la persona tiene delante—. Lo que se va es la tercera
+        copia: la que estaba plegada sobre una pantalla en la que solo se mira
+        qué entrena.
+      */}
       {/*
         ══ LA CABECERA ES LA TIRA DEL PROGRAMA ════════════════════════════════
         Dónde estás —qué bloque y qué microciclo— y cómo va, en dos renglones
@@ -2432,7 +2465,141 @@ export const WorkoutLogEditor = () => {
         sensación de vacío. Es además lo que hacía producción, que es lo que el
         dueño echa de menos. Ver `TiraDelPrograma` y `.entreno-hoja`.
       */}
-      <div className={`entreno${vista === "bloque" ? " is-conjunto" : ""}`}>
+      <div className={`entreno${vista === "bloque" ? " is-conjunto" : " is-hoja"}`}>
+        {/*
+          ══ CON EL BLOQUE DELANTE, LA TIRA GOBIERNA LAS DOS COLUMNAS ═════════
+          Vivía dentro de la mesa, y la nota de al lado lo defendía así: fuera
+          «se estiraba por encima del costado —DOS RENGLONES de mando
+          gobernando unas tarjetas que no gobiernan—».
+
+          Las dos mitades del argumento se han caído. Los dos renglones son uno
+          desde el frame 32:100, así que ya no hay una cabecera de dos pisos
+          flotando sobre unas tarjetas. Y lo de que no las gobierna era falso de
+          entrada: «Este bloque», «Volumen por microciclo» y «Progresión» son
+          lecturas DEL BLOQUE Y DEL MICROCICLO que esta barra elige — pulsar M9
+          las cambia las tres. El mando estaba dentro de una de las dos cosas
+          que manda.
+
+          Y además no cabía: medido a 1600 px, la fila única necesita 1076 px y
+          dentro de la mesa tenía 814.
+
+          ══ Y CON LA HOJA ABIERTA, TAMBIÉN ══════════════════════════════════
+          Aquí se decía «con una hoja abierta se queda donde estaba, porque
+          allí sí es la cabecera de la mesa». El frame `46:114` la dibuja
+          igual que la del bloque: `block-toolbar` es una CAJA hermana de
+          `workspace-main`, encima de las dos columnas, y debajo de ella el
+          calentamiento en otra caja. Ya no hay una mesa de la que ser
+          cabecera — con la hoja abierta la columna izquierda es una pila de
+          tarjetas, una por ejercicio, y no un panel.
+
+          Y el argumento de la vuelta anterior vale igual aquí: esta barra
+          elige el MICROCICLO, y el microciclo es lo que cambia las cifras de
+          la hoja y de la progresión del costado a la vez.
+        */}
+        {tiraDelPrograma}
+        {/*
+          ══ EL PREÁMBULO ES UNA CAJA, Y ABARCA LAS DOS COLUMNAS ══════════
+          Era una banda del panel de la mesa, con su filete y su columna de
+          rótulos. El frame `46:114` lo saca: `calentamiento-row` es una
+          TARJETA hermana de la barra y de `workspace-main` —canto, radio 12,
+          relleno 16— con sus dos renglones separados por un filete que llega
+          de canto a canto.
+
+          Y va fuera de la mesa por lo mismo que la barra: con la hoja
+          abierta ya no hay panel del que ser banda. Lo que hay es una pila
+          de tarjetas, y esta es la primera —lo que se lee antes de la
+          primera serie—, a la misma calle que todo lo demás.
+        */}
+        {vista !== 'bloque' && nav.day && (
+          <>
+        {/*
+          ══ ANTES DE EMPEZAR: UNA BANDA, NO DOS TIRAS ══════════════════
+          El calentamiento y la indicación son lo mismo —lo que hay que
+          leer antes de la primera serie— y estaban sueltos: una pastilla
+          hundida y, cuatro píxeles más abajo, un enlace pelado sin rótulo
+          que no se alineaba con nada. Encima flotaban DENTRO del cuerpo,
+          así que el ojo los leía como los dos primeros elementos de la
+          tabla en vez de como su antesala.
+
+          Ahora son una banda del panel, con su filete y su columna de
+          rótulos: «Calentamiento» y «Tu indicación» caen en la misma
+          vertical, y las dos filas se leen igual —rótulo, lo que hay, y
+          el verbo al canto derecho—. Es lo que ya hacía la de arriba;
+          ahora lo hacen las dos.
+        */}
+        {(isModuleOn(protocol, 'warmup') || isModuleOn(protocol, 'coachNote')) && (
+        <div className="hoja-preambulo">
+        {isModuleOn(protocol, 'warmup') && (
+          <div className="hoja-calentamiento">
+            <span className="hoja-calentamiento-k">Calentamiento</span>
+            {calentamientoDelDia.length > 0 ? (
+              <span className="hoja-calentamiento-lista">
+                {calentamientoDelDia.map((d) => (
+                  <span key={d.id || d.name} className="hoja-calentamiento-item">
+                    {d.name}
+                    {d.prescription && <small> {d.prescription}</small>}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span className="hoja-calentamiento-vacio">sin calentamiento</span>
+            )}
+            <span className="hoja-calentamiento-acciones">
+              {calentamientoDelDia.length === 0 && calentamientoDeAntes && (
+                <button type="button" className="hoja-calentamiento-editar" onClick={traerCalentamiento} title={`Copia el calentamiento de ${unidad.toLowerCase()} ${calentamientoDeAntes.week} a los días de esta que no tienen`}>
+                  traer el de la S{calentamientoDeAntes.week}
+                </button>
+              )}
+              <button
+                type="button"
+                className="hoja-calentamiento-editar"
+                onClick={() => setPanel('calentamiento')}
+              >
+                {calentamientoHeredado ? 'del programa · hacerlo de este día' : calentamientoDelDia.length > 0 ? 'editar' : 'añadir'}
+              </button>
+            </span>
+          </div>
+        )}
+        {/*
+          Tu indicación para el día, en la misma voz y con la misma forma
+          que el calentamiento de encima: rótulo · lo que hay · el verbo
+          al canto. Vacía dice «sin indicación», igual que aquella dice
+          «sin calentamiento» — y no un enlace suelto con otra forma. El
+          cliente la ve al abrir el día.
+        */}
+        {isModuleOn(protocol, 'coachNote') &&
+          (indicacionAbierta || nav.day.coachNote?.trim() ? (
+            <label className="hoja-indicacion">
+              <span className="hoja-calentamiento-k">Tu indicación</span>
+              <textarea
+                className="hoja-indicacion-texto"
+                rows={1}
+                autoFocus={indicacionAbierta && !nav.day.coachNote?.trim()}
+                placeholder="La verá tu cliente al abrir el día, antes de empezar."
+                value={nav.day.coachNote ?? ''}
+                onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
+                onBlur={() => !nav.day.coachNote?.trim() && setIndicacionAbierta(false)}
+              />
+            </label>
+          ) : (
+            <div className="hoja-indicacion">
+              <span className="hoja-calentamiento-k">Tu indicación</span>
+              <span className="hoja-calentamiento-vacio">sin indicación</span>
+              <span className="hoja-calentamiento-acciones">
+                <button
+                  type="button"
+                  className="hoja-calentamiento-editar"
+                  onClick={() => setIndicacionAbierta(true)}
+                >
+                  añadir
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+        )}
+          </>
+        )}
         <section
           className="entreno-hoja mesa-panel"
           aria-label={
@@ -2443,8 +2610,6 @@ export const WorkoutLogEditor = () => {
                 : "Sin hojas"
           }
         >
-          {tiraDelPrograma}
-
           {vista === 'bloque' ? (
             <div className="mesa-cuerpo">
             <ConjuntoDelBloque
@@ -2482,92 +2647,6 @@ export const WorkoutLogEditor = () => {
             </div>
           ) : nav.day ? (
             <>
-              {/*
-                ══ ANTES DE EMPEZAR: UNA BANDA, NO DOS TIRAS ══════════════════
-                El calentamiento y la indicación son lo mismo —lo que hay que
-                leer antes de la primera serie— y estaban sueltos: una pastilla
-                hundida y, cuatro píxeles más abajo, un enlace pelado sin rótulo
-                que no se alineaba con nada. Encima flotaban DENTRO del cuerpo,
-                así que el ojo los leía como los dos primeros elementos de la
-                tabla en vez de como su antesala.
-
-                Ahora son una banda del panel, con su filete y su columna de
-                rótulos: «Calentamiento» y «Tu indicación» caen en la misma
-                vertical, y las dos filas se leen igual —rótulo, lo que hay, y
-                el verbo al canto derecho—. Es lo que ya hacía la de arriba;
-                ahora lo hacen las dos.
-              */}
-              {(isModuleOn(protocol, 'warmup') || isModuleOn(protocol, 'coachNote')) && (
-              <div className="hoja-preambulo">
-              {isModuleOn(protocol, 'warmup') && (
-                <div className="hoja-calentamiento">
-                  <span className="hoja-calentamiento-k">Calentamiento</span>
-                  {calentamientoDelDia.length > 0 ? (
-                    <span className="hoja-calentamiento-lista">
-                      {calentamientoDelDia.map((d) => (
-                        <span key={d.id || d.name} className="hoja-calentamiento-item">
-                          {d.name}
-                          {d.prescription && <small> {d.prescription}</small>}
-                        </span>
-                      ))}
-                    </span>
-                  ) : (
-                    <span className="hoja-calentamiento-vacio">sin calentamiento</span>
-                  )}
-                  <span className="hoja-calentamiento-acciones">
-                    {calentamientoDelDia.length === 0 && calentamientoDeAntes && (
-                      <button type="button" className="hoja-calentamiento-editar" onClick={traerCalentamiento} title={`Copia el calentamiento de ${unidad.toLowerCase()} ${calentamientoDeAntes.week} a los días de esta que no tienen`}>
-                        traer el de la S{calentamientoDeAntes.week}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="hoja-calentamiento-editar"
-                      onClick={() => setPanel('calentamiento')}
-                    >
-                      {calentamientoHeredado ? 'del programa · hacerlo de este día' : calentamientoDelDia.length > 0 ? 'editar' : 'añadir'}
-                    </button>
-                  </span>
-                </div>
-              )}
-              {/*
-                Tu indicación para el día, en la misma voz y con la misma forma
-                que el calentamiento de encima: rótulo · lo que hay · el verbo
-                al canto. Vacía dice «sin indicación», igual que aquella dice
-                «sin calentamiento» — y no un enlace suelto con otra forma. El
-                cliente la ve al abrir el día.
-              */}
-              {isModuleOn(protocol, 'coachNote') &&
-                (indicacionAbierta || nav.day.coachNote?.trim() ? (
-                  <label className="hoja-indicacion">
-                    <span className="hoja-calentamiento-k">Tu indicación</span>
-                    <textarea
-                      className="hoja-indicacion-texto"
-                      rows={1}
-                      autoFocus={indicacionAbierta && !nav.day.coachNote?.trim()}
-                      placeholder="La verá tu cliente al abrir el día, antes de empezar."
-                      value={nav.day.coachNote ?? ''}
-                      onChange={(e) => setDayNote(activeClient.id, nav.week, nav.day.dayName, e.target.value)}
-                      onBlur={() => !nav.day.coachNote?.trim() && setIndicacionAbierta(false)}
-                    />
-                  </label>
-                ) : (
-                  <div className="hoja-indicacion">
-                    <span className="hoja-calentamiento-k">Tu indicación</span>
-                    <span className="hoja-calentamiento-vacio">sin indicación</span>
-                    <span className="hoja-calentamiento-acciones">
-                      <button
-                        type="button"
-                        className="hoja-calentamiento-editar"
-                        onClick={() => setIndicacionAbierta(true)}
-                      >
-                        añadir
-                      </button>
-                    </span>
-                  </div>
-                ))}
-              </div>
-              )}
               <div className="mesa-cuerpo">
               <Lista
                 exercises={daySession.exercises}
@@ -2577,6 +2656,10 @@ export const WorkoutLogEditor = () => {
                    teléfono y allí no se programa, se registra. Ver
                    `movil-ejecuta-pc-planifica`. */
                 onCopiar={esTelefono ? null : copiarEjercicio}
+                /* El eslabón de cadena del nombre. Solo en la hoja de
+                   escritorio: en el teléfono el entrenador no programa, y la
+                   lista del cliente tiene su propia marca. */
+                videoDe={esTelefono ? null : (ex) => sheetOf?.(ex.name)?.videoUrl || null}
                 /* La pauta de lo último copiado, en la fila encendida. Es la
                    última y no una lista: la misma regla que ⌘V, que también pega
                    la de arriba de la mano. */
@@ -3115,18 +3198,6 @@ export const WorkoutLogEditor = () => {
       <Modal open={panel === 'programa'} title="Ajustes del programa" onClose={() => setPanel(null)}>
         {ajustesDelPrograma}
       </Modal>
-
-      {/*
-        Su protocolo entero, desde el pie de los interruptores de arriba. Es LA
-        MISMA hoja de la cartera y de su ficha, y va en el mismo estado que el
-        resto: abrirla cierra los ajustes del programa, porque delante solo puede
-        haber una cosa.
-      */}
-      <ClientSettingsSheet
-        client={activeClient}
-        open={panel === 'protocolo'}
-        onClose={() => setPanel(null)}
-      />
 
       {/*
         El calentamiento del día se ESCRIBE, así que va centrado y no por el

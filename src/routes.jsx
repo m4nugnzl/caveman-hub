@@ -415,6 +415,15 @@ export const COACH_CLIENT = [
     selector y no puede ser además una puerta). Solo el carril de pestañas del
     escritorio la filtra.
   */
+  /*
+    ── «Protocolo»: lo que lleva puesto, como pestaña (18 sep, Figma 98:86) ──
+    Era una hoja —«El protocolo de X»— que se abría desde cuatro sitios y en
+    ninguno se quedaba: se cerraba y no había dónde volver. El dueño la pidió
+    como «una ventana protocolo para revisar de forma sencilla su protocolo».
+    Va detrás de Revisiones porque se toca menos que las cuatro de trabajo, y
+    delante del perfil porque sí se toca: el perfil se rellena una vez.
+  */
+  { path: 'protocolo', label: 'Protocolo', icon: ClipboardList },
   { path: 'ficha', label: 'Perfil', icon: FileText, also: ['calendario'], oculta: true },
 ];
 
@@ -701,14 +710,28 @@ export const CLIENT_SECTIONS = [
     Arriba, en el monitor, no hay presupuesto de destinos que gastar: son enlaces
     en una línea de 1.360 px y la cinta los enseña los seis. Por eso `soloAncho`
     y no una ruta menos: la pantalla sigue existiendo igual para todo el mundo.
+
+    ── Y vuelve a subir, cuarta vuelta (18 sep 2026) ──────────────────────────
+    Esta vez dibujada: los frames de Figma del teléfono (`327:8` y hermanos)
+    ponen la barra flotante con **Hoy · Entreno · Comer · Revisión**, y «Tú»
+    sale de ella al avatar de arriba a la derecha de «Hoy». El criterio es el
+    de las tres misiones: lo que se hace cada semana va en la barra; lo que se
+    consulta de vez en cuando —tu perfil, tu calendario, tus datos— detrás de
+    una puerta. El recordatorio de la entrega vuelve a ser el punto de su
+    pestaña. Ver `movil/BarraDelPulgar`.
   */
   {
     path: 'evolucion',
     label: 'Mis revisiones',
     short: 'Revisión',
     icon: CalendarCheck,
-    soloAncho: true,
-    also: ['evolucion/medidas', 'evolucion/fotos'],
+    also: [
+      'evolucion/medidas',
+      'evolucion/fotos',
+      'evolucion/peso',
+      'evolucion/fotos-de-la-semana',
+      'evolucion/cuestionario',
+    ],
   },
   /*
     «Tú» recoge lo que estaba tirado por el pie del inicio —el calendario, la
@@ -719,11 +742,16 @@ export const CLIENT_SECTIONS = [
     como los otros cuatro. Lo que ya no recoge es la revisión: se ha ido a su
     propio destino, justo encima.
   */
+  /*
+    Desde el 18 sep «Tú» es `soloAncho`: en el teléfono se abre desde el avatar
+    de «Hoy» y no gasta un botón de la barra. En el monitor sigue en su carril.
+  */
   {
     path: 'tu',
     label: 'Lo tuyo',
     short: 'Tú',
     icon: UserRound,
+    soloAncho: true,
     also: ['calendario'],
   },
 ];

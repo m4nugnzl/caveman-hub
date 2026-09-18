@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Play, Plus, Trash2, Waves } from 'lucide-react';
+import { ChevronDown, ChevronUp, Link2, Plus, Trash2, Waves } from 'lucide-react';
 
 import { parseVideoUrl } from '@/domain/video';
 import { newId } from '@/lib/ids';
@@ -72,6 +72,13 @@ const emptyDrill = () => ({ id: newId('drill'), name: '', prescription: '', vide
  * lado del nombre, del tamaño del texto. El chevron de la derecha sigue diciendo
  * que se abre. Dos marcas de trece píxeles en vez de una caja de cuarenta y
  * cuatro, y la fila baja de 46 px de alto a la altura de su renglón.
+ *
+ * ══ Y EL TRIÁNGULO ES UNA CADENA (18 sep 2026) ═════════════════════════════
+ *
+ * El dueño: *«la movilidad, si tiene links, ha de verse con el icono de link o
+ * cadena que comenté que tenían que tener los ejercicios, no con un play de
+ * YouTube»*. Es la marca de los ejercicios (`MarcaFicha`): un vídeo es algo
+ * que su entrenador enlazó, y la cadena lo dice igual en las dos listas.
  */
 const WarmupDrill = ({ drill }) => {
   const [abierto, setAbierto] = useState(false);
@@ -83,7 +90,7 @@ const WarmupDrill = ({ drill }) => {
         <span className="nm">
           {/* El triángulo solo si se puede reproducir aquí: prometer un play que
               acaba abriendo otra pestaña es prometer lo que no es. */}
-          {video && <Play className="warmup-play" size={13} fill="currentColor" aria-hidden="true" />}
+          {video && <Link2 className="warmup-play" size={13} aria-hidden="true" />}
           {drill.name}
           {drill.prescription && <span className="dose">{drill.prescription}</span>}
         </span>
@@ -120,7 +127,7 @@ const WarmupDrill = ({ drill }) => {
           engaña más de lo que ayuda. */}
       {drill.videoUrl && !video && (
         <a className="link t-xs" href={drill.videoUrl} target="_blank" rel="noreferrer noopener">
-          <Play size={13} /> Ver el vídeo
+          <Link2 size={13} /> Ver el vídeo
         </a>
       )}
     </li>

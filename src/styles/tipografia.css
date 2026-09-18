@@ -102,6 +102,9 @@
    para lo que de verdad es etiqueta —cabeceras de columna, el nombre de una
    tanda—, que es donde no compite con nada. */
 .tarjeta-cab > .section-label,
+/* Con subtítulo, el rótulo baja un nivel en el marcado (`.tarjeta-titulo`) y
+   perdía esta voz sin que nada avisara: salía en troquelada terciaria. */
+.tarjeta-titulo > .section-label,
 .metric-title,
 .widget-title {
   font-family: var(--font-display);

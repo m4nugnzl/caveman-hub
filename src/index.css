@@ -55,6 +55,21 @@
    su traje —`.q-card`, `.selector`, `.ajustes-pregunta`— y delante de
    `piezas.css`, que sigue siendo el último. */
 @import './styles/formularios.css';
+/* La cartera tal como la dibuja el frame del 18 sep. Detrás de `chasis.css` y
+   `revision.css` porque pisa la cinta y la tabla que comparte con el Taller
+   —todo colgado de `.cartera`— y delante de `piezas.css`, que sigue siendo el
+   último. */
+@import './styles/cartera.css';
+/* Cobros y Agenda, dibujadas: la gramática de la cartera (cajas sobre hoja
+   hundida). Pisa el calendario de `ajustes.css`, así que va detrás. */
+@import './styles/cobros-agenda.css';
+/* Inicio, dibujado (frame 164:1260): la misma gramática. Pisa `.task-row` de
+   `superficies.css`, todo colgado de `.ini`. */
+@import './styles/inicio.css';
+/* La Librería, dibujada (frames 145:103 y 147:97): la barra en dos renglones,
+   la lista en cajas por grupo y la ficha en lectura. Pisa `.plantilla`, los
+   chips y la ficha de `taller.css`, así que va detrás. */
+@import './styles/libreria.css';
 /*
   ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
 

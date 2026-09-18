@@ -1,10 +1,14 @@
 import { useState } from 'react';
 
 import { mmss } from '@/context/SesionEnCurso';
-import { miles } from '@/lib/dates';
+import { miles, shortDate } from '@/lib/dates';
 import { objetivoDeSerie, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Boton } from './Piezas';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
+import { ComparativaEjercicio } from '@/components/Coach/Workout/ComparativaEjercicio';
+import { ComoLoLlevo } from '@/components/Coach/Workout/ComoLoLlevo';
+import { ProgresionPopup } from '@/components/Coach/Workout/ProgresionPopup';
+import { SensacionesPopup } from '@/components/Coach/Workout/SensacionesPopup';
 
 /**
  * «EN SESIÓN» EN EL MONITOR — el puesto de `docs/la-sesion-manda.md`.
@@ -22,8 +26,9 @@ import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
  *     la semana (`CarrilDelPortal`, montado por el marco);
  *   · **en el centro, lo que haces** — la sesión en su medida legible, todos
  *     los ejercicios a la vez, porque aquí caben y los campos no piden gesto;
- *   · **a la derecha, contra qué te mides** — las últimas veces del ejercicio
- *     en el que estás, serie a serie, su tonelaje y cómo lo vienes llevando.
+ *   · **a la derecha, contra qué te mides** — las tarjetas de la hoja del
+ *     entrenador: la progresión del ejercicio en el que estás y cómo lo vienes
+ *     llevando, cada una con su ventana.
  *
  * ══ «En el que estás» es donde tienes el foco ══════════════════════════════
  *
@@ -59,18 +64,18 @@ export const PantallaSesion = ({ datos }) => {
     onFicha,
     onAcabar,
     guardado = null,
-    contraQueTeMidesDe,
-    sensaciones = [],
+    lecturas,
   } = datos;
+  const { microcycles, weekNumber, etiqueta, preguntas, ultimaConSensaciones } = lecturas;
 
   const porDefecto = Math.max(
     0,
     ejercicios.findIndex((e) => siguientePorHacer(e.series) >= 0)
   );
   const [foco, setFoco] = useState(null);
+  const [ventana, setVentana] = useState(null);
   const n = foco !== null && foco < ejercicios.length ? foco : porDefecto;
   const enFoco = ejercicios[n] || null;
-  const tabla = enFoco ? contraQueTeMidesDe?.(enFoco.nombre) : null;
 
   return (
     <div className="pc-puesto">
@@ -219,117 +224,62 @@ export const PantallaSesion = ({ datos }) => {
         })}
       </div>
 
-      <aside className="pc-puesto-lado" aria-label="Contra qué te mides">
-        {enFoco ? (
-          <>
-            <div>
-              <span className="pc-puesto-k">Contra qué te mides</span>
-              <h3 className="pc-puesto-lado-tit">{enFoco.nombre}</h3>
-            </div>
+      {/*
+        ══ EL COSTADO ES EL DEL TALLER, CON SUS DOS VENTANAS (18 sep) ═══════
+        Aquí había un costado propio —«Contra qué te mides»: una tabla de
+        semanas, el tonelaje dibujado a mano y cuatro barritas— separado de la
+        sesión por un filete vertical. El dueño: «no pueden ver el popup de
+        progresión ni la tabla de progreso y se ve distinto; ha de ser igual a
+        lo del entrenador».
 
-            {tabla ? (
-              <>
-                <div
-                  className="pc-puesto-prog"
-                  style={{ gridTemplateColumns: `54px repeat(${tabla.columnas}, minmax(0, 1fr))` }}
-                  role="table"
-                  aria-label={`Tus últimas veces en ${enFoco.nombre}`}
-                >
-                  <div role="row" className="pc-puesto-prog-fila">
-                    <span role="columnheader" className="pc-puesto-hd">
-                      Sem
-                    </span>
-                    {Array.from({ length: tabla.columnas }, (_, i) => (
-                      <span role="columnheader" className="pc-puesto-hd" key={i}>
-                        Serie {i + 1}
-                      </span>
-                    ))}
-                  </div>
-                  {tabla.filas.map((f, i) => (
-                    <div role="row" className="pc-puesto-prog-fila" key={`${f.weekNumber}-${f.date}-${i}`}>
-                      <span role="rowheader" className="pc-puesto-sem">
-                        S{f.weekNumber}
-                      </span>
-                      {f.celdas.map((c, j) => (
-                        <span role="cell" key={j} className={c?.pico ? 'pc-pico' : undefined}>
-                          {c ? c.texto : '—'}
-                        </span>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-
-                {tabla.tonelajes.length > 1 ? <Tonelaje tabla={tabla} /> : null}
-              </>
-            ) : (
-              <p className="pc-puesto-vacio">
-                Es la primera vez que haces este ejercicio. Lo que apuntes hoy es contra lo que te medirás la
-                próxima.
-              </p>
-            )}
-
-            {sensaciones.length > 0 ? (
-              <div>
-                <span className="pc-puesto-k">Cómo lo llevas</span>
-                <div className="pc-puesto-sens">
-                  {sensaciones.map((q) => (
-                    <div className="pc-puesto-sens-fila" key={q.id}>
-                      <span className="pc-puesto-sens-rot">{q.rotulo}</span>
-                      <span className="pc-puesto-barra" aria-hidden="true">
-                        <i style={{ width: `${Math.max(0, Math.min(100, (q.valor / q.max) * 100))}%` }} />
-                      </span>
-                      <span className="pc-puesto-sens-v">{q.valor}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </>
-        ) : null}
+        Son las dos tarjetas de la hoja del entrenador tal cual
+        (`ComparativaEjercicio` y `ComoLoLlevo`), y cada una abre su ventana:
+        la progresión entera del ejercicio y las sensaciones sesión a sesión.
+        Lo único que cambia es la persona de los textos.
+      */}
+      <aside className="pc-puesto-lado lado-de-la-hoja" aria-label="Tu progresión">
+        <ComparativaEjercicio
+          etiqueta={etiqueta}
+          microcycles={microcycles}
+          ejercicios={ejercicios.map((e) => ({ name: e.nombre }))}
+          name={enFoco?.nombre || null}
+          weekNumber={weekNumber}
+          onElegir={(nombre) => setFoco(Math.max(0, ejercicios.findIndex((e) => e.nombre === nombre)))}
+          onAmpliar={() => setVentana('progresion')}
+        />
+        <ComoLoLlevo
+          sesion={ultimaConSensaciones}
+          preguntas={preguntas}
+          fecha={ultimaConSensaciones?.date ? shortDate(ultimaConSensaciones.date) : null}
+          rotulo="Cómo lo llevas"
+          pista="Ver cómo lo llevas, sesión a sesión"
+          onAmpliar={() => setVentana('sensaciones')}
+        />
       </aside>
+
+      {/* Las ventanas se montan solo abiertas: cerradas no calculan nada. */}
+      {ventana === 'progresion' ? (
+        <ProgresionPopup
+          etiqueta={etiqueta}
+          open
+          onClose={() => setVentana(null)}
+          microcycles={microcycles}
+          name={enFoco?.nombre || null}
+          weekNumber={weekNumber}
+        />
+      ) : null}
+      {ventana === 'sensaciones' ? (
+        <SensacionesPopup
+          etiqueta={etiqueta}
+          open
+          onClose={() => setVentana(null)}
+          microcycles={microcycles}
+          preguntas={preguntas}
+          titulo="Cómo lo llevas"
+          escrito="Lo que escribiste"
+        />
+      ) : null}
     </div>
-  );
-};
-
-/**
- * EL TONELAJE DEL EJERCICIO, vez a vez.
- *
- * Una línea con su área, dibujada a mano: son cuatro puntos, y una librería de
- * gráficas para eso es traer su tamaño y sus decisiones. El eje va de cero —no
- * del mínimo— para que una subida de 690 a 760 kg no se dibuje como un salto.
- */
-const Tonelaje = ({ tabla }) => {
-  const { tonelajes, filas, cambio } = tabla;
-  const max = Math.max(...tonelajes, 1);
-  const ancho = 300;
-  const alto = 94;
-  const x = (i) => (tonelajes.length === 1 ? ancho : (i / (tonelajes.length - 1)) * ancho);
-  const y = (v) => alto - 8 - (v / max) * (alto - 18);
-  const linea = tonelajes.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const area = `${linea} L${ancho} ${alto} L0 ${alto} Z`;
-  const ultimo = tonelajes.length - 1;
-
-  return (
-    <figure className="pc-puesto-grafica">
-      <svg
-        viewBox={`0 0 ${ancho} ${alto}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Tonelaje de las últimas veces: ${tonelajes.map((t) => `${miles(t)} kg`).join(', ')}`}
-      >
-        <path className="pc-puesto-area" d={area} />
-        <path className="pc-puesto-linea" d={linea} />
-        <circle className="pc-puesto-punto" cx={x(ultimo)} cy={y(tonelajes[ultimo])} r="4" />
-      </svg>
-      <figcaption>
-        <span>S{filas[0].weekNumber}</span>
-        <span>tonelaje</span>
-        <span>
-          S{filas[ultimo].weekNumber}
-          {cambio !== null ? ` · ${cambio > 0 ? '+' : ''}${cambio} %` : ''}
-        </span>
-      </figcaption>
-    </figure>
   );
 };
 

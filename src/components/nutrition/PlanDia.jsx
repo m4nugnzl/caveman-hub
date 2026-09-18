@@ -33,11 +33,14 @@ import { opcionElegida } from './macros';
  * la comparación ya está en la última fila, y qué opción está abierta lo dice la
  * hoja.
  */
+/* La unidad acompaña a los gramos en las filas que se LEEN —lo pedido, lo
+   repartido y lo que suma—, que es como las escribe el frame: «120g». En las
+   que se escriben no, porque ahí la cifra vive dentro de una casilla. */
 const CAMPOS = [
-  { key: 'kcals', label: 'kcal', plan: 'targetKcals', real: 'kcal' },
-  { key: 'protein', label: 'P', plan: 'proteinGrams', real: 'protein' },
-  { key: 'carbs', label: 'C', plan: 'carbsGrams', real: 'carbs' },
-  { key: 'fats', label: 'G', plan: 'fatsGrams', real: 'fats' },
+  { key: 'kcals', label: 'kcal', plan: 'targetKcals', real: 'kcal', unidad: '' },
+  { key: 'protein', label: 'P', plan: 'proteinGrams', real: 'protein', unidad: 'g' },
+  { key: 'carbs', label: 'C', plan: 'carbsGrams', real: 'carbs', unidad: 'g' },
+  { key: 'fats', label: 'G', plan: 'fatsGrams', real: 'fats', unidad: 'g' },
 ];
 
 export const PlanDia = ({
@@ -84,13 +87,19 @@ export const PlanDia = ({
      objetivo, en la misma fila donde se veían los dos números. */
   const lectura = reparto.meals === 0 ? (objetivoKcal ? 'sin repartir' : '') : vozDelReparto(reparto) || '';
   const pctDia = objetivoKcal && suma.kcal ? `${Math.round((suma.kcal / objetivoKcal) * 100)} %` : '';
+  /* ¿Cuadran las CUATRO? Es lo que enciende la banda verde del pie. */
+  const cuadraTodo =
+    juzga &&
+    meals.length > 0 &&
+    CAMPOS.every((c) => claseDe(Math.round(suma[c.real]), targets?.[c.plan], c.key) === ' is-ok');
 
   return (
     <section className="plan-dia" aria-label="Plan del día">
       <div className="plan-dia-tabla">
-        <div className="plan-dia-fila is-cab" aria-hidden="true">
-          <span />
-          <span className="is-nombre" />
+        {/* La cabecera es una banda con sus rótulos, no una fila invisible:
+            la primera columna dice de qué habla la tabla (frame 73:33). */}
+        <div className="plan-dia-fila is-cab">
+          <span className="is-nombre">Descripción</span>
           {CAMPOS.map((c) => (
             <span key={c.key} className="is-num">{c.label}</span>
           ))}
@@ -99,12 +108,13 @@ export const PlanDia = ({
 
         {/* Lo que pide el plan: la referencia de todo lo de abajo. */}
         <div className="plan-dia-fila is-plan">
-          <span />
           <span className="is-nombre">Objetivo del plan</span>
           {CAMPOS.map((c) => (
-            <span key={c.key} className="is-num">{toNum0(targets?.[c.plan]) || '—'}</span>
+            <span key={c.key} className="is-num">
+              {toNum0(targets?.[c.plan]) ? `${toNum0(targets[c.plan])}${c.unidad}` : '—'}
+            </span>
           ))}
-          <span className="is-peso" />
+          <span className="is-peso">—</span>
         </div>
 
         {meals.map((meal, i) => {
@@ -115,9 +125,17 @@ export const PlanDia = ({
           const sugerido = carbsFromRest(target);
           const faltaCarbs = !toNum0(target.carbs);
           const pct = Math.round((pesos[i] / basePeso) * 100);
+          /*
+             ══ SIN ORDINAL DELANTE DEL NOMBRE (17 sep) ════════════════════
+             «No quiero que comida sea 1 Comida 1, 2 Comida 2.» El número
+             decía «esta es la enésima comida del día» a una lista que ya está
+             en orden de arriba abajo, y con los nombres por defecto —«Comida
+             1», «Comida 2»— lo decía además dos veces en la misma línea.
+             Quien renombra sus comidas —«Desayuno», «Post-entreno»— tenía un
+             número pegado a una palabra que no lo necesita.
+          */
           return (
             <div key={meal.id} className="plan-dia-fila">
-              <span className="plan-dia-n">{i + 1}</span>
               {onRename && renombrando === meal.id ? (
                 <RenombrarEnSitio
                   value={meal.name}
@@ -210,13 +228,12 @@ export const PlanDia = ({
         })}
 
         <div className="plan-dia-fila is-total">
-          <span />
           <span className="is-nombre">Repartidas</span>
           {CAMPOS.map((c) => (
             /* Cada uno contra SU objetivo: repartir 204 g de proteína donde se
                pidieron 156 se ve en su columna y no en una nota al pie. */
             <span key={c.key} className={`is-num${juzga ? claseDe(reparto[c.key], targets?.[c.plan], c.key) : ''}`}>
-              {reparto.meals > 0 ? reparto[c.key] : '—'}
+              {reparto.meals > 0 ? `${reparto[c.key]}${c.unidad}` : '—'}
             </span>
           ))}
           <span
@@ -228,9 +245,19 @@ export const PlanDia = ({
           </span>
         </div>
 
-        {/* Lo real, celda a celda contra el objetivo del plan. */}
-        <div className="plan-dia-fila is-suma">
-          <span />
+        {/*
+          Lo real, celda a celda contra el objetivo del plan.
+
+          ── Y LA BANDA SE TIÑE CUANDO CUADRA (frame 73:87) ─────────────
+          Solo en verde y solo al cuadrar. La objeción escrita contra esto
+          era que un día descuadrado pediría entonces una banda roja de cabo
+          a rabo; no la pide, porque las dos cosas no son simétricas: que un
+          menú cuadre con lo pautado es un HECHO que se comprueba de una
+          pasada y se deja de mirar, y que no cuadre es un trabajo pendiente
+          que hay que leer cifra a cifra —y para eso están las cifras en
+          rojo—. La banda verde es un visto bueno, no medio semáforo.
+        */}
+        <div className={`plan-dia-fila is-suma${cuadraTodo ? ' is-cuadra' : ''}`}>
           <span className="is-nombre">
             Suman <small>con las opciones abiertas</small>
           </span>
@@ -238,7 +265,7 @@ export const PlanDia = ({
             const valor = Math.round(suma[c.real]);
             return (
               <span key={c.key} className={`is-num${juzga ? claseDe(valor, targets?.[c.plan], c.key) : ''}`}>
-                {valor || '—'}
+                {valor ? `${valor}${c.unidad}` : '—'}
               </span>
             );
           })}

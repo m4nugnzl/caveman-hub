@@ -25,7 +25,6 @@ import { columnasDe, respuestaLegible } from '@/domain/formulario';
 import { coachProtocolos } from '@/domain/protocolos';
 import { dayMonthMaybeYear, todayISO } from '@/lib/dates';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { EmptyState } from '@/components/ui/primitives';
 
 /**
  * LOS ENVÍOS: lo que has mandado una vez, y lo que ha vuelto.
@@ -74,17 +73,22 @@ export const EnviosSeccion = ({ envios, onAbrir, onMandar }) => {
   const hoy = todayISO();
 
   if (envios.length === 0) {
+    /* La caja del dibujo (98:86), la misma que en la pestaña de cada cliente:
+       el vacío de los envíos es una invitación y se dice igual en los dos. */
     return (
-      <EmptyState
-        icon={Send}
-        title="No has mandado nada suelto"
-        message="Un envío es lo que le pides a unas cuantas personas concretas sin cambiarles el protocolo: un cuestionario de sueño, un vídeo, un aviso."
-        action={
-          <button type="button" className="btn btn-primary btn-sm" onClick={onMandar}>
-            <Send size={15} /> Mandar algo
-          </button>
-        }
-      />
+      <div className="envio-vacio">
+        <span className="envio-vacio-ico" aria-hidden="true">
+          <Send size={20} />
+        </span>
+        <p className="envio-vacio-tit">No has mandado nada suelto</p>
+        <p className="envio-vacio-dice">
+          Un envío es lo que le pides a unas cuantas personas concretas sin cambiarles el protocolo:
+          un cuestionario de sueño, un vídeo o un encargo rápido.
+        </p>
+        <button type="button" className="btn btn-primary btn-sm" onClick={onMandar}>
+          Mandar algo suelto
+        </button>
+      </div>
     );
   }
 

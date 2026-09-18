@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 
 import { useActions } from '@/context/AppContext';
 import {
@@ -22,7 +22,7 @@ import {
 import { Opciones } from '@/components/ui/Opciones';
 import { Contador } from '@/components/ui/Contador';
 import { CarrilDePasos } from '@/components/ui/Asistente';
-import { prefiereMenosMovimiento, traeALaVista } from '@/lib/motion';
+import { traeALaVista } from '@/lib/motion';
 
 /** Una respuesta cuenta si tiene algo dentro. El mismo criterio que `formProgress`. */
 const puesto = (valor) => valor !== undefined && valor !== null && valor !== '';
@@ -289,10 +289,10 @@ export const conRespuesta = (borrador, field, valor) =>
  * visto aunque lo hayas cruzado entero. Eso es lo que hace el `hecho` de cada
  * paso, que `CarrilDePasos` acepta justo para este caso.
  *
- * ── La cuenta de las preguntas NO se reinicia ─────────────────────────────
- * El «01» sigue siendo el primero del alta, no el primero del capítulo: lo que
- * dice ese número es cuánto llevas de lo que te han pedido, y reiniciarlo en
- * cada tanda convertiría trece preguntas en tres cuentas de cuatro.
+ * ── Sin número (18 sep) ───────────────────────────────────────────────────
+ * Desde que cada pregunta es una caja (ver `CajasDeTanda`) el alta ya no se
+ * numera: el canto separa y el carril dice por dónde vas. El suelto y el
+ * check-in siguen numerados.
  *
  * ── Con una sola tanda no hay nada que recorrer ───────────────────────────
  * Ni carril, ni pie: la hoja entera, como estaba. Un carril de un paso es el
@@ -312,8 +312,12 @@ export const conRespuesta = (borrador, field, valor) =>
  * Va por `traeALaVista`, que salta en vez de deslizarse para quien ha pedido
  * menos movimiento.
  */
-export const CuerpoDelAlta = ({ form, borrador = {}, onChange }) => {
-  const [indice, setIndice] = useState(0);
+export const CuerpoDelAlta = ({ form, borrador = {}, onChange, capitulo, onCapitulo }) => {
+  /* El capítulo lo lleva el cuerpo, salvo que se lo lleve quien lo monta: la
+     vista en vivo del constructor salta al capítulo de la pregunta tocada. */
+  const [propio, setPropio] = useState(0);
+  const indice = capitulo ?? propio;
+  const setIndice = onCapitulo ?? setPropio;
   const cuerpo = useRef(null);
   /* El primer render no desplaza nada: al abrir la pantalla nadie ha pedido ir
      a ninguna parte, y traer el formulario a la vista al montarlo movería una
@@ -334,37 +338,24 @@ export const CuerpoDelAlta = ({ form, borrador = {}, onChange }) => {
   useEffect(() => {
     if (capituloVisto.current === i) return;
     capituloVisto.current = i;
+    /* En el constructor el capítulo cambia al tocar una fila de la otra
+       columna: traer la vista movería la página debajo del entrenador. */
+    if (onCapitulo) return;
     traeALaVista(cuerpo.current, { block: 'start', behavior: 'smooth' });
-  }, [i]);
+  }, [i, onCapitulo]);
 
   if (tandas.length === 0) return null;
-
-  /*
-    Dónde empieza la cuenta de cada capítulo.
-
-    La numeración corre por encima de las tandas y solo se pinta una, así que no
-    vale con un contador que avance según se dibuja: hay que saber cuántas
-    preguntas van DELANTE de la que se está enseñando.
-  */
-  let antes = 0;
-  const desde = tandas.map((t) => {
-    const d = antes;
-    antes += t.fields.length;
-    return d;
-  });
 
   const tanda = tandas[i];
   const siguiente = conCapitulos && i < tandas.length - 1 ? tandas[i + 1] : null;
 
-  /* La `key` remonta la ventana al cambiar de capítulo: vuelve a la primera
-     pregunta y se reproduce sola la entrada de `.wiz-panel`, la misma animación
-     del asistente de la revisión. */
+  /* La `key` remonta el capítulo al cambiar: se reproduce sola la entrada de
+     `.wiz-panel`, la misma animación del asistente de la revisión. */
   const ventana = (
-    <VentanaDeTanda
+    <CajasDeTanda
       key={tanda.id}
       form={form}
       tanda={tanda}
-      primero={desde[i]}
       borrador={borrador}
       onChange={onChange}
       siguiente={siguiente?.label}
@@ -391,236 +382,70 @@ export const CuerpoDelAlta = ({ form, borrador = {}, onChange }) => {
   );
 };
 
-/** Lo que se elige con un toque: contestarlo ya dice que has terminado con ella. */
-const seEligeDeUnToque = (field) => field.kind === 'choice' || field.kind === 'yesno';
-
 /**
- * UN CAPÍTULO, VISTO POR UNA VENTANA.
+ * UN CAPÍTULO, EN CAJAS.
  *
- * ══ La sexta vuelta, y qué corrige ═════════════════════════════════════════
+ * ══ La séptima vuelta (18 sep, frame 104:80 de Figma) ══════════════════════
  *
- * Con el capítulo por hoja los apartados se veían, pero dentro de cada uno las
- * preguntas seguían saliendo *«en bloque, juntas, como una lista de la
- * compra»*. Lo que se pidió es que al bajar unas se fueran y otras llegaran.
+ * La ventana con foco se va. Por ella pasaba una pregunta encendida y las demás
+ * se apagaban al cruzar el borde: la lista de la compra dejó de serlo, pero a
+ * costa de que el capítulo no se viera nunca entero y de un gesto —el encaje—
+ * que había que aprender. El dibujo lo resuelve de otra manera: **cada pregunta
+ * es una caja**, con su enunciado arriba, su ayuda debajo y el control dentro.
+ * Lo que separa una pregunta de la siguiente es el canto, no un filete de un
+ * píxel ni una opacidad; por eso el capítulo se puede ver entero sin volver a
+ * ser «una lista desproporcionada» (la 3.ª vuelta).
  *
- * Así que la hoja es una VENTANA de alto fijo por la que pasan las preguntas:
- * cada una encaja arriba (`scroll-snap`), la que está puesta se ve entera y
- * encendida, la anterior se desvanece por el borde de arriba y la siguiente
- * asoma apagada por el de abajo. Todas las hojas miden lo mismo, así que
- * cambiar de capítulo tampoco hace saltar la pantalla.
+ * Lo que NO cambia: un capítulo por hoja, el carril que se pulsa y el botón que
+ * lleva escrito a dónde va. Y NO es una pregunta por pantalla (104:157, la 2.ª
+ * vuelta): el dueño dibujó las dos y eligió ésta.
  *
- * ══ Y NO es «una pregunta por pantalla» (la segunda vuelta, rechazada) ═════
+ * ══ La cifra va a la DERECHA de su caja ════════════════════════════════════
  *
- * Aquella cobraba un toque en «Siguiente» por pregunta. Aquí no hace falta
- * ninguno: se baja con la rueda o el dedo, y lo que se elige de un toque —las
- * opciones, el sí/no— baja SOLO a la siguiente en cuanto se contesta. Enter en
- * un campo de texto hace lo mismo. Los botones del pie están para quien los
- * quiera, no son el camino.
- *
- * ══ Lo que se ve de lado ═══════════════════════════════════════════════════
- *
- * La mira: un punto por pregunta del capítulo, el de la puesta más largo y los
- * contestados en acento. Sustituye a la barra de desplazamiento, que en una
- * ventana de encaje no dice nada útil.
- *
- * Con UNA sola pregunta no hay nada que pase por la ventana: se pinta suelta,
- * a su altura (`data-sola`).
+ * Lo que se contesta con un número —cuántos días, cuántos minutos— ocupa un
+ * renglón con el control al canto (`.es-cifra`): debajo del enunciado dejaba
+ * una caja de 136 px sola en una fila de 720. Todo lo demás cae debajo.
  */
-const VentanaDeTanda = ({
-  form,
-  tanda,
-  primero,
-  borrador,
-  onChange,
-  siguiente,
-  alSiguiente,
-  alAnterior,
-}) => {
-  const [activa, setActiva] = useState(0);
-  const ventana = useRef(null);
-  const preguntas = useRef([]);
-  const marco = useRef(0);
-  const espera = useRef(0);
-
-  const n = tanda.fields.length;
-  const sola = n === 1;
-
-  useEffect(
-    () => () => {
-      cancelAnimationFrame(marco.current);
-      clearTimeout(espera.current);
-    },
-    []
-  );
-
-  /* Cuánto aire se deja por encima de la puesta para que asome la anterior. Lo
-     dice el CSS (`scroll-padding-top`) y se lee de ahí: una sola fuente. */
-  const holgura = (v) => parseFloat(getComputedStyle(v).scrollPaddingTop) || 0;
-
-  const irA = (k) => {
-    const v = ventana.current;
-    const el = preguntas.current[k];
-    if (!v || !el) return;
-    setActiva(k);
-    v.scrollTo({
-      top: el.offsetTop - holgura(v),
-      behavior: prefiereMenosMovimiento() ? 'auto' : 'smooth',
-    });
-  };
-
-  /* La puesta es la que queda más cerca del borde de encaje. Una vez por
-     fotograma, no por evento: la rueda dispara decenas. */
-  const alMover = () => {
-    if (marco.current) return;
-    marco.current = requestAnimationFrame(() => {
-      marco.current = 0;
-      const v = ventana.current;
-      if (!v) return;
-      const objetivo = v.scrollTop + holgura(v);
-      let mejor = 0;
-      let distancia = Infinity;
-      preguntas.current.forEach((el, k) => {
-        if (!el) return;
-        const d = Math.abs(el.offsetTop - objetivo);
-        if (d < distancia) {
-          distancia = d;
-          mejor = k;
-        }
-      });
-      setActiva(mejor);
-    });
-  };
-
-  const contestar = (field, k, valor) => {
-    onChange(field, valor);
-    /* Solo dentro del capítulo: pasar de capítulo solo, sin que nadie lo pida,
-       cambiaría la hoja entera debajo del dedo. Una pausa corta para que se vea
-       la opción marcada antes de que se vaya. */
-    if (seEligeDeUnToque(field) && valor !== '' && k < n - 1) {
-      clearTimeout(espera.current);
-      espera.current = setTimeout(() => irA(k + 1), 280);
-    }
-  };
-
-  /* Enter en un campo pasa a la siguiente y le lleva el foco, como quien tabula;
-     en la última del capítulo, al capítulo siguiente. En la última del alta se
-     deja pasar: en el portal es guardar. */
-  const alTeclear = (e, k) => {
-    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || e.nativeEvent.isComposing) return;
-    if (k < n - 1) {
-      e.preventDefault();
-      irA(k + 1);
-      preguntas.current[k + 1]?.querySelector('input, button')?.focus({ preventScroll: true });
-    } else if (alSiguiente) {
-      e.preventDefault();
-      alSiguiente();
-    }
-  };
-
-  const hayAtras = activa > 0 || alAnterior;
-  const haySigue = activa < n - 1 || alSiguiente;
-
-  return (
-    <div className="wiz-panel">
-      <div className="alta-marco">
+const CajasDeTanda = ({ form, tanda, borrador, onChange, siguiente, alSiguiente, alAnterior }) => (
+  <div className="wiz-panel">
+    <div className="alta-cajas">
+      {tanda.fields.map((field) => (
         <div
-          className="alta-ventana"
-          ref={ventana}
-          data-sola={sola ? '1' : undefined}
-          onScroll={sola ? undefined : alMover}
+          key={field.id}
+          className={`campo-q alta-caja${field.kind === 'number' ? ' es-cifra' : ''}${
+            field.kind === 'yesno' ? ' es-sino' : ''
+          }`}
         >
-          <div className="libre-campos">
-            {tanda.fields.map((field, k) => {
-              const valor = valorDeCampo(field, borrador);
-              return (
-                <div
-                  key={field.id}
-                  ref={(el) => {
-                    preguntas.current[k] = el;
-                  }}
-                  className={`campo-q es-numerada alta-q${k === activa ? ' is-activa' : ''}`}
-                  /* Tocar o tabular a una apagada la trae: no se contesta a
-                     ciegas lo que está a medio desvanecer. */
-                  onFocus={() => k !== activa && irA(k)}
-                  onClick={() => k !== activa && irA(k)}
-                  onKeyDown={(e) => alTeclear(e, k)}
-                >
-                  {/* EL NÚMERO, encendido en cuanto hay respuesta. Corre por
-                      encima de los capítulos. */}
-                  <span
-                    className="feedback-n"
-                    data-hecha={puesto(valor) ? '1' : undefined}
-                    aria-hidden="true"
-                  >
-                    {String(primero + k + 1).padStart(2, '0')}
-                  </span>
-                  <Pregunta
-                    field={field}
-                    obligatoria={isRequired(form, field.id)}
-                    value={valor}
-                    onChange={(v) => contestar(field, k, v)}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <Pregunta
+            field={field}
+            obligatoria={isRequired(form, field.id)}
+            value={valorDeCampo(field, borrador)}
+            onChange={(v) => onChange(field, v)}
+          />
         </div>
+      ))}
+    </div>
 
-        {!sola && (
-          <div className="alta-mira" aria-hidden="true">
-            {tanda.fields.map((field, k) => (
-              <i
-                key={field.id}
-                data-hecha={puesto(valorDeCampo(field, borrador)) ? '1' : undefined}
-                className={k === activa ? 'is-activa' : undefined}
-              />
-            ))}
-          </div>
+    {/* El pie solo cambia de capítulo, en secundario: el principal de la
+        pantalla es Guardar. El que avanza lleva escrito a dónde va, porque en
+        estrecho el carril esconde los capítulos que no tocan. */}
+    {(alAnterior || alSiguiente) && (
+      <div className="alta-pie">
+        {alAnterior && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={alAnterior}>
+            <ArrowLeft size={15} /> Atrás
+          </button>
+        )}
+        {alSiguiente && (
+          <button type="button" className="btn btn-secondary btn-sm alta-sigue" onClick={alSiguiente}>
+            <span className="alta-sigue-k">{siguiente}</span>
+            <ArrowRight size={15} />
+          </button>
         )}
       </div>
-
-      {/*
-        El pie: dos secundarios, porque el botón principal de la pantalla es
-        Guardar y aquí no se entrega nada. Dentro del capítulo mueven la
-        ventana; en sus bordes, cambian de capítulo.
-
-        Y el que cambia de capítulo LLEVA ESCRITO A DÓNDE VA: en estrecho el
-        carril esconde los que no tocan.
-      */}
-      {(hayAtras || haySigue) && (
-        <div className="alta-pie">
-          {activa > 0 ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => irA(activa - 1)}>
-              <ArrowUp size={15} /> Anterior
-            </button>
-          ) : (
-            alAnterior && (
-              <button type="button" className="btn btn-secondary btn-sm" onClick={alAnterior}>
-                <ArrowLeft size={15} /> Atrás
-              </button>
-            )
-          )}
-          {activa < n - 1 ? (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm alta-sigue"
-              onClick={() => irA(activa + 1)}
-            >
-              Siguiente <ArrowDown size={15} />
-            </button>
-          ) : (
-            alSiguiente && (
-              <button type="button" className="btn btn-secondary btn-sm alta-sigue" onClick={alSiguiente}>
-                <span className="alta-sigue-k">{siguiente}</span>
-                <ArrowRight size={15} />
-              </button>
-            )
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
+    )}
+  </div>
+);
 
 /**
  * El cuestionario de alta, contestado por el cliente.

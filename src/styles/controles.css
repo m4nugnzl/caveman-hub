@@ -548,30 +548,64 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   display: inline-flex; align-items: center; gap: var(--s2);
   font-size: var(--fs-sm); color: var(--text-secondary); cursor: pointer; user-select: none;
 }
-.checkbox-row input[type='checkbox'] {
+.checkbox-row input[type='checkbox'],
+/* Y la fila del reajuste del menú, que hasta hoy llevaba la casilla NATIVA del
+   navegador con `accent-color`: o sea el único sitio de la aplicación con un
+   control del sistema en medio de los dibujados en casa. Lo que se ve en el
+   frame es esta misma casilla, así que entra en la regla en vez de tener su
+   propia versión. */
+.reajuste-fila > input[type='checkbox'] {
   appearance: none; -webkit-appearance: none;
   flex-shrink: 0; position: relative;
   /* 18px de caja con 3px de margen alrededor: el blanco táctil llega a 24, que
      es lo mínimo cómodo en el móvil, sin que el cuadro se vea gigante. */
   width: 18px; height: 18px; margin: 3px;
-  border-radius: var(--r-sm);
+  /* Cuadrado con las esquinas matadas, no un disco. Con `--r-sm` (9) sobre una
+     caja de 18 el radio es la mitad del lado, o sea un círculo — y un círculo
+     marcado es un RADIO, la señal de «elige una de estas». Aquí se eligen
+     varias a la vez. Se disimulaba mientras el cuadro iba macizo; en hueco,
+     como lo pide el frame, un aro con un tic dentro es exactamente el dibujo de
+     un botón de opción. */
+  border-radius: var(--r-xs);
   background: var(--surface);
   border: 1.5px solid var(--hairline-strong);
   cursor: pointer;
   transition: background var(--fast), border-color var(--fast);
 }
-.checkbox-row input[type='checkbox']:hover { border-color: var(--accent); }
+.checkbox-row input[type='checkbox']:hover,
+.reajuste-fila > input[type='checkbox']:hover { border-color: var(--accent); }
 /* El tic es un TRAZO, no dos bordes girados. La versión dibujada con
    `border-width: 0 2px 2px 0` + `rotate(45deg)` salía con las puntas cortadas
    a bisel y dentada en pantallas sin escala — el dueño la vetó («tics feos»).
    Un SVG en línea da puntas redondas y el mismo dibujo a cualquier densidad,
-   sin descarga que pueda fallar. El blanco es literal porque un data-URI no
-   entiende `var()`; sobre el azul del acento vale en los dos temas. */
-.checkbox-row input[type='checkbox']:checked {
-  background: var(--accent)
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.4 6.6l2.5 2.5 4.7-5.7' fill='none' stroke='white' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+   sin descarga que pueda fallar.
+
+   ══ Y MARCADA VA EN HUECO, NO MACIZA (17 sep · frame 66:218) ═════════════
+
+   «Los tics son con fondo blanco, me gusta más.» El cuadro marcado era una
+   losa de acento con el tic en blanco; el frame lo dibuja al revés —papel
+   dentro, canto y tic en acento—, y con razón de fondo: una lista de doce
+   filas marcadas era una columna de doce manchas azules a la izquierda del
+   texto, y lo que hay que leer ahí son los nombres. En hueco, lo que marca
+   sigue siendo el tic y lo que pesa vuelve a ser la palabra.
+
+   Marcada se distingue igual de la vacía: el canto pasa de gris a acento y
+   aparece el tic. El color del trazo va literal porque un data-URI no entiende
+   `var()` — por eso hay una segunda versión para el tema oscuro, justo
+   debajo—. */
+.checkbox-row input[type='checkbox']:checked,
+.reajuste-fila > input[type='checkbox']:checked {
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.4 6.6l2.5 2.5 4.7-5.7' fill='none' stroke='%232b7ab8' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     center / 11px no-repeat;
   border-color: var(--accent);
+}
+[data-theme='dark'] .checkbox-row input[type='checkbox']:checked,
+[data-theme='dark'] .reajuste-fila > input[type='checkbox']:checked,
+.lp-noche .checkbox-row input[type='checkbox']:checked {
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.4 6.6l2.5 2.5 4.7-5.7' fill='none' stroke='%235aa9e8' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
 }
 
 /* ── La casilla con etiqueta de dos líneas ──────────────────────────────────
@@ -940,6 +974,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 @keyframes girar {
   to { transform: rotate(360deg); }
 }
+.reajuste-fila > input[type='checkbox']:focus-visible,
 .checkbox-row input[type='checkbox']:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
@@ -1334,10 +1369,6 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    al borde no «aparece», llega. */
 @keyframes modal-sube { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 .modal-lg { max-width: 880px; }
-/* La capa del puesto: una pantalla entera (Cobros, Agenda) que viene a ti en
-   vez de llevarte. Más ancha y más alta que el grande porque dentro va una
-   página con sus paneles, no un formulario. */
-.modal-capa { max-width: 1160px; max-height: min(92vh, 1040px); max-height: min(92svh, 1040px); }
 
 /* ── EL PANEL LATERAL ──────────────────────────────────────────────────────
    El detalle que se consulta SIN salir de lo que se estaba mirando: entra por
@@ -1411,6 +1442,27 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 .sheet-grip { align-self: center; margin: -4px auto -2px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s4) var(--s5); }
 .modal-title { font-size: var(--fs-md); font-weight: 600; }
+/* ── EL SIGNO Y LA FRASE DE LA CABECERA (17 sep · frames 202:4 y 208:5) ────
+   Los dos envoltorios existen siempre —los pinta `Modal`— y sin signo ni
+   subtítulo no cambian nada: una caja flex con un solo hijo es ese hijo. Por
+   eso no hacía falta una variante de cabecera.
+
+   La placa del signo es el tinte del acento en una caja de 40 con esquina
+   blanda, como en el frame. Es lo único de color de la cabecera, y por eso el
+   titular no necesita subir de peso para presidir. */
+.modal-say { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+.modal-signo {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: var(--r-md);
+  background: var(--accent-soft); color: var(--accent);
+}
+.modal-rotulo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+/* Con signo y frase, el titular sube al cuerpo de sección (22, el del frame):
+   una ventana con cabecera de tres piezas es una PANTALLA pequeña, no un
+   aviso, y a 18 el titular se quedaba por debajo de su propia placa. */
+.modal-say:has(.modal-sub) .modal-title,
+.modal-say:has(.modal-signo) .modal-title { font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.015em; }
+.modal-sub { font-size: var(--fs-control); color: var(--text-secondary); }
 /* `overscroll-behavior`: al llegar al final del cuerpo, el gesto de scroll no
    se encadena al fondo bloqueado — sin él, iOS «rebota» la página de detrás y
    al cerrar aparece desplazada. */

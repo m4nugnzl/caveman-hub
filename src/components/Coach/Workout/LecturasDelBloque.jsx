@@ -34,6 +34,19 @@ const GRUPOS_A_LA_VISTA = 6;
 /** «3 semanas», «1 hoja»… */
 const cuenta = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
+/* La carga del bloque, en la celda de 72 px que le da el frame: «490.250» son
+   seis cifras a 18 px —83 px medidos— y no caben en ninguna de las cuatro. A
+   partir de diez mil kilos se dice en miles —«490k», como en el frame— y del
+   millón en adelante en millones, que es la precisión que esta lectura
+   necesita: se usa para comparar un bloque con otro, no para cuadrar una suma.
+   Por debajo se escribe entera, porque ahí sí cabe y «8k» sería redondear lo
+   que no hace falta redondear. */
+const kgCorto = (kg) => {
+  if (kg >= 1000000) return `${localeNumber(kg / 1000000, { maximumFractionDigits: 1 })}M`;
+  if (kg >= 10000) return `${localeNumber(Math.round(kg / 1000))}k`;
+  return localeNumber(kg);
+};
+
 /* ══ EL BLOQUE EN CIFRAS ════════════════════════════════════════════════════ */
 
 const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
@@ -63,14 +76,36 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
       <span className="section-label">Este bloque</span>
       {resumen.desde && <span className="lado-desde">desde el {shortDate(resumen.desde)}</span>}
     </div>
-    <div className="bloque-cifras is-2">
-      <div className="bloque-cifra">
+    {/*
+      ── LAS CUATRO, EN UNA SOLA CAJA Y EN UN RENGLÓN (17 sep · nodo 204:4) ──
+      Eran cuatro casillas rellenas en dos por dos, con la cifra arriba y el
+      rótulo debajo. En el frame son UN renglón de cuatro columnas dentro de una
+      sola caja hundida, y el rótulo va ENCIMA de la cifra.
+
+      Las dos cosas cambian por el mismo motivo. Cuatro casillas separadas se
+      leen como cuatro lecturas independientes —que es lo que la vuelta anterior
+      quiso decir— y no lo son: son las cuatro medidas del MISMO bloque, y lo
+      que se hace con ellas es compararlas de un vistazo. Una caja, cuatro
+      columnas. Y en un renglón de cuatro el ojo baja por cada columna, así que
+      con la cifra delante hay que volver atrás en cada una para saber de qué
+      era; con el rótulo delante, la fila se lee de corrido.
+
+      Los rótulos son los del frame —una palabra— y la frase entera se queda en
+      el `title`: «series por microciclo» no cabe en 68 px sin partirse en tres
+      renglones, y cuatro celdas así son una caja de noventa píxeles de alto
+      para cuatro números.
+    */}
+    <div className="bloque-cifras is-compacta">
+      <div className="bloque-cifra" title={`Series pautadas por ${unidad.toLowerCase()}`}>
+        <span className="k">series</span>
         <span className="v">{resumen.series ?? '—'}</span>
-        <span className="k">series por {unidad.toLowerCase()}</span>
       </div>
-      <div className="bloque-cifra">
-        <span className="v">{localeNumber(resumen.kg)}</span>
-        <span className="k">kg levantados</span>
+      <div className="bloque-cifra" title="Kilos levantados en este bloque">
+        <span className="k">carga</span>
+        <span className="v">
+          {kgCorto(resumen.kg)}
+          <small>kg</small>
+        </span>
       </div>
       {/*
         ── Y VUELVEN LOS ENTRENAMIENTOS Y LA ADHERENCIA ──────────────────────
@@ -85,21 +120,26 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
         para lo que sirve una cabecera.
       */}
       {resumen.planificadas > 0 && (
-        <div className="bloque-cifra">
+        <div className="bloque-cifra" title="Entrenamientos hechos de los planificados">
+          <span className="k">entren.</span>
           <span className="v">
             {resumen.hechas}
-            <small> / {resumen.planificadas}</small>
+            <small>/{resumen.planificadas}</small>
           </span>
-          <span className="k">entrenamientos</span>
         </div>
       )}
+      {/* El frame escribe «CUMPLIMIENTO» y aquí no cabe: 86 px medidos en una
+          celda de 72, y es UNA palabra, así que no hay dónde partirla —el propio
+          dibujo la parte por la mitad, «CUMPLIMIE / NTO»—. «Cumplido» mide 60,
+          dice lo mismo y además concuerda con lo que lleva debajo: «95 %
+          cumplido». */}
       {resumen.adherencia !== null && resumen.adherencia !== undefined && (
-        <div className="bloque-cifra">
+        <div className="bloque-cifra" title="Series hechas sobre las pautadas">
+          <span className="k">cumplido</span>
           <span className="v">
             {resumen.adherencia}
-            <small> %</small>
+            <small>%</small>
           </span>
-          <span className="k">de lo pautado</span>
         </div>
       )}
     </div>

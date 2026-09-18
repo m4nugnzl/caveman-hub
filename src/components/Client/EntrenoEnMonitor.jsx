@@ -96,23 +96,25 @@ export const EntrenoEnMonitor = ({ datos }) => {
         ) : null}
 
         <div className="entreno is-conjunto">
+          {/* Por encima de las DOS columnas, como en el taller: los bloques y
+              los microciclos eligen lo que dicen las hojas Y las lecturas del
+              costado, así que el costado empieza a la altura de las hojas y no
+              de la tira (el dueño, 18 sep). Ver `WorkoutLogEditor`. */}
+          {bloque ? (
+            <TiraDelPrograma
+              program={program}
+              bloque={bloque}
+              semana={semana}
+              semanaEnCurso={semanaEnCurso}
+              esActual={esActual}
+              unidad={unidad}
+              unidades={unidades}
+              vista="bloque"
+              onIrBloque={onIrBloque}
+              onIrSemana={onIrSemana}
+            />
+          ) : null}
           <section className="entreno-hoja mesa-panel" aria-label="Tu programa">
-            {/* La cabecera de la mesa, no de la página: los bloques y los
-                microciclos gobiernan lo que hay debajo. Ver `TiraDelPrograma`. */}
-            {bloque ? (
-              <TiraDelPrograma
-                program={program}
-                bloque={bloque}
-                semana={semana}
-                semanaEnCurso={semanaEnCurso}
-                esActual={esActual}
-                unidad={unidad}
-                unidades={unidades}
-                vista="bloque"
-                onIrBloque={onIrBloque}
-                onIrSemana={onIrSemana}
-              />
-            ) : null}
 
             <div className="mesa-cuerpo">
               {sesiones.length > 0 && bloque ? (

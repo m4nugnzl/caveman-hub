@@ -8,6 +8,8 @@ import {
   cuentaAcciones,
   diaDelCheckin,
   loQueLeHasMandado,
+  momentosDe,
+  momentosDelCliente,
   porPremisa,
   premisasDe,
   quitarAccion,
@@ -346,5 +348,38 @@ describe('acciones · lo que le has mandado', () => {
 
   it('sin nada de ninguna de las dos épocas, la lista está vacía', () => {
     expect(loQueLeHasMandado({ intake: clientIntake({}), filas: [] })).toEqual([]);
+  });
+});
+
+describe('acciones · los momentos, en cuatro renglones', () => {
+  it('un protocolo de serie se lee en alta, parte, check-in y avisos, en ese orden', () => {
+    const filas = momentosDe(planDeSerie());
+    expect(filas.map((m) => m.id)).toEqual(['alta', 'parte', 'checkin', 'avisos']);
+    expect(filas.every((m) => m.rot && m.cuando && m.cuanto)).toBe(true);
+  });
+
+  it('las cifras salen de las acciones: la tarjeta y el banco no discrepan', () => {
+    const plan = planDeSerie();
+    const acciones = accionesDe(plan);
+    const alta = acciones.find((a) => a.id === 'step:form');
+    expect(momentosDe(plan)[0].cuanto).toBe(alta.lleva);
+  });
+
+  it('el check-in dice su día, y la cadencia solo cuando no es semanal', () => {
+    const plan = planDeSerie();
+    expect(momentosDe(plan)[2].cuando).toBe('Cada lunes');
+    const cada2 = { ...plan, protocolo: { ...plan.protocolo, schedule: { weekday: 5, everyWeeks: 2 } } };
+    expect(momentosDe(cada2)[2].cuando).toBe('Sábado, cada 2 semanas');
+  });
+
+  it('de un cliente se lee SU cita, no la del protocolo', () => {
+    const filas = momentosDelCliente({ checkin: { weekday: 3, everyWeeks: 1 } });
+    expect(filas[2].cuando).toBe('Cada jueves');
+  });
+
+  it('un cliente sin nada guardado no revienta y enseña los cuatro renglones', () => {
+    const filas = momentosDelCliente({});
+    expect(filas).toHaveLength(4);
+    expect(filas[0].cuanto).toMatch(/pregunta/);
   });
 });

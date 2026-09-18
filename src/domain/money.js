@@ -304,7 +304,7 @@ export const FORECAST_MONTHS = 6;
  */
 export const forecast = (clients = [], { months = FORECAST_MONTHS, today = todayISO() } = {}) => {
   const eje = monthAxis(today, months, { forward: true });
-  const cubos = new Map(eje.map((mes) => [mes.month, { total: 0, count: 0 }]));
+  const cubos = new Map(eje.map((mes) => [mes.month, { total: 0, count: 0, cobros: [] }]));
   const ultimo = eje.at(-1)?.month ?? monthKey(today);
 
   for (const client of clients) {
@@ -331,11 +331,18 @@ export const forecast = (clients = [], { months = FORECAST_MONTHS, today = today
       if (cubo) {
         cubo.total += importe;
         cubo.count += 1;
+        cubo.cobros.push({ client, date: fecha, amount: importe });
       }
 
       if (!periodo || periodo.months === null) break;
       fecha = addMonths(fecha, periodo.months);
     }
+  }
+
+  /* Los cobros de cada mes, por fecha: es la lista con la que la pantalla dice
+     QUIÉN hay detrás de la cifra del mes que viene. */
+  for (const cubo of cubos.values()) {
+    cubo.cobros.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
 
   return eje.map((mes) => ({ ...mes, ...cubos.get(mes.month) }));

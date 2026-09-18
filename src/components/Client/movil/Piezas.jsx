@@ -1,302 +1,85 @@
 import { Link } from 'react-router-dom';
+import { ArrowLeft, ChevronRight, User } from 'lucide-react';
 
 /**
- * LAS PIEZAS DEL PORTAL EN EL TELÉFONO — el vocabulario de «La app del cliente».
+ * LAS PIEZAS DEL PORTAL EN EL TELÉFONO — el vocabulario de los frames de Figma
+ * del 18 de septiembre de 2026 (`327:8` y hermanos).
  *
- * El traje está en `styles/portal-telefono.css`, con el porqué de cada decisión.
- * Aquí solo está la forma, y son pocas: la tarjeta, el renglón con su marca, el
- * trío de cifras, el récord, el titulillo y el pedido.
+ * ══ La gramática, que es una sola ══════════════════════════════════════════
  *
- * ── La pieza que define el producto: `Marca` ───────────────────────────────
- * Donde Hevy, Strong, Coachway y Efort ponen la miniatura del ejercicio, aquí
- * va la cifra de tu última serie y la línea de tus ocho últimas sesiones. No es
- * una preferencia estética: está medido. De los 246 ejercicios que tiene la
- * demo entre catálogo y propios, TRES podrían llevar miniatura —el 1,2 %—,
- * porque `catalog_exercises` no tiene columna de vídeo. Una columna de huecos
- * es peor que no tener fotos.
+ * Lienzo blanco, y lo que separa una cosa de otra es un FILETE a todo lo ancho,
+ * no una tarjeta con sombra. Cada tramo lleva su rótulo en versalitas de 11 px y
+ * 24 px de aire. Las cajas con canto son la excepción y dicen algo: «esto se
+ * pulsa entero» (la próxima sesión, la lista de sesiones, la comida abierta).
+ * Es la misma gramática que la web del entrenador desde el rediseño de Figma:
+ * el canto separa, el lienzo no se tiñe.
  *
- * Y la cifra, a diferencia de la foto, está siempre después del primer
- * entrenamiento, no depende de un tercero, no puede estar equivocada y es
- * distinta en la pantalla de cada persona.
+ * ── Lo que NO se copia del dibujo, y por qué ──────────────────────────────
+ * El verde de acción de los frames es aquí el azul de la casa (`--accent`): el
+ * dueño lo eligió así el 18 sep, porque el verde es el del semáforo («hecho»,
+ * «va bien») y con letra blanca no llegaba a contraste. El verde se queda
+ * donde de verdad dice «hecho». Ver `figma-movil-del-cliente` en la memoria.
+ *
+ * Los iconos son los de `lucide`, que es de donde salen los del dibujo (house,
+ * dumbbell, utensils, clipboard-check…): la misma familia que la barra lateral
+ * de la web.
  */
-
-/* ── Los cuatro iconos de la barra del pulgar ──────────────────────────────
-   Dibujados aquí y no traídos de `lucide` porque son los del prototipo, con su
-   grosor de trazo y su caja: la casa, la barra, el plato con su tapa y la
-   persona. Son los únicos iconos de todo el teléfono. */
-const svgProps = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': 'true',
-};
-
-export const IconoHoy = () => (
-  <svg {...svgProps}>
-    <path d="M3 10.5 12 3l9 7.5" />
-    <path d="M5.5 9.5V20h13V9.5" />
-  </svg>
-);
-export const IconoEntreno = () => (
-  <svg {...svgProps}>
-    <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
-  </svg>
-);
-export const IconoComer = () => (
-  <svg {...svgProps}>
-    <path d="M3 13h18a9 9 0 0 1-18 0Z" />
-    <path d="M12 4v2M8.5 5.2l.8 1.6M15.5 5.2l-.8 1.6" />
-    <path d="M2 20h20" />
-  </svg>
-);
-export const IconoTu = () => (
-  <svg {...svgProps}>
-    <circle cx="12" cy="8" r="3.6" />
-    <path d="M4.8 20a7.2 7.2 0 0 1 14.4 0" />
-  </svg>
-);
 
 /**
- * La cabecera: la fecha grande y un DATO debajo, nunca una definición.
+ * LA CABECERA de un destino: el titular y un dato debajo.
  *
- * ── Aquí había un disco con tus iniciales, y se fue el 14 sep ─────────────
- * Iba arriba a la derecha en «Hoy» y en «Tú», en verde, y no se podía pulsar.
- * El dueño: *«darle a su icono de arriba a la derecha no hace nada, además no sé
- * por qué están en verde las letras»*. Las dos cosas eran ciertas y no tenían
- * arreglo bueno:
- *
- *   · Era un `span`. Lo único a lo que podría llevar —tu cuenta— es el cuarto
- *     destino de la barra del pulgar, que está a la vista en todas las
- *     pantallas; en «Tú» habría sido un enlace a la pantalla en la que ya
- *     estás, junto a tu propio nombre escrito en grande.
- *   · Y el verde es `--positive`, que en toda la aplicación significa «hecho» o
- *     «va bien». Un disco de identidad no juzga nada: era color por categoría,
- *     que es lo que prohíbe la ley del color.
- *
- * Un adorno que no se puede pulsar y que tiñe sin decir nada. Regla de Chanel.
+ * Con `perfil`, la puerta a «Tú» arriba a la derecha: desde el 18 sep la barra
+ * lleva «Revisión» y la persona sale de ella. Con `atras`, la flecha de una
+ * pantalla empujada (el registro de peso, la hoja antes de empezar); con
+ * `disco`, esa flecha en su disco de 40 px, como la dibuja el cuestionario.
  */
-export const CabeceraDia = ({ fecha, donde }) => (
-  <div className="tel-cabecera-dia">
-    <div className="tel-fecha">{fecha}</div>
-    {donde ? <div className="tel-donde">{donde}</div> : null}
-  </div>
-);
-
-export const Tarjeta = ({ plana, lista, corta, className = '', children }) => (
-  <div
-    className={[
-      'tel-tarjeta',
-      plana ? 'tel-plana' : '',
-      lista ? 'tel-lista' : '',
-      corta ? 'tel-corta' : '',
-      className,
-    ]
-      .filter(Boolean)
-      .join(' ')}
+export const Cabecera = ({ titulo, sub, perfil, atras, grande = false, disco = false }) => (
+  <header
+    className={`tel-cab${atras ? ' tel-cab-atras' : ''}${grande ? ' tel-cab-grande' : ''}${disco ? ' tel-cab-disco' : ''}`}
   >
-    {children}
-  </div>
-);
-
-export const Titulillo = ({ children, accion }) => (
-  <div className="tel-titulillo">
-    <span>{children}</span>
-    {accion || null}
-  </div>
-);
-
-/**
- * LA MARCA. La cifra de tu última serie, y nada más.
- *
- * ── Aquí hubo una chispa, y se cayó el 14 sep ─────────────────────────────
- * Llevaba al lado una polilínea de 46×17 px con los kilos de las ocho últimas
- * sesiones. La idea era ocupar el sitio donde Hevy y Strong ponen la miniatura
- * del ejercicio; el dueño la vio montada y la tumbó: *«no me gustan las mini
- * gráficas de cada ejercicio como miniatura»*.
- *
- * Y tenía razón por debajo de la estética: en 46 px con un rango normalizado
- * al propio tramo, subir de 60 a 62,5 kg dibuja la misma cuesta que subir de 60
- * a 100. Una línea que no se puede leer no informa, decora — y peor, sugiere
- * una tendencia que puede no existir. La tendencia de verdad se mira entera en
- * la ficha del ejercicio, a un toque de aquí.
- */
-export const Marca = ({ cifra }) => (
-  <span className="tel-marca">
-    <span className={`tel-kg${cifra ? '' : ' tel-nada'}`}>{cifra || 'sin marca'}</span>
-    <span className="tel-flecha">›</span>
-  </span>
-);
-
-/** El renglón de un ejercicio: su nombre, su pauta y tu marca. */
-export const Renglon = ({ nombre, pauta, cifra, onClick }) => (
-  <button type="button" className="tel-renglon" onClick={onClick}>
-    <span>
-      <span className="tel-nom">{nombre}</span>
-      {pauta ? <span className="tel-pauta">{pauta}</span> : null}
-    </span>
-    <Marca cifra={cifra} />
-  </button>
-);
-
-/** Las tres cifras del día. Cada una es una puerta. */
-export const Trio = ({ items }) => (
-  <div className="tel-trio">
-    {items.map((c) => {
-      const dentro = (
-        <>
-          <div className="tel-k">{c.k}</div>
-          <div className="tel-v">
-            {c.v}
-            {c.u ? <small> {c.u}</small> : null}
-          </div>
-          {c.parte != null ? (
-            <div className="tel-barrita">
-              <i style={{ width: `${Math.max(0, Math.min(100, c.parte))}%` }} />
-            </div>
-          ) : null}
-        </>
-      );
-      return c.to ? (
-        <Link key={c.k} to={c.to}>
-          {dentro}
+    <div className="tel-cab-linea">
+      {atras ? <Atras {...atras} /> : null}
+      <h1 className="tel-cab-tit">{titulo}</h1>
+      {perfil ? (
+        <Link className="tel-cab-perfil" to={perfil} aria-label="Tu perfil">
+          <User size={15} aria-hidden="true" />
         </Link>
-      ) : (
-        <button type="button" key={c.k} onClick={c.onClick}>
-          {dentro}
-        </button>
-      );
-    })}
-  </div>
-);
-
-/**
- * EL RÉCORD. Las tres cifras que hacen que la app valga sin entrenador.
- *
- * Es el registro —lo que no caduca cuando se acaba el bloque o se acaba el
- * entrenador— hablando. Iba sobre grafito para que se distinguiera de todo lo
- * demás; se quitó el 14 sep por orden del dueño y lo que lo distingue ahora es
- * la forma: tres cifras centradas con su filete entre medias son una tabla, y
- * no hay otra en la portada. Ver `portal-telefono.css`.
- */
-export const Record = ({ items }) => (
-  <div className="tel-record">
-    {items.map((c) => (
-      <div key={c.k}>
-        <div className="tel-v">{c.v}</div>
-        <div className="tel-k">{c.k}</div>
-      </div>
-    ))}
-  </div>
-);
-
-/** Lo que te han pedido. Solo cuando lo hay: en reposo no está. */
-export const Pedido = ({ que, cual, verbo = 'Abrir', to, onClick }) => {
-  const dentro = (
-    <>
-      <span>
-        <span className="tel-q">{que}</span>
-        {cual ? <span className="tel-c">{cual}</span> : null}
-      </span>
-      <span className="tel-ir">{verbo}</span>
-    </>
-  );
-  return to ? (
-    <Link className="tel-pedido" to={to}>
-      {dentro}
-    </Link>
-  ) : (
-    <button type="button" className="tel-pedido" onClick={onClick}>
-      {dentro}
-    </button>
-  );
-};
-
-/**
- * LO QUE VIENE DE SU ENTRENADOR: una novedad o algo que te ha mandado.
- *
- * ── Por qué no es `Pedido` con una bandera ─────────────────────────────────
- * Porque una novedad se puede DESCARTAR, y el aspa tiene que ser hermana del
- * enlace: un botón dentro de un enlace no es HTML válido y no se puede pulsar
- * sin abrir lo de detrás. Así que la fila deja de ser el enlace y pasa a ser el
- * marco que junta las dos cosas.
- *
- * Y las dos clases de recado se pintan con esta misma pieza —con aspa la
- * novedad, sin ella lo mandado— para que la lista sea una lista: con dos piezas
- * distintas, el filete de abajo (`:last-of-type`) caía a mitad del grupo.
- *
- * Lo mandado no lleva aspa por lo mismo que los pendientes de «Te han pedido»:
- * no es un aviso de algo que ha pasado, es algo que falta por hacer, y
- * desaparece solo al hacerlo.
- */
-export const Aviso = ({ que, cual, to, verbo, onQuitar, etiqueta }) => {
-  const dicho = (
-    <>
-      <span className="tel-q">{que}</span>
-      {cual ? <span className="tel-c">{cual}</span> : null}
-    </>
-  );
-  return (
-    <div className="tel-pedido tel-aviso">
-      {to ? (
-        <Link className="tel-dicho" to={to}>
-          {dicho}
-        </Link>
-      ) : (
-        <span className="tel-dicho">{dicho}</span>
-      )}
-      <span className="tel-fin">
-        {/* El verbo solo si hay a dónde ir: un aviso del entrenador es una
-            frase, y «Abrir» delante de ella prometería una pantalla que no
-            existe. */}
-        {to ? <span className="tel-ir">{verbo || 'Abrir'}</span> : null}
-        {onQuitar ? (
-          <button type="button" className="tel-aspa" aria-label={etiqueta} onClick={onQuitar}>
-            <svg {...svgProps} width="16" height="16">
-              <path d="m6 6 12 12M18 6 6 18" />
-            </svg>
-          </button>
-        ) : null}
-      </span>
+      ) : null}
     </div>
-  );
-};
-
-/** La regla de la sesión: un tramo por ejercicio. */
-export const Regla = ({ tramos, suelta }) => (
-  <div className={`tel-regla${suelta ? ' tel-suelta' : ''}`}>
-    {tramos.map((t, i) => (
-      <i key={i} className={t === 1 ? 'tel-hecha' : t > 0 ? 'tel-parcial' : undefined} />
-    ))}
-  </div>
+    {sub ? <p className="tel-cab-sub">{sub}</p> : null}
+  </header>
 );
 
-/** La fila del menú de «Tú». Nunca lleva galón si trae un valor: uno de los dos. */
-export const FilaMenu = ({ rotulo, valor, espera, to, onClick }) => {
-  const dentro = (
-    <>
-      <span>{rotulo}</span>
-      {valor ? (
-        <span className={`tel-val${espera ? ' tel-espera' : ''}`}>{valor}</span>
-      ) : (
-        <span className="tel-flecha">›</span>
-      )}
-    </>
-  );
-  return to ? (
-    <Link className="tel-fila-menu" to={to}>
-      {dentro}
+const Atras = ({ to, onClick, etiqueta = 'Volver' }) =>
+  to ? (
+    <Link className="tel-atras" to={to} aria-label={etiqueta}>
+      <ArrowLeft size={20} aria-hidden="true" />
     </Link>
   ) : (
-    <button type="button" className="tel-fila-menu" onClick={onClick}>
-      {dentro}
+    <button type="button" className="tel-atras" onClick={onClick} aria-label={etiqueta}>
+      <ArrowLeft size={20} aria-hidden="true" />
     </button>
   );
-};
 
-export const Boton = ({ callado, to, onClick, children, ...resto }) => {
-  const clase = `tel-boton${callado ? ' tel-callado' : ''}`;
+/**
+ * UN TRAMO: 24 px de aire y un filete encima. Es la unidad de la pantalla.
+ * `rotulo` es la versalita de arriba; `accion`, el verbo callado a su derecha.
+ */
+export const Tramo = ({ rotulo, accion, className = '', children, ...resto }) => (
+  <section className={`tel-seccion ${className}`.trim()} {...resto}>
+    {rotulo || accion ? (
+      <div className="tel-rotulo">
+        {rotulo ? <span>{rotulo}</span> : null}
+        {accion || null}
+      </div>
+    ) : null}
+    {children}
+  </section>
+);
+
+/** El botón: la píldora de 48 px, en azul. `callado`, en gris y sin fuerza. */
+export const Boton = ({ callado, to, onClick, children, className = '', ...resto }) => {
+  const clase = `tel-boton${callado ? ' tel-callado' : ''} ${className}`.trim();
   return to ? (
     <Link className={clase} to={to} {...resto}>
       {children}
@@ -308,5 +91,201 @@ export const Boton = ({ callado, to, onClick, children, ...resto }) => {
   );
 };
 
-/** El aire del final, para que el último renglón no se pegue a la barra. */
+/**
+ * EL ANILLO de lo que llevas: «16/19» dentro, el arco alrededor.
+ *
+ * Es cuánto llevas de ESTA sesión, no un juicio: por eso va en azul, el color
+ * de «dónde estás», y no en el verde del dibujo.
+ */
+export const Anillo = ({ hechas, total, tam = 56 }) => {
+  const r = tam / 2 - 4;
+  const c = 2 * Math.PI * r;
+  const parte = total > 0 ? Math.min(1, hechas / total) : 0;
+  return (
+    <span
+      className="tel-anillo"
+      style={{ width: tam, height: tam }}
+      role="img"
+      aria-label={`${hechas} de ${total} series`}
+    >
+      <svg viewBox={`0 0 ${tam} ${tam}`} aria-hidden="true">
+        <circle className="tel-anillo-fondo" cx={tam / 2} cy={tam / 2} r={r} />
+        <circle
+          className="tel-anillo-arco"
+          cx={tam / 2}
+          cy={tam / 2}
+          r={r}
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - parte)}
+        />
+      </svg>
+      <span className="tel-anillo-n">
+        {hechas}/{total}
+      </span>
+    </span>
+  );
+};
+
+/**
+ * La chapa: un dato pequeño con su canto («Espalda», «Objetivo: 8-10»). Con
+ * la mayúscula de un nombre: el grupo muscular llega en minúscula del catálogo
+ * («pecho») y en el dibujo es una etiqueta («Pecho»).
+ */
+export const Chapa = ({ children }) => (
+  <span className="tel-chapa">
+    {typeof children === 'string' ? children.charAt(0).toUpperCase() + children.slice(1) : children}
+  </span>
+);
+
+/** El estado de una fila: «Hecho» en verde, lo demás en gris. */
+export const Estado = ({ tono = 'nada', children }) => (
+  <span className={`tel-estado tel-${tono}`}>{children}</span>
+);
+
+/**
+ * LA LISTA EN CAJA: las filas de las sesiones, del menú de «Tú», de la entrega.
+ * Una caja con canto y filetes entre filas.
+ */
+export const Lista = ({ children, className = '' }) => (
+  <div className={`tel-lista-caja ${className}`.trim()}>{children}</div>
+);
+
+/**
+ * UNA FILA: título, dato debajo, y a la derecha lo que tenga (un estado, una
+ * cifra) o el galón. Es enlace, botón o dato según lo que se le dé.
+ */
+export const Fila = ({ titulo, sub, derecha, delante, to, onClick, galon = true, apagada }) => {
+  const dentro = (
+    <>
+      {delante || null}
+      <span className="tel-fila-tx">
+        <span className="tel-fila-tit">{titulo}</span>
+        {sub ? <span className="tel-fila-sub">{sub}</span> : null}
+      </span>
+      {derecha || null}
+      {galon && (to || onClick) ? <ChevronRight className="tel-galon" size={15} aria-hidden="true" /> : null}
+    </>
+  );
+  const clase = `tel-fila${apagada ? ' tel-apagada' : ''}`;
+  if (to) {
+    return (
+      <Link className={clase} to={to}>
+        {dentro}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" className={clase} onClick={onClick}>
+        {dentro}
+      </button>
+    );
+  }
+  return <div className={clase}>{dentro}</div>;
+};
+
+/**
+ * LA LÍNEA DEL PESO: los últimos pesajes, sin ejes. El último punto va marcado.
+ *
+ * Solo se dibuja con tres puntos o más, y se pinta en tinta: la curva dice
+ * hacia dónde va, y hacia dónde DEBE ir no lo sabe la pantalla (bajar no es
+ * «bien» para quien está ganando masa).
+ */
+export const Linea = ({ puntos, ancho = 80, alto = 30, className = '' }) => {
+  if (!puntos || puntos.length < 3) return null;
+  const min = Math.min(...puntos);
+  const max = Math.max(...puntos);
+  const rango = max - min || 1;
+  const pad = 3;
+  const x = (i) => pad + (i * (ancho - pad * 2)) / (puntos.length - 1);
+  const y = (v) => alto - pad - ((v - min) / rango) * (alto - pad * 2);
+  const d = puntos.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const ultimo = puntos.length - 1;
+  return (
+    <svg
+      className={`tel-linea ${className}`.trim()}
+      viewBox={`0 0 ${ancho} ${alto}`}
+      width={ancho}
+      height={alto}
+      aria-hidden="true"
+    >
+      <path d={d} />
+      <circle cx={x(ultimo)} cy={y(puntos[ultimo])} r="2.6" />
+    </svg>
+  );
+};
+
+/* ══ Las piezas de antes que siguen vivas ══════════════════════════════════
+   «Mi progreso» (`PantallaProgreso`) se abre desde «Tú» y no tiene frame
+   propio: se queda con su marcado y viste el traje nuevo a través de estas. */
+
+export const Tarjeta = ({ plana, className = '', children }) => (
+  <div className={['tel-tarjeta', plana ? 'tel-plana' : '', className].filter(Boolean).join(' ')}>
+    {children}
+  </div>
+);
+
+export const Titulillo = ({ children, accion }) => (
+  <div className="tel-rotulo tel-rotulo-suelto">
+    <span>{children}</span>
+    {accion || null}
+  </div>
+);
+
+/** Tres cifras centradas, cada una en su caja: las de tu perfil. */
+export const Record = ({ items }) => (
+  <div className="tel-record">
+    {items.map((c) => (
+      <div key={c.k}>
+        <div className="tel-v">{c.v}</div>
+        <div className="tel-k">{c.k}</div>
+      </div>
+    ))}
+  </div>
+);
+
+/**
+ * LO QUE VIENE DE SU ENTRENADOR: una novedad o algo que te ha mandado.
+ *
+ * El aspa tiene que ser hermana del enlace —un botón dentro de un enlace no es
+ * HTML válido—, así que la fila es el marco que junta las dos cosas. Lo
+ * mandado no lleva aspa: no es un aviso de algo que pasó, es algo que falta
+ * por hacer, y desaparece al hacerlo.
+ */
+export const Aviso = ({ que, cual, to, verbo, onQuitar, etiqueta, onClick }) => {
+  const dicho = (
+    <>
+      <span className="tel-fila-tit">{que}</span>
+      {cual ? <span className="tel-fila-sub">{cual}</span> : null}
+    </>
+  );
+  return (
+    <div className="tel-aviso">
+      <span className="tel-aviso-punto" aria-hidden="true" />
+      {to ? (
+        <Link className="tel-dicho" to={to}>
+          {dicho}
+        </Link>
+      ) : onClick ? (
+        <button type="button" className="tel-dicho" onClick={onClick}>
+          {dicho}
+        </button>
+      ) : (
+        <span className="tel-dicho">{dicho}</span>
+      )}
+      {/* El verbo solo si hay a dónde ir: un aviso del entrenador es una frase,
+          y «Abrir» delante de ella prometería una pantalla que no existe. */}
+      {to || onClick ? <span className="tel-ir">{verbo || 'Abrir'}</span> : null}
+      {onQuitar ? (
+        <button type="button" className="tel-aspa" aria-label={etiqueta} onClick={onQuitar}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+      ) : null}
+    </div>
+  );
+};
+
+/** El aire del final, para que lo último no quede debajo de la barra. */
 export const Aire = () => <div className="tel-aire" />;

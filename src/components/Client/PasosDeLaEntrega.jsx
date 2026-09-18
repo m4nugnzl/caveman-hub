@@ -168,6 +168,7 @@ export const pasosDeLaEntrega = ({
   fotos = new Set(),
   preguntas = [],
   respuestas = null,
+  entregada = false,
   sinPeso = false,
 }) => {
   /* Los mismos guardianes que usa `ReviewWizard` para decidir sus pasos. Leer
@@ -257,8 +258,12 @@ export const pasosDeLaEntrega = ({
       */
       hecho: contestadas,
       verbo: 'Responder',
+      /* Desde la 0121 las respuestas pueden estar guardadas SIN entregar (el
+         borrador del teléfono): el renglón dice cuál de las dos es. */
       estado: contestadas
-        ? 'Contestado en tu entrega'
+        ? entregada
+          ? 'Contestado en tu entrega'
+          : 'Contestado · se manda al entregar'
         : `${preguntas.length} ${preguntas.length === 1 ? 'pregunta' : 'preguntas'} de tu entrenador`,
     },
   ].filter(Boolean);

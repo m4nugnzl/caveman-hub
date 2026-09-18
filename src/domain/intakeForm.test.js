@@ -7,6 +7,7 @@ import {
   MAX_FORMS,
   addCustom,
   buildIntakeForm,
+  camposDelCapitulo,
   coachIntakeForm,
   coachIntakeForms,
   defaultIntakeForm,
@@ -17,6 +18,7 @@ import {
   isFormEmpty,
   isRequired,
   missingRequired,
+  moverEnCapitulo,
   removeCustom,
   toggleAsked,
   toggleRequired,
@@ -338,5 +340,43 @@ describe('buildIntakeForm e intakeFormsToPreferences', () => {
     ]);
     expect(items).toHaveLength(2);
     expect(items[1].asked).toEqual([]);
+  });
+});
+
+describe('el orden del alta', () => {
+  const ids = (form, g) => camposDelCapitulo(form, g).map((f) => f.id);
+
+  it('sin haber movido nada, manda el catálogo y no el orden de asked', () => {
+    /* DEFAULT_ASKED empieza por los días y no por la experiencia: leerlo tal
+       cual habría reordenado el alta de todos los clientes de golpe. */
+    const form = coachIntakeForm({ intakeForm: { asked: ['sleepHours', 'experience'] } });
+    expect(ids(form, 'training')).toEqual(['experience', 'sleepHours']);
+    expect(form.ordenPropio).toBeUndefined();
+  });
+
+  it('arrastrar mueve dentro del capítulo, enciende el orden propio y sobrevive al guardado', () => {
+    const form = { asked: ['experience', 'daysAvailable', 'sleepHours', 'mealsPerDay'], custom: [] };
+    const movido = moverEnCapitulo(form, 'training', 2, 0);
+    expect(ids(movido, 'training')).toEqual(['sleepHours', 'experience', 'daysAvailable']);
+    expect(ids(movido, 'nutrition')).toEqual(['mealsPerDay']);
+
+    const guardado = coachIntakeForm({ intakeForm: movido });
+    expect(guardado.ordenPropio).toBe(true);
+    expect(formSections(guardado)[0].fields.map((f) => f.id)).toEqual([
+      'sleepHours',
+      'experience',
+      'daysAvailable',
+    ]);
+  });
+
+  it('las propias se mueven entre ellas', () => {
+    const form = {
+      asked: [],
+      custom: [
+        { id: 'a', label: 'A', kind: 'text' },
+        { id: 'b', label: 'B', kind: 'text' },
+      ],
+    };
+    expect(moverEnCapitulo(form, 'custom', 1, 0).custom.map((q) => q.id)).toEqual(['b', 'a']);
   });
 });

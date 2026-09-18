@@ -30,6 +30,7 @@ import {
   accionesDe,
   anadirAccion,
   cuentaAcciones,
+  momentosDe,
   porPremisa,
   premisasDe,
   quitarAccion,
@@ -61,7 +62,8 @@ import { CarrilAutomatizaciones } from './CarrilAutomatizaciones';
 import { AQuienSeLoPones, QueLleva } from './AltaDeProtocolo';
 import { AltaGuiada } from './AltaGuiada';
 import { EditorDeFormulario } from './EditorDeFormulario';
-import { LoQueSale } from './LoQueSale';
+import { LoQueSale, ProximasSalidas } from './LoQueSale';
+import { TarjetaProtocolo } from './TarjetaProtocolo';
 import { MandarAlgo } from '@/components/Coach/MandarAlgo';
 import { EnvioAbierto, EnviosSeccion } from './Envios';
 import { GuiaDeMedidas } from './GuiaDeMedidas';
@@ -153,6 +155,17 @@ const Disco = ({ familia, tipo }) => {
  * misma pantalla —y no una ventana, una pantalla y otra ventana— está en
  * `AltaDeProtocolo`.
  */
+/*
+  Qué acción abre cada renglón de la tarjeta: pulsar «El check-in» abre el
+  protocolo con el check-in ya tocado, que es a lo que se iba.
+*/
+const A_LA_ACCION = {
+  alta: (id) => id === 'step:form',
+  parte: (id) => id === 'form:sesion',
+  checkin: (id) => id === 'form:semana',
+  avisos: (id) => id.startsWith('alert:'),
+};
+
 const PASOS = [
   { id: 'lleva', label: 'Qué lleva' },
   { id: 'acciones', label: 'Las acciones' },
@@ -752,35 +765,48 @@ export const ProtocolosPanel = () => {
               </div>
             )}
 
-            {/* Dos rótulos y no dos pestañas: lo que pasa SIEMPRE y lo que pasó
-                UNA VEZ son la misma clase de cosa —una acción con su gente y su
-                momento— y se leen del tirón. */}
-            <p className="rotulo-tramo">Siempre</p>
-            {protocolos.length === 0 ? (
-              <EmptyState
-                icon={FileText}
-                title="Todavía no has definido cómo trabajas"
-                message="Un protocolo dice qué le pasa a un cliente tuyo y cuándo: qué le pides al entrar, qué le preguntas cada semana y cuándo quieres que te avisen."
-              />
-            ) : (
-              <div className="plantilla">
-                <table>
-                  <thead>
-                    <tr>
-                      <th scope="col">Protocolo</th>
-                      <th scope="col">Qué lleva</th>
-                      <th scope="col">Acciones</th>
-                      <th scope="col">Clientes</th>
-                      <th scope="col" aria-label="Acciones" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {protocolos.map((p) => {
+            {/*
+              ══ LOS PROTOCOLOS, EN TARJETAS (Figma 98:86, 18 sep) ═══════════
+
+              Era una tabla —nombre, qué lleva, cuántas acciones, cuántos
+              clientes— y la cifra de acciones era lo único que decía qué hace
+              cada protocolo: un número. La tarjeta dice lo que hace con
+              palabras, un renglón por momento («El check-in · Cada lunes · 6
+              preguntas + 3 medidas»), y cada renglón abre el protocolo por esa
+              acción.
+
+              Dos rótulos y no dos pestañas: lo que pasa SIEMPRE y lo que pasó
+              UNA VEZ son la misma clase de cosa —una acción con su gente y su
+              momento— y se leen del tirón. A la derecha, lo que va a salir, que
+              es lo único de esta puerta que caduca.
+            */}
+            <div className="proto-pagina-cuerpo">
+              <div className="proto-pagina-main">
+                <section className="proto-bloque">
+                  <p className="proto-rotulo">Tus protocolos</p>
+                  {protocolos.length === 0 ? (
+                    <EmptyState
+                      icon={FileText}
+                      title="Todavía no has definido cómo trabajas"
+                      message="Un protocolo dice qué le pasa a un cliente tuyo y cuándo: qué le pides al entrar, qué le preguntas cada semana y cuándo quieres que te avisen."
+                    />
+                  ) : (
+                    protocolos.map((p) => {
                       const desvio = conDesvio[p.id] || { atrasados: [], excepciones: [] };
+                      const plan = { protocolo: p, formularios };
+                      const abrir = (momento = null) => {
+                        const acciones = accionesDe(plan);
+                        const destino = momento && acciones.find((a) => A_LA_ACCION[momento]?.(a.id));
+                        setAbierto(p.id);
+                        setMontando(false);
+                        setTocada(destino?.id || null);
+                        setPaso('acciones');
+                      };
                       return (
-                        <tr key={p.id}>
-                          <td>
-                            {renombrando === p.id ? (
+                        <TarjetaProtocolo
+                          key={p.id}
+                          nombre={
+                            renombrando === p.id ? (
                               <RenombrarEnSitio
                                 value={p.name}
                                 onRename={(name) => guardarUno({ ...p, name })}
@@ -788,37 +814,22 @@ export const ProtocolosPanel = () => {
                                 label="el nombre del protocolo"
                               />
                             ) : (
-                              <span className="p-name f-nombre">
-                                <span className="f-disco" data-tono="4" aria-hidden="true">
-                                  <FileText size={13} />
+                              p.name
+                            )
+                          }
+                          onNombre={renombrando === p.id ? null : () => abrir()}
+                          servicios={activeServices(p).map((s) => s.label)}
+                          cifras={
+                            <>
+                              <span>
+                                <b>{cuentaAcciones(plan)}</b> acciones · <b>{porCliente[p.id] || 0}</b>{' '}
+                                {porCliente[p.id] === 1 ? 'cliente' : 'clientes'}
+                              </span>
+                              {desvio.atrasados.length > 0 && (
+                                <span className="badge badge-warn">
+                                  {desvio.atrasados.length} atrasados
                                 </span>
-                                <button
-                                  type="button"
-                                  className="p-abrir"
-                                  onClick={() => {
-                                    setAbierto(p.id);
-                                    setMontando(false);
-                                    setTocada(null);
-                                    setPaso('acciones');
-                                  }}
-                                >
-                                  {p.name}
-                                </button>
-                              </span>
-                            )}
-                          </td>
-                          <td>{activeServices(p).map((s) => s.label).join(' · ')}</td>
-                          <td>{cuentaAcciones({ protocolo: p, formularios })}</td>
-                          <td>
-                            {porCliente[p.id] || 0}
-                            {desvio.atrasados.length > 0 && (
-                              <span className="badge badge-warn p-chapa">
-                                {desvio.atrasados.length} atrasados
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            <span className="row">
+                              )}
                               <button
                                 type="button"
                                 className="btn btn-icon"
@@ -835,27 +846,32 @@ export const ProtocolosPanel = () => {
                               >
                                 <Trash2 size={15} />
                               </button>
-                            </span>
-                          </td>
-                        </tr>
+                            </>
+                          }
+                          momentos={momentosDe(plan)}
+                          onMomento={abrir}
+                        />
                       );
-                    })}
-                  </tbody>
-                </table>
+                    })
+                  )}
+                  <p className="t-xs t-tertiary">
+                    {protocolos.length} de {MAX_PROTOCOLOS}. Cada cliente lleva uno puesto; lo que le
+                    cambies a él en su pestaña «Protocolo» se queda suyo y no se lo pisa ninguno.
+                  </p>
+                </section>
+
+                <section className="proto-bloque">
+                  <p className="proto-rotulo">Envíos puntuales</p>
+                  <EnviosSeccion
+                    envios={envios}
+                    onAbrir={setEnvioAbierto}
+                    onMandar={() => setMandando(true)}
+                  />
+                </section>
               </div>
-            )}
 
-            <p className="t-xs t-tertiary taller-pie">
-              {protocolos.length} de {MAX_PROTOCOLOS}. Cada cliente lleva uno puesto; lo que le
-              cambies a él en su ficha se queda suyo y no se lo pisa ningún protocolo.
-            </p>
-
-            <p className="rotulo-tramo">Una vez</p>
-            <EnviosSeccion
-              envios={envios}
-              onAbrir={setEnvioAbierto}
-              onMandar={() => setMandando(true)}
-            />
+              <ProximasSalidas />
+            </div>
               </>
             )}
           </div>

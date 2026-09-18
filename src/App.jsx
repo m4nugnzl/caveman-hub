@@ -40,6 +40,7 @@ import { ReviewLayout } from '@/components/review/ReviewLayout';
   diferido solo añadiría un parpadeo a lo primero que ve el usuario.
 */
 const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then((m) => ({ default: m.ClientFile })));
+const ProtocoloDelCliente = lazyRoute(() => import('@/components/Coach/ProtocoloDelCliente').then((m) => ({ default: m.ProtocoloDelCliente })));
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
 const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
@@ -76,6 +77,9 @@ const PhotoStudio = lazyRoute(() => import('@/components/Coach/PhotoStudio/Photo
 const ClientRoutineRoute = lazyRoute(() => import('@/components/Client/ClientRoutineRoute').then((m) => ({ default: m.ClientRoutineRoute })));
 const ClientSesionRoute = lazyRoute(() => import('@/components/Client/ClientSesionRoute').then((m) => ({ default: m.ClientSesionRoute })));
 const ClientDietRoute = lazyRoute(() => import('@/components/Client/ClientDietRoute').then((m) => ({ default: m.ClientDietRoute })));
+const ClientPesoRoute = lazyRoute(() => import('@/components/Client/ClientPesoRoute').then((m) => ({ default: m.ClientPesoRoute })));
+const ClientFotosDeLaSemanaRoute = lazyRoute(() => import('@/components/Client/ClientFotosDeLaSemanaRoute').then((m) => ({ default: m.ClientFotosDeLaSemanaRoute })));
+const ClientCuestionarioRoute = lazyRoute(() => import('@/components/Client/ClientCuestionarioRoute').then((m) => ({ default: m.ClientCuestionarioRoute })));
 const ClientPhotosRoute = lazyRoute(() => import('@/components/Client/ClientPhotosRoute').then((m) => ({ default: m.ClientPhotosRoute })));
 const ClientCheckInsRoute = lazyRoute(() => import('@/components/Client/ClientCheckInsRoute').then((m) => ({ default: m.ClientCheckInsRoute })));
 /* «Tú» va en diferido como sus hermanas: no es la pantalla de entrada de nadie. */
@@ -642,6 +646,11 @@ export default function App() {
                   {/* Las dos rutas viejas siguen vivas: están en marcadores y en
                       enlaces compartidos por WhatsApp. */}
                   <Route path="checkins" element={<Navigate to="../revision" replace />} />
+
+                  {/* Lo que lleva puesto: su protocolo, lo que se le ha
+                      mandado suelto y lo que le va a llegar. Sustituye a la
+                      hoja «El protocolo de X». Ver `ProtocoloDelCliente`. */}
+                  <Route path="protocolo" element={<ProtocoloDelCliente />} />
                   <Route path="fotos" element={<Navigate to="../revision/fotos" replace />} />
 
                   {/* «Ficha»: quién es y cuándo. El calendario de una persona
@@ -762,6 +771,14 @@ export default function App() {
                 */}
                 <Route path="evolucion">
                   <Route index element={<ClientRevisionRoute />} />
+                  {/* El registro de peso del teléfono (frame `328:206`). Fuera de
+                      `ReviewLayout`: lleva su propia cabecera con la flecha. */}
+                  <Route path="peso" element={<ClientPesoRoute />} />
+                  {/* Y los otros dos pasos de la entrega con pantalla propia
+                      (frames `328:518` y `128:195`): guardan sin entregar. Las
+                      fotos de ESTA semana; `fotos`, abajo, es el archivo. */}
+                  <Route path="fotos-de-la-semana" element={<ClientFotosDeLaSemanaRoute />} />
+                  <Route path="cuestionario" element={<ClientCuestionarioRoute />} />
                   <Route element={<HojaDePortal><ReviewLayout audience="client" /></HojaDePortal>}>
                     <Route path="medidas" element={<ClientCheckInsRoute />} />
                     <Route path="fotos" element={<ClientPhotosRoute />} />

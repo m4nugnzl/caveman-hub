@@ -143,63 +143,86 @@ export const MacroTargetCard = ({
   if (forma === 'mesa') {
     return (
       <>
-        <section className="dieta-objetivo" aria-label="Lo que le pides al día">
-          <div className="pautas-cab">
-            <span className="section-label">{title || 'Lo que le pides al día'}</span>
-            <span className="pautas-dice">
-              {macros.total === 0
-                ? 'Ponle las kcal y los macros que tiene que cuadrar.'
-                : 'Sin reparto por comidas: lo que cuadra es el día entero.'}
-            </span>
-            <span className="tira-hueco" />
+        {/*
+          ══ LA PRESCRIPCIÓN DEL DÍA (17 sep · frame 62:482) ══════════════════
+
+          Eran cuatro cifras en fila —las kcal y los tres macros, cada una con
+          su rótulo debajo— y el frame la rehace como el panel de la pantalla:
+          un antetítulo, la cifra del día en grande y los tres macros en
+          RENGLONES con su barra, sus gramos, su porcentaje y sus g/kg.
+
+          Lo que gana no es tamaño, es lectura: en cuatro columnas iguales, las
+          kcal —que son la consecuencia de los otros tres— pesaban lo mismo que
+          ellos, y el reparto (15/64/21) había que leerlo saltando de celda en
+          celda. En renglones, el reparto se ve sin leer ni un número.
+
+          ── Y LAS BARRAS LLEVAN EL COLOR DE SU MACRO ──────────────────────
+          Que es lo único que la ley del color permite aquí: no es color por
+          categoría —eso sería pintar de rosa la palabra «Proteína»—, es un
+          gráfico de tres series, y la tinta es la de la casa (`macroColor`:
+          `--data-pink`, `--data-amber`, `--data-violet`), la misma con la que
+          se dibujan estas tres series en todo el producto. Da la casualidad de
+          que es también la del frame del asistente (66:161).
+        */}
+        <section className="dieta-prescripcion" aria-label="Lo que le pides al día">
+          <div className="presc-cab">
+            <div className="presc-say">
+              <span className="section-label">{title || 'Prescripción diaria'}</span>
+              <p className="presc-cifra">
+                {kcals > 0 ? kcals : '—'} <small>kcal</small> <em>al día</em>
+              </p>
+              <span className="presc-dice">
+                {macros.total === 0
+                  ? 'Ponle las kcal y los macros que tiene que cuadrar.'
+                  : derived
+                    ? 'Salen de los macros que le has puesto.'
+                    : 'Sin reparto por comidas: lo que cuadra es el día entero.'}
+              </span>
+            </div>
             {editable && (
               <button type="button" className="cab-accion" onClick={open}>
-                {macros.total === 0 ? 'Poner el objetivo' : 'Cambiar'}
+                {macros.total === 0 ? 'Poner el objetivo' : 'Ajustar objetivo →'}
               </button>
             )}
           </div>
 
-          <div className="bloque-cifras is-4">
-            <div className="bloque-cifra">
-              <span className="v">
-                {kcals > 0 ? kcals : '—'}
-                <small> kcal</small>
-              </span>
-              <span className="k">{derived ? 'salen de los macros' : 'al día'}</span>
+          {!reparto.empty && (
+            <div className="presc-macros">
+              {MACRO_META.map(({ key, label, color }) => {
+                const porKilo = peso > 0 && reparto.grams[key] > 0
+                  ? localeNumber(Math.round((reparto.grams[key] / peso) * 100) / 100)
+                  : null;
+                return (
+                  <div className="presc-macro" key={key}>
+                    <div className="presc-macro-fila">
+                      <span className="n">{label}</span>
+                      <span className="g">
+                        {reparto.grams[key]} g <small>({reparto.pct[key]} %)</small>
+                      </span>
+                      {/* Los gramos por kilo, que es con lo que se juzga el
+                          PLANTEAMIENTO del plan. Vivían en el costado, con
+                          estos mismos gramajes al lado: la tercera lista de
+                          macros de la misma pantalla. */}
+                      <span className="gkg">{porKilo ? `${porKilo} g/kg` : ''}</span>
+                    </div>
+                    <span className="presc-barra" aria-hidden="true">
+                      <i style={{ width: `${reparto.pct[key]}%`, background: color }} />
+                    </span>
+                  </div>
+                );
+              })}
             </div>
-            {MACRO_META.map(({ key, label }) => {
-              const porKilo = peso > 0 && reparto.grams[key] > 0
-                ? localeNumber(Math.round((reparto.grams[key] / peso) * 100) / 100)
-                : null;
-              return (
-                <div className="bloque-cifra" key={key}>
-                  <span className="v">
-                    {reparto.grams[key]}
-                    <small> g</small>
-                  </span>
-                  <span className="k">
-                    {label}
-                    {!reparto.empty && ` · ${reparto.pct[key]} %`}
-                    {/* Y los GRAMOS POR KILO aquí, que es la otra mitad de la
-                        misma cifra. Vivían en el costado, en «El día», con estos
-                        mismos tres gramajes al lado: en un plan por macros sin
-                        reparto la pantalla acababa enseñando «120 g de proteína»
-                        en la mesa y «Proteína 120 g · 1,59 g/kg» a cuatrocientos
-                        píxeles, o sea la tercera lista de macros de la misma
-                        pantalla. Es la avería que este archivo ya cuenta haber
-                        corregido dos veces. Aquí no cabe otra lectura: si estos
-                        son 120 g y no hay menú que sumar, lo único que se puede
-                        añadir es a cuánto salen por kilo. */}
-                    {porKilo && ` · ${porKilo} g/kg`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          )}
 
           {peso > 0 && (
-            <p className="t-xs t-tertiary">
-              g/kg sobre {localeNumber(peso)} kg{cuando ? ` · último el ${shortDate(cuando)}` : ''}
+            <p className="presc-pie">
+              g/kg calculados sobre <b>{localeNumber(peso)} kg</b>
+              {cuando ? (
+                <>
+                  {' · último pesaje registrado el '}
+                  <b>{shortDate(cuando)}</b>
+                </>
+              ) : null}
             </p>
           )}
         </section>

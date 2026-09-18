@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Check, History, Minus, Plus } from 'lucide-react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
@@ -153,18 +154,25 @@ export const PantallaSesion = ({ datos }) => {
   })();
 
   const campos = CAMPOS.filter((c) => c.key !== 'rir' || showRir);
+  const cerradas = ej.series.map((s, i) => ({ s, i })).filter(({ s, i }) => s.hecha && i !== abierta);
+  const pendientes = ej.series.map((s, i) => ({ s, i })).filter(({ s, i }) => !s.hecha && i !== abierta);
+  const porcentaje = cabecera.series > 0 ? Math.round((cabecera.hechas / cabecera.series) * 100) : 0;
 
   return (
     <>
-      {/* ── La cabecera de la sesión: qué, cuánto llevas y la salida ─────── */}
+      {/* ── La cabecera de la sesión, en tinta: qué, cuánto llevas, la salida
+          y el carril de ejercicios. Frame `327:337`, sin su reloj: la duración
+          se dice una vez, al cerrar (el dueño, 11 y 18 sep). */}
       <div className="tel-ses-cab barra-tinta">
         <div className="tel-ses-linea">
           <button type="button" className="tel-atras" aria-label="Salir de la sesión" onClick={onSalir}>
-            ‹
+            <ArrowLeft size={20} aria-hidden="true" />
           </button>
-          <span className="tel-ses-nombre">{cabecera.nombre}</span>
-          <span className="tel-ses-cuenta">
-            {cabecera.hechas}/{cabecera.series}
+          <span className="tel-ses-quien">
+            <span className="tel-ses-rot">En sesión · {cabecera.nombre}</span>
+            <span className="tel-ses-cuenta">
+              {cabecera.hechas}/{cabecera.series} series
+            </span>
           </span>
           {descanso && !descansoVisible ? (
             <button
@@ -180,29 +188,25 @@ export const PantallaSesion = ({ datos }) => {
             Terminar
           </button>
         </div>
-        <div className="tel-ses-riel" aria-hidden="true">
-          <i style={{ width: `${cabecera.series > 0 ? (cabecera.hechas / cabecera.series) * 100 : 0}%` }} />
-        </div>
-      </div>
 
-      {/* ── El carril de ejercicios ──────────────────────────────────────── */}
-      <nav className="tel-ses-carril" ref={carril} aria-label="Ejercicios de la sesión">
-        {ejercicios.map((e, i) => {
-          const hechos = e.series.length > 0 && e.series.every((s) => s.hecha);
-          return (
-            <button
-              key={e.id}
-              type="button"
-              className={`tel-ses-chip${i === n ? ' tel-viva' : hechos ? ' tel-ok' : ''}`}
-              aria-current={i === n ? 'step' : undefined}
-              onClick={() => onIr(i)}
-            >
-              {hechos && i !== n ? <span aria-label="terminado">✓</span> : null}
-              {e.nombre}
-            </button>
-          );
-        })}
-      </nav>
+        <nav className="tel-ses-carril" ref={carril} aria-label="Ejercicios de la sesión">
+          {ejercicios.map((e, i) => {
+            const hechos = e.series.length > 0 && e.series.every((s) => s.hecha);
+            return (
+              <button
+                key={e.id}
+                type="button"
+                className={`tel-ses-chip${i === n ? ' tel-viva' : hechos ? ' tel-ok' : ''}`}
+                aria-current={i === n ? 'step' : undefined}
+                onClick={() => onIr(i)}
+              >
+                {hechos && i !== n ? <Check size={13} strokeWidth={3} aria-label="terminado" /> : null}
+                {e.nombre}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
       <div className="tel-ses-cuerpo" ref={cuerpo}>
         {/* Antes del primer ejercicio, lo que se lee antes de empezar: la
@@ -221,16 +225,22 @@ export const PantallaSesion = ({ datos }) => {
 
         <div className="tel-ses-ej">
           <button type="button" className="tel-ses-titulo" onClick={() => onFicha(ej)}>
-            <span className="tel-ses-n">{ej.nombre}</span>
-            <span className="tel-ses-meta">
-              {[ej.musculo, ej.objetivo ? `objetivo ${ej.objetivo}` : null].filter(Boolean).join(' · ') ||
-                'Ver la ficha'}
-            </span>
+            {ej.nombre}
           </button>
           <span className="tel-ses-pos">
             {n + 1} de {ejercicios.length}
           </span>
         </div>
+        {ej.musculo || ej.objetivo ? (
+          <div className="tel-chapas">
+            {ej.musculo ? (
+              <span className="tel-chapa tel-chapa-grupo">
+                {ej.musculo.charAt(0).toUpperCase() + ej.musculo.slice(1)}
+              </span>
+            ) : null}
+            {ej.objetivo ? <span className="tel-chapa">Objetivo: {ej.objetivo} reps</span> : null}
+          </div>
+        ) : null}
 
         {/* Lo que te pide tu entrenador de este ejercicio, antes de las
             series: es la condición con la que se hacen. */}
@@ -242,20 +252,45 @@ export const PantallaSesion = ({ datos }) => {
         ) : null}
 
         <div className="tel-ses-series">
-          {ej.series.map((s, i) => {
-            if (i === abierta) {
+          {/* Las hechas, arriba: un botón con sus valores que se toca para
+              corregir. Cerrar es una marca, no un cerrojo. */}
+          {cerradas.length > 0 ? (
+            <>
+              <span className="tel-ses-k tel-ses-k-izq">Series hechas</span>
+              {cerradas.map(({ s, i }) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="tel-ses-fila tel-cerrada"
+                  aria-label={`Corregir la serie ${i + 1}: ${resumenDeSerie(s, showRir)}`}
+                  onClick={() => abrir(i, { corregir: true })}
+                >
+                  <span className="tel-ses-num">{i + 1}</span>
+                  <span className="tel-ses-res">{resumenDeSerie(s, showRir)}</span>
+                  <span className="tel-ses-toca">Corregir</span>
+                  <Check className="tel-ses-tic" size={15} strokeWidth={2.6} aria-hidden="true" />
+                </button>
+              ))}
+            </>
+          ) : null}
+
+          {abierta >= 0 ? (
+            (() => {
+              const i = abierta;
+              const s = ej.series[i];
               const corrige = corrigiendo === `${ej.id}:${i}`;
-              const puedeCerrar = s.hecha || Boolean(s.antesReps) || Boolean(s.pideReps && /^\d+$/.test(s.pideReps));
+              const puedeCerrar =
+                s.hecha || Boolean(s.antesReps) || Boolean(s.pideReps && /^\d+$/.test(s.pideReps));
               return (
-                <div key={i} className="tel-ses-viva">
+                <div className="tel-ses-viva">
                   <div className="tel-ses-viva-cab">
                     <span className="tel-ses-idx">Serie {i + 1}</span>
                     {objetivoDeSerie(s) ? (
-                      <span className="tel-ses-obj">objetivo {objetivoDeSerie(s)}</span>
+                      <span className="tel-ses-obj">Objetivo: {objetivoDeSerie(s)}</span>
                     ) : null}
                   </div>
 
-                  <div className={`tel-ses-campos${campos.length === 2 ? ' tel-dos' : ''}`}>
+                  <div className={`tel-ses-campos${campos.length === 3 ? ' tel-tres' : ''}`}>
                     {campos.map((c) => (
                       <div className="tel-ses-campo" key={c.key}>
                         <span className="tel-ses-k">{c.rotulo}</span>
@@ -267,7 +302,7 @@ export const PantallaSesion = ({ datos }) => {
                               escribir(i, c.key, pasoDelCampo({ valor: s[c.key], previo: s[c.antes], campo: c.key, dir: -1 }))
                             }
                           >
-                            −
+                            <Minus size={13} aria-hidden="true" />
                           </button>
                           <input
                             type="number"
@@ -285,7 +320,7 @@ export const PantallaSesion = ({ datos }) => {
                               escribir(i, c.key, pasoDelCampo({ valor: s[c.key], previo: s[c.antes], campo: c.key, dir: 1 }))
                             }
                           >
-                            +
+                            <Plus size={13} aria-hidden="true" />
                           </button>
                         </div>
                       </div>
@@ -293,10 +328,23 @@ export const PantallaSesion = ({ datos }) => {
                   </div>
 
                   <div className="tel-ses-viva-pie">
+                    <History size={13} aria-hidden="true" />
                     <span className="tel-ses-ult">
-                      {s.antesReps
-                        ? `La última vez: ${[serieEnCorto({ kg: s.antesKg, reps: s.antesReps }), showRir && s.antesRir !== '' && s.antesRir != null ? `RIR ${s.antesRir}` : null].filter(Boolean).join(' · ')}`
-                        : 'Es la primera vez que haces esta serie'}
+                      {s.antesReps ? (
+                        <>
+                          Última vez:{' '}
+                          <b>
+                            {[
+                              serieEnCorto({ kg: s.antesKg, reps: s.antesReps }),
+                              showRir && s.antesRir !== '' && s.antesRir != null ? `RIR ${s.antesRir}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </b>
+                        </>
+                      ) : (
+                        'Es la primera vez que haces esta serie'
+                      )}
                     </span>
                     {s.antesReps && s.onIgual ? (
                       <button type="button" className="tel-ses-igual" onClick={() => igual(i, s)}>
@@ -305,60 +353,32 @@ export const PantallaSesion = ({ datos }) => {
                     ) : null}
                   </div>
 
-                  <button
-                    type="button"
-                    className="tel-ses-hecha"
-                    disabled={!puedeCerrar}
-                    onClick={() => cerrar(i)}
-                  >
-                    {corrige ? 'Listo' : 'Hecha'}
+                  <button type="button" className="tel-ses-hecha" disabled={!puedeCerrar} onClick={() => cerrar(i)}>
+                    {corrige ? 'Guardar la corrección' : 'Registrar serie'}
                   </button>
                 </div>
               );
-            }
+            })()
+          ) : null}
 
-            if (s.hecha) {
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className="tel-ses-fila tel-cerrada"
-                  aria-label={`Corregir la serie ${i + 1}: ${resumenDeSerie(s, showRir)}`}
-                  onClick={() => abrir(i, { corregir: true })}
-                >
-                  <span className="tel-ses-idx">Serie {i + 1}</span>
-                  <span className="tel-ses-res">{resumenDeSerie(s, showRir)}</span>
-                  <span className="tel-ses-toca">corregir</span>
-                  <span className="tel-ses-tic" aria-hidden="true">✓</span>
-                </button>
-              );
-            }
-
-            return (
-              <button
-                key={i}
-                type="button"
-                className="tel-ses-fila tel-pendiente"
-                aria-label={`Abrir la serie ${i + 1}`}
-                onClick={() => abrir(i)}
-              >
-                <span className="tel-ses-idx">Serie {i + 1}</span>
-                <span className="tel-ses-res">
-                  {objetivoDeSerie(s, { conKg: false })
-                    ? `objetivo ${objetivoDeSerie(s, { conKg: false })}`
-                    : '—'}
-                </span>
-              </button>
-            );
-          })}
+          {pendientes.map(({ s, i }) => (
+            <button
+              key={i}
+              type="button"
+              className="tel-ses-fila tel-pendiente"
+              aria-label={`Abrir la serie ${i + 1}`}
+              onClick={() => abrir(i)}
+            >
+              <span className="tel-ses-num">{i + 1}</span>
+              <span className="tel-ses-res">
+                {objetivoDeSerie(s, { conKg: false }) ? `objetivo ${objetivoDeSerie(s, { conKg: false })}` : '—'}
+              </span>
+            </button>
+          ))}
 
           {/* Todas hechas: lo siguiente es una puerta que se pulsa, no un salto. */}
           {abierta === -1 ? (
-            <button
-              type="button"
-              className="tel-ses-fin"
-              onClick={() => (siguiente ? onIr(n + 1) : onAcabar())}
-            >
+            <button type="button" className="tel-ses-fin" onClick={() => (siguiente ? onIr(n + 1) : onAcabar())}>
               <span className="tel-ses-k">Hecho</span>
               <span className="tel-ses-fin-n">{siguiente ? siguiente.nombre : 'Última serie de la sesión'}</span>
               <span className="tel-ses-fin-ir">{siguiente ? 'Ir ›' : 'Terminar ›'}</span>
@@ -369,19 +389,20 @@ export const PantallaSesion = ({ datos }) => {
         <NotaDelEjercicio nombre={ej.nombre} nota={ej.nota} onNota={ej.onNota} />
       </div>
 
-      {/* ── El pie: lo guardado, lo que llevas y el siguiente paso ─────────── */}
+      {/* ── El pie: lo que llevas, lo guardado y el siguiente paso ────────── */}
       <div className="tel-ses-pie">
-        <EstadoDelGuardado guardado={guardado} />
-        <span className="tel-ses-pie-cuenta">
-          {cabecera.hechas} de {cabecera.series} series
+        <div className="tel-ses-pie-linea">
+          <span className="tel-ses-pie-cuenta">
+            {cabecera.hechas} de {cabecera.series} series ({porcentaje} %)
+          </span>
+          <button type="button" className="tel-ses-sig" onClick={() => (siguiente ? onIr(n + 1) : onAcabar())}>
+            {siguiente ? 'Siguiente ›' : 'Terminar ›'}
+          </button>
+        </div>
+        <span className="tel-barrita tel-barrita-6" aria-hidden="true">
+          <i style={{ width: `${porcentaje}%` }} />
         </span>
-        <button
-          type="button"
-          className="tel-ses-sig"
-          onClick={() => (siguiente ? onIr(n + 1) : onAcabar())}
-        >
-          {siguiente ? 'Siguiente ›' : 'Terminar ›'}
-        </button>
+        <EstadoDelGuardado guardado={guardado} />
       </div>
 
       {descansoVisible ? (

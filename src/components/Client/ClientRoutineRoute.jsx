@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
@@ -9,20 +9,23 @@ import {
   currentBlock,
   isCurrentBlock,
   resolvedMicrocycles,
+  structureOfBlock,
   weeksOfBlock,
 } from '@/domain/blocks';
+import { clientProtocol, isModuleOn } from '@/domain/protocol';
 import {
   allSessions,
   allSessionsOfDay,
   historialDeEjercicio,
   marcasDeEjercicio,
+  minutosDeSesion,
   registroDeEjercicios,
   sessionSetCount,
 } from '@/domain/sessions';
-import { unitLabel, unitLabelPlural } from '@/domain/training';
+import { drillsForDay, unitLabel, unitLabelPlural } from '@/domain/training';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import { pautaDe, sesionDeHoy } from './hoy';
+import { marcaDeEjercicio, pautaDe, sesionDeHoy } from './hoy';
 import { useFichaDe } from './useFichaDe';
 import { FichaDelEjercicio } from './movil/FichaDelEjercicio';
 import { EntrenoEnMonitor } from './EntrenoEnMonitor';
@@ -58,6 +61,8 @@ export const ClientRoutineRoute = () => {
   const fichaDe = useFichaDe();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   const [ficha, setFicha] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const hojaAbierta = params.get('hoja');
   /*
     QUÉ MICROCICLO SE ESTÁ MIRANDO, y por qué esto es nuevo.
 
@@ -240,28 +245,105 @@ export const ClientRoutineRoute = () => {
     }),
   };
 
+  /*
+    ══ EL TELÉFONO: los frames `327:148` y `328:299` (18 sep 2026) ══════════
+
+    LA PRÓXIMA SESIÓN es la de hoy si hoy se entrena; si no, la primera del
+    microciclo que no está terminada. Con todas hechas no hay caja: el
+    microciclo está cerrado y lo que toca es el siguiente.
+  */
+  const proximaDia =
+    hojaDeHoy && (hojaDeHoy.series === 0 || hojaDeHoy.hechas < hojaDeHoy.series)
+      ? hojaDeHoy
+      : dias.find((d) => d.series > 0 && d.hechas < d.series) || null;
+
+  /* La hoja ABIERTA antes de empezar, si la hay. Vive en la URL y no en un
+     estado: el «atrás» del teléfono tiene que cerrarla, no sacarte de Entreno. */
+  const diaDeLaHoja = dias.find((d) => d.dayName === hojaAbierta) || null;
+  const abrirHoja = (dayName) => setParams({ hoja: dayName });
+  const cerrarHoja = () => setParams({}, { replace: true });
+
+  const protocolo = clientProtocol(activeClient.preferences);
+  const conNotas = isModuleOn(protocolo, 'coachNote');
+
+  const hoja = diaDeLaHoja
+    ? (() => {
+        const day = diaDeLaHoja.day;
+        const minutos = (() => {
+          const hechas = allSessionsOfDay(micro, day.dayName).filter((s) => s.endedAt && sessionSetCount(s) > 0);
+          return hechas.length > 0 ? minutosDeSesion(hechas[hechas.length - 1]) : null;
+        })();
+        return {
+          titulo: day.dayName,
+          sub: [porDonde ? porDonde.charAt(0).toUpperCase() + porDonde.slice(1) : null, bloque?.name]
+            .filter(Boolean)
+            .join(' · '),
+          resumen: { ejercicios: diaDeLaHoja.ejercicios, series: diaDeLaHoja.series, minutos },
+          indicacion: conNotas ? String(day.coachNote || '').trim() : '',
+          calentamiento: isModuleOn(protocolo, 'warmup')
+            ? drillsForDay(bloque ? structureOfBlock(program, bloque) : program, day).filter((d) =>
+                d.name?.trim()
+              )
+            : [],
+          ejercicios: (day.exercises || []).map((ex, i) => {
+            const suya = fichaDe(ex.name);
+            return {
+              id: `${ex.name}#${i}`,
+              nombre: ex.name,
+              pauta: pautaDe(ex),
+              musculo: ex.muscle || suya?.muscle || null,
+              ultima: marcaDeEjercicio(micros, ex.name).marca,
+              nota: conNotas ? String(ex.coachNote || '').trim() : '',
+              conFicha: Boolean(suya),
+              onFicha: () => setFicha({ ejercicio: ex, nombre: ex.name }),
+            };
+          }),
+          verbo:
+            diaDeLaHoja.series > 0 && diaDeLaHoja.hechas >= diaDeLaHoja.series
+              ? 'Abrir la sesión'
+              : diaDeLaHoja.hechas > 0
+                ? 'Continuar entrenamiento'
+                : 'Iniciar entrenamiento',
+          onEmpezar: () => irASesion(day.dayName),
+          onVolver: cerrarHoja,
+        };
+      })()
+    : null;
+
   const datosMovil = {
+    hoja,
     cabecera: {
-      fecha: bloque?.name || 'Tu rutina',
-      donde: [porDonde, `${sesionesAnotadas} sesiones anotadas`].filter(Boolean).join(' · '),
+      titulo: bloque?.name || 'Tu rutina',
+      sub: delBloque.length > 0 ? `${unidad} ${vaPor} de ${delBloque.length}` : `${sesionesAnotadas} sesiones apuntadas`,
+      unidad: unidad.toLowerCase(),
     },
-    /* Un tramo por microciclo del bloque: lleno el que ya se entrenó, a medias
-       el abierto. */
-    microciclos: delBloque.map((w) => {
-      if (w < semanaActual) return 1;
-      if (w > semanaActual) return 0;
-      const total = dias.reduce((n, d) => n + d.series, 0);
-      const puesto = dias.reduce((n, d) => n + d.hechas, 0);
-      return total > 0 ? Math.min(1, puesto / total) : 0;
-    }),
+    /* Una raya por microciclo del bloque: los pasados en tinta, el de ahora en
+       azul —dónde estás—, los que faltan en gris. */
+    microciclos: delBloque.map((w) => (w < semanaActual ? 'hecha' : w === semanaActual ? 'ahora' : 'falta')),
+    proxima: proximaDia
+      ? {
+          rotulo: proximaDia.esHoy ? 'Hoy te toca' : proximaDia.hechas > 0 ? 'A medias' : 'Próxima sesión',
+          titulo: proximaDia.dayName,
+          sub:
+            proximaDia.hechas > 0
+              ? `${proximaDia.hechas}/${proximaDia.series} series completadas`
+              : `${proximaDia.ejercicios} ejercicios · ${proximaDia.series} series`,
+          hechas: proximaDia.hechas,
+          series: proximaDia.series,
+          verbo: proximaDia.hechas > 0 ? 'Continuar sesión' : 'Iniciar sesión',
+          onEmpezar: () => irASesion(proximaDia.dayName),
+        }
+      : null,
     sesiones: dias.map((d) => ({
-      ...d,
+      dayName: d.dayName,
       meta: `${d.series} series · ${d.ejercicios} ejercicios`,
+      tono: d.tono === 'ok' ? 'hecho' : d.tono === 'espera' ? 'medias' : d.esHoy ? 'hoy' : 'nada',
+      estado: d.tono === 'ok' ? 'Hecho' : d.tono === 'espera' ? `${d.hechas}/${d.series}` : d.esHoy ? 'Hoy' : 'Pendiente',
+      onAbrir: () => abrirHoja(d.dayName),
     })),
-    onSesion: (s) => irASesion(s.dayName),
     cajon: registro.slice(0, 8).map((e) => ({
       nombre: e.nombre,
-      cuando: e.date ? shortDate(e.date) : 'sin fecha',
+      cuando: e.date ? `la última vez el ${shortDate(e.date)}` : 'sin fecha',
       marca: e.kg > 0 ? `${cifra(e.kg)} × ${e.reps}` : `${e.reps} reps`,
     })),
     onEjercicio: (e) => setFicha({ ejercicio: { name: e.nombre, sets: [] }, nombre: e.nombre }),

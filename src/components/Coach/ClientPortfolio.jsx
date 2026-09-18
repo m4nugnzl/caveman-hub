@@ -2,24 +2,16 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Archive,
-  CircleAlert,
-  CircleCheck,
-  ClipboardCheck,
-  Dumbbell,
+  Bell,
   Layers,
-  Megaphone,
   Pause,
   Play,
   Plus,
-  Scale,
   Search,
   Send,
   Settings2,
-  SlidersHorizontal,
   Tag,
   UserPlus,
-  Users,
-  Wallet,
   X,
 } from 'lucide-react';
 
@@ -44,7 +36,8 @@ import { useMarcaDeslizante } from '@/components/ui/carril';
 import { MandoDeOrden, ThOrden, ordenar, useOrden } from '@/components/ui/tabla';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { SelectorEtiquetas } from './SelectorEtiquetas';
-import { ClientSettingsSheet } from './ClientSettings';
+import { PauseRow } from './ClientSettings';
+import { Modal } from '@/components/ui/Modal';
 import { ArchivedClients } from './ArchivedClients';
 import { NewClientForm } from './NewClientForm';
 
@@ -77,22 +70,23 @@ const serieDePeso = (anthro) =>
     el último pesaje de la serie. */
 const pesoDe = (row, serie) => row.checkIn?.average ?? (serie.length ? serie[serie.length - 1] : null);
 
-/*
-  El icono de cada pregunta de la cartera. Es cromo con oficio: en una fila de
-  seis chips de texto, el ojo tenía que LEER para encontrar «Por revisar»; con
-  el glifo delante, lo reconoce. El mapa vive aquí y no en el dominio porque
-  los iconos son de la pantalla, no del criterio.
-*/
-const ICONO_FILTRO = {
-  attention: CircleAlert,
-  inactive: Dumbbell,
-  review: ClipboardCheck,
-  checkin: Scale,
-  payment: Wallet,
-  paused: Pause,
-  ok: CircleCheck,
-  all: Users,
+/** «M3 (S4)», «M3» o «S4»: lo que haya de las dos cifras, y nada si no hay
+    ninguna (la celda vacía calla). Cuando van a la par —el caso de casi toda
+    la cartera— el paréntesis repetiría la misma cifra: «M9 (S9)» se dice
+    «M9», y el paréntesis sale solo en quien va desfasado, que es justo el
+    dato que merece verse. */
+const rotuloDeSemana = (microciclo, semana) => {
+  const m = microciclo > 0 ? `M${microciclo}` : null;
+  const s = semana > 0 ? `S${semana}` : null;
+  if (m && s) return microciclo === semana ? m : `${m} (${s})`;
+  return m || s;
 };
+
+/*
+  Aquí vivía el icono de cada chip de filtro (`ICONO_FILTRO`). El frame del
+  18 sep (164:1501) los dibuja en texto con su cifra, y con la cifra delante
+  el glifo ya no desempataba nada: seis chips cortos se leen de una pasada.
+*/
 
 /*
   Las dos hojas que se le escriben a un cliente. Salen del MISMO sitio que su
@@ -249,8 +243,14 @@ const FilaCliente = ({
   const tags = client.tags || [];
   const detener = (e) => e.stopPropagation();
 
+  /* Debajo del nombre, su correo —la forma de distinguir a dos «Carlos» sin
+     entrar— y, solo si hay equipo, quién lo lleva. En un equipo de uno,
+     escribir su propio nombre en cada fila es ruido. Van en dos piezas porque
+     en el teléfono el correo se retira (`cartera.css`) y quien lo lleva no. */
+  const responsable = trainer !== null ? (trainer ? memberName(trainer) : 'Sin asignar') : null;
+
   return (
-    <tr onClick={onOpen}>
+    <tr onClick={onOpen} className={marcado ? 'is-marcada' : undefined}>
       {/* La marca de selección. Su celda corta la propagación: marcar a alguien
           para avisarle no es querer entrar en su ficha. */}
       {onMarcar && (
@@ -285,10 +285,11 @@ const FilaCliente = ({
                 {client.name}
               </button>
             </span>
-            {/* El entrenador responsable solo aparece si hay equipo: en un
-                equipo de uno, escribir su propio nombre en cada fila es ruido. */}
-            {trainer !== null && (
-              <span className="p-sub">{trainer ? memberName(trainer) : 'Sin asignar'}</span>
+            {(client.email || responsable) && (
+              <span className="p-sub">
+                {client.email && <span className="p-correo">{client.email}</span>}
+                {responsable && <span className="p-responsable">{responsable}</span>}
+              </span>
             )}
           </span>
         </span>
@@ -335,8 +336,11 @@ const FilaCliente = ({
         />
       </td>
 
+      {/* «M3 (S4)»: el microciclo que le toca y, entre paréntesis, la semana
+          que lleva contigo — las dos mismas cifras que la barra lateral pone
+          al lado de su nombre (`M…` en el riel, `S…` en la relación). */}
       {columnas.semana && (
-        <td className="p-celda p-semana">{semana > 0 ? `S${semana}` : null}</td>
+        <td className="p-celda p-semana">{rotuloDeSemana(row.horizonte?.microcicloEnCurso, semana)}</td>
       )}
 
       {/* La señal de vida. Sin tinta de aviso: el juicio —«12 días sin
@@ -345,7 +349,7 @@ const FilaCliente = ({
           juzga; la columna solo mide. */}
       {columnas.entreno && (
         <td className="p-celda p-entreno">
-          {dias === 0 ? 'hoy' : dias === 1 ? 'ayer' : dias > 0 ? `hace ${dias} d` : null}
+          {dias === 0 ? 'Hoy' : dias === 1 ? 'Ayer' : dias > 0 ? `Hace ${dias} días` : null}
         </td>
       )}
 
@@ -379,7 +383,7 @@ const FilaCliente = ({
               aria-label={`Abrir ${s.label.toLowerCase()} de ${client.name}`}
               onClick={() => onAbrirSeccion(s.path)}
             >
-              <s.icon size={15} />
+              <s.icon size={13} />
             </button>
           ))}
         </span>
@@ -475,53 +479,65 @@ const AccionesEnLote = ({ filas, onLimpiar, onMandar, onAviso, onEtiquetar, onPa
       role="region"
       aria-label="Acciones sobre los clientes seleccionados"
     >
-      <span className="n">{n === 1 ? '1 seleccionado' : `${n} seleccionados`}</span>
+      {/* Quién va en la selección: la cuenta en su tesela y, si es una sola
+          persona, su nombre — «1 seleccionado» obliga a volver a la tabla para
+          saber a quién se le va a hacer lo que se pulse. */}
+      <span className="p-lote-quien">
+        <span className="p-lote-n">{n}</span>
+        <span className="p-lote-texto">
+          {n === 1 ? filas[0].client.name : 'clientes seleccionados'}
+        </span>
+      </span>
 
       {modo === null && (
-        <div className="row gap-2 wrap">
+        <div className="p-lote-verbos">
           {/*
-            ── «Mandar algo» es el primario, y por qué ──────────────────────
+            ── «Mandar algo» va primero, y por qué ──────────────────────────
             Su audiencia por defecto se llama «A los que marqué» y el único
-            sitio donde se marca gente es esta tabla: el diálogo llevaba meses
-            esperando este botón, montado solo en las dos pantallas del Taller.
-            Va delante del aviso porque pedir algo —un formulario, un vídeo, una
-            tarea— es lo que se hace todas las semanas; avisar, de vez en cuando.
+            sitio donde se marca gente es esta tabla. Va delante del aviso
+            porque pedir algo —un formulario, un vídeo, una tarea— es lo que se
+            hace todas las semanas; avisar, de vez en cuando.
+
+            En el frame del 18 sep los tres primeros van en cristal sobre la
+            barra oscura y el único con relleno es «Pausar»: es el único de los
+            cuatro que CAMBIA a la persona (deja de contar) en vez de mandarle
+            o rotularle algo.
           */}
-          <button type="button" className="btn btn-primary btn-sm" onClick={onMandar}>
-            <Send size={15} /> Mandar algo
+          <button type="button" className="p-lote-boton" onClick={onMandar}>
+            <Send size={15} aria-hidden="true" /> Mandar algo
           </button>
           {/* El aviso abre su hoja lateral: un mensaje se escribe con sitio,
               no en un campo incrustado en una barra. */}
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onAviso}>
-            <Megaphone size={15} /> Enviar aviso
+          <button type="button" className="p-lote-boton" onClick={onAviso}>
+            <Bell size={15} aria-hidden="true" /> Enviar aviso
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModo('tag')}>
-            <Tag size={15} /> Etiquetar
+          <button type="button" className="p-lote-boton" onClick={() => setModo('tag')}>
+            <Tag size={15} aria-hidden="true" /> Etiquetar
           </button>
           {todosEnPausa ? (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onReanudar}>
-              <Play size={15} /> Reanudar
+            <button type="button" className="p-lote-boton" onClick={onReanudar}>
+              <Play size={15} aria-hidden="true" /> Reanudar
             </button>
           ) : (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setModo('pausa')}>
-              <Pause size={15} /> Pausar
+            <button type="button" className="p-lote-boton is-pausa" onClick={() => setModo('pausa')}>
+              <Pause size={15} aria-hidden="true" /> Pausar
             </button>
           )}
           <button
             type="button"
-            className="btn btn-icon"
+            className="p-lote-boton is-cerrar"
             onClick={onLimpiar}
             aria-label="Quitar la selección"
             title="Quitar la selección"
           >
-            <X size={15} />
+            <X size={15} aria-hidden="true" />
           </button>
         </div>
       )}
 
       {modo === 'tag' && (
         <form
-          className="row gap-2 wrap"
+          className="p-lote-verbos"
           onSubmit={(e) => {
             e.preventDefault();
             if (!texto.trim()) return;
@@ -542,7 +558,7 @@ const AccionesEnLote = ({ filas, onLimpiar, onMandar, onAviso, onEtiquetar, onPa
           <button type="submit" className="btn btn-primary btn-sm" disabled={!texto.trim()}>
             {n === 1 ? 'Ponérsela' : `Ponérsela a ${n}`}
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={cerrar}>
+          <button type="button" className="p-lote-boton" onClick={cerrar}>
             Cancelar
           </button>
         </form>
@@ -550,7 +566,7 @@ const AccionesEnLote = ({ filas, onLimpiar, onMandar, onAviso, onEtiquetar, onPa
 
       {modo === 'pausa' && (
         <form
-          className="row gap-2 wrap"
+          className="p-lote-verbos"
           onSubmit={(e) => {
             e.preventDefault();
             onPausar(hasta || null);
@@ -569,7 +585,7 @@ const AccionesEnLote = ({ filas, onLimpiar, onMandar, onAviso, onEtiquetar, onPa
           <button type="submit" className="btn btn-primary btn-sm">
             {hasta ? `Pausar hasta el ${shortDate(hasta)}` : 'Pausar sin fecha'}
           </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={cerrar}>
+          <button type="button" className="p-lote-boton" onClick={cerrar}>
             Cancelar
           </button>
         </form>
@@ -661,9 +677,10 @@ export const ClientPortfolio = () => {
   /* Los marcados para una acción en lote: avisar, etiquetar, pausar. Ids y no
      filas — las filas se recalculan y la marca tiene que sobrevivirles. */
   const [sel, setSel] = useState(() => new Set());
-  /* Las dos capas de la cartera: el protocolo de una persona y la hoja del
-     aviso, con sus destinatarios. */
-  const [ajustes, setAjustes] = useState(null);
+  /* A quién se está pausando. Era la hoja entera de su protocolo, que traía la
+     pausa al final; desde que el protocolo es una pestaña de su ficha, la pausa
+     se abre sola, con la misma pieza que en su perfil. */
+  const [pausando, setPausando] = useState(null);
   /* Los ids a los que se les va a mandar algo. Ids y no filas por lo mismo que
      `sel`: el diálogo resuelve la gente por su cuenta contra `clients`. */
   const [mandando, setMandando] = useState(null);
@@ -960,7 +977,11 @@ export const ClientPortfolio = () => {
         run: () => invitar(client),
       },
       { label: 'Programarle la rutina', icon: Layers, run: () => navigate(clientPath(client.id, 'rutina')) },
-      { label: 'Su protocolo…', icon: Settings2, run: () => setAjustes(client.id) },
+      {
+        label: 'Su protocolo',
+        icon: Settings2,
+        run: () => navigate(clientPath(client.id, 'protocolo')),
+      },
       null,
       row.paused
         ? {
@@ -971,7 +992,7 @@ export const ClientPortfolio = () => {
               toast({ text: `${client.name} vuelve a contar.` });
             },
           }
-        : { label: 'Pausar…', icon: Pause, run: () => setAjustes(client.id) },
+        : { label: 'Pausar…', icon: Pause, run: () => setPausando(client.id) },
       {
         label: 'Archivar',
         icon: Archive,
@@ -1057,7 +1078,7 @@ export const ClientPortfolio = () => {
      lista limpia de siempre. Se decide sobre lo VISIBLE: filtrar por un
      entrenador cuyos clientes aún no arrancaron limpia también las columnas. */
   const columnas = {
-    semana: visible.some((r) => semanaDe(r) > 0),
+    semana: visible.some((r) => semanaDe(r) > 0 || r.horizonte?.microcicloEnCurso > 0),
     /* La condición era «dos pesajes o uno», porque con dos había chispa que
        dibujar aunque no hubiera cifra. Sin chispa, lo que llena la columna es
        la cifra y nada más. */
@@ -1113,6 +1134,8 @@ export const ClientPortfolio = () => {
       sentidos: { asc: 'de menos a más kilos', desc: 'de más a menos kilos' },
     },
   ].filter(Boolean);
+
+  const clientePausando = rows.find((r) => r.client.id === pausando)?.client || null;
 
   return (
     /*
@@ -1170,19 +1193,11 @@ export const ClientPortfolio = () => {
             que «Ver como» en el expediente. */}
         <header className="cartera-cab">
           <div className="cartera-cab-in">
-            {/* ── UNA sola línea: dónde estás, qué tramo miras y los verbos ──
-                Los tramos vivían en su propio raíl debajo, y eso costaba una
-                banda entera de altura para no decir nada más: la línea del
-                titular era «Clientes» a la izquierda y los dos verbos a mil
-                píxeles, con nada en medio. El raíl conserva su anatomía —posado
-                sobre el filete, con la marca azul mordiéndolo—, que es lo que
-                lo hace legible como navegación; lo único que cambia es que
-                ahora ocupa el hueco que había.
-
-                La misma anatomía la monta `ui/Cinta`, así que la cartera y
-                las listas del Taller siguen arrancando igual. La cinta
-                del CLIENTE no cambia: allí el raíl son cinco DESTINOS a los que
-                se va, no tramos de la lista que ya estás mirando. */}
+            {/* La cinta de la casa, igual que la de `ui/Cinta`: los tramos van
+                en la línea del titular con la marca sobre el filete. El frame
+                164:1501 la dibujaba como una caja con los tramos en un segundo
+                renglón, y el 18 sep el dueño la devolvió a la de las demás
+                páginas: la cabecera es la misma en toda la app. */}
             <div className="cartera-cab-linea">
               {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver
                   `ui/Pliegue`. */}
@@ -1243,15 +1258,17 @@ export const ClientPortfolio = () => {
                 <span className="tabs-marca" aria-hidden="true" />
               </nav>
 
+              {/* «Tu protocolo» deja de ser verbo de texto y pasa a botón con
+                  canto: en el frame las dos acciones son la misma familia de
+                  mando, y la primaria se distingue por el relleno. */}
               <div className="cartera-cab-acciones">
                 <button
                   type="button"
-                  className="cab-accion"
+                  className="btn btn-secondary btn-sm"
                   title="Lo que se le pide a todos: módulos, check-in, alta y avisos"
                   onClick={() => navigate(PROTOCOL_HOME)}
                 >
-                  <SlidersHorizontal size={15} aria-hidden="true" />
-                  <span>Tu protocolo</span>
+                  Tu protocolo
                 </button>
                 <button
                   type="button"
@@ -1300,22 +1317,18 @@ export const ClientPortfolio = () => {
 
                 {delTramo.length > 1 && filtros.length > 2 && (
                   <div className="rail" role="group" aria-label="Filtrar por estado">
-                    {filtros.map((f) => {
-                      const Icono = ICONO_FILTRO[f.id];
-                      return (
-                        <button
-                          key={f.id}
-                          type="button"
-                          className="chip"
-                          aria-pressed={filtro === f.id}
-                          onClick={() => setFiltro(f.id)}
-                        >
-                          {Icono && <Icono size={13} aria-hidden="true" />}
-                          {f.label}
-                          <span className="chip-count">{f.count}</span>
-                        </button>
-                      );
-                    })}
+                    {filtros.map((f) => (
+                      <button
+                        key={f.id}
+                        type="button"
+                        className="chip"
+                        aria-pressed={filtro === f.id}
+                        onClick={() => setFiltro(f.id)}
+                      >
+                        {f.label}
+                        <span className="chip-count">{f.count}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
               </>
@@ -1335,7 +1348,7 @@ export const ClientPortfolio = () => {
 
                   Con un solo cliente no se dibuja: la lista ES la respuesta. */}
               {tramoVivo !== 'archivo' && delTramo.length > 1 && (
-                <MandoDeOrden orden={orden} campos={camposDeOrden} defecto="Urgencia" />
+                <MandoDeOrden orden={orden} campos={camposDeOrden} defecto="Urgencia" clase="chip p-orden" />
               )}
 
               {/* La etiqueta se pregunta de vez en cuando y su lista crece sin
@@ -1373,10 +1386,7 @@ export const ClientPortfolio = () => {
                         {tagsFiltro.length} etiquetas
                       </>
                     ) : (
-                      <>
-                        <Tag size={13} aria-hidden="true" />
-                        Etiquetas
-                      </>
+                      'Etiquetas'
                     )
                   }
                 />
@@ -1639,13 +1649,14 @@ export const ClientPortfolio = () => {
               hoja por abajo —la tabla terminaba en el aire, y una lista sin pie
               parece cortada— y contesta la pregunta que deja cualquier filtro:
               «¿esto es toda mi cartera o solo un trozo?». Por eso solo dice la
-              fracción cuando de verdad hay un trozo. */}
-          {tramoVivo !== 'archivo' && delTramo.length > 0 && (
-            <div className="cartera-pie">
-              {visible.length === delTramo.length
-                ? `${delTramo.length} ${delTramo.length === 1 ? 'cliente' : 'clientes'}`
-                : `${visible.length} de ${delTramo.length} clientes`}
-            </div>
+              fracción cuando de verdad hay un trozo.
+
+              Desde el frame del 18 sep, SOLO cuando hay un trozo: la tabla ya
+              es una caja que cierra sola y el total entero lo dice la cifra de
+              su tramo, en la cabecera. Repetirlo al pie era el mismo número dos
+              veces en la misma pantalla. */}
+          {tramoVivo !== 'archivo' && visible.length > 0 && visible.length < delTramo.length && (
+            <div className="cartera-pie">{`${visible.length} de ${delTramo.length} clientes`}</div>
           )}
         </div>
       </div>
@@ -1683,11 +1694,13 @@ export const ClientPortfolio = () => {
           />
         </Suspense>
       )}
-      <ClientSettingsSheet
-        client={rows.find((r) => r.client.id === ajustes)?.client || null}
-        open={Boolean(ajustes)}
-        onClose={() => setAjustes(null)}
-      />
+      <Modal
+        open={Boolean(clientePausando)}
+        title={`Pausar a ${clientePausando?.name || ''}`}
+        onClose={() => setPausando(null)}
+      >
+        {clientePausando && <PauseRow client={clientePausando} />}
+      </Modal>
     </div>
   );
 };

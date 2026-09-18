@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowDownNarrowWide,
@@ -16,7 +16,7 @@ import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
 import { feeLabel, paymentState } from '@/domain/billing';
 import { identityFacts } from '@/domain/ficha';
-import { buildPortfolio, colasDeInicio, portfolioInbox } from '@/domain/portfolio';
+import { BOARD_COLUMNS, buildPortfolio, colasDeInicio, columnFor, portfolioInbox } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
 import { clientProtocol } from '@/domain/protocol';
 import { semanaDeAhora } from '@/domain/week';
@@ -33,46 +33,28 @@ import {
   sameSectionFor,
   sectionsFor,
 } from '@/routes';
-import { EmptyState, Loading } from '@/components/ui/primitives';
+import { EmptyState } from '@/components/ui/primitives';
 import { Avatar } from '@/components/ui/Avatar';
 import { EstadoDeRed, Nube } from '@/components/ui/EstadoDeRed';
 import { Pliegue } from '@/components/ui/Pliegue';
 import { useMarcaDeslizante } from '@/components/ui/carril';
 import { BottomNav } from '@/components/ui/BottomNav';
 import { Logo } from '@/components/ui/Logo';
-import { Modal } from '@/components/ui/Modal';
 import { ordenar, useOrden } from '@/components/ui/tabla';
 import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
 import { GettingStarted } from './GettingStarted';
 
 /*
-  Las dos pantallas que la barra abre como CAPA (tanda 2 del puesto). Perezosas
-  como en sus rutas (`App.jsx`): importarlas normal las metería en el chunk
-  principal y desharía el troceo que ya tienen.
+  ── Cobros y Agenda son páginas ─────────────────────────────────────────────
+  Del 5 al 18 sep fueron CAPAS: la barra las abría en una ventana grande encima
+  de donde estuvieras («ir a otro sitio se reserva para cambiar de persona»).
+  Volvieron a ser destinos cuando llegaron dibujadas como páginas (frames
+  164:2160 y 164:2324): con cinta propia, verbo en la cinta y hoja hundida, y
+  dentro de una ventana perdían las tres cosas. Además, una capa no cambia la
+  dirección —ni marcador ni «atrás»—. Ahora la barra navega a `/ingresos` y
+  `/calendario` como a cualquier otra puerta.
 */
-const IncomePanel = lazy(() =>
-  import('@/components/Coach/Income/IncomePanel').then((m) => ({ default: m.IncomePanel }))
-);
-const CoachCalendar = lazy(() =>
-  import('@/components/calendar/CoachCalendar').then((m) => ({ default: m.CoachCalendar }))
-);
-
-/*
-  ── Agenda y Caja son capas, no destinos (tanda 2) ──────────────────────────
-  La regla del puesto: ir a otro sitio se reserva para cambiar de persona; lo
-  demás viene a ti. Cobros y Agenda se abren ENCIMA de donde estés, en una
-  ventana grande — la misma gramática que las «a fondo» del Resumen — y al
-  cerrar sigues exactamente donde estabas, con el hilo intacto.
-
-  Sus rutas NO se tocan: `/ingresos` y `/calendario` siguen respondiendo con la
-  pantalla completa — son marcadores, y son el camino del móvil, donde no hay
-  barra y la del pulgar navega con `COACH_PRIMARY` entero.
-*/
-const CAPAS = [
-  { id: 'cobros', path: '/ingresos' },
-  { id: 'agenda', path: '/calendario' },
-];
 
 /**
  * Marco del panel del entrenador: el chasis con barra lateral.
@@ -127,7 +109,23 @@ const CAPAS = [
  * chapa neutra que dice CUÁNDO, que es lo que se quería saber al mirar ahí; y sin
  * fecha no se dice nada, porque no hay nada que decir.
  */
-const ChapaDeCobro = ({ client }) => {
+/* ── Y POR QUÉ HA DEJADO DE SER UNA CÁPSULA (17 sep · frame 32:100) ─────────
+   Era una píldora gris con relleno: «Renueva en 4 días · 170 € / mes», los dos
+   datos dentro de la misma cápsula y separados por un punto. Dos problemas, y
+   los dos los enseña el frame al lado:
+
+     · UNA CÁPSULA ES UN VEREDICTO. En esta casa la cápsula la tienen las cosas
+       que JUZGAN —el semáforo, las deltas—. Una renovación futura no juzga
+       nada: dice cuándo y cuánto. Encapsulada, la esquina de la cabecera
+       parecía llevar un aviso permanente.
+     · Y SON DOS DATOS, NO UNO. «Cuándo» y «cuánto» contestan preguntas
+       distintas; leídos en la misma línea y con el mismo cuerpo hay que
+       separarlos con la vista cada vez.
+
+   El frame los pone en dos renglones alineados a la derecha, la fecha en voz
+   baja y el importe en tinta llena. Lo ROJO se queda: lo vencido sigue siendo
+   la única tarea de esta esquina, y entonces sí juzga. */
+const CobroDeLaCabecera = ({ client }) => {
   const pago = paymentState(client);
   const tarifa = feeLabel(client);
 
@@ -136,12 +134,14 @@ const ChapaDeCobro = ({ client }) => {
      cliente; ese aviso vive en la ficha, que es donde se arregla. */
   if (pago.state === 'no_date' && !tarifa) return null;
 
-  const clase = pago.tone === 'bad' ? 'badge badge-bad' : pago.tone === 'warn' ? 'badge badge-warn' : 'badge';
-
   return (
-    <span className={clase} title={pago.detail}>
-      {pago.state === 'no_date' ? tarifa : [pago.label, tarifa].filter(Boolean).join(' · ')}
-    </span>
+    <p
+      className={`cliente-cab-cobro${pago.tone === 'bad' ? ' is-vencido' : ''}`}
+      title={pago.detail}
+    >
+      {pago.state !== 'no_date' && <span className="cliente-cab-cobro-cuando">{pago.label}</span>}
+      {tarifa && <span className="cliente-cab-cobro-tarifa">{tarifa}</span>}
+    </p>
   );
 };
 
@@ -256,14 +256,6 @@ export const CoachLayout = () => {
     };
   }, [location.pathname, loading]);
 
-  /* La capa abierta ('cobros' | 'agenda' | null). Navegar la cierra: cambiar
-     de sitio es el único viaje del puesto, y una ventana de otra pantalla
-     flotando sobre el destino sería llevarse la mesa a cuestas. */
-  const [capa, setCapa] = useState(null);
-  useEffect(() => {
-    setCapa(null);
-  }, [location.pathname]);
-
   const hoy = todayISO();
   const hasClients = clients.length > 0;
   const onClient = Boolean(clientId);
@@ -359,6 +351,20 @@ export const CoachLayout = () => {
          `sinceTraining` con el que ordena su columna en la cartera; contarlo
          aquí por segunda vez sería un segundo «último entreno». */
       sinEntrenar: new Map(rows.map((row) => [row.client.id, row.sinceTraining])),
+      /* ── EN QUÉ COLUMNA DE LA CARTERA ESTÁ CADA UNO ────────────────────────
+         El frame pone una chapa de estado pegada al nombre («ON TRACK»), y no
+         es un rótulo inventado para el dibujo: es la MISMA columna que ya
+         reparte la cartera (`columnFor`) —«Al día», «Por revisar», «En riesgo»,
+         «Check-in pendiente»— dicha en la cabecera de la persona en vez de solo
+         en la lista de todas.
+
+         Se calcula aquí porque las filas ya están construidas: montar un
+         segundo criterio de «cómo va» al lado del de la cartera es exactamente
+         como se llega a que dos pantallas digan cosas distintas de la misma
+         persona. */
+      estado: new Map(
+        rows.map((row) => [row.client.id, BOARD_COLUMNS.find((c) => c.id === columnFor(row)) || null])
+      ),
     };
   }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts]);
 
@@ -549,10 +555,6 @@ export const CoachLayout = () => {
       clientProtocol(clients.find((c) => c.id === id)?.preferences)
     );
 
-  /* Las puertas que sobreviven al puesto, buscadas por ruta y no por índice:
-     el orden de `COACH_PRIMARY` es del móvil y puede cambiar sin avisar. */
-  const puerta = (path) => COACH_PRIMARY.find((p) => p.path === path);
-
   /*
     ── El selector, que sigue siendo SOLO del móvil ───────────────────────────
     Vivió en la barra lateral, y allí era la consecuencia de que la cartera no
@@ -589,7 +591,10 @@ export const CoachLayout = () => {
   /* Solo el cobro: es un ESTADO y puede avisar. La fecha de alta es un dato
      quieto y viaja en el subtítulo del selector — como chapa suelta al lado del
      botón del portal componía un cajón de piezas desparejas. */
-  const chapas = onClient && activeClient && <ChapaDeCobro client={activeClient} />;
+  const chapas = onClient && activeClient && <CobroDeLaCabecera client={activeClient} />;
+  /* Cómo va esa persona, para la chapa que va pegada a su nombre. La columna
+     la decide el dominio y la calcula `bandeja`; aquí solo se elige a quién. */
+  const estadoDelCliente = onClient && activeClient ? bandeja.estado.get(activeClient.id) : null;
 
   /*
     ── La anatomía, en la cabecera de las cinco pestañas ──────────────────────
@@ -700,41 +705,9 @@ export const CoachLayout = () => {
           Ahora las cuatro se pintan igual y en el orden de `COACH_PRIMARY`,
           que es además el que ya usa la barra del pulgar en el móvil: un solo
           sitio decide el orden del nivel primario.
-
-          ── Cobros y Agenda siguen siendo CAPAS ────────────────────────────
-          Lo que cambia es la VOZ, no el gesto: se siguen abriendo encima de
-          donde estés y al cerrar sigues donde estabas (ver `CAPAS` arriba). Por
-          eso son `button` y no `NavLink` aunque se vistan igual — de una puerta
-          importa dónde te deja, y éstas te dejan donde ya estabas.
         */}
         <nav className="sidebar-nav sidebar-puertas" aria-label="Navegación principal">
           {COACH_PRIMARY.map(({ path, label, icon: Icon }) => {
-            const capaId = CAPAS.find((c) => c.path === path)?.id;
-            /* Si ya estás EN su ruta (marcador, o el móvil), la fila se marca y
-               pulsar no abre nada: una ventana de lo que ya llena la pantalla
-               sería un espejo. */
-            const enSuRuta = location.pathname === path;
-            if (capaId) {
-              return (
-                <button
-                  key={path}
-                  type="button"
-                  className={`side-link${capa === capaId || enSuRuta ? ' active' : ''}`}
-                  /* Plegada, el rótulo es lo único que falta y el título lo
-                     devuelve. Desplegada NO se pone: repetir en un globo la
-                     palabra que está escrita al lado es ruido. */
-                  title={plegada ? label : undefined}
-                  aria-haspopup="dialog"
-                  aria-expanded={capa === capaId}
-                  onClick={() => {
-                    if (!enSuRuta) setCapa(capaId);
-                  }}
-                >
-                  <Icon size={15} />
-                  {label}
-                </button>
-              );
-            }
             const cuenta = cuentaDe[path];
             return (
               <NavLink key={path} to={path} className="side-link" title={plegada ? label : undefined} end>
@@ -977,20 +950,6 @@ export const CoachLayout = () => {
         </div>
       </aside>
 
-      {/* La capa abierta: la pantalla entera de Cobros o Agenda, encima de
-          donde estés. Cerrar (equis, Escape o el fondo) te deja donde estabas. */}
-      {capa && (
-        <Modal
-          size="capa"
-          title={puerta(CAPAS.find((c) => c.id === capa).path).label}
-          onClose={() => setCapa(null)}
-        >
-          <Suspense fallback={<Loading />}>
-            {capa === 'cobros' ? <IncomePanel enCapa /> : <CoachCalendar enCapa />}
-          </Suspense>
-        </Modal>
-      )}
-
       <div className="shell-main">
         {/* El estado de la red, cuando tiene algo que decir. Entra en la columna
             de contenido y no encima del chasis: montada en `App` —donde la
@@ -1036,22 +995,55 @@ export const CoachLayout = () => {
                 >
                   <ArrowLeft size={15} />
                 </button>
-                {/* ── La puerta del perfil: la cara, el nombre y la anatomía ──
-                    Una sola puerta, no dos. Antes el nombre era un enlace y la
-                    línea de datos era OTRO enlace al mismo sitio, veinte
-                    píxeles debajo; apilados eso se descubría, pero en una banda
-                    de 64 px las dos se ven a la vez y la segunda es un doblete.
+                {/* ══ LA FICHA: LA CARA, Y A SU DERECHA DOS RENGLONES ═══════
+                    (17 sep · quinta vuelta del frame `32:100`)
+
+                    Estuvo todo en UNA caja que envolvía: cara, nombre, chapa y
+                    nube en la primera línea, y la línea de datos bajada con un
+                    `flex-basis: 100%` y sangrada a mano con
+                    `margin-left: calc(38px + 10px)` — el alto del avatar más su
+                    hueco, escritos otra vez y a ojo.
+
+                    Eso tenía dos consecuencias que se ven en la captura y que
+                    el dueño señaló («el icono del perfil está mejor ordenado,
+                    los iconos ponlos debajo del nombre pero que quede bien»):
+
+                      · La cara se CENTRABA EN SU PROPIO RENGLÓN. Con `wrap`,
+                        cada línea de un flex se alinea sola, así que el avatar
+                        de 38 px hacía una primera línea de 38 y la línea de
+                        datos caía ENTERA POR DEBAJO de él. La ficha medía 58 px
+                        de alto para decir lo que en el frame cabe en 40.
+                      · Y la sangría de la segunda línea era una medida escrita
+                        dos veces: cambiar el tamaño del avatar la descuadraba
+                        sin que nada avisara. El comentario que vivía aquí lo
+                        decía y lo daba por inevitable.
+
+                    El frame lo monta como lo monta cualquier ficha: la cara y,
+                    a su lado, una COLUMNA de dos renglones. Así el avatar se
+                    centra contra los dos —es su hermano, no su vecino de
+                    línea—, la segunda línea cae a plomo bajo el nombre sola, y
+                    no hay ningún número escrito dos veces.
+
+                    ── Y sigue habiendo UNA sola puerta ─────────────────────
+                    La cara y el nombre son dos enlaces al mismo sitio, que es
+                    justo el doblete que esta cabecera quitó en su día. La
+                    diferencia es que el de la cara no existe para nadie más que
+                    para el ratón: `aria-hidden` + `tabIndex={-1}` lo sacan del
+                    orden de tabulación y del árbol de accesibilidad, así que el
+                    teclado y el lector siguen viendo una puerta con su rótulo.
+                    Es un blanco más grande para el mismo destino, no un destino
+                    más.
 
                     DENTRO del perfil deja de ser puerta: has saltado a su
                     página, el nombre es el título y delante va la vuelta. Nada
                     de azul de «seleccionado» — no estás en una pestaña, estás
                     en otra hoja (ver `is-perfil`, y `is-quieta` para el color). */}
-                {enFicha ? (
-                  <div className="cliente-cab-puerta is-quieta">
-                    {/* La flecha OCUPA el sitio de la cara — mismo círculo,
-                        mismo hueco — para que el nombre no se mueva ni un
-                        píxel al entrar. Un titular que baila entre pantallas
-                        se lee como un fallo, no como una transformación. */}
+                <div className={`cliente-cab-ficha${enFicha ? ' is-quieta' : ''}`}>
+                  {enFicha ? (
+                    /* La flecha OCUPA el sitio de la cara — mismo hueco — para
+                       que el nombre no se mueva ni un píxel al entrar. Un
+                       titular que baila entre pantallas se lee como un fallo,
+                       no como una transformación. */
                     <button
                       type="button"
                       className="btn btn-icon cliente-cab-atras"
@@ -1061,30 +1053,90 @@ export const CoachLayout = () => {
                     >
                       <ArrowLeft size={15} />
                     </button>
-                    <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
-                  </div>
-                ) : (
-                  <Link
-                    className="cliente-cab-puerta"
-                    to={clientPath(clientId, 'ficha')}
-                    state={{ desde: seccionAbierta }}
-                    title="Su perfil: sus datos, sus fechas y su cobro"
-                  >
-                    <Avatar name={activeClient.name} src={activeClient.avatar} size="md" />
-                    <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
-                  </Link>
-                )}
-                <div className="cliente-cab-selector">{selector}</div>
-                {/* La nube, pegada al nombre: lo que dice es de qué se fía lo
-                    que estás mirando, así que va con lo que estás mirando y no
-                    en la esquina de lo que se puede hacer. Detrás del selector
-                    y no delante porque en el móvil el que ocupa el hueco del
-                    nombre es él —la puerta se retira— y el signo va al final de
-                    la línea de identidad en las dos geometrías. Ver
-                    `ui/EstadoDeRed`. */}
-                <Nube />
-                {/* La línea de datos, al lado del nombre y no debajo: quién es
-                    y por dónde va. La anatomía va en CHAPAS con su signo (Q-08
+                  ) : (
+                    <Link
+                      className="cliente-cab-cara"
+                      to={clientPath(clientId, 'ficha')}
+                      state={{ desde: seccionAbierta }}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    >
+                      <Avatar name={activeClient.name} src={activeClient.avatar} size="md" />
+                    </Link>
+                  )}
+
+                  <div className="cliente-cab-say">
+                    <div className="cliente-cab-fila">
+                      {enFicha ? (
+                        /* Dentro del perfil el nombre deja de ser puerta, pero
+                           conserva la clase: es lo que el móvil retira para que
+                           el selector de cliente no comparta renglón con una
+                           segunda identidad. */
+                        <div className="cliente-cab-puerta is-quieta">
+                          <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                        </div>
+                      ) : (
+                        <Link
+                          className="cliente-cab-puerta"
+                          to={clientPath(clientId, 'ficha')}
+                          state={{ desde: seccionAbierta }}
+                          title="Su perfil: sus datos, sus fechas y su cobro"
+                        >
+                          <h1 className="cliente-cab-nombre">{activeClient.name}</h1>
+                        </Link>
+                      )}
+                      {/* La nube, pegada al nombre: lo que dice es de qué se
+                          fía lo que estás mirando, así que va con lo que estás
+                          mirando y no en la esquina de lo que se puede hacer.
+                          Ahora vive DENTRO del primer renglón de la ficha y no
+                          suelta al lado: como hermana del bloque de dos líneas
+                          se centraba entre las dos, que es no estar pegada a
+                          ninguna. Ver `ui/EstadoDeRed`.
+
+                          ── Y VA ANTES DE LA CHAPA DE ESTADO ─────────────────
+                          El dueño: «el "Al día" o lo que ponga después del
+                          nombre del cliente ha de ir después de la nube, no al
+                          revés». Es lo que dibuja el frame (`46:123`: nombre y
+                          nube son UN grupo con 6 px entre los dos, y la chapa
+                          llega 8 px después) y tiene su razón: la nube habla
+                          del NOMBRE —si lo que lees de esta persona está
+                          guardado— y la chapa habla de su semana. Con la chapa
+                          en medio, la nube quedaba a dos piezas de aquello de
+                          lo que informa. */}
+                      <Nube />
+                      {/* ── CÓMO VA, DESPUÉS DE LA NUBE ─────────────────────
+                          El frame lo dibuja así y el sitio es el argumento: el
+                          estado de una persona es parte de quién es en este
+                          momento, no una columna de una tabla. Estaba solo en
+                          la cartera, o sea que para saber si alguien va al día
+                          había que salir de él.
+
+                          Es la MISMA columna que reparte la cartera
+                          (`columnFor`), no un segundo criterio: «Al día» aquí y
+                          «Al día» allí tienen que querer decir lo mismo o no
+                          sirve ninguno de los dos. El color lo pone el semáforo
+                          de la casa —verde al día, ámbar lo que falta, rojo lo
+                          que está en riesgo, azul lo que espera respuesta
+                          tuya—, que es la ley del color tal cual. */}
+                      {estadoDelCliente && (
+                        <span
+                          className={`badge badge-${estadoDelCliente.tone} cliente-cab-estado`}
+                          title={estadoDelCliente.hint}
+                        >
+                          {estadoDelCliente.label}
+                        </span>
+                      )}
+                      {/* En el móvil el selector ocupa el hueco del nombre —la
+                          puerta se retira— y por eso comparte renglón con él.
+                          Va el último en el marcado y lo adelanta el `order` de
+                          su media query: así en escritorio, donde no se pinta,
+                          no se cuela entre el nombre y su estado. */}
+                      <div className="cliente-cab-selector">{selector}</div>
+                    </div>
+
+                    {/* La línea de datos, DEBAJO del nombre y a plomo bajo él:
+                        quién es y por dónde va. La anatomía va en CHAPAS con su
+                        signo (Q-08
                     del plan del acabado): tres medidas seguidas en texto
                     corrido —«31 años · 168 cm · Mujer»— había que leerlas para
                     saber cuál era cuál; el signo las cuenta de un vistazo. El
@@ -1096,22 +1148,34 @@ export const CoachLayout = () => {
                     microciclo que YA ha terminado —el 18 cuando aquí pone 19—,
                     y dos números seguidos sin decir de qué son se leen como un
                     fallo. Con esto cada uno dice lo suyo. */}
-                <p className="cliente-cab-meta">
-                  {!enFicha && anatomia.length > 0 && (
-                    <span className="cliente-cab-anatomia">
-                      {anatomia.map((f) => {
-                        const Signo = { age: Cake, height: Ruler, gender: PersonStanding }[f.id];
-                        return (
-                          <span key={f.id} className="chapa-hecho" title={f.label}>
-                            {Signo && <Signo size={13} aria-hidden="true" />}
-                            {f.value}
-                          </span>
-                        );
-                      })}
-                    </span>
-                  )}
-                  {semanaActiva && <span>Microciclo {semanaActiva} · en curso</span>}
-                </p>
+                    <p className="cliente-cab-meta">
+                      {!enFicha && anatomia.length > 0 && (
+                        <span className="cliente-cab-anatomia">
+                          {anatomia.map((f) => {
+                            const Signo = { age: Cake, height: Ruler, gender: PersonStanding }[f.id];
+                            return (
+                              <span key={f.id} className="chapa-hecho" title={f.label}>
+                                {Signo && <Signo size={13} aria-hidden="true" />}
+                                {f.value}
+                              </span>
+                            );
+                          })}
+                        </span>
+                      )}
+                      {/* «En curso» se tiñe de verde, como en el frame. No es
+                          adorno: en este renglón todo son datos quietos —los
+                          años, los centímetros, el número de microciclo— y esto
+                          es lo único que dice que algo está PASANDO ahora
+                          mismo. El verde es el de la casa (va, está bien), no
+                          un color nuevo. */}
+                      {semanaActiva && (
+                        <span>
+                          Microciclo {semanaActiva} · <em className="cliente-cab-vivo">en curso</em>
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* ── El extremo derecho: el estado, y un verbo SOLO SI TOCA ──

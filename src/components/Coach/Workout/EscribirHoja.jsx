@@ -806,6 +806,7 @@ export const EscribirHoja = ({
           <FichaEjercicio
             nombre={fichaEditando}
             lista={library}
+            editandoAlAbrir
             onCerrar={() => setFichaEditando(null)}
           />
         </Modal>

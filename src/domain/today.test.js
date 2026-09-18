@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { activityScale, agenda, buildActivity, buildInbox, dayLabel, groupByDay } from './today';
+import { activityScale, agenda, buildActivity, buildInbox, dayLabel, groupByDay, semanaDeUnVistazo } from './today';
 import { trainingSummary } from './sessions';
 
 const TODAY = '2026-08-12';
@@ -262,5 +262,62 @@ describe('agenda', () => {
 
   it('sin eventos no inventa nada', () => {
     expect(agenda([], cartera, TODAY)).toEqual({ today: [], overdue: [], count: 0 });
+  });
+});
+
+describe('semanaDeUnVistazo', () => {
+  /* 12 de agosto de 2026 es miércoles: la semana va del 10 al 12, y la pasada
+     se compara del 3 al 5, no entera. */
+  const sesion = (clientId, date) => ({ kind: 'session', clientId, date });
+  const fila = (id, over = {}) => ({ client: { id }, paused: null, ...over });
+
+  it('cuenta los entrenos de esta semana y los de la pasada a estas alturas', () => {
+    const r = semanaDeUnVistazo(
+      [
+        sesion('c1', '2026-08-12'),
+        sesion('c1', '2026-08-10'),
+        sesion('c2', '2026-08-11'),
+        sesion('c1', '2026-08-05'),
+        /* El jueves de la semana pasada todavía no le ha llegado a ésta. */
+        sesion('c2', '2026-08-06'),
+        /* Y el domingo anterior es de otra semana. */
+        sesion('c2', '2026-08-09'),
+      ],
+      [fila('c1'), fila('c2')],
+      TODAY
+    );
+    expect(r.entrenos).toBe(3);
+    expect(r.entrenosAntes).toBe(1);
+    expect(r.entrenaron).toBe(2);
+    expect(r.activos).toBe(2);
+  });
+
+  it('separa entrenos y pesajes, y los pesajes solo de esta semana', () => {
+    const r = semanaDeUnVistazo(
+      [
+        { kind: 'weight', clientId: 'c1', date: TODAY },
+        { kind: 'weight', clientId: 'c1', date: '2026-08-07' },
+        { kind: 'photo', clientId: 'c1', date: TODAY },
+        sesion('c1', TODAY),
+      ],
+      [fila('c1')],
+      TODAY
+    );
+    expect(r.entrenos).toBe(1);
+    expect(r.pesajes).toBe(1);
+  });
+
+  it('deja fuera de «activos» a quien está en pausa, aunque haya entrenado', () => {
+    const r = semanaDeUnVistazo(
+      [sesion('c1', TODAY), sesion('c2', TODAY)],
+      [fila('c1'), fila('c2', { paused: { until: '2026-09-01' } })],
+      TODAY
+    );
+    expect(r.activos).toBe(1);
+    expect(r.entrenaron).toBe(1);
+  });
+
+  it('sin nada, ceros', () => {
+    expect(semanaDeUnVistazo([], [], TODAY)).toEqual({ entrenos: 0, entrenosAntes: 0, entrenaron: 0, activos: 0, pesajes: 0 });
   });
 });

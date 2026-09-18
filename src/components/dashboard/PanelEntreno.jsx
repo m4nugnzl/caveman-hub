@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Activity, CircleCheck, Info } from 'lucide-react';
 
 import { currentBlock, weekLabel } from '@/domain/blocks';
 import { metricColor } from '@/domain/metrics';
@@ -114,12 +115,30 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
   );
   const sesiones = trend ? trend.sessions.slice(-SEMANAS_EJERCICIO) : [];
 
+  /* Las columnas de la tabla de la rutina, en el orden del frame `292:5`:
+     el microciclo, un grupo por columna y el tonelaje —barra y cifra— al canto. */
+  /* Sin grupos, `repeat(0, …)` tiraría la declaración entera: ver PanelCuerpo. */
+  const rejilla = columnas.length > 0
+    ? `minmax(72px, 0.8fr) repeat(${columnas.length}, minmax(64px, 1fr)) minmax(180px, 2fr)`
+    : 'minmax(72px, 0.8fr) minmax(180px, 2fr)';
+  const u = unit.toLowerCase();
+  const colorTonelaje = metricColor('tonnage');
+
   return (
-    <Modal open={open} size="lg" title={isClient ? 'Tu entreno, a fondo' : 'El entreno, a fondo'} onClose={onClose}>
+    <Modal
+      open={open}
+      size="lg"
+      icono={Activity}
+      title={isClient ? 'Tu entreno, a fondo' : 'El entreno, a fondo'}
+      sub={`Cada sesión, ${u} a ${u}: las series, la carga y cómo ${isClient ? 'la llevas' : 'la lleva'}`}
+      onClose={onClose}
+    >
       <div className="afondo is-ventana">
         <section className="afondo-tramo">
           <div className="entreno-barra">
-            <div className="hoja-rutinas" role="tablist" aria-label="Rutina">
+            {/* Las sesiones como pastillas con canto, las del frame: dentro de una
+                ventana no hay tira de la hoja al lado con la que confundirlas. */}
+            <div className="hoja-rutinas is-pastillas" role="tablist" aria-label="Sesión">
               {rutinas.map((nombre) => (
                 <button
                   key={nombre}
@@ -133,55 +152,100 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
                 </button>
               ))}
             </div>
-            <span className="tarjeta-meta">{bloque?.name || 'Bloque 1'}</span>
+            <span className="entreno-bloque">{bloque?.name || 'Bloque 1'}</span>
           </div>
 
           {rutinas.length === 0 ? (
             <TarjetaVacia>Sin días montados no hay rutina que seguir.</TarjetaVacia>
           ) : (
             <>
-              <div className="rutina-tabla" style={{ '--cols': columnas.length }}>
-                <div className="rutina-fila is-head">
-                  <span>{unit}</span>
+              {/*
+                ══ LA TABLA ES LA DEL VOLUMEN (frame 292:5) ═══════════════════════
+                Era una rejilla propia —`.rutina-tabla`, celdas grises a todo lo
+                ancho y cabecera sin banda— dentro de una ventana que ya tenía
+                hermana: la del volumen del bloque, rediseñada el 17 sep como
+                TABLA con canto, cabecera en banda, cebra y la cifra en una
+                pastilla ceñida. El frame dibuja esta igual, y el dueño lo dijo
+                con todas las letras: «no es nada nuevo, sigue la misma lógica
+                que el resto de popups». Así que no se copia: se usa la misma.
+              */}
+              <div className="volumen-tabla is-rutina" role="table" aria-label={`Series y tonelaje de ${rutinaActiva}, ${u} a ${u}`}>
+                <div className="volumen-fila is-head" role="row" style={{ gridTemplateColumns: rejilla }}>
+                  <span role="columnheader">{unit}</span>
                   {columnas.map((m) => (
-                    <span key={m} title={m}>
+                    <span key={m} role="columnheader" title={m}>
                       {m}
                     </span>
                   ))}
-                  <span>Tonelaje</span>
+                  <span role="columnheader">Tonelaje</span>
                 </div>
                 {filas.map((f) => (
-                  <div className={`rutina-fila${f.week === latestWeek ? ' is-actual' : ''}`} key={f.week}>
-                    <span className="rutina-sem">{etiqueta(f.week)}</span>
+                  <div
+                    className={`volumen-fila${f.week === latestWeek ? ' is-actual' : ''}`}
+                    role="row"
+                    style={{ gridTemplateColumns: rejilla }}
+                    key={f.week}
+                  >
+                    <span className="volumen-grupo rutina-sem" role="rowheader">
+                      {etiqueta(f.week)}
+                    </span>
                     {columnas.map((m) => {
                       const hecho = f.done[m] ?? 0;
                       const puesto = f.planned[m] ?? 0;
+                      /* Un grupo que ese día no entraba, y un microciclo sin
+                         sesión anotada: dos huecos distintos, y ninguno es cero. */
                       if (puesto === 0 && hecho === 0) {
                         return (
-                          <span className="rutina-celda is-vacia" key={m} title={`${m}: no entraba`}>
-                            <b>·</b>
+                          <span className="volumen-celda is-vacia" role="cell" key={m} title={`${m}: no entraba`}>
+                            ·
                           </span>
                         );
                       }
+                      if (!f.entrenado) {
+                        return (
+                          <span className="volumen-celda is-vacia" role="cell" key={m} title={`${m}: sin sesión anotada`}>
+                            —
+                          </span>
+                        );
+                      }
+                      /* Hecho todo lo pautado se dice en verde: el semáforo
+                         juzga, y «cumplió» es un juicio. Lo demás, en gris —
+                         quedarse corto no es una alarma que dar desde aquí. */
                       return (
-                        <span className="rutina-celda" key={m} title={`${m}: ${hecho} de ${puesto} series`}>
-                          <b>{f.entrenado ? hecho : '—'}</b>
-                          <small>/{puesto}</small>
+                        <span
+                          className={`volumen-celda${hecho >= puesto ? ' is-completa' : ''}`}
+                          role="cell"
+                          key={m}
+                          title={`${m}: ${hecho} de ${puesto} series`}
+                        >
+                          {hecho}/{puesto}
                         </span>
                       );
                     })}
-                    <span className="rutina-ton">
-                      {f.tonnage > 0 && (
-                        <span className="rutina-barra" style={{ width: `${(f.tonnage / topeTonelaje) * 100}%` }} aria-hidden="true" />
+                    <span className="rutina-ton" role="cell">
+                      {f.tonnage > 0 ? (
+                        <>
+                          <span className="volumen-barra" aria-hidden="true">
+                            <span
+                              className="volumen-relleno"
+                              style={{ width: `${(f.tonnage / topeTonelaje) * 100}%`, background: colorTonelaje }}
+                            />
+                          </span>
+                          <b>{localeNumber(f.tonnage)}</b>
+                        </>
+                      ) : (
+                        <span className="rutina-nada">—</span>
                       )}
-                      <b>{f.tonnage > 0 ? localeNumber(f.tonnage) : '—'}</b>
                     </span>
                   </div>
                 ))}
               </div>
-              <p className="tarjeta-pie">
-                Series hechas sobre las pautadas en {rutinaActiva}, y los kilos que movió ese día. Un guion es una{' '}
-                {unit.toLowerCase()} sin sesión anotada, que no es lo mismo que cero.
+              <p className="afondo-nota">
+                <Info size={13} aria-hidden="true" />
+                <span>
+                  Series hechas sobre las pautadas en <b>{rutinaActiva}</b>, y los kilos que movió ese día. Un guion es
+                  un {u} sin sesión anotada, que no es lo mismo que cero.
+                </span>
               </p>
             </>
           )}
@@ -199,42 +263,52 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
             <TarjetaVacia>Todavía no hay ninguna serie anotada de este ejercicio.</TarjetaVacia>
           ) : (
             <div className="carga">
-              <BandChart
-                labels={sesiones.map((s) => etiqueta(s.week))}
-                series={[
-                  {
-                    id: 'top',
-                    label: 'Serie tope',
-                    color: metricColor('tonnage'),
-                    unit: ' kg',
-                    decimals: 1,
-                    points: sesiones.map((s) => ({ label: etiqueta(s.week), value: s.topKg })),
-                  },
-                ]}
-                height={150}
-                emptyMessage="Sin kilos anotados."
-              />
+              {/* La curva en su caja hundida: el frame la separa de la lista de
+                  debajo, que es otra forma de leer lo mismo. La leyenda es la de
+                  `BandChart` —dice el valor de la semana que se señala—, subida
+                  arriba por CSS como la dibuja el frame. */}
+              <div className="afondo-lienzo">
+                <BandChart
+                  labels={sesiones.map((s) => etiqueta(s.week))}
+                  series={[
+                    {
+                      id: 'top',
+                      label: 'Serie tope',
+                      color: colorTonelaje,
+                      unit: ' kg',
+                      decimals: 1,
+                      points: sesiones.map((s) => ({ label: etiqueta(s.week), value: s.topKg })),
+                    },
+                  ]}
+                  height={150}
+                  emptyMessage="Sin kilos anotados."
+                />
+              </div>
               <ol className="carga-lista">
                 {sesiones.map((s, i) => {
                   const antes = sesiones[i - 1]?.topKg ?? null;
                   const tono =
-                    s.topKg !== null && antes !== null ? (s.topKg > antes ? 'is-sube' : s.topKg < antes ? 'is-baja' : '') : '';
+                    s.topKg !== null && antes !== null ? (s.topKg > antes ? ' is-sube' : s.topKg < antes ? ' is-baja' : '') : '';
                   return (
                     <li className={`carga-fila${s.week === latestWeek ? ' is-actual' : ''}`} key={s.week}>
                       <span className="carga-sem">{etiqueta(s.week)}</span>
                       <span className="carga-series">{s.sets.map(serie).join(' · ')}</span>
-                      <span className={`carga-tope ${tono}`}>
-                        {s.topKg === null ? '—' : localeNumber(s.topKg)}
-                        <small> kg</small>
+                      <span className="carga-tope-caja">
+                        <span className={`carga-tope${tono}`}>{s.topKg === null ? '—' : localeNumber(s.topKg)}</span>
+                        <small>kg</small>
                       </span>
                     </li>
                   );
                 })}
               </ol>
-              <p className="tarjeta-pie">
-                La curva son los kilos de la serie tope de cada {unit.toLowerCase()}; debajo, cada serie como se dice, kilos
-                por repeticiones. En verde los topes que superan la {unit.toLowerCase()} anterior, en rojo los que bajan.
-                {trend.stalled >= 3 ? ` Lleva ${trend.stalled} sin superar su tope.` : ''}
+              <p className="afondo-nota">
+                <Info size={13} aria-hidden="true" />
+                <span>
+                  La curva son los kilos de la serie tope de cada {u}; debajo, cada serie como se dio, kilos por
+                  repeticiones. En <b className="is-sube">verde</b> los topes que superan el {u} anterior, en{' '}
+                  <b className="is-baja">rojo</b> los que bajan.
+                  {trend.stalled >= 3 ? ` Lleva ${trend.stalled} sin superar su tope.` : ''}
+                </span>
               </p>
             </div>
           )}
@@ -248,7 +322,10 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
             </TarjetaVacia>
           ) : (
             <>
-              <ul className="tendencias">
+              {/* Una caja por pregunta, dos por fila como en el frame, teñidas del
+                  color de SU dato: fatiga y dolor se distinguen de un vistazo
+                  sin leer el rótulo. */}
+              <ul className="tendencias is-cajas">
                 {sensaciones.map((fila) => {
                   /* `q`, no `pregunta`: ese nombre es de la prop —la fila con
                      la que se llegó— y aquí la sombreaba, dejando la búsqueda
@@ -262,24 +339,35 @@ export const PanelEntreno = ({ open, onClose, program, microcycles, cycleType, l
                     <li
                       className={`tendencia${fila.id === pregunta ? ' is-buscada' : ''}`}
                       ref={fila.id === pregunta ? buscada : null}
+                      style={{ '--dato': fila.color }}
                       key={fila.id}
                     >
                       <span className="tendencia-k">{fila.label}</span>
                       <span className="tendencia-linea">
-                        <Sparkline points={fila.points} color={fila.color} height={30} />
+                        <Sparkline points={fila.points} color={fila.color} height={56} />
                       </span>
-                      <span className="tendencia-v" style={{ color: fila.color }}>
-                        {ahora === null ? '—' : Math.round(ahora * 10) / 10}
-                        <small>/{max}</small>
+                      <span className="tendencia-cifra">
+                        <span className="tendencia-v">
+                          {ahora === null ? '—' : localeNumber(Math.round(ahora * 10) / 10)}
+                          <small>/{max}</small>
+                        </span>
+                        <Delta value={delta} lowerIsBetter={q?.lowerIsBetter ?? (fila.id === 'fatigue' || fila.id === 'pain')} />
                       </span>
-                      <Delta value={delta} lowerIsBetter={q?.lowerIsBetter ?? (fila.id === 'fatigue' || fila.id === 'pain')} />
                     </li>
                   );
                 })}
               </ul>
-              <p className="tarjeta-pie">
-                El promedio de lo que contestó cada semana al acabar de entrenar.
-                {respuestas ? ` Contesta el ${respuestas.pct} % de sus sesiones (${respuestas.answered} de ${respuestas.sessions}).` : ''}
+              <p className="afondo-nota">
+                <CircleCheck size={13} aria-hidden="true" />
+                <span>
+                  El promedio de lo que contestó cada semana al acabar de entrenar.
+                  {respuestas ? (
+                    <>
+                      {' '}
+                      Contesta el <b>{respuestas.pct} % de sus sesiones</b> ({respuestas.answered} de {respuestas.sessions}).
+                    </>
+                  ) : null}
+                </span>
               </p>
             </>
           )}

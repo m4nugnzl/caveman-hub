@@ -6,6 +6,32 @@
    error, no una excepción. Eso es lo que permite cambiar el tema entero desde
    un solo sitio.
 
+   ══ EL REDISEÑO INTEGRAL: DE «PAPEL» A «PIZARRA» (17 sep 2026) ══════════════
+
+   El producto se está rediseñando entero, pantalla a pantalla, y el diseño ya
+   no se discute aquí: llega DIBUJADO desde Figma. El primer frame es Entreno
+   —el bloque y sus hojas— y trae tres cambios que no son de esa pantalla sino
+   de toda la casa, así que se ejecutan en este archivo y la aplicación entera
+   obedece:
+
+     1. LA TEMPERATURA. El papel crudo (#f7f6f2, un gris con amarillo dentro)
+        pasa a la rampa pizarra (#f8fafc → #0f172a). Mismos escalones, misma
+        estructura; lo que cambia es el tono.
+     2. LA SEÑAL. El índigo (#3b49df) pasa al azul del frame, ocho puntos más
+        hondo por contraste (ver `--accent`).
+     3. LA VOZ. Archivo pasa a Geist (ver `--font`).
+
+   Lo que NO cambia es la doctrina de las dos reglas de abajo: el cromo sigue
+   sin tener color salvo la señal, y la señal sigue apareciendo solo donde se
+   toca o donde estás. El rediseño cambia los valores, no la ley.
+
+   Lo único que sigue en la familia caliente es `--brasa` y la paleta de datos:
+   la primera es el rojo del disco del logotipo —es marca, no cromo— y la
+   segunda es del DATO, que es justo lo que las dos reglas protegen.
+
+   Cada cambio lleva su nota fechada junto al token. Lo que sigue describe el
+   sistema tal y como estaba antes, y sigue siendo cierto salvo en los valores.
+
    ══ El lenguaje visual: «Papel y señal» ═════════════════════════════════════
 
    ── Las dos reglas que lo ordenan todo ─────────────────────────────────────────────
@@ -176,11 +202,22 @@
      sombra de contacto, y un escalón largo convierte el lienzo en un gris sucio.
      La mesa (`--canvas-alt`) sí abre más contra la hoja, 1,10:1, porque ahí no
      hay sombra que ayude: es el marco de fuera contra el papel. */
-  --canvas: #f7f6f2;
-  --canvas-alt: #edebe3;
+  /* ══ EL PAPEL SE ENFRÍA (17 sep 2026) ═══════════════════════════════════
+     El rediseño integral llega dibujado desde Figma y cambia la temperatura de
+     toda la casa: el papel crudo (#f7f6f2, un gris con amarillo dentro) pasa a
+     la rampa fría de los grises azulados. El escalón entre lienzo y tarjeta es
+     el MISMO que había —corto, alrededor de 1,03:1 medido— y por tanto todo lo
+     que dependía de él (la sombra de contacto, el hundido de la mesa, el
+     contraste de los filetes) sigue funcionando sin tocar una regla.
+
+     Lo que cambia es el tono, no la estructura: quien lea esta hoja buscando
+     «por qué el lienzo no es blanco» sigue encontrando la respuesta de arriba.
+     Los seis valores salen del frame de Figma `32:100`. */
+  --canvas: #f8fafc;
+  --canvas-alt: #f1f5f9;
   --surface: #ffffff;
   --surface-raised: #ffffff;
-  --surface-sunken: #f2f0e9;
+  --surface-sunken: #f8fafc;
   --surface-glass: rgba(255, 255, 255, 0.78);
 
   /* ── La mesa y la hoja del puesto ────────────────────────────────────────
@@ -200,14 +237,33 @@
      El nuestro es el mismo: la hoja en el gris de `--canvas` y el blanco
      reservado a lo que se posa encima. */
   --mesa: var(--canvas-alt);
-  --hoja: var(--canvas);
+  /* ── Y LA HOJA SE VA AL BLANCO (17 sep · rediseño de Figma) ─────────────
+     El párrafo de arriba desanduvo la hoja blanca con un argumento medido:
+     «tarjeta blanca sobre hoja blanca deja solo un canto al 9 % separándolas y
+     la rejilla se funde». Era cierto — entonces `--edge-card` valía
+     `transparent` y las tarjetas no tenían canto que enseñar.
+
+     Ese supuesto ya no se cumple. Desde el cambio de tokens, toda caja lleva
+     filete de verdad (#e5e7eb, 1,15:1 sobre blanco pero perfectamente visible
+     por ser línea y no superficie), que es exactamente lo que hace el frame:
+     su panel es #ffffff y sus tarjetas son #ffffff con canto. La separación
+     deja de ser un escalón de luminancia y pasa a ser un trazo, que es más
+     limpio y aguanta mejor las cajas anidadas.
+
+     La MESA —lo de fuera de la hoja— se queda en gris: es lo que sigue
+     diciendo dónde acaba el papel. */
+  --hoja: #ffffff;
 
   /* ── Separadores y rellenos ── */
-  --hairline: #e7e3d9;
-  --hairline-strong: #cfc9bb;
-  --fill-subtle: #f5f3ed;
-  --fill: #eceae1;
-  --fill-strong: #dfdbcd;
+  /* La misma rampa fría. `--hairline` es el canto de tarjeta del frame de
+     Figma (#e5e7eb) y `--fill` el relleno de las casillas de cifra (#f1f5f9);
+     `--fill-subtle` es el realce de fila, que en el frame es la cebra de la
+     lista de ejercicios (#f8fafc). */
+  --hairline: #e5e7eb;
+  --hairline-strong: #cbd5e1;
+  --fill-subtle: #f8fafc;
+  --fill: #f1f5f9;
+  --fill-strong: #e2e8f0;
 
   /* ── Canto de la tarjeta ─────────────────────────────────────────────────
      Nuevo. Antes la tarjeta se separaba del fondo SOLO por la sombra, y en el
@@ -218,7 +274,7 @@
      Ahora todas las superficies tienen canto definido. Un instrumento tiene
      piezas con borde; una tarjeta que flota sin canto es una convención de
      marketing, no de medida. */
-  --edge: rgba(38, 32, 20, 0.11);
+  --edge: rgba(15, 23, 42, 0.10);
 
   /* ── EL CANTO DE LA TARJETA GRANDE, que sobre papel no está ──────────────
      La regla de arriba dice «toda superficie lleva canto», y para el hierro es
@@ -238,8 +294,21 @@
      ahí el borde no rodea una pantalla entera, dice dónde se escribe.
 
      Es `transparent` y no `border: 0` a propósito: el píxel se sigue
-     reservando, así que quitarlo no mueve ni una caja de sitio. */
-  --edge-card: transparent;
+     reservando, así que quitarlo no mueve ni una caja de sitio.
+
+     ══ Y VUELVE, PORQUE EL PAPEL YA NO SEPARA (17 sep 2026) ════════════════
+     El párrafo de arriba se sostenía en una cosa medida: el escalón entre el
+     lienzo templado y la tarjeta blanca (1,08:1) separaba lo suficiente como
+     para no gastar un filete. Con la rampa fría ese escalón se acorta a 1,03 y
+     la tarjeta blanca desaparece dentro del lienzo.
+
+     En el frame de Figma la separación la hace el CANTO: todas las cajas
+     —tarjeta del día, barra del bloque, tarjetas del costado— llevan 1 px de
+     #e5e7eb y ninguna lleva sombra. Es el mismo valor que `--hairline`, y va
+     escrito así y no como `var(--hairline)` porque son dos decisiones
+     distintas que hoy coinciden: una separa superficies y la otra dibuja
+     filetes dentro de ellas. */
+  --edge-card: #e5e7eb;
 
   /* ── El canto de lo que se TOCA ──────────────────────────────────────────
      Solo para controles: el borde del botón secundario, de los campos y de los
@@ -268,12 +337,23 @@
      Uno solo para el campo y para el botón normal: el estudio traía dos matices
      (#ddd8ca y #e2ded2) y la diferencia entre ellos no se ve, así que el segundo
      sería un valor más que mantener a cambio de nada. */
-  --edge-control: #ddd8ca;
+  --edge-control: #e2e8f0;
 
   /* ── Texto ── */
-  --text: #191713;
-  --text-secondary: #514d45;
-  --text-tertiary: #706c62;
+  /* La rampa pizarra del frame de Figma, con una corrección deliberada.
+
+     El frame usa tres tintas: #0f172a para el titular, #64748b para el rótulo y
+     #8e93a6 para lo que solo se consulta. Los dos primeros son buenos (17,9:1 y
+     4,8:1 sobre blanco); el tercero está en 3,3:1, o sea por debajo del mínimo
+     de texto, y aquí la terciaria no es decorativa: la llevan el peso pautado,
+     el volumen por grupo y media docena de cifras más.
+
+     Así que la rampa se corre un escalón hacia la tinta y se queda con tres
+     valores que SÍ se leen: 17,9:1 · 7,6:1 · 4,8:1. El matiz es el mismo —la
+     misma familia pizarra del frame—, lo que cambia es la profundidad. */
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
   --text-inverse: #ffffff;
 
   /* ── Acento: TIZA ────────────────────────────────────────────────────────
@@ -285,9 +365,23 @@
      en la pestaña activa y en `.btn-plain`, esto es también lo que arregla de
      raíz el problema que arrastraba el verde: nunca más habrá que comprobar si
      el color de marca llega al mínimo. */
-  --accent: #3b49df;
-  --accent-hover: #2f3ac2;
-  --accent-soft: rgba(59, 73, 223, 0.08);
+  /* ══ EL AZUL DEL FRAME, OCHO PUNTOS MÁS HONDO (17 sep 2026) ═══════════════
+     El rediseño trae #3b8dd4. Medido sobre blanco da 3,53:1: vale para un
+     relleno o una barra —el mínimo de componente es 3:1— y no vale para TEXTO,
+     que es la mitad de lo que esta casa hace con el acento: los enlaces, «+
+     ejercicio», el nombre de la hoja al pasar, el verbo de cada vacío.
+
+     Y no es un detalle teórico: el acento que se va (#3b49df) estaba en 6,55:1,
+     así que aceptar el valor del frame tal cual sería bajar dos escalones de
+     legibilidad en todos los verbos de la aplicación a la vez.
+
+     Se conserva el matiz exacto —hsl(206, 62 %)— y se baja la luminosidad ocho
+     puntos: #2b7ab8 da 4,59:1, que pasa el mínimo de texto y sigue siendo el
+     mismo azul del dibujo. Es un solo token, así que la casa entera obedece.
+     `--accent-on` es lo que va ENCIMA: blanco sobre él, 4,59:1. */
+  --accent: #2b7ab8;
+  --accent-hover: #21648f;
+  --accent-soft: rgba(59, 141, 212, 0.08);
   /* ── El tinte de al pasar ────────────────────────────────────────────────
      `--accent-soft` es el relleno de lo ACTIVO —la pestaña puesta, el día
      abierto, el plan contratado—, y para eso funciona porque casi siempre lleva
@@ -298,13 +392,13 @@
      Este es el mismo azul, con el cuerpo suficiente para leerse en un trozo
      pequeño. Sobre papel hace falta menos alfa que sobre grafito: un tinte
      claro sobre blanco se ve antes que uno oscuro sobre casi negro. */
-  --accent-wash: rgba(59, 73, 223, 0.10);
+  --accent-wash: rgba(59, 141, 212, 0.12);
   --accent-on: #ffffff;
 
   /* La LUZ de la señal: la misma temperatura como iluminación y no como tinta,
      detrás de la única superficie encendida de una pantalla (`.tarjeta-lumbre`).
      Antes ese trabajo lo hacía `--brasa-luz`, que ahora es solo de la portada. */
-  --luz: rgba(59, 73, 223, 0.07);
+  --luz: rgba(59, 141, 212, 0.08);
 
   /* ── LA BRASA: la marca de «aquí» ────────────────────────────────────────
      El rojo del disco de 25 kg del logotipo. Nació en la portada como su única
@@ -338,8 +432,8 @@
      salieron de verla montada: se siente antes de verse (las intensidades se
      rebajaron a la mitad al primer vistazo del dueño), y NUNCA se anima.
      Sobre papel, alfa cero: una hoja impresa no lleva focos. */
-  --lumbre-dato: rgba(59, 73, 223, 0);
-  --lumbre-halo: rgba(59, 73, 223, 0);
+  --lumbre-dato: rgba(59, 141, 212, 0);
+  --lumbre-halo: rgba(59, 141, 212, 0);
 
   /* El AIRE: la iluminación de dos fuentes de la portada —una cálida que manda
      y una fría que rellena—, en versión de trabajo, sobre el lienzo del panel.
@@ -390,17 +484,44 @@
      idéntico a `--data-blue` (y en hierro también negativo y aviso a sus
      series) y una línea de gráfica era indistinguible de un aviso. La familia
      de matiz se conserva —un error sigue siendo rojo— pero el valor se separa. */
-  --positive: #10774c;
-  --positive-soft: #e3f1ea;
-  --negative: #b93429;
-  --negative-soft: #fbe9e7;
-  --warning: #a4530e;
-  --warning-soft: #fbeee1;
-  --info: #3b49df;
-  --info-soft: #edeefc;
+  /* ══ Las tres tintas, en la familia fría del frame (17 sep 2026) ═══════
+     El frame dibuja los estados con la escala de Tailwind —esmeralda #10b981,
+     rojo #ef4444, naranja #f97316— sobre sus tintes claros, y los tres se usan
+     como TEXTO de 10 px dentro de una píldora. Medidos sobre blanco dan 2,5:1,
+     3,7:1 y 3,0:1: ninguno llega al mínimo de texto, y con 10 px encima es
+     donde más se nota.
+
+     Así que se toma el TINTE del frame —que es lo que se ve, la píldora— y la
+     tinta se baja al escalón que sí se lee: 5,5:1, 4,8:1 y 5,2:1. El matiz es
+     el mismo y la píldora sale idéntica al dibujo. */
+  --positive: #047857;
+  --positive-soft: #ecfdf5;
+  --negative: #dc2626;
+  --negative-soft: #fef2f2;
+  --warning: #c2410c;
+  --warning-soft: #fff7ed;
+
+  /* ── Y LA MISMA FAMILIA, UN ESCALÓN MÁS VIVA, PARA LO QUE NO ES TEXTO ──
+     El bloque de arriba baja las tintas del frame porque allí el estado es
+     TEXTO de 10 px dentro de una píldora, y ahí manda el 4,5:1. Pero el mismo
+     verde pintando un aro de 8 px en un disco de 76 no es texto: lo que la
+     norma le pide es 3:1, y bajarlo al escalón de la letra pequeña es lo que
+     deja la pantalla apagada al lado del dibujo —«el prototipo tiene más
+     colores; el nuestro se ve peor»—.
+
+     Así que el ESTADO tiene dos pesos y se eligen por sitio, igual que el
+     acento: la letra lleva la tinta que se lee, la figura lleva la que se ve.
+     Medidos sobre el papel: 3,4:1, 3,8:1 y 3,9:1 — por encima del mínimo de
+     lo que no es texto, y un escalón por debajo del esmeralda del frame
+     (2,5:1), que no llegaba ni a eso. */
+  --positive-grafico: #059669;
+  --negative-grafico: #ef4444;
+  --warning-grafico: #ea580c;
+  --info: #2b7ab8;
+  --info-soft: #eff6ff;
 
   /* Versión tenue del ámbar de dato, para las píldoras de kcal. */
-  --data-amber-soft: #f7f0dd;
+  --data-amber-soft: #fef6e3;
 
   /* ── Tipografía ──────────────────────────────────────────────────────────
      UNA voz. Archivo lo dice todo.
@@ -429,15 +550,35 @@
      Va autoalojada en /public/fonts —no Google Fonts—, así que no hay petición a
      terceros ni bloqueo del primer render. Son 35 KB para todo el rango de pesos
      400-800, y `font-display: swap` deja que el texto se pinte antes. */
-  --font: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
+  /* ══ Y LA VOZ PASA A SER GEIST (17 sep 2026) ════════════════════════════
+     El párrafo de arriba no cambia de argumento: UNA voz, autoalojada, para
+     que la aplicación se vea igual en un Mac y en un Windows. Lo que cambia es
+     cuál, y llega decidida desde el frame de Figma.
+
+     Geist tiene lo que esta casa gasta: cifras de caja abierta, `1` con
+     banderola —que en una pantalla de «1×6-8, 3×8-10» importa más que en
+     ninguna otra— y una rejilla estrecha que deja caber «Leg Extension
+     Unilateral» en una columna de 276 px sin cortarlo.
+
+     Son 29 KB para todo el rango 100-900. Ver el @font-face en `base.css`. */
+  --font: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
     'Segoe UI', Inter, Roboto, system-ui, sans-serif;
 
   --font-display: var(--font);
 
   /* LA ANCHA: Archivo estirada a wdth 125 (ver el @font-face en `base.css`).
      Es la voz de las CIFRAS y de la PORTADA de cada pantalla — y de nada más:
-     el dorsal y el rótulo de la máquina, no el cuerpo del manual. Cae a la
-     Archivo normal mientras carga o si falta el glifo. */
+     el dorsal y el rótulo de la máquina, no el cuerpo del manual.
+
+     ── Y SIGUE SIENDO ARCHIVO aunque el cuerpo ya no lo sea (17 sep) ──────
+     Geist no tiene eje de anchura, así que no hay «Geist Expanded» a la que
+     mudarse: sustituir esta voz es elegir otra familia, y eso es una decisión
+     de diseño que el frame de Figma no toma —ahí todo va en Geist, sin
+     expandida—. Sus treinta y tantos usos viven en el portal del cliente, que
+     tiene su propio paso de rediseño; se decide allí y se cambia aquí.
+
+     Mientras tanto la familia cae a Geist si el archivo falta o falta el
+     glifo, que es lo que hace el `var(--font)` de la cola. */
   --font-ancha: 'Archivo Expanded', var(--font);
 
   /* Tercera voz, con un solo uso: los valores que se copian y pegan literalmente
@@ -476,6 +617,23 @@
   --fs-3xs: 0.5625rem;  /* 9px — glifo dentro de su caja, no texto */
   --fs-2xs: 0.6875rem;  /* 11px — encabezados de columna */
   --fs-xs: 0.75rem;     /* 12px — etiquetas, deltas */
+  /* ── EL ESCALÓN DEL MANDO (17 sep · frame 32:100) ────────────────────────
+     El frame escribe TODA la cinta del programa en 13 px: la miga «Bloques»,
+     el nombre del bloque, las pastillas de microciclo y los «+ cosa». La
+     nuestra mezclaba 12 (las migas y los «+») con 14 en negrita de display
+     (los microciclos y el nombre), y esa mezcla es lo que la hacía verse más
+     pesada que el dibujo — «me gusta más la tipografía de referencia».
+
+     No es un escalón nuevo por capricho: 12 es la etiqueta de un dato y 14 es
+     texto secundario que se lee de corrido. Un mando no es ninguna de las dos
+     cosas —se lee de un vistazo y se pulsa—, y hasta hoy tomaba prestado el
+     cuerpo del vecino según quién lo escribiera. Se llama como la familia de
+     tokens del mando que ya existe (`--h-control`, `--r-control`,
+     `--edge-control`).
+
+     Dónde manda: la cinta (`.tira`), en Entreno y en la Dieta, que son la
+     misma pieza de chasis. NO toca el resto de la casa. */
+  --fs-control: 0.8125rem; /* 13px — el rótulo de un mando de la cinta */
   --fs-sm: 0.875rem;    /* 14px — secundario */
   --fs-base: 1rem;      /* 16px — cuerpo */
   --fs-md: 1.125rem;    /* 18px — título de fila */
@@ -585,6 +743,13 @@
      y se leen juntos. Cambiar este valor cambia el carácter de la aplicación
      entera, que es exactamente lo que se quería al ponerlo en un solo sitio. */
   --r-control: 8px;
+  /* Los cantos de los mandos del rediseño de Figma (frame 164:1501, la
+     cartera): 10 para el mando de la barra (`--h-control`) y 12 para el botón
+     de la cabecera (`--h-control-lg`). Crecen con la altura: a 8 px, un botón
+     de 36 se leía más cuadrado que el chip de 32 de al lado. Hoy solo los pide
+     la cartera; el resto de la casa sigue en `--r-control`. */
+  --r-control-md: 10px;
+  --r-control-lg: 12px;
 
   /* ── Y los del ESCAPARATE, mucho más abiertos ──────────────────────────────
      Los de arriba son los del producto y su techo son 14 px: dentro, el canto
@@ -681,7 +846,7 @@
 
      Todas van teñidas con la tinta del papel, rgba(38, 32, 20), nunca en negro
      puro: un gris frío debajo de un papel templado se ve, y se ve mal. */
-  --shadow-xs: 0 1px 1px rgba(38, 32, 20, 0.05);
+  --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.05);
 
   /* ── LAS DOS SOMBRAS DEL CONTROL ──────────────────────────────────────────
      Las de arriba separan una SUPERFICIE del papel. Estas dos son otra cosa:
@@ -705,12 +870,12 @@
      el estudio: el botón normal se quedaba sin su filete y la familia de antes
      salía peor de lo que era. Para apagar una capa se escribe el cero
      transparente, `0 0 0 0 rgba(0, 0, 0, 0)`, nunca `none`. */
-  --shadow-control: 0 1px 2px rgba(38, 32, 20, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  --shadow-field: inset 0 1px 2px rgba(38, 32, 20, 0.045);
-  --shadow-sm: 0 1px 2px rgba(38, 32, 20, 0.06), 0 14px 30px -22px rgba(38, 32, 20, 0.55);
-  --shadow-md: 0 6px 20px -8px rgba(38, 32, 20, 0.16), 0 1px 3px rgba(38, 32, 20, 0.06);
-  --shadow-lg: 0 24px 56px -28px rgba(38, 32, 20, 0.45), 0 3px 8px rgba(38, 32, 20, 0.08);
-  --shadow-float: 0 10px 28px -8px rgba(38, 32, 20, 0.22);
+  --shadow-control: 0 1px 2px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  --shadow-field: inset 0 1px 2px rgba(15, 23, 42, 0.045);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 14px 30px -22px rgba(15, 23, 42, 0.55);
+  --shadow-md: 0 6px 20px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 24px 56px -28px rgba(15, 23, 42, 0.45), 0 3px 8px rgba(15, 23, 42, 0.08);
+  --shadow-float: 0 10px 28px -8px rgba(15, 23, 42, 0.22);
 
   /* ── Aquí vivía la flecha de las puertas ─────────────────────────────────
      Un «→» dibujado con `mask` que colgaba de todo lo que llevaba a algún
@@ -933,6 +1098,26 @@
   --sesion-tinta: #171a20;
   --sesion-tinta-fila: rgba(255, 255, 255, 0.09);
   --sesion-tinta-texto: rgba(255, 255, 255, 0.62);
+
+  /* ── EL MOSTRADOR DEL LOTE (18 sep · frame 164:1878) ──────────────────────
+     La barra que aparece al marcar clientes en la cartera: una pastilla de
+     tinta que flota sobre la tabla, con un degradado de la tinta de la sesión
+     hacia un azul de noche. Es tinta por lo mismo que la barra de la sesión
+     —un MODO («tienes gente marcada»), no un color que juzgue— y vale lo mismo
+     en los dos temas: de noche la separan del lienzo su filete y su sombra.
+
+     El rojo de «Pausar» va fijo y un escalón por debajo del `--negative` del
+     frame (#ef4444, 3,8:1 con blanco): de noche `--negative` se aclara para
+     leerse como TEXTO sobre hierro, y aquí es un fondo con letra blanca, así
+     que el valor que sirve es el de día en los dos temas (4,8:1). */
+  --lote-tinta-de: #1c1f2b;
+  --lote-tinta-a: #123b63;
+  --lote-texto: #ffffff;
+  --lote-boton: rgba(255, 255, 255, 0.07);
+  --lote-boton-hover: rgba(255, 255, 255, 0.14);
+  --lote-filete: rgba(255, 255, 255, 0.08);
+  --lote-pausa: #dc2626;
+  --lote-pausa-hover: #b91c1c;
 }
 
 /* ==========================================================================
@@ -1101,10 +1286,10 @@
      6,1:1 como texto sobre el lienzo, 5,1:1 sobre la tarjeta y 6:1 con el
      grafito de `accent-on` encima — todos por encima del 4,5:1 que exige
      usarlo como texto (la pestaña abierta, un enlace). */
-  --accent: #5b8df7;
-  --accent-hover: #7da5f9;
-  --accent-soft: rgba(91, 141, 247, 0.14);
-  --accent-wash: rgba(91, 141, 247, 0.22);
+  --accent: #5aa9e8;
+  --accent-hover: #86c2f2;
+  --accent-soft: rgba(90, 169, 232, 0.14);
+  --accent-wash: rgba(90, 169, 232, 0.22);
   --accent-on: #10131a;
   --luz: rgba(91, 141, 247, 0.1);
 
@@ -1152,8 +1337,16 @@
   --negative-soft: rgba(236, 97, 86, 0.15);
   --warning: #f28d4a;
   --warning-soft: rgba(242, 141, 74, 0.16);
-  --info: #5b8df7;
-  --info-soft: rgba(91, 141, 247, 0.14);
+
+  /* Sobre hierro no hacen falta dos pesos: estas tres ya están elegidas por
+     encima del 4,5:1 contra un lienzo oscuro, o sea que son las claras de su
+     familia y una figura pintada con ellas ya se ve. Se definen igual para que
+     ninguna pieza tenga que preguntar por el tema. */
+  --positive-grafico: #45c98c;
+  --negative-grafico: #ec6156;
+  --warning-grafico: #f28d4a;
+  --info: #5aa9e8;
+  --info-soft: rgba(90, 169, 232, 0.14);
 
   --data-amber-soft: rgba(232, 188, 85, 0.16);
 
@@ -1305,10 +1498,10 @@
   --text-secondary: #a2a9b7;
   --text-tertiary: #8b93a3;
 
-  --accent: #5b8df7;
-  --accent-hover: #7da5f9;
-  --accent-soft: rgba(91, 141, 247, 0.14);
-  --accent-wash: rgba(91, 141, 247, 0.22);
+  --accent: #5aa9e8;
+  --accent-hover: #86c2f2;
+  --accent-soft: rgba(90, 169, 232, 0.14);
+  --accent-wash: rgba(90, 169, 232, 0.22);
   --accent-on: #10131a;
 
   --brasa: #ec6a52;

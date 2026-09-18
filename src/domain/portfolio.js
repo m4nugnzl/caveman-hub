@@ -1171,7 +1171,7 @@ export const INBOX_TASKS = [
       de reclamar lo que falta — leerlo cambia a menudo lo que ibas a reclamar.
     */
     id: 'contestado',
-    seccion: 'ficha',
+    seccion: 'protocolo',
     label: 'Leer lo que te han contestado',
     hint: 'Han contestado algo tuyo y no lo has abierto',
     tone: 'info',
@@ -1181,7 +1181,7 @@ export const INBOX_TASKS = [
   },
   {
     id: 'mandado',
-    seccion: 'ficha',
+    seccion: 'protocolo',
     label: 'Les falta lo que les mandaste',
     hint: 'Tienen algo tuyo pendiente, fuera de su protocolo',
     tone: 'warn',
@@ -1372,7 +1372,7 @@ export const COLAS_INICIO = [
     alDia: 'respuestas',
     sub: 'te han contestado',
     verbo: 'Leer',
-    seccion: 'ficha',
+    seccion: 'protocolo',
     tasks: ['contestado'],
   },
   {

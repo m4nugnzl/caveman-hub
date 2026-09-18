@@ -43,6 +43,7 @@ const FUNCION_MIGRACION = {
   create_client_invite: '0015',
   claim_client_invite: '0015',
   submit_check_in: '0009',
+  save_check_in_answers: '0121',
   review_check_in: '0042',
   create_client: '0032',
   delete_check_in: '0044',

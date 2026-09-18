@@ -33,6 +33,11 @@
  * decorativos delante de cada rótulo. Con icono, nueve tarjetas se leen como un
  * menú; sin él, como nueve medidas.
  *
+ * @param sub      Una frase bajo el rótulo, en voz baja: de qué es exactamente
+ *   lo que se enseña («Kilos que movió cada microciclo»). Llegó con el frame del
+ *   Resumen (17 sep), que titula cada caja en dos renglones. Es la MISMA frase
+ *   que antes iba de pie (`tarjeta-pie`) y se leía después del dibujo, cuando ya
+ *   habías tenido que adivinar qué mostraba; arriba se lee antes.
  * @param span     Columnas de doce que ocupa: 12, 8, 6 o 4. Lo que lleva una
  *   serie temporal o una tabla pide 8: a un tercio de ancho, un eje de doce
  *   semanas no cabe.
@@ -43,6 +48,7 @@
  */
 export const Tarjeta = ({
   rotulo,
+  sub = null,
   accion = null,
   span = 4,
   abierta = false,
@@ -55,8 +61,15 @@ export const Tarjeta = ({
       .filter(Boolean)
       .join(' ')}
   >
-    <header className="tarjeta-cab">
-      <span className="section-label">{rotulo}</span>
+    <header className={`tarjeta-cab${sub ? ' con-sub' : ''}`}>
+      {sub ? (
+        <span className="tarjeta-titulo">
+          <span className="section-label">{rotulo}</span>
+          <span className="tarjeta-sub">{sub}</span>
+        </span>
+      ) : (
+        <span className="section-label">{rotulo}</span>
+      )}
       {accion}
     </header>
     <div className="tarjeta-cuerpo">{children}</div>

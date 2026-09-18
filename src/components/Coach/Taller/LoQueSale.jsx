@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CalendarClock, FileText, PlayCircle, Upload, X } from 'lucide-react';
+import { CalendarClock, CalendarPlus, FileText, PlayCircle, Upload, X } from 'lucide-react';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { hecha, origenDice, vigente } from '@/domain/envios';
@@ -55,6 +55,71 @@ const cuando = (iso, hoy) => {
   if (iso === hoy) return 'Hoy';
   const dia = weekdayName(iso).slice(0, 3);
   return `${dia} ${dayMonthMaybeYear(iso)}`;
+};
+
+/**
+ * PRÓXIMAS SALIDAS: la cola de «Lo que sale», en columna.
+ *
+ * El dibujo del protocolo (Figma 98:86) la pone al lado de todo lo demás, y
+ * tiene sentido: lo que va a salir es lo único de un protocolo que caduca, y en
+ * un tramo aparte no se ve mientras se decide qué pedir. Aquí se lee; quitar de
+ * la cola se sigue haciendo en su tramo, que es donde se ve a quién le toca.
+ *
+ * Con `clientId` es la de UNA persona: la columna de su pestaña «Protocolo».
+ */
+export const ProximasSalidas = ({ clientId = null, max = 8 }) => {
+  const { envioRows, clients } = useApp();
+  const hoy = todayISO();
+
+  const filas = useMemo(
+    () =>
+      (envioRows || [])
+        .filter((f) => f.tipo && !vigente(f, hoy) && !hecha(f))
+        .filter((f) => !clientId || f.client_id === clientId)
+        .sort((a, b) => String(a.due).localeCompare(String(b.due))),
+    [envioRows, hoy, clientId]
+  );
+
+  const nombreDe = (id) => (clients || []).find((c) => c.id === id)?.name || 'Alguien';
+
+  return (
+    <aside className="salidas" aria-labelledby="salidas-tit">
+      <h2 className="salidas-tit" id="salidas-tit">
+        Próximas salidas
+      </h2>
+      {filas.length === 0 ? (
+        <div className="salidas-vacio">
+          <CalendarPlus size={20} aria-hidden="true" />
+          <p>
+            Nada programado. Lo que {clientId ? 'le mandes' : 'mandes'} con fecha aparecerá aquí
+            antes de llegar.
+          </p>
+        </div>
+      ) : (
+        <ol className="salidas-lista">
+          {filas.slice(0, max).map((f) => (
+            <li className="salidas-fila" key={f.id}>
+              <span className="f-disco" data-tono={TONO[f.tipo] ?? 4} aria-hidden="true">
+                {ICONO[f.tipo] || <FileText size={13} />}
+              </span>
+              <span className="salidas-que">
+                <span className="salidas-nombre">{f.title}</span>
+                <span className="salidas-dice">
+                  {clientId ? origenDice(f) : nombreDe(f.client_id)}
+                </span>
+              </span>
+              <span className="salidas-dia">{cuando(f.due, hoy)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      {filas.length > max && (
+        <p className="salidas-mas">
+          Y {filas.length - max} más{clientId ? '.' : ' en «Lo que sale».'}
+        </p>
+      )}
+    </aside>
+  );
 };
 
 export const LoQueSale = () => {

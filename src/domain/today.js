@@ -41,7 +41,7 @@
  * se puedan probar en enero y en agosto con el mismo resultado.
  */
 
-import { daysBetween, localeNumber, toISODate, todayISO, weekdayName } from '@/lib/dates';
+import { addDays, daysBetween, localeNumber, toISODate, todayISO, weekStart, weekdayName } from '@/lib/dates';
 import { fmt } from '@/lib/num';
 import { feeLabel, needsCollecting, paymentState } from './billing';
 import { isSetLogged, sessionTonnage } from './sessions';
@@ -216,6 +216,50 @@ export const buildActivity = (
     if (a.date !== b.date) return String(b.date).localeCompare(String(a.date));
     return a.clientName.localeCompare(b.clientName);
   });
+};
+
+/**
+ * «Tu semana»: las cifras de la cabecera de Inicio.
+ *
+ * ══ Solo lo que la cartera sabe de verdad ═══════════════════════════════════
+ *
+ * El frame de Figma (164:1260) pedía «Sesiones 47/56 programadas» y una
+ * adherencia media. El resumen de la cartera no trae las sesiones PROGRAMADAS
+ * de cada semana —trae las hechas y el índice de microciclos—, así que esas dos
+ * cifras saldrían inventadas. Aquí se cuenta lo que ha pasado: entrenos
+ * registrados y quién ha entrenado.
+ *
+ * ── La semana pasada, a estas alturas ─────────────────────────────────────
+ * Un miércoles, comparar con la semana pasada ENTERA da siempre a la baja: se
+ * compara con su lunes-a-miércoles. Por eso el tramo anterior acaba en «hoy
+ * menos siete».
+ *
+ * Lee los eventos de `buildActivity`, que ya descartan la sesión abierta sin
+ * ninguna serie apuntada: un entreno aquí es el mismo que en el hilo. La
+ * ventana por defecto (14 días) alcanza siempre al lunes de la semana pasada.
+ *
+ * @returns `{ entrenos, entrenosAntes, entrenaron, activos, pesajes }`.
+ *   `entrenaron` y `activos` solo cuentan a quien no está en pausa.
+ */
+export const semanaDeUnVistazo = (events = [], rows = [], today = todayISO()) => {
+  const lunes = weekStart(today);
+  const lunesAntes = addDays(lunes, -7);
+  const hastaAntes = addDays(today, -7);
+  const sesiones = events.filter((e) => e.kind === 'session' && e.date);
+  const estaSemana = sesiones.filter((e) => e.date >= lunes && e.date <= today);
+  const antes = sesiones.filter((e) => e.date >= lunesAntes && e.date <= hastaAntes);
+  const pesajes = events.filter((e) => e.kind === 'weight' && e.date >= lunes && e.date <= today);
+
+  const activos = new Set(rows.filter((r) => !r.paused).map((r) => r.client.id));
+  const entrenaron = new Set(estaSemana.map((e) => e.clientId).filter((id) => activos.has(id)));
+
+  return {
+    entrenos: estaSemana.length,
+    entrenosAntes: antes.length,
+    entrenaron: entrenaron.size,
+    activos: activos.size,
+    pesajes: pesajes.length,
+  };
 };
 
 /** Etiqueta del día: relativa cuando lo relativo se entiende mejor que la fecha. */

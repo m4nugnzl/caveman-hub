@@ -7,6 +7,7 @@
     "cliente_rutina",
     "cliente_nutricion",
     "cliente_semana",
+    "cliente_protocolo",
     "cliente_ficha",
     "cliente_revision",
     "cliente_revision_fotos",

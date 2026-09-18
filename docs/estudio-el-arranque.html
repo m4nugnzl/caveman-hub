@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>La app se enciende</title>
+<meta name="description" content="Cómo debería ser la primera semana de un entrenador nuevo en Caveman Hub: el proceso, las pantallas y el sistema de explicabilidad, comparado con las mejores apps del mercado.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,400..800;1,62..125,400..600&display=swap">
+<style>
+/* ──────────────────────────────────────────────────────────────────────────
+   Tokens: los del producto («Papel y señal», src/styles/tokens.css).
+   Esta página enseña la app, así que habla su idioma y no inventa paleta.
+   ────────────────────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: light dark;
+  --canvas: #f7f6f2;
+  --canvas-2: #efede5;
+  --surface: #ffffff;
+  --sunken: #f2f0e9;
+  --fill: #eceae1;
+  --hairline: #e7e3d9;
+  --hairline-2: #cfc9bb;
+  --text: #191713;
+  --text-2: #514d45;
+  --text-3: #7a756a;
+  --accent: #3b49df;
+  --accent-soft: rgba(59, 73, 223, .09);
+  --accent-line: rgba(59, 73, 223, .28);
+  --on-accent: #ffffff;
+  --ok: #10774c;
+  --ok-soft: rgba(16, 119, 76, .10);
+  --warn: #a4530e;
+  --warn-soft: rgba(164, 83, 14, .10);
+  --bad: #b93429;
+  --bad-soft: rgba(185, 52, 41, .08);
+  --sh-1: 0 1px 2px rgba(38, 32, 20, .05);
+  --sh-2: 0 1px 2px rgba(38, 32, 20, .05), 0 10px 26px -18px rgba(38, 32, 20, .35);
+  --sh-3: 0 2px 6px rgba(38, 32, 20, .06), 0 26px 60px -28px rgba(38, 32, 20, .45);
+  --r-1: 8px;
+  --r-2: 12px;
+  --r-3: 18px;
+  --sans: 'Archivo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --canvas: #0b0d11; --canvas-2: #12151a; --surface: #1b1f26; --sunken: #14171d;
+    --fill: rgba(214, 224, 244, .08); --hairline: rgba(214, 224, 244, .11); --hairline-2: rgba(214, 224, 244, .22);
+    --text: #e9ecf2; --text-2: #a7aebb; --text-3: #838b99;
+    --accent: #5b8df7; --accent-soft: rgba(91, 141, 247, .15); --accent-line: rgba(91, 141, 247, .42); --on-accent: #0b0d11;
+    --ok: #45c98c; --ok-soft: rgba(69, 201, 140, .14); --warn: #f0a35c; --warn-soft: rgba(240, 163, 92, .14); --bad: #ec6156; --bad-soft: rgba(236, 97, 86, .13);
+    --sh-1: 0 1px 2px rgba(0, 0, 0, .45);
+    --sh-2: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 26px -18px rgba(0, 0, 0, .8);
+    --sh-3: 0 2px 6px rgba(0, 0, 0, .5), 0 26px 60px -28px rgba(0, 0, 0, .9);
+  }
+}
+:root[data-theme="dark"] {
+  --canvas: #0b0d11; --canvas-2: #12151a; --surface: #1b1f26; --sunken: #14171d;
+  --fill: rgba(214, 224, 244, .08); --hairline: rgba(214, 224, 244, .11); --hairline-2: rgba(214, 224, 244, .22);
+  --text: #e9ecf2; --text-2: #a7aebb; --text-3: #838b99;
+  --accent: #5b8df7; --accent-soft: rgba(91, 141, 247, .15); --accent-line: rgba(91, 141, 247, .42); --on-accent: #0b0d11;
+  --ok: #45c98c; --ok-soft: rgba(69, 201, 140, .14); --warn: #f0a35c; --warn-soft: rgba(240, 163, 92, .14); --bad: #ec6156; --bad-soft: rgba(236, 97, 86, .13);
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .45);
+  --sh-2: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 26px -18px rgba(0, 0, 0, .8);
+  --sh-3: 0 2px 6px rgba(0, 0, 0, .5), 0 26px 60px -28px rgba(0, 0, 0, .9);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+p { margin: 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+strong { font-weight: 650; }
+em { font-style: italic; font-variation-settings: 'wdth' 96; }
+code { font-family: var(--mono); font-size: .86em; background: var(--fill); padding: .08em .38em; border-radius: 5px; }
+
+/* ── Tipografía ── */
+.t-display { font-variation-settings: 'wdth' 116; font-weight: 700; letter-spacing: -.028em; line-height: 1.02; }
+.k { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); }
+h1 { margin: 0; font-size: clamp(38px, 6.4vw, 80px); }
+h2 { margin: 0; font-size: clamp(26px, 3.2vw, 38px); font-variation-settings: 'wdth' 110; font-weight: 700; letter-spacing: -.022em; line-height: 1.08; }
+h3 { margin: 0; font-size: 19px; font-weight: 650; letter-spacing: -.012em; line-height: 1.25; }
+h4 { margin: 0; font-size: 15px; font-weight: 650; }
+.lead { font-size: 19px; line-height: 1.5; color: var(--text-2); max-width: 62ch; }
+.prose { max-width: 66ch; display: grid; gap: 14px; color: var(--text); }
+.prose p { color: var(--text-2); }
+.prose p strong { color: var(--text); }
+.muted { color: var(--text-3); }
+
+/* ── Estructura ── */
+.wrap { width: min(1140px, 100% - 32px); margin-inline: auto; }
+header.top {
+  padding: clamp(56px, 9vw, 120px) 0 clamp(40px, 6vw, 72px);
+  border-bottom: 1px solid var(--hairline);
+}
+header.top .meta { display: flex; flex-wrap: wrap; gap: 10px 24px; margin-top: 28px; }
+header.top .meta span { color: var(--text-3); font-size: 14px; }
+.sec { padding: clamp(48px, 7vw, 96px) 0; border-bottom: 1px solid var(--hairline); }
+.sec-head { display: grid; gap: 10px; margin-bottom: 32px; max-width: 72ch; }
+.spine { display: grid; grid-template-columns: 56px 1fr; gap: 24px; }
+.spine > .n { font-family: var(--mono); font-size: 13px; color: var(--text-3); padding-top: 6px; }
+.spine > div { min-width: 0; }
+@media (max-width: 720px) { .spine { grid-template-columns: 1fr; gap: 8px; } }
+
+/* ── Piezas ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-3);
+  box-shadow: var(--sh-2);
+  padding: 22px 24px;
+}
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 860px) { .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .g2, .g3 { grid-template-columns: 1fr; } }
+.badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--hairline-2); color: var(--text-2); }
+.badge.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: var(--ok-soft); }
+.badge.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-soft); }
+.badge.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); background: var(--bad-soft); }
+.badge.accent { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th { text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); font-weight: 500; padding: 10px 12px; border-bottom: 1px solid var(--hairline-2); }
+td { padding: 12px; border-bottom: 1px solid var(--hairline); vertical-align: top; color: var(--text-2); }
+td:first-child { color: var(--text); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+.tabla { overflow-x: auto; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2); }
+.tabla table { min-width: 640px; }
+
+.averia { display: grid; grid-template-columns: 64px 1fr; gap: 18px; padding: 20px 0; border-top: 1px solid var(--hairline); }
+.averia:last-child { border-bottom: 1px solid var(--hairline); }
+.averia .id { font-family: var(--mono); font-size: 13px; color: var(--text-3); padding-top: 3px; }
+.averia .cuerpo { display: grid; gap: 8px; max-width: 70ch; }
+.averia .cuerpo p { color: var(--text-2); font-size: 15px; }
+.averia .donde { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+@media (max-width: 600px) { .averia { grid-template-columns: 1fr; gap: 6px; } }
+
+.principio { padding: 20px 22px; border-radius: var(--r-2); background: var(--surface); border: 1px solid var(--hairline); display: grid; gap: 8px; }
+.principio .num { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.principio p { font-size: 14.5px; color: var(--text-2); }
+
+/* ── Cita ── */
+blockquote { margin: 0; padding: 18px 22px; border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 var(--r-2) var(--r-2) 0; color: var(--text); font-size: 16px; max-width: 70ch; }
+blockquote cite { display: block; margin-top: 8px; font-style: normal; font-size: 13px; color: var(--text-3); }
+
+/* ══ LA FIRMA: la app que se enciende ═══════════════════════════════════════
+   Una maqueta del chasis del entrenador (barra, pestañas, mesa) que recorre
+   seis momentos. Lo que no se puede usar todavía está apagado; lo que se acaba
+   de poder usar se enciende. Es la única animación de la página. */
+.firma { display: grid; gap: 18px; }
+.momentos { display: flex; flex-wrap: wrap; gap: 6px; }
+.momento {
+  appearance: none; border: 1px solid var(--hairline-2); background: var(--surface); color: var(--text-2);
+  font: inherit; font-size: 13.5px; font-weight: 550; padding: 8px 12px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px; transition: all .18s var(--ease);
+}
+.momento .num { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.momento[aria-selected="true"] { background: var(--text); color: var(--canvas); border-color: var(--text); }
+.momento[aria-selected="true"] .num { color: inherit; opacity: .7; }
+.momento:hover:not([aria-selected="true"]) { border-color: var(--text-3); }
+
+.chasis {
+  display: grid; grid-template-columns: 200px 1fr; min-height: 460px;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-3); box-shadow: var(--sh-3); overflow: hidden;
+}
+.barra { background: var(--sunken); border-right: 1px solid var(--hairline); padding: 16px 12px; display: grid; align-content: start; gap: 18px; font-size: 13px; }
+.barra .marca { font-family: var(--mono); font-size: 11px; letter-spacing: .12em; color: var(--text-3); padding: 0 8px; }
+.barra .grupo { display: grid; gap: 2px; }
+.barra .grupo .k { padding: 0 8px 6px; }
+.fila { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; color: var(--text-2); transition: opacity .35s var(--ease), color .35s var(--ease), background .35s var(--ease); }
+.fila i { width: 12px; height: 12px; border-radius: 3px; background: currentColor; opacity: .45; flex: none; }
+.fila.is-on { background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--sh-1); }
+.fila.is-off { opacity: .32; }
+.fila .n { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.fila.nuevo { animation: encender .7s var(--ease) both; }
+.fila .av { width: 20px; height: 20px; border-radius: 999px; background: var(--fill); font-family: var(--mono); font-size: 9px; display: grid; place-items: center; color: var(--text-2); flex: none; }
+.guia-barra { margin-top: auto; padding: 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--hairline); display: grid; gap: 6px; font-size: 12.5px; }
+.guia-barra .meter { height: 4px; background: var(--fill); border-radius: 999px; overflow: hidden; }
+.guia-barra .meter i { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .6s var(--ease); }
+.guia-barra .paso { color: var(--text); font-weight: 600; }
+.guia-barra .sub { color: var(--text-3); font-size: 11.5px; }
+
+.mesa { padding: 22px 26px; display: grid; align-content: start; gap: 16px; }
+.mesa .cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.mesa .cab h4 { font-size: 20px; letter-spacing: -.015em; }
+.mesa .cab p { font-size: 13px; color: var(--text-3); }
+.ayuda-btn { width: 26px; height: 26px; border-radius: 999px; border: 1px solid var(--hairline-2); display: grid; place-items: center; font-family: var(--mono); font-size: 12px; color: var(--text-2); background: var(--surface); flex: none; }
+.pestanas { display: flex; gap: 2px; border-bottom: 1px solid var(--hairline); }
+.pestana { padding: 8px 12px; font-size: 13px; color: var(--text-2); border-bottom: 2px solid transparent; margin-bottom: -1px; transition: opacity .35s var(--ease); display: inline-flex; gap: 6px; align-items: center; }
+.pestana.is-on { color: var(--text); font-weight: 600; border-color: var(--text); }
+.pestana.is-off { opacity: .35; }
+.pestana small { font-family: var(--mono); font-size: 10px; color: var(--text-3); letter-spacing: .04em; }
+.pestana.nuevo { animation: encender .7s var(--ease) both; }
+.bloque { border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 16px 18px; display: grid; gap: 8px; background: var(--surface); }
+.bloque.nuevo { animation: encender .7s var(--ease) both; }
+.bloque h5 { margin: 0; font-size: 14.5px; font-weight: 650; }
+.bloque p { font-size: 13.5px; color: var(--text-2); }
+.bloque .acciones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid var(--hairline-2); color: var(--text); background: var(--surface); }
+.btn.primario { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.btn.puerta { color: var(--accent); border-color: transparent; background: var(--accent-soft); }
+.pista {
+  position: relative; border-radius: var(--r-2); padding: 12px 14px 12px 16px; background: var(--text); color: var(--canvas); font-size: 13px; display: grid; gap: 4px;
+  animation: encender .7s var(--ease) both; box-shadow: var(--sh-2);
+}
+.pista::before { content: ''; position: absolute; top: -6px; left: 22px; width: 12px; height: 12px; background: var(--text); transform: rotate(45deg); }
+.pista .k { color: color-mix(in srgb, var(--canvas) 65%, transparent); }
+.pista b { font-weight: 650; }
+.pista .cerrar { position: absolute; top: 8px; right: 10px; font-family: var(--mono); opacity: .6; }
+.cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cifra { border: 1px solid var(--hairline); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; }
+.cifra .k { font-size: 10.5px; }
+.cifra b { font-size: 20px; font-variation-settings: 'wdth' 110; letter-spacing: -.02em; }
+.cifra small { font-size: 12px; color: var(--text-3); }
+.cifra.nuevo { animation: encender .7s var(--ease) both; }
+.lista { display: grid; gap: 6px; }
+.lista .item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--sunken); font-size: 13px; }
+.lista .item .av { width: 22px; height: 22px; border-radius: 999px; background: var(--fill); font-family: var(--mono); font-size: 9px; display: grid; place-items: center; }
+.lista .item .tag { margin-left: auto; font-family: var(--mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+
+@keyframes encender { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nuevo, .pista, .fila, .pestana, .bloque, .cifra { animation: none !important; transition: none !important; } }
+@media (max-width: 760px) { .chasis { grid-template-columns: 1fr; } .barra { grid-auto-flow: row; border-right: 0; border-bottom: 1px solid var(--hairline); } .guia-barra { margin-top: 0; } .cifras { grid-template-columns: 1fr; } }
+
+.leyenda { display: grid; gap: 10px; padding: 18px 22px; background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-2); }
+.leyenda .k { color: var(--accent); }
+.leyenda h3 { font-size: 17px; }
+.leyenda ul { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 14.5px; display: grid; gap: 6px; }
+.leyenda ul li::marker { color: var(--text-3); }
+
+/* ── Antes / después de los vacíos ── */
+.ad { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .ad { grid-template-columns: 1fr; } }
+.ad .k { margin-bottom: 8px; display: block; }
+.vacio-viejo { border: 1px dashed var(--hairline-2); border-radius: var(--r-2); padding: 26px 20px; text-align: center; display: grid; gap: 6px; justify-items: center; color: var(--text-3); font-size: 14px; }
+.vacio-viejo b { color: var(--text); font-size: 15px; }
+.vacio-viejo .ico { width: 34px; height: 34px; border-radius: 999px; background: var(--fill); }
+.vacio-nuevo { border: 1px solid var(--hairline); border-radius: var(--r-2); padding: 20px; display: grid; gap: 10px; background: var(--surface); }
+.vacio-nuevo h5 { margin: 0; font-size: 17px; font-weight: 650; letter-spacing: -.01em; }
+.vacio-nuevo p { font-size: 14px; color: var(--text-2); }
+.vacio-nuevo .salidas { display: grid; gap: 6px; margin-top: 4px; }
+.vacio-nuevo .salida { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--hairline); font-size: 13.5px; }
+.vacio-nuevo .salida.p { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.vacio-nuevo .salida small { margin-left: auto; color: var(--text-3); font-size: 12px; }
+.vacio-nuevo .despues { font-size: 12.5px; color: var(--text-3); }
+
+/* ── Las tres capas ── */
+.capa { display: grid; grid-template-columns: 180px 1fr; gap: 20px; padding: 22px 0; border-top: 1px solid var(--hairline); }
+.capa:last-of-type { border-bottom: 1px solid var(--hairline); }
+.capa .nombre { display: grid; gap: 4px; align-content: start; }
+.capa .nombre h3 { font-size: 20px; }
+.capa .nombre .k { color: var(--accent); }
+.capa .cuerpo { display: grid; gap: 10px; max-width: 70ch; }
+.capa .cuerpo p { color: var(--text-2); font-size: 15px; }
+.capa dl { margin: 0; display: grid; grid-template-columns: 120px 1fr; gap: 6px 14px; font-size: 14px; }
+.capa dt { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); padding-top: 3px; }
+.capa dd { margin: 0; color: var(--text-2); }
+@media (max-width: 680px) { .capa { grid-template-columns: 1fr; } .capa dl { grid-template-columns: 1fr; } }
+
+.termino { border-bottom: 1px dotted var(--text-3); cursor: help; }
+
+/* ── La demo viva: una pista con su animación, hecha con HTML y CSS ──
+   Los valores por defecto son el ÚLTIMO fotograma. Las animaciones parten de
+   ahí hacia atrás, así que con `prefers-reduced-motion` (animation: none) se
+   ve el resultado y no una pantalla a medias. Un ciclo dura 8 segundos. */
+.pista.con-demo { gap: 10px; max-width: 460px; }
+.pista.con-demo .pie { display: flex; gap: 14px; font-size: 12.5px; color: color-mix(in srgb, var(--canvas) 75%, transparent); }
+.pista.con-demo .pie u { text-underline-offset: 3px; }
+.demo { position: relative; background: var(--canvas); color: var(--text); border-radius: 10px; padding: 12px; height: 168px; overflow: hidden; margin-top: 2px; }
+.demo .d-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--hairline); margin-bottom: 10px; }
+.demo .d-tab { font-size: 11px; padding: 0 8px 6px; color: var(--text-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.demo .d-tab.on { color: var(--text); font-weight: 600; border-color: var(--text); }
+.demo .d-vacio, .demo .d-bloque { position: absolute; left: 12px; right: 12px; top: 44px; }
+.demo .d-vacio { display: grid; gap: 8px; justify-items: start; font-size: 12.5px; opacity: 0; animation: d-vacio 8s linear infinite; }
+.demo .d-vacio b { font-weight: 650; }
+.demo .d-btn { display: inline-block; padding: 5px 9px; border-radius: 6px; background: var(--accent); color: var(--on-accent); font-size: 11.5px; font-weight: 600; }
+.demo .d-bloque { border: 1px solid var(--hairline); border-radius: 8px; background: var(--surface); padding: 8px 10px; display: grid; gap: 6px; font-size: 12px; animation: d-in 8s var(--ease) infinite; }
+.demo .d-bloque .d-bh { font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.demo .d-fila { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; background: var(--sunken); }
+.demo .d-fila .d-dia { font-weight: 600; }
+.demo .d-fila .d-ej, .demo .d-fila .d-serie { animation-duration: 8s; animation-timing-function: var(--ease); animation-iteration-count: infinite; }
+.demo .d-fila .d-ej { animation-name: d-ej; }
+.demo .d-fila .d-serie { animation-name: d-serie; font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.demo .d-fila.dos { animation: d-dos 8s var(--ease) infinite; }
+.demo .d-cursor { position: absolute; width: 18px; height: 18px; border-radius: 999px; border: 2px solid var(--accent); background: var(--accent-soft); left: 52px; top: 78px; opacity: 0; animation: d-cursor 8s var(--ease) infinite; pointer-events: none; }
+@keyframes d-vacio  { 0%, 22% { opacity: 1; } 26%, 100% { opacity: 0; } }
+@keyframes d-in     { 0%, 28% { opacity: 0; transform: translateY(6px); } 34%, 92% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; transform: none; } }
+@keyframes d-ej     { 0%, 42% { opacity: 0; transform: translateX(-4px); } 48%, 100% { opacity: 1; transform: none; } }
+@keyframes d-serie  { 0%, 54% { opacity: 0; } 60%, 100% { opacity: 1; } }
+@keyframes d-dos    { 0%, 66% { opacity: 0; transform: translateY(4px); } 72%, 100% { opacity: 1; transform: none; } }
+@keyframes d-cursor { 0% { opacity: 0; transform: translate(150px, 50px); } 6% { opacity: 1; } 18% { transform: translate(0, 0) scale(1); } 21% { transform: translate(0, 0) scale(.7); } 24% { transform: translate(0, 0) scale(1); opacity: 1; } 30%, 100% { opacity: 0; transform: translate(0, 0); } }
+@media (prefers-reduced-motion: reduce) { .demo * { animation: none !important; } }
+
+/* ── Orden de trabajo ── */
+.fase { display: grid; grid-template-columns: 90px 1fr; gap: 16px; padding: 18px 0; border-top: 1px solid var(--hairline); }
+.fase:last-child { border-bottom: 1px solid var(--hairline); }
+.fase .id { font-family: var(--mono); font-size: 12px; color: var(--text-3); padding-top: 4px; }
+.fase .cuerpo { display: grid; gap: 6px; }
+.fase .cuerpo p { font-size: 14.5px; color: var(--text-2); }
+.fase .archivos { font-family: var(--mono); font-size: 12px; color: var(--text-3); line-height: 1.7; }
+@media (max-width: 600px) { .fase { grid-template-columns: 1fr; } }
+
+footer { padding: 40px 0 64px; color: var(--text-3); font-size: 13.5px; }
+footer ul { margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+
+.toc { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 36px; font-size: 14px; }
+.toc a { color: var(--text-2); }
+.toc a::before { content: attr(data-n) ' '; font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="k">Caveman Hub · Estudio · 18 de septiembre de 2026</p>
+    <h1 class="t-display" style="margin-top:14px">La app se enciende</h1>
+    <p class="lead" style="margin-top:22px">Cómo debería ser la primera semana de un entrenador nuevo: qué ve al entrar, qué se le enseña, en qué orden aparecen las cosas y cómo entiende cada pantalla sin que nadie se la explique. Con lo que hacen las mejores apps del mercado y con lo que ya hay construido.</p>
+    <div class="meta">
+      <span><strong>Alcance</strong> · el portal del entrenador</span>
+      <span><strong>No toca</strong> · <code>domain/</code>, RLS, rutas, tokens</span>
+      <span><strong>Formato</strong> · diagnóstico → mercado → principios → proceso → piezas → orden</span>
+    </div>
+    <nav class="toc" aria-label="Índice">
+      <a href="#hoy" data-n="01">Lo que hay hoy</a>
+      <a href="#mercado" data-n="02">Cómo lo hacen las mejores</a>
+      <a href="#principios" data-n="03">Cinco principios</a>
+      <a href="#proceso" data-n="04">El proceso, momento a momento</a>
+      <a href="#capas" data-n="05">Las tres capas</a>
+      <a href="#vacios" data-n="06">Los vacíos</a>
+      <a href="#ejemplo" data-n="07">Sin datos inventados</a>
+      <a href="#reglas" data-n="08">Cuándo aparece, cuándo se va</a>
+      <a href="#orden" data-n="09">Orden de trabajo</a>
+      <a href="#intacto" data-n="10">Lo que no se toca</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="hoy">
+  <div class="wrap spine">
+    <div class="n">01</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Lo que hay hoy</p>
+        <h2>Hay guía, pero vive en un solo sitio y habla de estructura</h2>
+        <p class="lead">Antes de proponer nada: la aplicación ya intentó resolver esto tres veces, y dos de esas piezas están bien pensadas. El problema no es que falte una guía. Es que la guía no acompaña, y que el resto de la app se pinta igual para quien lleva un año que para quien entró hace un minuto.</p>
+      </div>
+
+      <div class="grid g3" style="margin-bottom:36px">
+        <div class="card" style="display:grid;gap:8px">
+          <span class="badge ok">Existe y está bien</span>
+          <h3>«Por dónde empezar»</h3>
+          <p class="muted" style="font-size:14px">Cuatro pasos con estado real: alta → programar → invitar → protocolo. Enseña uno cada vez y el botón lleva con quien le falta («Programar a Marta»). Se pliega a una línea cuando el arranque ya rodó.</p>
+          <p class="k">Coach/GettingStarted.jsx · domain/onboarding.js</p>
+        </div>
+        <div class="card" style="display:grid;gap:8px">
+          <span class="badge ok">Existe y está bien</span>
+          <h3>«Para empezar» en el Resumen</h3>
+          <p class="muted" style="font-size:14px">A un cliente sin historia no se le pintan siete cajas vacías: se le pinta la lista de lo que falta por montar (fases, entreno, dieta, alta, acceso). Se va sola cuando hay algo que resumir.</p>
+          <p class="k">dashboard/TarjetaArranque.jsx</p>
+        </div>
+        <div class="card" style="display:grid;gap:8px">
+          <span class="badge warn">Existe a medias</span>
+          <h3>La bienvenida</h3>
+          <p class="muted" style="font-size:14px">Un diálogo de cuatro pasos que solo se abre al cliente. Al entrenador se le retiró a propósito (repetía a la guía). Pero «Ver el tutorial» del menú de cuenta sigue abriendo <em>ese</em> recorrido, el del cliente, a un entrenador.</p>
+          <p class="k">WelcomeTour.jsx · AccountMenu.jsx</p>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:6px">Siete averías, con dónde están</h3>
+      <p class="muted" style="font-size:14.5px;margin-bottom:12px;max-width:70ch">Ninguna discute el diseño de las piezas que existen. Todas son de <em>dónde</em> están, <em>qué</em> dicen y <em>qué más</em> hay encendido alrededor.</p>
+
+      <div class="averia">
+        <div class="id">A-1</div>
+        <div class="cuerpo">
+          <h4>La guía solo está en Inicio, y el trabajo se hace dentro de un cliente</h4>
+          <p>En cuanto pulsas «Programar a Marta» sales de Inicio y la guía desaparece. El siguiente paso —invitarla— solo se ve volviendo a casa. La primera semana es justo cuando uno no vuelve a casa: va de pantalla en pantalla buscando dónde se hace cada cosa.</p>
+          <p class="donde">Today.jsx pinta &lt;GettingStarted/&gt;; CoachLayout no la conoce.</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-2</div>
+        <div class="cuerpo">
+          <h4>Un cliente recién dado de alta enseña cinco pestañas encendidas y cuatro vacías</h4>
+          <p>Resumen · Entreno · Dieta · Revisiones · Perfil, todas al mismo peso. Revisiones no puede tener nada hasta que el cliente entrene o entregue, y Resumen ya lo sabe (por eso pinta «Para empezar»). Pero las pestañas no lo saben, así que el entrenador las abre una a una y encuentra cuatro «todavía no hay».</p>
+          <p class="donde">routes.jsx COACH_CLIENT · FichaLayout.jsx</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-3</div>
+        <div class="cuerpo">
+          <h4>Los vacíos explican la estructura, no lo que puedes hacer</h4>
+          <p>Entreno vacío: «Todavía no hay bloques. Un bloque es la versión del plan que está puesta». Es una definición correcta, pero a quien nunca ha visto un bloque le suena a manual. Y ofrece una salida única —«Abrir el primero»— cuando la app tiene tres: montar de cero, empezar desde una plantilla o traer el programa de otro cliente (las dos últimas ya existen, solo que no están en el vacío).</p>
+          <p class="donde">Workout/ListaDeBloques.jsx · WorkoutLogEditor.jsx («Traer de otro cliente») · /plantillas</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-4</div>
+        <div class="cuerpo">
+          <h4>Inicio vacío no tiene botón</h4>
+          <p>«Todavía no hay nada que hacer. En cuanto des de alta a tu primer cliente…» y ahí termina. Es la única pantalla que ve un entrenador nuevo y no lleva a ningún sitio. El botón está en Clientes, que hay que encontrar.</p>
+          <p class="donde">Today.jsx, rama clients.length === 0</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-5</div>
+        <div class="cuerpo">
+          <h4>El taller aparece el primer día, con seis sustantivos propios</h4>
+          <p>Protocolos, formularios, librería, plantillas, piezas, bloques. El estudio del taller ya lo midió: seis nombres inventados antes de tocar nada. Para un entrenador con cero clientes, la barra dice más de «con qué» que de «con quién», y «con qué» todavía no tiene sentido.</p>
+          <p class="donde">routes.jsx COACH_TALLER · estudio-el-taller-del-entrenador-nuevo.md A-7</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-6</div>
+        <div class="cuerpo">
+          <h4>No hay forma de preguntar «¿qué es esta pantalla?»</h4>
+          <p>Ninguna pantalla tiene un «?» ni un «cómo funciona esto». Lo único que hay es «Ver el tutorial» en el menú de cuenta, que abre la bienvenida del cliente. Cuando algo no se entiende, el único camino es abrir soporte.</p>
+          <p class="donde">primitives.jsx PageHead (sin ranura de ayuda) · useSupport.js</p>
+        </div>
+      </div>
+      <div class="averia">
+        <div class="id">A-7</div>
+        <div class="cuerpo">
+          <h4>Lo que se ha visto se guarda en el navegador</h4>
+          <p>La guía cerrada y la bienvenida vista van a <code>localStorage</code>. En otro ordenador vuelven a salir. Las preferencias del entrenador ya viven en la base (<code>profiles</code>, migración 0035): hay dónde guardarlo y no se usa.</p>
+          <p class="donde">lib/tourSeen.js · GettingStarted.jsx leerCerrado · context/useCoachPrefs.js</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="mercado">
+  <div class="wrap spine">
+    <div class="n">02</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Cómo lo hacen las mejores</p>
+        <h2>Nadie enseña la app: te hacen hacer la primera cosa</h2>
+        <p class="lead">Se han mirado las cuatro apps de coaching de referencia (Trainerize, TrueCoach, Everfit, Hevy Coach), las tres que ya están capturadas en el repositorio (Coachway, Efort Coach, ProCoach) y, fuera del sector, las que mejor arrancan (Notion, Slack, Linear, Stripe). Lo que hacen coincide más de lo que parece.</p>
+      </div>
+
+      <div class="tabla" style="margin-bottom:28px">
+        <table>
+          <thead><tr><th>App</th><th>Qué ves al entrar</th><th>Cómo te acompaña</th><th>Qué se lleva Caveman</th></tr></thead>
+          <tbody>
+            <tr><td>TrueCoach</td><td>Un cliente de muestra ya dado de alta, con un programa dentro, y el botón «+ Add client» grande.</td><td>Lista de comprobación de tres cosas: crear el perfil, crear el programa, abrir el chat. Sus ayudas son artículos cortos por tarea («Adding a new client»), no un tour.</td><td>Ver la app llena antes de haber metido nada. Aquí sin cliente de muestra (§07): con demos vivas (§05) y la previsualización del portal. Ayuda por tarea, no por pantalla.</td></tr>
+            <tr><td>Everfit</td><td>Un tablero con la lista de arranque y una entrada «Invite myself» para vivir la experiencia del cliente con tu propio móvil.</td><td>Onboarding checklist en la web del coach; Academy con un curso «Getting set up». Flujos de alta del cliente automatizados (formulario + mensaje + asignaciones).</td><td>«Invítate a ti mismo»: la forma más barata de entender lo que verá el cliente. La app ya tiene la previsualización del portal; falta ofrecerla en el momento oportuno.</td></tr>
+            <tr><td>Trainerize</td><td>Asistente de configuración corto y un cliente de demostración.</td><td>Plantillas de programa listas para asignar; el primer cliente se programa en minutos desde plantilla.</td><td>Plantillas como salida del vacío, no como sección del taller.</td></tr>
+            <tr><td>Hevy Coach</td><td>El tablero con «Add client» delante; el cliente se registra en dos minutos.</td><td>Guía de inicio de una página: perfil → invitar → programar. Nada más.</td><td>Tres pasos y ni uno más el primer día.</td></tr>
+            <tr><td>Coachway</td><td>La lista de clientes con colas por estado arriba: pagos fallidos, check-ins nuevos, automatizaciones bloqueadas.</td><td>La barra lateral enseña todo desde el principio (16 entradas). Es densa: lo que gana en potencia lo pierde el primer día.</td><td>Lo que NO copiar: enseñar el taller entero a quien aún no tiene a nadie.</td></tr>
+            <tr><td>Efort Coach</td><td>Un tablero con dos tarjetas de arranque en el propio panel: «Invite athletes» y «Quickly learn to use Efort Coach · Open tutorials».</td><td>La ayuda está en la mesa, no en un menú. «What's new» abajo en la barra.</td><td>La ayuda visible en la pantalla, a un clic, sin ir a buscarla.</td></tr>
+            <tr><td>Notion</td><td>Una galería de plantillas. No hay tutorial: eliges una y aterrizas dentro de un documento lleno.</td><td>Aprender usando algo que ya funciona.</td><td>Empezar con contenido, no con instrucciones.</td></tr>
+            <tr><td>Slack</td><td>Un espacio pre-poblado con canales y un bot que te hace mandar el primer mensaje.</td><td>Te hace <em>hacer</em> la acción central antes de explicar nada.</td><td>El «momento ajá» tiene que pasar en los primeros minutos: aquí, ver una semana montada.</td></tr>
+            <tr><td>Linear</td><td>Lista de configuración en la barra lateral que se completa sola y desaparece.</td><td>Las funciones avanzadas (paleta de comandos, atajos) se revelan cuando el uso lo pide, no el primer día.</td><td>La guía en la barra, siguiéndote. Revelado por uso.</td></tr>
+            <tr><td>Stripe</td><td>Modo de pruebas con datos de ejemplo; la activación real se pide después.</td><td>Puedes tocar todo sin consecuencias antes de comprometerte.</td><td>Poder tocar antes de comprometerse. Aquí lo cumplen la demo viva y la previsualización, sin sembrar datos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid g2">
+        <div class="leyenda">
+          <p class="k">Lo que dicen los datos</p>
+          <h3>Los tours largos se abandonan; lo que se dispara por lo que haces, se lee</h3>
+          <ul>
+            <li>Los recorridos con cinco o más pasos se abandonan en un 63 %; con más de diez, en un 81 %. Después del quinto paso el efecto en retención es casi cero.</li>
+            <li>Las ayudas disparadas por comportamiento (acabas de crear algo → aparece la pista) tienen un 68 % más de interacción y un 54 % más de adopción que las disparadas al cargar la pantalla.</li>
+            <li>Una lista de arranque visible de cuatro a seis pasos con barra de progreso sube la finalización entre un 20 y un 30 %.</li>
+            <li>Autopilot bajó una fuga del 50 % en la prueba gratuita no con más tooltips sino con contenido de ejemplo: la gente necesita ver algo antes de haber creado nada.</li>
+          </ul>
+        </div>
+        <div class="leyenda">
+          <p class="k">Los siete patrones comunes</p>
+          <h3>Cuando coinciden nueve productos, no es moda</h3>
+          <ul>
+            <li><strong>Hacer antes de explicar.</strong> La primera pantalla pide una acción, no lectura.</li>
+            <li><strong>Lista corta que se completa sola.</strong> Tres a cinco pasos, con estado real.</li>
+            <li><strong>Contenido de ejemplo</strong> marcado como tal y fácil de quitar. (Es el único patrón que este estudio no adopta; el porqué y el sustituto, en §07.)</li>
+            <li><strong>Plantillas como atajo del vacío</strong>, no como sección aparte.</li>
+            <li><strong>Revelado progresivo por estado</strong>: lo que aún no puede usarse no compite.</li>
+            <li><strong>Pistas en contexto</strong>, de una en una, disparadas por lo que acabas de hacer.</li>
+            <li><strong>Ayuda a un clic en cada pantalla</strong>, con vocabulario de esa pantalla.</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="muted" style="font-size:13.5px;margin-top:18px;max-width:70ch">Nota honesta: la biblioteca de flujos de Mobbin no estaba disponible en esta sesión (plan de pago). La tabla sale de los centros de ayuda de cada producto, de las capturas guardadas en <code>capturas/referencias/</code> y de las fuentes del pie.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="principios">
+  <div class="wrap spine">
+    <div class="n">03</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Cinco principios</p>
+        <h2>Para Caveman, en su idioma</h2>
+        <p class="lead">Traducidos al producto que hay, a su tesis («la semana se cierra») y a sus reglas escritas: la gramática de <code>producto.md</code> §5, las cinco pestañas planas, las rutas que no se mueven.</p>
+      </div>
+      <div class="grid g3">
+        <div class="principio"><span class="num">P1</span><h3>Hacer antes de explicar</h3><p>La primera pantalla no cuenta qué es la app: pide dar de alta a alguien. La explicación llega después, sobre la cosa que acabas de crear.</p></div>
+        <div class="principio"><span class="num">P2</span><h3>La guía te sigue</h3><p>«Por dónde empezar» ya sabe por dónde vas. Lo que le falta es ir contigo: vive en la barra lateral, no en Inicio, y se despliega desde cualquier pantalla.</p></div>
+        <div class="principio"><span class="num">P3</span><h3>La app se enciende</h3><p>Lo que aún no puede usarse se ve apagado y dice cuándo se encenderá. Nada se esconde ni cambia de sitio: las rutas, las pestañas y la barra son las mismas el día 1 y el día 300.</p></div>
+        <div class="principio"><span class="num">P4</span><h3>La palabra se explica donde aparece</h3><p>Bloque, microciclo, protocolo, pieza. Cada término propio se explica la primera vez que sale en una pantalla, en su sitio, y no en un glosario.</p></div>
+        <div class="principio"><span class="num">P5</span><h3>Libre, siempre</h3><p>Nada bloquea. La guía se pliega, las pistas se cierran, el ejemplo se borra. Quien ya sabe no tiene que demostrarlo; quien no sabe siempre tiene un «?».</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="proceso">
+  <div class="wrap spine">
+    <div class="n">04</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">El proceso, momento a momento</p>
+        <h2>Seis momentos, y en cada uno se enciende una cosa</h2>
+        <p class="lead">El orden no lo marca el tiempo sino lo que ya ha pasado. Pulsa cada momento para ver qué hay en la barra, qué pestañas están encendidas, qué dice la mesa y qué pista aparece. Es una maqueta: lo que enseña es la lógica, no el píxel.</p>
+      </div>
+
+      <div class="firma">
+        <div class="momentos" role="tablist" aria-label="Momentos del arranque">
+          <button class="momento" role="tab" aria-selected="true" data-m="0"><span class="num">M0</span> Entra por primera vez</button>
+          <button class="momento" role="tab" aria-selected="false" data-m="1"><span class="num">M1</span> Ya tiene un cliente</button>
+          <button class="momento" role="tab" aria-selected="false" data-m="2"><span class="num">M2</span> Le ha montado la semana</button>
+          <button class="momento" role="tab" aria-selected="false" data-m="3"><span class="num">M3</span> El cliente ha entrado</button>
+          <button class="momento" role="tab" aria-selected="false" data-m="4"><span class="num">M4</span> Primera entrega</button>
+          <button class="momento" role="tab" aria-selected="false" data-m="5"><span class="num">M5</span> En régimen</button>
+        </div>
+
+        <div class="chasis" id="chasis" aria-live="polite">
+          <aside class="barra" id="barra"></aside>
+          <div class="mesa" id="mesa"></div>
+        </div>
+
+        <div class="leyenda" id="leyenda"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="capas">
+  <div class="wrap spine">
+    <div class="n">05</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Las tres capas</p>
+        <h2>Qué toca, cómo se hace, qué es esto</h2>
+        <p class="lead">Un sistema de explicabilidad no es un tutorial. Son tres preguntas distintas, cada una con su pieza, su momento y su regla de silencio. Dos de las tres piezas ya tienen dónde apoyarse en el código.</p>
+      </div>
+
+      <div class="capa">
+        <div class="nombre"><span class="k">Capa 1</span><h3>La guía</h3><p class="muted" style="font-size:13.5px">Contesta «¿qué me toca ahora?»</p></div>
+        <div class="cuerpo">
+          <p>Es <code>GettingStarted</code> tal como existe, con dos cambios. <strong>Se muda a la barra lateral</strong>, abajo, como una tarjeta pequeña con el paso actual y su barra de progreso, para que siga contigo dentro de un cliente. Y <strong>gana un paso y pierde otro</strong>: entra «Mira lo que verá tu cliente» (la previsualización del portal, que ya existe, ofrecida justo después de programar) y «Decide qué le pides» (protocolo) deja de ser paso del arranque y pasa a ser una pista cuando llegue el tercer cliente.</p>
+          <dl>
+            <dt>Pasos</dt><dd>Alta → Semana montada → Invitado → Le ha entrado → Primera revisión. Cinco, con estado real como ahora.</dd>
+            <dt>Dónde</dt><dd>Barra lateral (escritorio) y hoja desde «Más» (móvil). En Inicio se sigue viendo entera mientras no haya nadie.</dd>
+            <dt>Silencio</dt><dd>Se pliega a una línea cuando se programa a alguien; desaparece con todo hecho; se puede ocultar. Lo ocultado se guarda en <code>coachPrefs</code>, no en el navegador.</dd>
+            <dt>Apoyo</dt><dd><code>domain/onboarding.js</code> (ampliar), <code>GettingStarted.jsx</code> (mover), <code>useCoachPrefs</code> (persistir).</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="capa">
+        <div class="nombre"><span class="k">Capa 2</span><h3>La pista, con su demo viva</h3><p class="muted" style="font-size:13.5px">Contesta «¿cómo se hace esto?»</p></div>
+        <div class="cuerpo">
+          <p>Una nota pequeña, anclada a una pieza concreta, que aparece <strong>una sola vez y solo después de un hecho</strong>: acabas de crear tu primer cliente → en la pestaña Entreno, «Aquí le montas la semana». No sale al cargar la pantalla; sale porque acaba de pasar algo. Una visible como máximo. Se cierra con un clic o sola al hacer lo que sugiere.</p>
+          <p>Y cuando lo que hay que explicar es un <em>gesto</em> y no una palabra, la pista <strong>lo enseña en vez de contarlo</strong>: una animación de cinco segundos, en bucle, en la que se ve la acción hecha en miniatura. Esta de aquí es una de verdad, hecha con HTML y CSS, con los mismos colores que la app:</p>
+
+          <div class="pista con-demo" style="margin:6px 0 4px" role="figure" aria-label="Pista con demo viva: se pulsa Montar de cero, aparece el bloque y se apuntan dos ejercicios con sus series">
+            <span class="cerrar">×</span><span class="k">Pista · 1 de 8</span>
+            <b>Aquí le montas la semana.</b> Abres un bloque, eliges el día y apuntas cada ejercicio con sus series.
+            <div class="demo" aria-hidden="true">
+              <div class="d-tabs"><span class="d-tab">Resumen</span><span class="d-tab on">Entreno</span><span class="d-tab">Dieta</span><span class="d-tab">Revisiones</span></div>
+              <div class="d-vacio"><b>Móntale la primera semana</b><span class="d-btn">Montar de cero</span></div>
+              <div class="d-bloque">
+                <div class="d-bh">Bloque 1 · semana 1</div>
+                <div class="d-fila"><span class="d-dia">Lunes</span><span class="d-ej">Sentadilla</span><span class="d-serie">3 × 5</span></div>
+                <div class="d-fila dos"><span class="d-dia"></span><span class="d-ej" style="animation:none">Press banca</span><span class="d-serie" style="animation:none">3 × 8</span></div>
+              </div>
+              <div class="d-cursor"></div>
+            </div>
+            <div class="pie"><u>Entendido</u><span>Se repite · se vuelve a ver desde «?»</span></div>
+          </div>
+
+          <p><strong>¿Vídeo de verdad, o esto?</strong> Se han valorado tres maneras de enseñar un gesto. <strong>Grabar la pantalla</strong> (mp4): es lo más fiel el día que se graba y lo más falso a la semana siguiente; cada cambio en la interfaz deja el vídeo mintiendo, no sigue el modo oscuro ni el tamaño del móvil, pesa, y hay que alojarlo y regrabarlo. <strong>Animar sobre la interfaz real</strong> (un cursor fantasma que hace clic por ti): impresiona, pero mueve cosas que el entrenador no ha tocado y es lo más frágil de mantener. <strong>La demo viva</strong> (lo de arriba): una réplica en miniatura hecha con los tokens del producto, que se anima con CSS. Sigue el tema claro u oscuro, pesa lo que pesa un párrafo, se corrige en el mismo commit en que cambia la pantalla, y con <code>prefers-reduced-motion</code> enseña el resultado quieto en lugar de una pantalla a medias. Es también lo que hacen las apps que mejor presentan sus funciones: animaciones cortas construidas, no grabaciones.</p>
+          <p>La regla para no pasarse: demo solo donde el concepto es <strong>espacial</strong> (dónde se abre, qué cuelga de qué, qué llega al otro lado). Cuatro de las ocho pistas la llevan: montar la semana, mirar el portal del cliente, la revisión semanal (lo que le pusiste, lo que hizo, lo que entregó) y guardar como plantilla. Las otras cuatro son una frase. Y las demos no se pierden al cerrar la pista: la hoja de ayuda «?» de cada pantalla las vuelve a enseñar bajo «Ver cómo se hace».</p>
+          <dl>
+            <dt>Cuántas</dt><dd>Ocho pistas en toda la app, contadas; cuatro con demo. Más que eso es un tour troceado.</dd>
+            <dt>Disparo</dt><dd>Un evento del dominio: primer cliente creado, primer bloque abierto, primera invitación aceptada, primer check-in entregado, tercer cliente, primera plantilla guardada, primera tarifa puesta, primer día guardado desde el cajón.</dd>
+            <dt>Dónde se ancla</dt><dd>A la pestaña o al botón que la resuelve, con el mismo dibujo que las notas del producto (fondo tinta, texto papel). En móvil, encima del elemento, nunca tapando la barra del pulgar.</dd>
+            <dt>La demo</dt><dd>Un componente por demo, sin vídeo ni dependencias, con contenido genérico (un día, dos ejercicios): nunca el nombre de nadie. Cinco a ocho segundos, en bucle, con el último fotograma como estado por defecto.</dd>
+            <dt>Silencio</dt><dd>Vista = no vuelve. Se guarda en <code>coachPrefs.pistas</code> con versión, como hace <code>tourSeen</code>.</dd>
+            <dt>Apoyo</dt><dd>Nueva pieza <code>ui/Pista.jsx</code> sobre <code>useCapaFlotante</code>; catálogo en <code>domain/pistas.js</code> (id, disparo, ancla, texto, demo); las demos en <code>ui/demos/</code>.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="capa">
+        <div class="nombre"><span class="k">Capa 3</span><h3>La ayuda</h3><p class="muted" style="font-size:13.5px">Contesta «¿qué es esta pantalla?»</p></div>
+        <div class="cuerpo">
+          <p>Un «?» en la cabecera de <strong>cada</strong> pantalla (una ranura nueva en <code>PageHead</code>). Abre una hoja lateral con tres cosas y nada más: <strong>para qué sirve</strong> esta pantalla en una frase, <strong>las tres cosas que se hacen aquí</strong>, y <strong>las palabras de esta pantalla</strong> (bloque, microciclo…) con su definición de una línea. Sin vídeo obligatorio, sin pasos. Lo pide quien lo necesita, cuando lo necesita.</p>
+          <p>Con la misma pieza se resuelve el vocabulario: cada término propio, la primera vez que aparece en una pantalla, va con subrayado punteado (<span class="termino" title="La versión del plan que está puesta. Dura hasta que hay motivo para cambiarla.">bloque</span>) y al pasar o tocar enseña su línea. Es un <code>&lt;Termino&gt;</code> que lee del mismo catálogo que la hoja de ayuda, así que una definición se escribe una vez.</p>
+          <dl>
+            <dt>Contenido</dt><dd>Un registro por ruta en <code>domain/ayuda.js</code>: título, para qué, tres acciones, términos. Texto puro, sin JSX, para que se pueda revisar como se revisa la portada.</dd>
+            <dt>Reemplaza</dt><dd>«Ver el tutorial» del menú de cuenta pasa a abrir la ayuda de la pantalla en la que estás. La bienvenida del cliente no se toca.</dd>
+            <dt>Apoyo</dt><dd><code>ui/Hoja.jsx</code> (ya existe, con foco atrapado y arrastre), <code>PageHead</code> (ranura <code>ayuda</code>), <code>lib/analytics.js</code> (<code>ayuda_abierta</code> para saber qué pantallas no se entienden).</dd>
+          </dl>
+        </div>
+      </div>
+
+      <blockquote style="margin-top:28px">Las tres capas se distinguen por quién pregunta. La guía pregunta ella (te dice qué falta). La pista pregunta el hecho (acaba de pasar algo). La ayuda preguntas tú. Si una pieza no sabe cuál de las tres es, está mal.</blockquote>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="vacios">
+  <div class="wrap spine">
+    <div class="n">06</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Los vacíos</p>
+        <h2>Un vacío es una invitación con salidas</h2>
+        <p class="lead">La regla de <code>CLAUDE.md</code> ya lo dice: «una pantalla vacía es una invitación». Aquí, lo que cambia en cada una. Cinco reglas y cuatro pantallas.</p>
+      </div>
+
+      <div class="grid g2" style="margin-bottom:32px">
+        <div class="leyenda">
+          <p class="k">Las cinco reglas</p>
+          <ul>
+            <li><strong>El título es lo que puedes hacer</strong>, no lo que falta. «Móntale la primera semana», no «Todavía no hay bloques».</li>
+            <li><strong>Un botón primario</strong> que hace la cosa aquí mismo, sin mandar a otra pantalla.</li>
+            <li><strong>Hasta dos salidas más</strong>, si existen de verdad: desde plantilla, traer de otro cliente, ver un ejemplo.</li>
+            <li><strong>Una frase de qué pasará después</strong>: «Cuando entrene, aquí verás lo que levantó». Es lo que hace que un vacío no parezca roto.</li>
+            <li><strong>Sin caja punteada ni icono gris</strong> cuando el vacío es la pantalla entera. La caja enmarca la ausencia; la pantalla ya lo es.</li>
+          </ul>
+        </div>
+        <div class="leyenda">
+          <p class="k">Lo que NO es un vacío</p>
+          <ul>
+            <li>Una pestaña que aún no puede tener nada (Revisiones el día 1). Eso no se abre para enseñar un vacío: se ve apagada y dice cuándo se encenderá.</li>
+            <li>Un bloque del Resumen a cero. Ya está resuelto: se pinta «Para empezar». La regla vale para el resto del producto.</li>
+            <li>Un aviso azul permanente. Un vacío se va cuando hay contenido; un aviso que no se puede resolver es ruido.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px">Inicio, sin clientes</h3>
+      <div class="ad" style="margin-bottom:32px">
+        <div><span class="k">Hoy</span>
+          <div class="vacio-viejo"><span class="ico"></span><b>Todavía no hay nada que hacer</b><span>En cuanto des de alta a tu primer cliente, aquí verás a quién le debes respuesta, a quién le falta rutina y quién te debe.</span></div>
+        </div>
+        <div><span class="k">Propuesto</span>
+          <div class="vacio-nuevo">
+            <h5>Empieza con tu primer cliente</h5>
+            <p>Solo hace falta su nombre. Todo lo suyo (semana, dieta, medidas, fotos) cuelga de ahí.</p>
+            <div class="salidas">
+              <span class="salida p">＋ Dar de alta a alguien <small>10 segundos</small></span>
+              <span class="salida">Ver cómo queda una semana montada <small>demo de 20 s</small></span>
+            </div>
+            <p class="despues">Aquí verás cada mañana qué ha pasado y a quién le debes respuesta.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px">Entreno, de un cliente nuevo</h3>
+      <div class="ad" style="margin-bottom:32px">
+        <div><span class="k">Hoy</span>
+          <div class="vacio-viejo"><span class="ico"></span><b>Todavía no hay bloques</b><span>Un bloque es la versión del plan que está puesta. Se abre uno y dura hasta que hay motivo para cambiarlo.</span><span class="btn" style="margin-top:6px">Abrir el primero</span></div>
+        </div>
+        <div><span class="k">Propuesto</span>
+          <div class="vacio-nuevo">
+            <h5>Móntale la primera semana a Marta</h5>
+            <p>Los días, los ejercicios y las series. Ella lo verá en su móvil y apuntará lo que levanta.</p>
+            <div class="salidas">
+              <span class="salida p">Montar de cero</span>
+              <span class="salida">Empezar desde una plantilla <small>3 guardadas</small></span>
+              <span class="salida">Traer el programa de otro cliente</span>
+            </div>
+            <p class="despues">Lo que montes se guarda como <span class="termino" title="La versión del plan que está puesta.">bloque</span>: dura hasta que haya motivo para cambiarlo.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px">Dieta, de un cliente nuevo</h3>
+      <div class="ad" style="margin-bottom:32px">
+        <div><span class="k">Hoy</span>
+          <div class="vacio-viejo"><span class="ico"></span><b>Plan nutricional</b><span>No hay un vacío propio: la pantalla de la dieta se abre con sus mandos (objetivo, días de entreno y descanso, comidas) y sin decir por dónde se empieza.</span></div>
+        </div>
+        <div><span class="k">Propuesto</span>
+          <div class="vacio-nuevo">
+            <h5>Fija sus calorías y monta su primer día</h5>
+            <p>Primero el objetivo (kcal y macros), luego las comidas. Cada comida puede llevar opciones: Marta elige la que le venga bien.</p>
+            <div class="salidas">
+              <span class="salida p">Fijar el objetivo</span>
+              <span class="salida">Empezar desde un plato guardado</span>
+              <span class="salida">Copiar la dieta de otro cliente</span>
+            </div>
+            <p class="despues">Cuando cuadre o no cuadre, lo verás en su revisión semanal.</p>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:14px">Cobros, con un cliente y sin tarifa</h3>
+      <div class="ad">
+        <div><span class="k">Hoy</span>
+          <div class="vacio-viejo"><span class="ico"></span><b>Todavía no hay ningún cobro apuntado</b><span>Nacen al marcar «Cobrado» — o los trae una integración.</span><span class="btn" style="margin-top:6px">Conectar una integración</span><span style="font-size:12.5px;margin-top:8px">Y encima, un aviso: «A 1 cliente le falta la tarifa o la periodicidad en su ficha».</span></div>
+        </div>
+        <div><span class="k">Propuesto</span>
+          <div class="vacio-nuevo">
+            <h5>Ponle una tarifa a alguien y aquí se suma</h5>
+            <p>La tarifa y el vencimiento van en el perfil de cada cliente. Con una puesta, esta pantalla dice cuánto vas a ingresar este mes y quién te debe.</p>
+            <div class="salidas"><span class="salida p">Poner una tarifa a Marta</span></div>
+            <p class="despues">Si cobras por Stripe, lo conectas en Ajustes › Integraciones. No hace falta para empezar.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="ejemplo">
+  <div class="wrap spine">
+    <div class="n">07</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Sin datos inventados</p>
+        <h2>Nada en la cuenta de un entrenador que no haya puesto él</h2>
+        <p class="lead">Las apps de referencia (TrueCoach, Trainerize, Everfit) siembran un cliente de muestra, y es el patrón que más ayuda a «ver la app llena». Este estudio lo descarta. La decisión es del producto, y tiene buenos motivos.</p>
+      </div>
+      <div class="grid g2" style="margin-bottom:22px">
+        <div class="card" style="display:grid;gap:10px">
+          <span class="badge bad">Por qué no</span>
+          <ul style="margin:0;padding-left:18px;color:var(--text-2);font-size:14.5px;display:grid;gap:6px">
+            <li>Una cartera es una lista de personas reales. Un nombre inventado entre ellas rompe la confianza en lo que enseña la pantalla, aunque lleve la etiqueta «Ejemplo».</li>
+            <li>Contamina Cobros, Inicio, la agenda y la radiografía si no se filtra en cada sitio, y cada filtro es un lugar donde olvidarse.</li>
+            <li>Necesita una marca en la base y ~40 filas mantenidas a mano cuando cambie el modelo. Sería lo único del estudio que toca esquema.</li>
+            <li>Pesos, medidas y fotos inventados enseñan a leer una revisión con datos que no son de nadie. Es justo lo contrario de lo que la app vende.</li>
+          </ul>
+        </div>
+        <div class="card" style="display:grid;gap:10px">
+          <span class="badge ok">Lo que hace su papel</span>
+          <ul style="margin:0;padding-left:18px;color:var(--text-2);font-size:14.5px;display:grid;gap:6px">
+            <li><strong>Las demos vivas</strong> (§05): enseñan la forma de una semana montada, de una revisión, de un portal, sin fingir que son datos. Un día, dos ejercicios, ningún nombre.</li>
+            <li><strong>La previsualización del portal</strong>, que ya existe: el entrenador ve lo que verá su cliente con lo que él mismo acaba de montar. Es el «invítate a ti mismo» de Everfit sin cuenta segunda.</li>
+            <li><strong>Los vacíos que dicen qué aparecerá</strong> (§06): «Aquí verás cada mañana…» cubre el «¿y esto para qué es?» sin rellenar nada.</li>
+            <li><strong>Lo real, en minutos</strong>: si el alta tarda diez segundos y la semana se monta desde plantilla, el primer cliente de verdad llega antes de que un ejemplo hiciera falta.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="prose">
+        <p><strong>La salida «Ver cómo queda una semana montada»</strong> de Inicio abre una demo viva algo más larga (veinte segundos: un bloque, tres días, el móvil del cliente recibiéndolo, una revisión). Misma técnica que la pista, misma regla: contenido genérico, ningún nombre. Hasta que exista, las capturas de <code>public/capturas/</code> sirven de puente en una hoja, con una línea debajo de cada una.</p>
+        <p><strong>Lo que se mira antes de reabrirlo.</strong> Si a los catorce días la analítica dice que la gente entra y no da de alta a nadie (registro → <code>cliente_creado</code>), el problema estará en el alta o en el vacío de Inicio, no en la falta de un ejemplo. Solo si con el alta arreglada sigue sin pasar, se vuelve a esta página. Cuenta aparte: <code>profiles.role</code> es un valor único por cuenta, así que «invítate a ti mismo» tal cual lo hace Everfit pediría una segunda cuenta; la previsualización del portal ya da lo mismo sin ella.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="reglas">
+  <div class="wrap spine">
+    <div class="n">08</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Cuándo aparece, cuándo se va</p>
+        <h2>Cada cosa tiene su hecho de encendido y su hecho de apagado</h2>
+        <p class="lead">Nada depende de un contador de días ni de un booleano «es nuevo». Todo depende de lo que ya ha pasado en la cuenta, que es lo que la app sabe de verdad. Esta tabla es la que hay que convertir en <code>domain/</code>.</p>
+      </div>
+      <div class="tabla">
+        <table>
+          <thead><tr><th>Pieza</th><th>Se enciende cuando</th><th>Se apaga cuando</th><th>Se puede forzar</th></tr></thead>
+          <tbody>
+            <tr><td>Inicio: «Empieza con tu primer cliente»</td><td>Cero clientes</td><td>Hay un cliente real</td><td>No hace falta</td></tr>
+            <tr><td>Guía en la barra</td><td>Siempre que quede un paso</td><td>Todo hecho, o el entrenador la oculta</td><td>Menú de cuenta › «Volver a ver la guía»</td></tr>
+            <tr><td>Guía plegada a una línea</td><td>Alguien tiene programa</td><td>—</td><td>«Seguir» la despliega</td></tr>
+            <tr><td>Taller plegado en la barra</td><td>Cero clientes</td><td>Primer cliente creado</td><td>Se abre con un clic aunque esté plegado</td></tr>
+            <tr><td>Pestaña Revisiones apagada</td><td>Ese cliente no tiene sesión, pesaje ni check-in</td><td>Llega el primero de los tres</td><td>Se puede abrir igual: enseña el vacío con su «cuando…»</td></tr>
+            <tr><td>Pestaña Resumen apagada</td><td>Ese cliente no tiene historia (mismo criterio que <code>sinHistoria</code>)</td><td>Dos pesajes, una sesión, un check-in o una foto</td><td>Se puede abrir: pinta «Para empezar»</td></tr>
+            <tr><td>Pista «aquí le montas la semana»</td><td>Se acaba de crear el primer cliente y se entra en Entreno</td><td>Se cierra o se abre un bloque</td><td>No vuelve</td></tr>
+            <tr><td>Pista «mira lo que verá»</td><td>Primer bloque con al menos un día guardado</td><td>Se abre la previsualización</td><td>No vuelve</td></tr>
+            <tr><td>Pista «invítala»</td><td>Primer programa montado y el cliente sin cuenta</td><td>Invitación creada</td><td>No vuelve; la guía sigue diciéndolo</td></tr>
+            <tr><td>Pista «decide qué le pides»</td><td>Tercer cliente creado</td><td>Se abre Protocolos</td><td>No vuelve</td></tr>
+            <tr><td>Pista «guárdalo como plantilla»</td><td>Segundo cliente con un día montado a mano</td><td>Se guarda una plantilla</td><td>No vuelve</td></tr>
+            <tr><td>Hoja de ayuda «?»</td><td>Siempre</td><td>Nunca</td><td>Es a demanda</td></tr>
+            <tr><td>Término subrayado</td><td>Primera aparición del término en la pantalla</td><td>Nunca (es tipografía, no aviso)</td><td>—</td></tr>
+            <tr><td>Demo viva dentro de una pista</td><td>Con su pista</td><td>Con su pista</td><td>Desde la hoja de ayuda «?» › «Ver cómo se hace»</td></tr>
+            <tr><td>Demo «cómo queda una semana montada»</td><td>Se pide desde Inicio sin clientes</td><td>Se cierra la hoja</td><td>Siempre, desde la ayuda de Inicio</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="orden">
+  <div class="wrap spine">
+    <div class="n">09</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Orden de trabajo</p>
+        <h2>Cada fase se puede desplegar sola y deja el terreno listo para la siguiente</h2>
+        <p class="lead">Del más barato y más visible al más caro. Ninguna toca esquema ni rutas. Lo medible ya existe: <code>lib/analytics.js</code> registra <code>cliente_creado</code>, <code>programa_iniciado</code>, <code>invitacion_creada</code> y <code>revision_hecha</code>; solo falta mirar cuántos días pasan entre el registro y cada uno.</p>
+      </div>
+
+      <div class="fase">
+        <div class="id">Fase 1<br><span class="muted">~2 días</span></div>
+        <div class="cuerpo">
+          <h4>Los vacíos y el primer minuto</h4>
+          <p>Inicio sin clientes con el alta dentro y las tres salidas. Entreno, Dieta y Cobros vacíos con las reglas de §06: verbo, botón, salidas que ya existen (plantilla, traer de otro), frase de después. Sin cajas punteadas cuando el vacío es la pantalla.</p>
+          <p class="archivos">Coach/Today.jsx · Workout/ListaDeBloques.jsx · NutritionModule.jsx · Income/* · ui/primitives.jsx (EmptyState gana `salidas` y `despues`)</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="id">Fase 2<br><span class="muted">~2 días</span></div>
+        <div class="cuerpo">
+          <h4>La guía se muda a la barra y se enciende el cliente</h4>
+          <p>GettingStarted pasa a CoachLayout (barra lateral y hoja de «Más»), con cinco pasos y persistencia en coachPrefs. Las pestañas del cliente se pintan apagadas con su «cuando…» según el mismo criterio que ya usa el Resumen. El taller se pliega en la barra hasta el primer cliente.</p>
+          <p class="archivos">domain/onboarding.js · Coach/GettingStarted.jsx · Coach/CoachLayout.jsx · Coach/FichaLayout.jsx · context/useCoachPrefs.js · styles/chasis.css</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="id">Fase 3<br><span class="muted">~3 días</span></div>
+        <div class="cuerpo">
+          <h4>La ayuda «?» y los términos</h4>
+          <p>Ranura de ayuda en PageHead, hoja de ayuda por ruta, catálogo de contenido en texto puro, &lt;Termino&gt; con el mismo catálogo. «Ver el tutorial» pasa a abrir la ayuda de la pantalla actual. Evento <code>ayuda_abierta</code>.</p>
+          <p class="archivos">domain/ayuda.js (nuevo) · ui/Hoja.jsx · ui/primitives.jsx PageHead · ui/Termino.jsx (nuevo) · AccountMenu.jsx · lib/analytics.js</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="id">Fase 4<br><span class="muted">~3 días</span></div>
+        <div class="cuerpo">
+          <h4>Las pistas</h4>
+          <p>Ocho pistas con su disparo, su ancla y su texto en un catálogo; la pieza flotante sobre useCapaFlotante; vistas en coachPrefs.pistas con versión. Una visible como máximo, nunca sobre la barra del pulgar. Sin demos todavía: primero se ve que el disparo y el silencio funcionan.</p>
+          <p class="archivos">domain/pistas.js (nuevo) · ui/Pista.jsx (nuevo) · lib/useCapaFlotante.js · context/useCoachPrefs.js · los ocho puntos de anclaje</p>
+        </div>
+      </div>
+      <div class="fase">
+        <div class="id">Fase 5<br><span class="muted">~4 días</span></div>
+        <div class="cuerpo">
+          <h4>Las demos vivas</h4>
+          <p>Cinco demos: las cuatro de las pistas (montar la semana, el portal, la revisión, guardar plantilla) y la de veinte segundos de Inicio. Cada una es un componente con CSS puro y contenido genérico, con el último fotograma como estado por defecto para <code>prefers-reduced-motion</code>. Se enlazan desde la pista y desde «Ver cómo se hace» en la hoja de ayuda. La de §05 es el molde.</p>
+          <p class="archivos">ui/demos/ (nuevo) · ui/Pista.jsx (ranura demo) · domain/pistas.js (campo demo) · domain/ayuda.js (campo demos) · Coach/Today.jsx (salida de Inicio)</p>
+        </div>
+      </div>
+
+      <div class="grid g3" style="margin-top:28px">
+        <div class="cifra"><span class="k">Medir · día 1</span><b>% con un cliente</b><small>registro → cliente_creado</small></div>
+        <div class="cifra"><span class="k">Medir · día 3</span><b>% con invitación</b><small>registro → invitacion_creada</small></div>
+        <div class="cifra"><span class="k">Medir · día 14</span><b>% con revisión</b><small>registro → revision_hecha</small></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════ -->
+<section class="sec" id="intacto">
+  <div class="wrap spine">
+    <div class="n">10</div>
+    <div>
+      <div class="sec-head">
+        <p class="k">Lo que no se toca</p>
+        <h2>Esto cambia lo que se pinta, no lo que se calcula</h2>
+      </div>
+      <div class="prose">
+        <p><strong>Ninguna ruta se mueve.</strong> Una pestaña apagada sigue teniendo su URL y se puede abrir; solo cambia su peso y su texto.</p>
+        <p><strong>Ninguna regla de negocio cambia.</strong> Lo que se añade a <code>domain/</code> son catálogos (pistas, ayuda) y una función de estado más, con la misma forma que <code>onboardingSteps</code>.</p>
+        <p><strong>La bienvenida del cliente se queda</strong> como está: llega desde un enlace de WhatsApp y no tiene otra superficie que le cuente qué es esto.</p>
+        <p><strong>Nada nuevo se apoya en JavaScript para decidir quién ve qué.</strong> Y nada nuevo escribe en la base: ni clientes de ejemplo ni filas sembradas. Lo único que se guarda es lo visto, en <code>coachPrefs</code>.</p>
+        <p><strong>Los tokens y las piezas.</strong> Pista usa el dibujo de las notas; la ayuda usa la Hoja; los vacíos usan EmptyState ampliado. No se estrena ningún patrón visual.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p class="k">Fuentes</p>
+    <ul>
+      <li>TrueCoach · <a href="https://truecoach.co/blog/how-to-use-truecoach-a-basic-checklist-for-coaches/">Coaching checklist</a> · <a href="https://help.truecoach.co/en/articles/2403903-adding-a-new-client">Adding a new client</a></li>
+      <li>Everfit · <a href="https://help.everfit.io/en/articles/12381427-demo-client-experience-guideline">Demo client experience</a> · <a href="https://academy.everfit.io/course/getting-set-up">Getting set up</a> · <a href="https://help.everfit.io/en/articles/8440572-introducing-onboarding-flow">Onboarding flow</a></li>
+      <li>Hevy Coach · <a href="https://help.hevycoach.com/en/articles/8480529-getting-started-guide">Getting started guide</a></li>
+      <li>Trainerize · <a href="https://www.trainerize.com/blog/trainerize-vs-truecoach-vs-everfit-online-coaches/">Comparativa 2026</a></li>
+      <li>Datos de abandono y disparo contextual · <a href="https://userpilot.com/blog/website-tour-examples/">Userpilot</a> · <a href="https://www.chameleon.io/blog/onboarding-ux-patterns">Chameleon</a> · <a href="https://www.saasfactor.co/blogs/why-most-product-tours-fail-and-how-to-implement-contextual-onboarding">SaaS Factor</a></li>
+      <li>Listas de arranque y estados vacíos · <a href="https://designrevision.com/blog/saas-onboarding-best-practices">Design Revision</a> · <a href="https://usertourkit.com/blog/empty-states-that-convert-onboarding-design-patterns">userTourKit</a> · <a href="https://www.saasui.design/blog/saas-onboarding-flows-that-actually-convert-2026">SaaS UI</a></li>
+      <li>En el repositorio · <code>capturas/referencias/</code> (Coachway, Efort Coach, ProCoach, Repfy) · <code>docs/estudio-el-taller-del-entrenador-nuevo.md</code> · <code>docs/producto.md</code></li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+/* ── La maqueta de los seis momentos ─────────────────────────────────────
+   Estado puro → tres trozos de HTML (barra, mesa, leyenda). Lo que se acaba de
+   encender lleva la clase `nuevo`, que es la única animación de la página. */
+(function () {
+  const M = [
+    {
+      titulo: 'Entra por primera vez',
+      barra: { clientes: [], taller: 'plegado', guia: { paso: 'Da de alta a tu primer cliente', n: 0, de: 5 }, agendaCobros: 'apagado' },
+      mesa: 'inicio-vacio',
+      leyenda: {
+        t: 'Una sola cosa que hacer, y se hace aquí',
+        l: [
+          'Inicio es el alta. No manda a Clientes: el formulario está en la mesa, con el nombre como único campo obligatorio.',
+          'Una salida más, para quien quiere mirar antes de meter a nadie: ver cómo queda una semana montada, en una demo de veinte segundos sin datos de nadie.',
+          'La barra enseña Inicio y Clientes a peso; Cobros y Agenda atenuados; el taller plegado a una línea que dice cuándo se abre.',
+          'La guía ya está en la barra, abajo: 0 de 5, con el primer paso en negrita.'
+        ]
+      }
+    },
+    {
+      titulo: 'Ya tiene un cliente',
+      barra: { clientes: ['Marta García'], taller: 'abierto-nuevo', guia: { paso: 'Móntale la semana a Marta', n: 1, de: 5 }, agendaCobros: 'apagado' },
+      mesa: 'cliente-nuevo',
+      leyenda: {
+        t: 'El cliente aparece en la barra y su ficha se abre en Entreno, no en Resumen',
+        l: [
+          'Resumen y Revisiones se ven apagadas y dicen cuándo se encienden. Siguen siendo pulsables.',
+          'Entreno abre con el vacío nuevo: verbo, un botón, tres salidas.',
+          'Primera pista, disparada por el hecho «primer cliente creado»: una, anclada a la pestaña, se cierra sola al abrir un bloque.',
+          'El taller se despliega en la barra, con animación: acaba de tener sentido.'
+        ]
+      }
+    },
+    {
+      titulo: 'Le ha montado la semana',
+      barra: { clientes: ['Marta García'], taller: 'abierto', guia: { paso: 'Mándale su enlace de acceso', n: 2, de: 5 }, agendaCobros: 'apagado' },
+      mesa: 'semana-montada',
+      leyenda: {
+        t: 'El momento ajá: ver lo que verá ella',
+        l: [
+          'La guía pasa sola al tercer paso, y lo dice con nombre: «Mándale su enlace».',
+          'Pista «Mira lo que verá Marta en su móvil»: abre la previsualización del portal que ya existe. Es lo que convierte la app en un bucle entre dos personas.',
+          'La guía se pliega a una línea a partir de aquí: el arranque ya rodó y el trono es del trabajo.',
+          'La hoja de Entreno gana su primera palabra subrayada: «bloque».'
+        ]
+      }
+    },
+    {
+      titulo: 'El cliente ha entrado',
+      barra: { clientes: ['Marta García'], taller: 'abierto', guia: { paso: 'Espera su primera entrega', n: 3, de: 5 }, agendaCobros: 'encendido-nuevo' },
+      mesa: 'ha-entrado',
+      leyenda: {
+        t: 'Inicio empieza a contar cosas',
+        l: [
+          'Marta aceptó el enlace: Inicio lo dice en la primera línea y la guía marca el paso sola.',
+          'Agenda y Cobros se encienden en la barra: ya hay con quién tener fechas y a quién ponerle tarifa.',
+          'Revisiones sigue apagada: no ha entregado nada. Su pestaña dice «cuando entrene o se pese».',
+          'Nada que pedir al entrenador todavía; la guía lo dice en vez de inventarse una tarea.'
+        ]
+      }
+    },
+    {
+      titulo: 'Primera entrega',
+      barra: { clientes: ['Marta García'], taller: 'abierto', guia: { paso: 'Cierra su primera semana', n: 4, de: 5 }, agendaCobros: 'encendido' },
+      mesa: 'primera-entrega',
+      leyenda: {
+        t: 'Se encienden Revisiones y Resumen, y la app enseña para qué existe',
+        l: [
+          'Inicio: «Marta entregó su check-in». La cola «Te esperan» aparece por primera vez, con una persona.',
+          'Revisiones se enciende con animación; Resumen también, porque ya hay una cifra que contar.',
+          'Pista «Aquí cierras la semana»: qué le pusiste, qué hizo, qué te entregó, qué le dices.',
+          'Es el último paso de la guía. Al cerrar la revisión, desaparece sola.'
+        ]
+      }
+    },
+    {
+      titulo: 'En régimen',
+      barra: { clientes: ['Marta García', 'Luis Ramos', 'Ana Vidal'], taller: 'abierto', guia: null, agendaCobros: 'encendido' },
+      mesa: 'regimen',
+      leyenda: {
+        t: 'Sin guía, con «?» y con las pistas de segundo nivel',
+        l: [
+          'La guía se fue. Queda el «?» en cada pantalla, que abre la hoja de ayuda de esa pantalla.',
+          'Al tercer cliente, la pista «Decide qué le pides» lleva a Protocolos: es el momento en que repetir lo mismo tres veces duele.',
+          'Al montar a mano el segundo día parecido: «Guárdalo como plantilla».',
+          'Todo lo que se vio no vuelve, en ningún dispositivo: está en coachPrefs.'
+        ]
+      }
+    }
+  ];
+
+  const av = (n) => n.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase();
+  const $ = (id) => document.getElementById(id);
+  let prev = null;
+
+  function barra(m, i) {
+    const b = m.barra;
+    const off = b.agendaCobros === 'apagado';
+    const nuevoAC = b.agendaCobros === 'encendido-nuevo';
+    let h = `<div class="marca">CAVEMAN HUB</div>`;
+    h += `<div class="grupo">
+      <div class="fila${i === 0 || i === 3 || i === 4 ? ' is-on' : ''}"><i></i>Inicio</div>
+      <div class="fila"><i></i>Clientes</div>
+      <div class="fila${off ? ' is-off' : ''}${nuevoAC ? ' nuevo' : ''}"><i></i>Cobros</div>
+      <div class="fila${off ? ' is-off' : ''}${nuevoAC ? ' nuevo' : ''}"><i></i>Agenda</div>
+    </div>`;
+    h += `<div class="grupo"><p class="k">Tus clientes <span style="opacity:.6">${b.clientes.length}</span></p>`;
+    if (!b.clientes.length) h += `<div class="fila is-off" style="font-size:12px">Todavía nadie</div>`;
+    b.clientes.forEach((c, k) => {
+      const nuevo = (i === 1 && k === 0) || (i === 5 && k > 0);
+      h += `<div class="fila${(i >= 1 && i <= 2 && k === 0) ? ' is-on' : ''}${nuevo ? ' nuevo' : ''}"><span class="av">${av(c)}</span>${c}</div>`;
+    });
+    h += `</div>`;
+    if (b.taller === 'plegado') {
+      h += `<div class="grupo"><div class="fila is-off" style="font-size:12px">Tu taller <span class="n">al 1.º cliente</span></div></div>`;
+    } else {
+      const n = b.taller === 'abierto-nuevo' ? ' nuevo' : '';
+      h += `<div class="grupo"><p class="k">Tu taller</p>
+        <div class="fila${n}"><i></i>Protocolos</div>
+        <div class="fila${n}"><i></i>Librería</div>
+        <div class="fila${n}"><i></i>Plantillas</div></div>`;
+    }
+    if (b.guia) {
+      const g = b.guia;
+      const plegada = i >= 2;
+      h += `<div class="guia-barra${i === 0 ? ' nuevo' : ''}">
+        <div class="k" style="font-size:10px">Puesta en marcha · ${g.n} de ${g.de}</div>
+        <div class="meter"><i style="width:${(g.n / g.de) * 100}%"></i></div>
+        ${plegada ? `<div class="sub">${g.paso} · <span style="color:var(--accent)">Seguir</span></div>` : `<div class="paso">${g.paso}</div><div class="sub">El botón te lleva donde se hace.</div>`}
+      </div>`;
+    } else {
+      h += `<div class="guia-barra" style="opacity:.55"><div class="sub">La guía terminó. El «?» de cada pantalla sigue aquí.</div></div>`;
+    }
+    return h;
+  }
+
+  const pestanas = (on, apagadas, nuevas = []) => {
+    const t = ['Resumen', 'Entreno', 'Dieta', 'Revisiones', 'Perfil'];
+    const cuando = { Resumen: 'cuando haya historia', Revisiones: 'cuando entrene o se pese' };
+    return `<div class="pestanas">${t.map((p) => {
+      const off = apagadas.includes(p);
+      const nu = nuevas.includes(p);
+      return `<span class="pestana${p === on ? ' is-on' : ''}${off ? ' is-off' : ''}${nu ? ' nuevo' : ''}">${p}${off ? `<small>${cuando[p] || ''}</small>` : ''}</span>`;
+    }).join('')}</div>`;
+  };
+  const cab = (t, s) => `<div class="cab"><div><h4>${t}</h4>${s ? `<p>${s}</p>` : ''}</div><span class="ayuda-btn" title="Cómo funciona esta pantalla">?</span></div>`;
+
+  function mesa(i) {
+    switch (M[i].mesa) {
+      case 'inicio-vacio':
+        return cab('Buenos días', 'Jueves 18 de septiembre · 0 clientes') + `
+          <div class="bloque nuevo"><h5>Empieza con tu primer cliente</h5><p>Solo hace falta su nombre. Todo lo suyo (semana, dieta, medidas, fotos) cuelga de ahí.</p>
+            <div class="acciones"><span class="btn primario">＋ Dar de alta a alguien</span><span class="btn puerta">Ver cómo queda una semana</span></div>
+            <p class="muted" style="font-size:12.5px">Aquí verás cada mañana qué ha pasado y a quién le debes respuesta.</p></div>`;
+      case 'cliente-nuevo':
+        return cab('Marta García', 'desde hoy') + pestanas('Entreno', ['Resumen', 'Revisiones']) + `
+          <div class="pista"><span class="cerrar">×</span><span class="k">Pista · 1 de 8</span><b>Aquí le montas la semana a Marta.</b> Puedes empezar desde una plantilla o traer el programa de otro cliente.</div>
+          <div class="bloque"><h5>Móntale la primera semana</h5><p>Los días, los ejercicios y las series. Ella lo verá en su móvil y apuntará lo que levanta.</p>
+            <div class="acciones"><span class="btn primario">Montar de cero</span><span class="btn puerta">Desde una plantilla</span><span class="btn">Traer de otro cliente</span></div>
+            <p class="muted" style="font-size:12.5px">Lo que montes se guarda como <span class="termino">bloque</span>: dura hasta que haya motivo para cambiarlo.</p></div>`;
+      case 'semana-montada':
+        return cab('Marta García', 'Entreno · Bloque 1 · semana 1') + pestanas('Entreno', ['Resumen', 'Revisiones']) + `
+          <div class="pista"><span class="cerrar">×</span><span class="k">Pista · 2 de 8</span><b>Mira lo que verá Marta en su móvil.</b> Es lo que ella abrirá el lunes. <u>Ver su portal</u></div>
+          <div class="cifras"><div class="cifra"><span class="k">Lunes</span><b>Push</b><small>5 ejercicios · 17 series</small></div><div class="cifra"><span class="k">Miércoles</span><b>Pull</b><small>5 ejercicios · 16 series</small></div><div class="cifra"><span class="k">Viernes</span><b>Pierna</b><small>6 ejercicios · 18 series</small></div></div>
+          <div class="bloque" style="background:var(--sunken);border-style:dashed"><p><b style="color:var(--text)">Siguiente en la guía:</b> mándale su enlace de acceso. Hasta que no lo tenga no puede entrar ni apuntar nada. <span class="btn puerta" style="margin-left:6px">Invitar a Marta</span></p></div>`;
+      case 'ha-entrado':
+        return cab('Buenos días', 'Lunes 22 de septiembre · 1 cliente · nada pendiente') + `
+          <div class="bloque nuevo" style="border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:var(--ok-soft)"><h5>Marta ya tiene acceso</h5><p>Aceptó su enlace ayer. Verá su sesión del lunes en su móvil y apuntará lo que levante.</p></div>
+          <div class="bloque"><h5>Esta semana</h5><p>Nada apuntado hasta el domingo. <span class="btn puerta" style="margin-left:6px">Apuntar algo</span></p></div>
+          <div class="bloque" style="opacity:.7"><h5>Te esperan</h5><p>Nadie todavía. Cuando Marta entregue su check-in o suba fotos, aparecerá aquí.</p></div>`;
+      case 'primera-entrega':
+        return cab('Marta García', 'Revisiones · semana 1') + pestanas('Revisiones', [], ['Resumen', 'Revisiones']) + `
+          <div class="pista"><span class="cerrar">×</span><span class="k">Pista · 4 de 8</span><b>Aquí cierras su semana.</b> Lo que le pusiste, lo que hizo, lo que te entregó y lo que le dices.</div>
+          <div class="cifras"><div class="cifra nuevo"><span class="k">Entrenó</span><b>3 de 3</b><small>sesiones registradas</small></div><div class="cifra nuevo"><span class="k">Se pesó</span><b>71,4 kg</b><small>primer pesaje</small></div><div class="cifra nuevo"><span class="k">Check-in</span><b>Entregado</b><small>domingo, 4 fotos</small></div></div>
+          <div class="bloque"><h5>Qué le dices</h5><p>Tu respuesta le llega a su móvil. Con ella se cierra la semana y la guía termina.</p><div class="acciones"><span class="btn primario">Escribir la revisión</span></div></div>`;
+      case 'regimen':
+        return cab('Buenos días', 'Lunes 20 de octubre · 3 clientes · <b>2 cosas por hacer</b>') + `
+          <div class="pista"><span class="cerrar">×</span><span class="k">Pista · 6 de 8</span><b>Ya tienes tres clientes.</b> En Protocolos decides qué les pides a todos de una vez: qué módulos, qué preguntas al terminar. <u>Abrir Protocolos</u></div>
+          <div class="lista">
+            <div class="item"><span class="av">LR</span>Luis Ramos · entregó su check-in<span class="tag">Te espera</span></div>
+            <div class="item"><span class="av">AV</span>Ana Vidal · se queda sin hoja el lunes<span class="tag">Programar</span></div>
+            <div class="item" style="opacity:.6"><span class="av">MG</span>Marta García · 3 de 3 esta semana<span class="tag">Al día</span></div>
+          </div>`;
+    }
+    return '';
+  }
+
+  function leyenda(i) {
+    const l = M[i].leyenda;
+    return `<p class="k">M${i} · ${M[i].titulo}</p><h3>${l.t}</h3><ul>${l.l.map((x) => `<li>${x}</li>`).join('')}</ul>`;
+  }
+
+  function pinta(i) {
+    $('barra').innerHTML = barra(M[i], i);
+    $('mesa').innerHTML = mesa(i);
+    $('leyenda').innerHTML = leyenda(i);
+    document.querySelectorAll('.momento').forEach((b) => b.setAttribute('aria-selected', String(Number(b.dataset.m) === i)));
+    prev = i;
+  }
+
+  document.querySelectorAll('.momento').forEach((b) => b.addEventListener('click', () => pinta(Number(b.dataset.m))));
+  document.querySelector('.momentos').addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const n = Math.min(5, Math.max(0, prev + (e.key === 'ArrowRight' ? 1 : -1)));
+    pinta(n);
+    document.querySelector(`.momento[data-m="${n}"]`).focus();
+  });
+  pinta(0);
+})();
+</script>
+</body>
+</html>

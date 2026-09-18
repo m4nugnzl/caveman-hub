@@ -1,4 +1,6 @@
-import { Aire, CabeceraDia, Record, Tarjeta, Titulillo } from './Piezas';
+import { useNavigate } from 'react-router-dom';
+
+import { Aire, Cabecera, Record, Tarjeta, Titulillo } from './Piezas';
 
 /**
  * «PROGRESO» EN EL TELÉFONO.
@@ -17,10 +19,16 @@ import { Aire, CabeceraDia, Record, Tarjeta, Titulillo } from './Piezas';
  */
 export const PantallaProgreso = ({ datos }) => {
   const { cabecera, record, peso, tonelaje, plan } = datos;
+  const navigate = useNavigate();
 
   return (
     <>
-      <CabeceraDia {...cabecera} />
+      {/* Se abre desde tu perfil: lleva su flecha de vuelta. */}
+      <Cabecera
+        titulo={cabecera.fecha}
+        sub={cabecera.donde}
+        atras={{ onClick: () => (window.history.length > 1 ? navigate(-1) : navigate('/mi/tu')) }}
+      />
       <div className="tel-tramo">
         {record ? <Record items={record} /> : null}
 

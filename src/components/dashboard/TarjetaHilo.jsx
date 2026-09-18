@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Camera, ClipboardCheck, Dumbbell, History, MessageSquare, Scale } from 'lucide-react';
 
 import { ACTIVITY_KINDS, buildActivity, dayLabel, groupByDay } from '@/domain/today';
 import { allSessions } from '@/domain/sessions';
@@ -23,10 +24,27 @@ import { Tarjeta, TarjetaVacia } from './Tarjeta';
  * está descargado para pintar el Resumen.
  *
  * ── La forma ────────────────────────────────────────────────────────────────
- * Una tarjeta del mosaico con las cinco últimas cosas que pasaron y una ventana
- * con los tres meses enteros. Un evento es una fila: el día, un punto del color
- * de su clase, qué pasó y una cifra. Sin iconos: el color y la frase ya lo dicen.
+ * Una tarjeta del mosaico con las seis últimas cosas que pasaron y una ventana
+ * con los tres meses enteros. Un evento es una fila: qué pasó, cuándo, y una
+ * línea con la cifra debajo.
+ *
+ * ── Y ahora SÍ lleva icono (frame 258:154, 17 sep) ──────────────────────────
+ * Aquí ponía «sin iconos: el color y la frase ya lo dicen», y la ley de la casa
+ * es que una tarjeta no lleva icono DECORATIVO delante de su rótulo. Estos no lo
+ * son: son el disco de clase que ya estaba —el punto de ocho píxeles del color
+ * del evento— con el glifo de lo que pasó dentro. Hace un trabajo que el punto
+ * no hacía: distinguir un pesaje de una foto sin leer la frase, que es
+ * exactamente para lo que se baja la vista a esta lista. El color sigue saliendo
+ * del dominio (`ACTIVITY_KINDS`), no del componente.
  */
+const GLIFOS = {
+  session: Dumbbell,
+  weight: Scale,
+  photo: Camera,
+  checkin: ClipboardCheck,
+  entregado: ClipboardCheck,
+  respuesta: MessageSquare,
+};
 const KINDS = {
   ...ACTIVITY_KINDS,
   /* El check-in entregado hereda el color de su clase en el dominio: el color
@@ -38,9 +56,10 @@ const KINDS = {
 /* La ventana del hilo: tres meses, los mismos que abre «Tres meses». Es una
    sola consulta para las dos vistas — ver el comentario de `TarjetaHilo`. */
 const DIAS = 90;
-/* Y la tarjeta enseña su cabeza: las cinco últimas cosas que pasaron. Con más,
-   la columna derecha medía el doble que el mosaico. El resto, en la ventana. */
-const MAX_CORTO = 5;
+/* Y la tarjeta enseña su cabeza: las seis últimas cosas que pasaron, en dos
+   filas de tres a lo ancho del mosaico (ver `.hilo-tarjeta` en revision.css).
+   El resto, en la ventana de tres meses. */
+const MAX_CORTO = 6;
 
 const recorta = (texto, max = 90) => {
   const t = String(texto || '').replace(/\s+/g, ' ').trim();
@@ -98,16 +117,25 @@ export const hiloDeCliente = ({ client, program, anthro, photos, checkIns, revis
 
 const Fila = ({ ev, hoy = null }) => {
   const kind = KINDS[ev.kind] || KINDS.session;
+  const Glifo = GLIFOS[ev.kind] || Dumbbell;
   return (
     <li className="hilo-fila">
-      <span className="hilo-punto" style={{ background: kind.color }} aria-hidden="true" />
+      <span className="hilo-disco" style={{ color: kind.color }} aria-hidden="true">
+        <Glifo size={15} strokeWidth={2} />
+      </span>
       <span className="hilo-que">
-        <span className="t">{ev.title}</span>
+        <span className="hilo-linea">
+          <span className="t">{ev.title}</span>
+          {/* En la tarjeta la fecha va en la fila —cinco filas no merecen cinco
+              cabeceras—; en la ventana de tres meses se agrupa por día. */}
+          {hoy && (
+            <span className="hilo-cuando">
+              {dayLabel(ev.date, hoy).replace(/^(w)/, (c) => c.toUpperCase())}
+            </span>
+          )}
+        </span>
         {ev.detail && <span className="d">{ev.detail}</span>}
       </span>
-      {/* En la tarjeta la fecha va en la fila —cinco filas no merecen cinco
-          cabeceras—; en la ventana de tres meses se agrupa por día. */}
-      {hoy && <span className="hilo-cuando">{dayLabel(ev.date, hoy).replace(/^(w)/, (c) => c.toUpperCase())}</span>}
     </li>
   );
 };
@@ -135,7 +163,7 @@ const Lista = ({ eventos, hoy }) => (
   </div>
 );
 
-export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisiones, hoy, span = 4 }) => {
+export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisiones, hoy, span = 12 }) => {
   const [abierto, setAbierto] = useState(false);
   /*
     UN solo hilo, y la tarjeta enseña su cabeza.
@@ -164,6 +192,7 @@ export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisio
     <Tarjeta
       rotulo="Lo último"
       span={span}
+      className="hilo-tarjeta"
       vacia={corto.length === 0}
       accion={
         corto.length > 0 ? (
@@ -179,7 +208,21 @@ export const TarjetaHilo = ({ client, program, anthro, photos, checkIns, revisio
         <ListaCorta eventos={corto} hoy={hoy} />
       )}
 
-      <Modal open={abierto} title={`${client.name} · los últimos tres meses`} onClose={() => setAbierto(false)} size="side">
+      {/*
+        Una ventana en el centro, como las otras puertas del Resumen, y no el
+        panel del canto derecho. Era la ÚNICA de la pantalla que salía de lado
+        («me sale lateralmente en vez de como popup»): `side` es para mirar
+        un detalle sin tapar aquello con lo que se compara, y aquí no hay nada
+        con qué compararlo — es leer tres meses seguidos. Con la cabecera de
+        todas: placa con el signo, titular y la frase de qué va.
+      */}
+      <Modal
+        open={abierto}
+        icono={History}
+        title="Lo último"
+        sub={`Todo lo que le ha pasado a ${client.name} en los últimos tres meses`}
+        onClose={() => setAbierto(false)}
+      >
         {hilo.length === 0 ? (
           <p className="t-sm t-tertiary">Nada en los últimos tres meses.</p>
         ) : (

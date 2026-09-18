@@ -154,11 +154,16 @@
       }
     </script>
     <!--
-      La tipografía de titulares y cifras (Archivo) va AUTOALOJADA, no en Google
-      Fonts: sin petición a terceros, sin dependencia de que nadie mueva un
-      archivo, y sin el bloqueo del primer render que motivó quitar la fuente
-      externa en su día. El `preload` la pide en paralelo con el CSS en vez de
-      esperar a que el navegador descubra el @font-face dentro de la hoja.
+      La tipografía del producto (Geist) va AUTOALOJADA, no en Google Fonts: sin
+      petición a terceros, sin dependencia de que nadie mueva un archivo, y sin
+      el bloqueo del primer render que motivó quitar la fuente externa en su
+      día. El `preload` la pide en paralelo con el CSS en vez de esperar a que
+      el navegador descubra el @font-face dentro de la hoja.
+
+      Se precarga SOLO la que pinta el primer renglón. Archivo Expanded
+      (`--font-ancha`) sigue en el proyecto para las cifras grandes del portal
+      del cliente, pero baja por descubrimiento: precargar dos familias es pedir
+      64 KB de los que la primera pantalla solo usa una.
 
       `crossorigin` es obligatorio aunque el archivo sea del mismo origen: las
       fuentes se piden siempre en modo CORS, y sin el atributo el navegador
@@ -166,7 +171,7 @@
     -->
     <link
       rel="preload"
-      href="/fonts/archivo-latin.woff2"
+      href="/fonts/geist-latin.woff2"
       as="font"
       type="font/woff2"
       crossorigin

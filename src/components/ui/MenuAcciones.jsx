@@ -50,6 +50,9 @@ export const MenuAcciones = ({
   clase = null,
   sinFlecha = false,
   descriptivo = false,
+  /* El rótulo del ratón, cuando el visible no se basta: una casilla del ciclo
+     dice «D4» y hace falta saber qué día le toca sin abrir el menú. */
+  titulo = null,
 }) => {
   const [abierto, setAbierto] = useState(false);
   const ref = useRef(null);
@@ -76,6 +79,7 @@ export const MenuAcciones = ({
            nombre accesible saldría convertido en un objeto—. Iba al revés y los
            tres sitios que pasaban `ariaLabel` con `label` lo tenían ignorado. */
         aria-label={ariaLabel || label || 'Más acciones'}
+        {...(titulo ? { title: titulo } : {})}
         onClick={() => setAbierto((v) => !v)}
       >
         {label ? (

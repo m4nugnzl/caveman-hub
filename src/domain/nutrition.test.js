@@ -1888,6 +1888,28 @@ describe('el semáforo, con suelo y en un solo sitio', () => {
     expect(claseDe(300, 300, 'kcals')).toBe(' is-ok');
     expect(claseDe(200, 300, 'kcals')).toBe(' is-under');
   });
+
+  /* ── Y UNA COMIDA SE MIDE MÁS ESTRECHO QUE EL DÍA ────────────────────────
+     El error del día es la SUMA de los de sus comidas, así que la parte no
+     puede tener la misma holgura que el todo: con el 5 % del plan, una cena de
+     1.100 kcal se salía 30 y seguía en verde, y las tres comidas de un día
+     salían del mismo color. La escala de comida solo aprieta las kcal; los
+     gramos de macro se quedan con su suelo de 3 g. */
+  it('en la escala de una comida las kcal se aprietan al 2 %, con suelo de 15', () => {
+    expect(margenDe(1100, 'kcals')).toBe(55);
+    expect(margenDe(1100, 'kcals', 'comida')).toBe(22);
+    expect(estadoDe(1070, 1100, 'kcals')).toBe('ok');
+    expect(estadoDe(1070, 1100, 'kcals', 'comida')).toBe('under');
+    expect(claseDe(1070, 1100, 'kcals', 'comida')).toBe(' is-under');
+  });
+
+  it('el suelo de la comida son 15 kcal, y en gramos no cambia nada', () => {
+    // 2 % de 500 = 10, por debajo del suelo.
+    expect(margenDe(500, 'kcals', 'comida')).toBe(15);
+    // Los macros se juzgan igual en las dos escalas: 37 de 40 g sigue cuadrando.
+    expect(margenDe(40, 'protein', 'comida')).toBe(margenDe(40, 'protein'));
+    expect(estadoDe(37, 40, 'protein', 'comida')).toBe('ok');
+  });
 });
 
 /**

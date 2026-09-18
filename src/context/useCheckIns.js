@@ -132,6 +132,53 @@ export const useCheckIns = ({ stampNow }) => {
   );
 
   /**
+   * Guarda las respuestas del cuestionario SIN entregar la semana (migración
+   * 0121).
+   *
+   * Desde el teléfono del 18 de septiembre la revisión se hace por pasos
+   * sueltos y se entrega al final: las respuestas tienen que poder esperar en
+   * la fila de la semana sin avisar a nadie. Si la semana ya está entregada,
+   * corrige esa entrega; si está revisada, la base se niega.
+   *
+   * Sustituye las respuestas enteras: lo que llega es el cuestionario tal como
+   * está en la pantalla.
+   */
+  const saveCheckInAnswers = useCallback(async (clientId, { weekStart: week, answers }) => {
+    const limpias = answers && Object.keys(answers).length > 0 ? answers : null;
+    const { data, error } = await supabase.rpc('save_check_in_answers', {
+      target: clientId,
+      week,
+      answers: limpias,
+    });
+    if (error) return { ok: false, error: error.message };
+
+    /* El mismo invariante que `submitCheckIn`: `checkIns` guarda la ÚLTIMA
+       semana de cada cliente, y un borrador de una atrasada no la desplaza. */
+    setCheckIns((prev) => {
+      const anterior = prev[clientId];
+      if (anterior && anterior.weekStart > week) return prev;
+      const mismo = anterior?.weekStart === week ? anterior : null;
+      return {
+        ...prev,
+        [clientId]: {
+          ...(mismo || {}),
+          id: data,
+          clientId,
+          weekStart: week,
+          weight: mismo?.weight ?? null,
+          notes: mismo?.notes ?? '',
+          answers: limpias,
+          submittedAt: mismo?.submittedAt ?? null,
+          reviewedAt: mismo?.reviewedAt ?? null,
+          coachNotes: mismo?.coachNotes ?? '',
+        },
+      };
+    });
+
+    return { ok: true, id: data };
+  }, []);
+
+  /**
    * Todas las revisiones de un cliente, para su histórico.
    *
    * A demanda y no en la carga inicial: `checkIns` guarda solo la última de cada
@@ -309,6 +356,7 @@ export const useCheckIns = ({ stampNow }) => {
     checkInsActivos,
     setCheckInsActivos,
     submitCheckIn,
+    saveCheckInAnswers,
     loadCheckInHistory,
     deleteCheckIn,
     reviewCheckIn,

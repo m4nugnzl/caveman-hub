@@ -3,13 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useActions, useApp, useSession } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme';
 import { useTour } from '@/components/WelcomeTour';
-import { weeklyWeightAverages, weightSeries } from '@/domain/anthropometry';
+import { weightSeries } from '@/domain/anthropometry';
 import { resolvedMicrocycles } from '@/domain/blocks';
 import { estadoDeLaEntrega } from '@/domain/calendar';
+import { weekFromStart } from '@/domain/photos';
 import { pendientesDeCliente } from '@/domain/envios';
-import { effectiveGoal } from '@/domain/roadmap';
 import { allSessions } from '@/domain/sessions';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
+import { initials } from '@/lib/initials';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { Modal } from '@/components/ui/Modal';
 import { useReviewRows } from '@/components/review/useReviewRows';
@@ -44,7 +45,7 @@ import { PantallaTu as TuEnTelefono } from './movil/PantallaTu';
  * nadie guarda en marcadores. Ver `la app es panel, no documento`.
  */
 export const ClientTu = () => {
-  const { activeClient, anthropometry, workoutData, progressPhotos, checkIns, phases, envioRows } =
+  const { activeClient, anthropometry, workoutData, progressPhotos, checkIns, envioRows } =
     useApp();
   const { loadClientFolder, ensurePhotoUrls, signOut } = useActions();
   /* Los tres mandos que antes vivían escondidos dentro de `AccountMenu`: el
@@ -94,10 +95,7 @@ export const ClientTu = () => {
   const historialPeso = anthropometry?.[activeClient.id]?.history || [];
   const pesajes = weightSeries(historialPeso);
   const verPeso = !oculto.weight && pesajes.length > 0;
-  const primero = pesajes[0]?.value ?? null;
   const ultimo = pesajes[pesajes.length - 1]?.value ?? null;
-  const total = pesajes.length > 1 ? ultimo - primero : null;
-  const objetivo = effectiveGoal(activeClient, phases, todayISO())?.targetWeightKg ?? null;
 
   const entregadas = historial.filter((c) => c.submittedAt || c.reviewedAt).length;
   const sesiones = allSessions(micros).length;
@@ -221,61 +219,63 @@ export const ClientTu = () => {
     },
   };
 
-  /* ── Y el teléfono ────────────────────────────────────────────────────── */
+  /* ── Y el teléfono: el perfil del frame `328:7` (18 sep 2026) ─────────── */
+  const semanasDesdeAlta = activeClient.startDate ? weekFromStart(activeClient.startDate, todayISO()) : null;
   const datosMovil = {
     nombre: activeClient.name,
+    iniciales: initials(activeClient.name),
+    desde: activeClient.startDate ? `Cliente activo desde el ${shortDate(activeClient.startDate)}` : null,
     record: [
-      activeClient.startDate ? { v: shortDate(activeClient.startDate), k: 'desde' } : null,
-      { v: String(sesiones), k: 'sesiones' },
-      { v: String(entregadas), k: 'entregas' },
+      { v: String(sesiones), k: sesiones === 1 ? 'entreno' : 'entrenos' },
+      semanasDesdeAlta ? { v: String(semanasDesdeAlta), k: semanasDesdeAlta === 1 ? 'semana' : 'semanas' } : null,
+      { v: String(entregadas), k: entregadas === 1 ? 'entrega' : 'entregas' },
     ].filter(Boolean),
-    peso: verPeso
-      ? {
-          ahora: kg(ultimo),
-          delta:
-            total !== null
-              ? `${total > 0 ? '+' : '−'}${kg(Math.abs(total))} kg`
-              : null,
-          sube: total !== null && total > 0,
-          /* Las MEDIAS SEMANALES, no los pesajes sueltos: es la cifra con la que
-             se trabaja —lo dice la propia báscula de la revisión— y una línea de
-             cuarenta pesajes diarios es ruido con forma de dato. */
-          puntos: weeklyWeightAverages(historialPeso).map((p) => p.value),
-          desde: shortDate(pesajes[0].date),
-          objetivo: objetivo ? kg(objetivo) : null,
-        }
-      : null,
-    fotos: fotos.slice(-3).map((f) => ({ id: f.id, url: f.url || null, angulo: f.angle || 'foto' })),
-    menu: [
-      { rotulo: 'Apuntar el peso', to: '/mi/evolucion' },
+    filas: [
+      !oculto.weight
+        ? {
+            icono: 'peso',
+            titulo: 'Apuntar el peso',
+            sub: ultimoPeso ? `El último: ${ultimoPeso}` : 'Tu báscula, cada mañana',
+            to: '/mi/evolucion/peso',
+          }
+        : null,
       {
-        rotulo: 'Tus medidas',
-        valor: ultimaMedida(historialPeso),
+        icono: 'medidas',
+        titulo: 'Tus medidas',
+        sub: ultimaMedida(historialPeso) ? `Las últimas, el ${ultimaMedida(historialPeso)}` : 'Perímetros y pliegues',
         to: '/mi/evolucion/medidas',
       },
-      /*
-        LA REVISIÓN, aquí. Con su estado en azul cuando espera: es el
-        recordatorio que perdió al salir de la barra del pulgar.
-      */
       {
-        rotulo: 'Cerrar la semana',
-        valor: sinEntregar ? (periodo?.isDue ? 'pendiente' : 'cuando la tengas') : 'entregada',
-        espera: sinEntregar && Boolean(periodo?.isDue),
+        icono: 'semana',
+        titulo: 'Cerrar la semana',
+        sub: sinEntregar ? (periodo?.isDue ? 'Te toca hoy' : 'Cuando la tengas') : 'Entregada',
         to: '/mi/evolucion',
       },
       {
-        rotulo: 'Lo que te ha mandado',
-        valor: esperando > 0 ? cuantasEsperan : null,
-        espera: esperando > 0,
+        icono: 'progreso',
+        titulo: 'Tu progreso',
+        sub: 'Tu peso, tus marcas y lo que mueves',
+        to: '/mi/progreso',
+      },
+      {
+        icono: 'mandado',
+        titulo: 'Lo que te ha mandado',
+        sub: 'Formularios y documentos',
+        espera: esperando > 0 ? cuantasEsperan : null,
         to: '/mi/formularios',
       },
-      { rotulo: 'Tu calendario', to: '/mi/calendario' },
-    ],
+      { icono: 'calendario', titulo: 'Tu calendario', sub: 'Lo que tienes por delante', to: '/mi/calendario' },
+    ].filter(Boolean),
     cuenta: [
       carpeta
-        ? { rotulo: 'Tus documentos', onClick: () => setCapa('carpeta') }
+        ? { icono: 'documentos', titulo: 'Tus documentos', sub: 'La carpeta que compartís', onClick: () => setCapa('carpeta') }
         : null,
-      { rotulo: 'Tus datos y tu privacidad', onClick: () => setCapa('privacidad') },
+      {
+        icono: 'privacidad',
+        titulo: 'Tus datos y tu privacidad',
+        sub: 'Qué se guarda de ti, y cómo llevártelo',
+        onClick: () => setCapa('privacidad'),
+      },
     ].filter(Boolean),
   };
 

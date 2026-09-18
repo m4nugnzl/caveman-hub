@@ -1,6 +1,8 @@
 import { blockOfWeek, resolvedMicrocycles, structureOfBlock } from '@/domain/blocks';
-import { historialDeEjercicio, isSetLogged } from '@/domain/sessions';
+import { scaleQuestions } from '@/domain/protocol';
+import { allSessions, allSessionsOfDay, historialDeEjercicio, isSetLogged, sessionSetCount } from '@/domain/sessions';
 import { WEEK_DAYS } from '@/domain/training';
+import { toNum } from '@/lib/num';
 import { buildStrip } from './hojas';
 
 /**
@@ -86,11 +88,62 @@ export const tiraDeLaSemana = ({ client, program, hoy = diaDeHoy() }) => {
     const entrada = entries.find((e) => e.key === dia);
     return {
       dia,
-      corto: dia.slice(0, 3).toUpperCase(),
+      corto: inicial(dia),
       estado: !entrada ? 'libre' : entrada.logged > 0 ? 'hecho' : 'toca',
       hoy: dia === hoy,
     };
   });
+};
+
+/**
+ * LA TIRA SIN REPARTO: la semana del calendario y los días que entrenaste.
+ *
+ * Cuando `tiraDeLaSemana` se calla —ciclo rotativo o semana sin días
+ * asignados— la portada del teléfono (frame `327:8`) seguía sin su fila de
+ * siete discos, y es la primera cosa del dibujo. Lo que sí se sabe sin reparto
+ * es lo que ya pasó: qué días de esta semana tienen una sesión apuntada. Eso se
+ * dice; lo que TOCA no, porque no hay de dónde sacarlo. Por eso aquí no hay
+ * `toca`: un día sin sesión es `libre`, sea pasado o futuro.
+ *
+ * @returns `[{ dia, corto, estado: 'hecho'|'libre', hoy }]`, siempre siete.
+ */
+export const tiraPorFechas = ({ micros = [], ahora = new Date() }) => {
+  const lunes = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - ((ahora.getDay() + 6) % 7));
+  const entrenados = new Set(
+    allSessions(micros)
+      .filter((s) => sessionSetCount(s) > 0)
+      .map((s) => String(s.date || s.endedAt || s.startedAt || '').slice(0, 10))
+  );
+  const hoyISO = isoLocal(ahora);
+  return WEEK_DAYS.map((dia, i) => {
+    const fecha = isoLocal(new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i));
+    return { dia, corto: inicial(dia), estado: entrenados.has(fecha) ? 'hecho' : 'libre', hoy: fecha === hoyISO };
+  });
+};
+
+/** La inicial del día como se escribe en España: el miércoles es la X. */
+const inicial = (dia) => (dia === 'Miércoles' ? 'X' : dia.charAt(0));
+
+/**
+ * LA PRÓXIMA SESIÓN DEL MICROCICLO ABIERTO: la primera que tiene series
+ * pautadas y no está terminada. Es la regla de la caja «Próxima sesión» de
+ * Entreno; la portada la usa cuando no hay una sesión de HOY que ofrecer
+ * (sin reparto por días o con ciclo rotativo), para que el bloque «Tu entreno»
+ * no desaparezca.
+ *
+ * @returns `{ dayName, day, hechas, series, weekNumber }` o `null` si todo está hecho.
+ */
+export const proximaDelMicrociclo = (micros = []) => {
+  const micro = micros[micros.length - 1];
+  if (!micro) return null;
+  for (const day of micro.days || []) {
+    const series = (day.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
+    if (series === 0) continue;
+    const sesiones = allSessionsOfDay(micro, day.dayName);
+    const hechas = sesiones.length > 0 ? Math.max(...sesiones.map(sessionSetCount)) : 0;
+    if (hechas < series) return { dayName: day.dayName, day, hechas, series, weekNumber: micro.weekNumber };
+  }
+  return null;
 };
 
 /** Lunes = 0, igual que `hojas.js`. */
@@ -190,4 +243,170 @@ export const pautaDe = (entry) => {
     .find(Boolean);
   if (!series) return null;
   return reps ? `${series} × ${reps}` : `${series} series`;
+};
+
+/**
+ * CÓMO LO LLEVAS: las respuestas de escala de la última sesión que las tenga.
+ *
+ * Solo preguntas de escala —una barra no puede dibujar un sí/no ni una zona del
+ * cuerpo— y solo las que ESTE protocolo pregunta. Sin respuestas no hay bloque:
+ * una barra vacía diría «0».
+ *
+ * Vivía dentro de `ClientSesionRoute` para el costado del monitor; desde el 18
+ * sep la lee también la portada del teléfono («Sensaciones»), y dos copias del
+ * mismo recorrido acaban contando cosas distintas.
+ *
+ * @returns `[{ id, rotulo, corto, valor, max, tono, cuando }]`, como mucho cuatro.
+ *   `cuando` es la fecha de esa sesión: la portada no puede llamar «de hoy» a
+ *   lo que se contestó el martes.
+ */
+export const sensacionesRecientes = (micros, protocolo) => {
+  const escalas = scaleQuestions(protocolo);
+  if (escalas.length === 0) return [];
+  const sesiones = allSessions(micros);
+  for (let i = sesiones.length - 1; i >= 0; i -= 1) {
+    const feedback = sesiones[i].feedback || {};
+    const filas = escalas
+      .map((q) => {
+        const valor = toNum(feedback[q.id]);
+        if (valor === null) return null;
+        const max = q.max ?? 10;
+        return {
+          id: q.id,
+          rotulo: q.label,
+          corto: q.short || q.label,
+          valor,
+          max,
+          tono: tonoDeEscala(valor, max, q),
+          cuando: sesiones[i].date || null,
+        };
+      })
+      .filter(Boolean);
+    if (filas.length > 0) return filas.slice(0, 4);
+  }
+  return [];
+};
+
+/**
+ * EL JUICIO DE UNA RESPUESTA DE ESCALA, para el color de su barrita: es el
+ * semáforo de la casa («el semáforo juzga»), y aquí sí hay de qué juzgar porque
+ * la pregunta dice hacia dónde es mejor (`lowerIsBetter`). La fatiga y el dolor
+ * no lo llevan escrito en los protocolos viejos y se leen como en
+ * `PanelEntreno`: menos es mejor.
+ *
+ * @returns {'bien'|'medio'|'mal'}
+ */
+const tonoDeEscala = (valor, max, q) => {
+  const menosEsMejor = q.lowerIsBetter ?? (q.id === 'fatigue' || q.id === 'pain');
+  const parte = max > 0 ? Math.min(1, Math.max(0, valor / max)) : 0;
+  const bueno = menosEsMejor ? 1 - parte : parte;
+  return bueno >= 0.7 ? 'bien' : bueno > 0.4 ? 'medio' : 'mal';
+};
+
+/**
+ * LO ÚLTIMO QUE HAS HECHO: tus entrenos, tus pesajes, tus fotos y tus entregas,
+ * del más reciente al más antiguo.
+ *
+ * Es el «Lo último» de la portada del teléfono (frame `327:8`). Del lado del
+ * entrenador existe el mismo hilo para toda la cartera (`domain/today`); aquí
+ * es uno solo y en segunda persona, y cada cosa dice cuándo con la precisión
+ * que de verdad tiene: la sesión guarda la hora (`endedAt`), el pesaje y la
+ * foto solo el día. Un «hace 5 h» sobre un pesaje sería inventado.
+ *
+ * @returns `[{ id, texto, cuando, hoy }]`, como mucho `cuantos`.
+ */
+export const loUltimo = ({
+  micros = [],
+  historial = [],
+  fotos = [],
+  entrega = null,
+  sinPeso = false,
+  ahora = new Date(),
+  cuantos = 3,
+}) => {
+  const out = [];
+
+  for (const s of allSessions(micros)) {
+    if (sessionSetCount(s) === 0) continue;
+    const momento = s.endedAt || s.startedAt || null;
+    out.push({
+      id: `sesion:${s.id || s.date}:${s.dayName}`,
+      texto: `Entrenamiento ${s.dayName || ''} registrado`.replace(/\s+/g, ' '),
+      fecha: momento ? momento.slice(0, 10) : s.date,
+      momento,
+    });
+  }
+
+  if (!sinPeso) {
+    for (const log of historial) {
+      if (log.weight === null || log.weight === undefined || log.weight === '') continue;
+      out.push({ id: `peso:${log.date}`, texto: 'Peso corporal actualizado', fecha: log.date, momento: null });
+    }
+  }
+
+  const fotosPorDia = new Map();
+  for (const f of fotos) {
+    const dia = String(f.date || '').slice(0, 10);
+    if (dia) fotosPorDia.set(dia, (fotosPorDia.get(dia) || 0) + 1);
+  }
+  for (const [dia, n] of fotosPorDia) {
+    out.push({
+      id: `fotos:${dia}`,
+      texto: `${n} ${n === 1 ? 'foto de progreso añadida' : 'fotos de progreso añadidas'}`,
+      fecha: dia,
+      momento: null,
+    });
+  }
+
+  if (entrega?.reviewedAt) {
+    out.push({
+      id: `revisada:${entrega.id}`,
+      texto: 'Tu entrenador revisó tu semana',
+      fecha: entrega.reviewedAt.slice(0, 10),
+      momento: entrega.reviewedAt,
+    });
+  }
+  if (entrega?.submittedAt) {
+    out.push({
+      id: `entregada:${entrega.id}`,
+      texto: 'Semana entregada',
+      fecha: entrega.submittedAt.slice(0, 10),
+      momento: entrega.submittedAt,
+    });
+  }
+
+  const hoyISO = isoLocal(ahora);
+  return out
+    .filter((e) => e.fecha)
+    .sort((a, b) => {
+      const fa = a.momento || `${a.fecha}T00:00:00`;
+      const fb = b.momento || `${b.fecha}T00:00:00`;
+      return fb.localeCompare(fa);
+    })
+    .slice(0, cuantos)
+    .map((e) => ({
+      id: e.id,
+      texto: e.texto,
+      cuando: haceCuanto(e, ahora),
+      hoy: e.fecha === hoyISO,
+    }));
+};
+
+const isoLocal = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/** «Hace 2 h», «Hoy», «Ayer», «Hace 3 días» o la fecha: la precisión que hay. */
+const haceCuanto = ({ fecha, momento }, ahora) => {
+  if (momento) {
+    const min = Math.round((ahora - new Date(momento)) / 60000);
+    if (min >= 0 && min < 60) return min <= 1 ? 'Ahora' : `Hace ${min} min`;
+    if (min >= 60 && min < 12 * 60) return `Hace ${Math.round(min / 60)} h`;
+  }
+  const dias = Math.round(
+    (new Date(`${isoLocal(ahora)}T12:00:00`) - new Date(`${fecha}T12:00:00`)) / 86400000
+  );
+  if (dias <= 0) return 'Hoy';
+  if (dias === 1) return 'Ayer';
+  if (dias < 7) return `Hace ${dias} días`;
+  return new Date(`${fecha}T12:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
 };

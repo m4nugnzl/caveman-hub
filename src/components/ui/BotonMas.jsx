@@ -49,7 +49,16 @@ export const BotonMas = ({
      que es como llegaron a existir siete dibujos de lo mismo. */
   descriptivo = false,
   alineado = undefined,
+  /* El «+» que se pulsa a diario en su pantalla, en tinta llena. Los tres de la
+     barra del bloque son la misma pieza, pero no se usan igual: «+ hoja» se
+     pulsa cada vez que se monta una semana y los otros dos, una vez por
+     mesociclo. El frame lo dice así (`33:278`: tinta plena en 600, contra el
+     gris a 500 de sus vecinos), y es la única jerarquía que la fila tiene entre
+     verbos — sin ella los tres «+» pesan lo mismo y el que se busca hay que
+     leerlo. Uno por pantalla, o deja de significar nada. */
+  destacado = false,
 }) => {
+  const clase = `tira-mas${destacado ? ' is-destacado' : ''}`;
   const dentro = (
     <>
       <Plus size={13} aria-hidden="true" />
@@ -58,7 +67,7 @@ export const BotonMas = ({
   );
   return items ? (
     <MenuAcciones
-      clase="tira-mas"
+      clase={clase}
       label={dentro}
       items={items}
       ariaLabel={ariaLabel || `Añadir ${palabra}`}
@@ -67,7 +76,7 @@ export const BotonMas = ({
       sinFlecha
     />
   ) : (
-    <button type="button" className="tira-mas" onClick={onClick} title={title} aria-label={ariaLabel || undefined}>
+    <button type="button" className={clase} onClick={onClick} title={title} aria-label={ariaLabel || undefined}>
       {dentro}
     </button>
   );

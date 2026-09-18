@@ -183,7 +183,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
                     key={dia.id}
                     plan={plan}
                     variant={dia.id}
-                    title={`Objetivo · ${dia.name.toLowerCase()}`}
+                    title={`Ajustar objetivo · ${dia.name.toLowerCase()}`}
                     editable
                     onSave={(fields) => updateNutritionTargets(client.id, dia.id, fields)}
                   />

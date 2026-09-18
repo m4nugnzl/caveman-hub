@@ -129,6 +129,11 @@ export const FichaAlimento = ({
     )
   );
   const [guardando, setGuardando] = useState(false);
+  /* Se abre en LECTURA y «Editar alimento» enciende las casillas (frame de
+     Figma, 18 sep). La edición es la de siempre; guardar o cancelar la
+     devuelven a lectura porque quien monta la ficha la remonta. El alta nace
+     editando. */
+  const [editando, setEditando] = useState(nuevo);
 
   /* ── Qué se ha tocado, para que el pie sepa si hay algo que guardar ───────
      El borrador entero contra la foto de cuando se montó. Quien monta esta
@@ -272,7 +277,7 @@ export const FichaAlimento = ({
     toast({ text: `«${nombre}» guardado.` });
     /* Renombrar mueve la fila que la lista tiene señalada: hay que llevar el
        carril al nombre nuevo o se quedaría apuntando a uno que ya no existe. */
-    if (renombra) onIr?.(nombre);
+    if (renombra || nuevo) onIr?.(nombre);
     onCerrar?.();
   };
 
@@ -324,20 +329,24 @@ export const FichaAlimento = ({
     },
   ].filter(Boolean);
 
+  /* Qué se escribe aquí: lo tuyo entero, y en lo del catálogo sólo tu nota. Lo
+     de un compañero, nada. */
+  const puedeEditar = !deOtro;
+  const escribe = editando && puedeEditar;
+  const escribeHechos = escribe && editable;
+  const lleva = alimento?.tags || [];
+
   return (
     <div className="col ficha-ej">
       {/*
         ══ QUIÉN ES, ARRIBA Y EN UNA PIEZA ═══════════════════════════════════
 
         El nombre en grande —la única voz que se levanta en esta ficha— y debajo
-        su categoría. Cuando el alimento es tuyo, ese mismo titular se escribe
-        encima: sin caja hasta que lo tocas, que es la ley de los gestos de la
-        casa. Antes el nombre se decía dos veces (titular del carril + campo
-        «Cómo se llama») y la categoría era un `select` de 40 px con su rótulo:
-        tres objetos y 145 px para dos palabras.
+        su categoría y de dónde viene. Editando lo tuyo, ese mismo titular se
+        escribe encima y la categoría es una chapa con menú.
       */}
       <header className="ficha-id">
-        {editable && !deOtro ? (
+        {escribeHechos ? (
           <input
             className="ficha-id-nom"
             value={name}
@@ -348,27 +357,20 @@ export const FichaAlimento = ({
             autoFocus={nuevo}
           />
         ) : (
-          /* En la CAPA no: el título del diálogo ya es el nombre, y repetirlo
-             dos renglones más abajo es el eco que esta ficha ha venido a
-             quitarse. En el carril sí, porque ahí el nombre es esto. */
+          /* En la CAPA no: el título del diálogo ya es el nombre. */
           !enCapa && <h2 className="ficha-id-nom">{original}</h2>
         )}
 
         <div className="ficha-id-clase">
           <SelectorDeClase
-            valor={editable ? category || null : alimento?.category || null}
+            valor={escribeHechos ? category || null : alimento?.category || null}
             opciones={FOOD_CATEGORIES}
-            editable={editable && !deOtro}
+            editable={escribeHechos}
             conVacio
             onElegir={(v) => setCategory(v || '')}
             ariaLabel="Dónde lo pones"
           />
-          {/* Que es del catálogo se dice aquí y no con una chapa más: la lista
-              ya marca lo tuyo, y en la ficha lo que importa es si se corrige. */}
-          {!nuevo && !editable && <span className="t-xs t-tertiary">Del catálogo</span>}
-          {/* Y que es tuyo, con la misma chapa de la lista: la ficha de un
-              alimento tuyo —donde se corrige hasta el nombre— se veía igual que
-              la de uno del catálogo, donde sólo se escribe la nota. */}
+          {!nuevo && !editable && <span className="ficha-id-origen">Del catálogo</span>}
           {!nuevo && editable && !deOtro && <span className="badge badge-info">Tuyo</span>}
         </div>
 
@@ -379,219 +381,182 @@ export const FichaAlimento = ({
         )}
       </header>
 
+      {/* La etiqueta, que editando lo tuyo es además el editor. El porqué
+          largo, en `EtiquetaNutricional`. */}
+      <EtiquetaNutricional
+        alimento={alimento}
+        general={general}
+        edicion={
+          escribeHechos
+            ? {
+                macros,
+                micros,
+                unitLabel,
+                unitGrams,
+                errores: { ...errores, ...erroresMicro },
+                errorUnidad,
+                onMacro: (campo, v) => setMacros({ ...macros, [campo]: v }),
+                onMicro: (campo, v) => setMicros({ ...micros, [campo]: v }),
+                onUnitLabel: setUnitLabel,
+                onUnitGrams: setUnitGrams,
+              }
+            : null
+        }
+      />
+
       {/*
-        ══ LA HOJA: LO QUE SE MIRA A LA IZQUIERDA, LO QUE SE ESCRIBE A LA DERECHA
-        ─────────────────────────────────────────────────────────────────────
-        Y la etiqueta es las dos cosas a la vez cuando el alimento es tuyo — el
-        porqué largo, en `EtiquetaNutricional`. Con eso desaparecen los tres
-        campos de macros, los cuatro del envase y el de la unidad: nueve
-        rótulos, nueve ayudas y unos 450 px de alto que sólo repetían lo que la
-        etiqueta ya decía dos dedos más arriba.
+        ── Los tres en blanco no se bloquean, se dicen ──────────────────────
+        No es un error —el agua y el café solo son 0·0·0 de verdad—, así que se
+        avisa y se deja guardar. La app resalta; el criterio es del entrenador.
       */}
-      <div className="ficha-hoja">
-        <div className="ficha-col">
-          <EtiquetaNutricional
-            alimento={alimento}
-            general={general}
-            edicion={
-              editable && !deOtro
-                ? {
-                    macros,
-                    micros,
-                    unitLabel,
-                    unitGrams,
-                    errores: { ...errores, ...erroresMicro },
-                    errorUnidad,
-                    onMacro: (campo, v) => setMacros({ ...macros, [campo]: v }),
-                    onMicro: (campo, v) => setMicros({ ...micros, [campo]: v }),
-                    onUnitLabel: setUnitLabel,
-                    onUnitGrams: setUnitGrams,
-                  }
-                : null
-            }
-          />
+      {escribeHechos && sinMacros && (
+        <Notice tone="warn">
+          Sin ningún macro, «{nombre || 'este alimento'}» suma 0 kcal en cualquier dieta donde
+          entre. Correcto para el agua o el café solo; si no es el caso, cópialos del envase.
+        </Notice>
+      )}
 
-          {/*
-            ── Los tres en blanco no se bloquean, se dicen ──────────────────
-            En blanco significa cero por decisión escrita (`macroError`), y está
-            bien: casi ningún alimento tiene los tres, y obligar a teclear «0»
-            dos de cada tres veces es peor formulario.
+      {/* Editando uno del catálogo, se dice por qué sus cifras no se abren y
+          qué hacer en su lugar: «Duplicar», que está en el pie. */}
+      {escribe && !nuevo && !editable && (
+        <p className="ficha-capa-texto">
+          Sus macros son los de referencia y aquí sólo escribes tu nota. Si la marca que compras
+          trae otros, es otro alimento: «Duplicar» lo da de alta con su nombre.
+        </p>
+      )}
 
-            Pero LOS TRES en blanco es otra cosa: es un alimento que va a sumar
-            0 kcal en todas las dietas donde entre y no se va a notar hasta que
-            las cuentas no cuadren. No es un error —el agua, el café solo y la
-            sal son 0·0·0 de verdad—, así que se avisa y se deja guardar. La app
-            resalta; el criterio es del entrenador.
-          */}
-          {editable && !deOtro && sinMacros && (
-            <Notice tone="warn">
-              Sin ningún macro, «{nombre || 'este alimento'}» suma 0 kcal en cualquier dieta donde
-              entre. Correcto para el agua o el café solo; si no es el caso, cópialos del envase.
-            </Notice>
-          )}
+      {deOtro && (
+        <Notice tone="info">
+          Este alimento lo dio de alta un compañero de equipo. La biblioteca es compartida, así que
+          sus macros los corrige quien los puso.
+        </Notice>
+      )}
 
-          {/*
-            Los macros del catálogo no se tocan, y aquí se dice POR QUÉ y qué
-            hacer en su lugar. Sin esto, una fila del catálogo es idéntica a una
-            tuya y no ofrece salida — que es el fallo que esta pantalla venía a
-            arreglar.
-          */}
-          {!nuevo && !editable && !deOtro && (
-            <div className="col gap-2">
-              <p className="ficha-capa-texto">
-                Sus macros son los de referencia. Si la marca que compras trae otros, es otro
-                alimento: se da de alta con su nombre, y así los dos siguen siendo ciertos.
-              </p>
-              <div className="row">
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  onClick={() => onCrearElMio?.(alimento)}
-                >
-                  Nuevo alimento a partir de este
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="ficha-col">
-          {deOtro && (
-            <Notice tone="info">
-              Este alimento lo dio de alta un compañero de equipo. La biblioteca es compartida, así
-              que sus macros los corrige quien los puso.
-            </Notice>
-          )}
-
-          {/*
-            ── Lo que lleva ───────────────────────────────────────────────
-            Hechos del alimento, nunca permisos: «contiene gluten» es verdad
-            para todo el mundo, y a quién se lo puedes dar lo decide el cruce
-            con sus condicionantes, que vive en la dieta. Sin esto, ese aviso es
-            ciego con tus marcas y tus suplementos.
-
-            `rail-wrap` y no `rail`: ocho chapas en esta columna desbordan, y
-            `.rail` esconde su barra, así que con ratón las últimas no se podían
-            alcanzar — marcar «soja» en tu batido era imposible.
-          */}
-          {editable && !deOtro ? (
-            <Field
-              label="Lo que lleva"
-              hint="Para que el aviso salte con los clientes que lo evitan."
-            >
-              <div className="rail rail-wrap" role="group" aria-label="Lo que lleva este alimento">
-                {Object.entries(FOOD_TAG_LABELS).map(([id, label]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    className="chip"
-                    aria-pressed={tags.has(id)}
-                    onClick={() =>
-                      setTags((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(id)) next.delete(id);
-                        else next.add(id);
-                        return next;
-                      })
-                    }
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          ) : (
-            (alimento?.tags || []).length > 0 && (
-              <Field label="Lo que lleva">
-                <div className="rail rail-wrap" role="list">
-                  {alimento.tags.map((t) => (
-                    <span key={t} className="chip" role="listitem">
-                      {FOOD_TAG_LABELS[t] || t}
-                    </span>
-                  ))}
-                </div>
-              </Field>
-            )
-          )}
-
-          {!deOtro && (
-            <Field label="Tu nota" hint="Lo que te dices al comprarlo. Tu cliente todavía no la ve.">
-              <TextInput
-                value={note}
-                onChange={setNote}
-                placeholder="El de lata al natural, no en aceite"
-              />
-            </Field>
-          )}
-
-          {!nuevo && (
-            <DondeEstaPuesto
-              titulo="A quién se lo das"
-              gente={enDietas}
-              vacio="Todavía no está en ninguna dieta. Se puede quitar sin tocarle la comida a nadie."
-            />
-          )}
-        </div>
-
-        {/*
-          ── Y si hay otro que se llama casi igual, se dice aquí ──────────────
-          La pantalla promete curar «los dos "Pan integral" que se colaron» y no
-          tenía forma de enseñarlos. Con la banda de arriba al lado, la pareja se
-          resuelve mirando: el que no usa nadie es el que sobra. A lo ancho de la
-          hoja porque es una frase que se lee de un lado a otro, no una columna.
-        */}
-        {!nuevo && parecidos.length > 0 && (
-          <div className="es-ancho">
-            <Notice tone="info">
-              Tienes {parecidos.length === 1 ? 'otro que se llama' : 'otros que se llaman'} casi
-              igual:{' '}
-              {parecidos.map((otro, i) => (
-                <span key={otro}>
-                  {i > 0 && ', '}
-                  <button type="button" className="cab-accion is-puerta" onClick={() => onIr?.(otro)}>
-                    {otro}
-                  </button>
-                </span>
-              ))}
-              . Mira a quién se lo das y quédate con uno.
-            </Notice>
+      {/*
+        ── Lo que lleva ───────────────────────────────────────────────────
+        Hechos del alimento, nunca permisos: a quién se lo puedes dar lo decide
+        el cruce con sus condicionantes, en la dieta. El frame no lo dibuja y
+        se queda igual: sin esto el aviso de alérgenos es ciego con tus marcas.
+        `rail-wrap` y no `rail`: con ratón las últimas chapas no se alcanzaban.
+      */}
+      {escribeHechos ? (
+        <Field label="Lo que lleva" hint="Para que el aviso salte con los clientes que lo evitan.">
+          <div className="rail rail-wrap" role="group" aria-label="Lo que lleva este alimento">
+            {Object.entries(FOOD_TAG_LABELS).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className="chip"
+                aria-pressed={tags.has(id)}
+                onClick={() =>
+                  setTags((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(id)) next.delete(id);
+                    else next.add(id);
+                    return next;
+                  })
+                }
+              >
+                {label}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+        </Field>
+      ) : (
+        lleva.length > 0 && (
+          <section className="ficha-fila">
+            <p className="ficha-capa-rot">Lo que lleva</p>
+            <p className="ficha-fila-valor">
+              {lleva.map((t) => FOOD_TAG_LABELS[t] || t).join(' · ')}
+            </p>
+          </section>
+        )
+      )}
+
+      {/* Tu nota: la del catálogo también la lleva, porque es tuya y no del
+          alimento. Leyendo, una caja hundida con su frase de ayuda debajo. */}
+      {!deOtro &&
+        (escribe ? (
+          <Field label="Tu nota" hint="Lo que te dices al comprarlo. Tu cliente todavía no la ve.">
+            <TextInput
+              value={note}
+              onChange={setNote}
+              placeholder="El de lata al natural, no en aceite"
+            />
+          </Field>
+        ) : (
+          <section className="ficha-bloque">
+            <p className="ficha-capa-rot">Tu nota</p>
+            <div className="ficha-nota">
+              {note.trim() ? (
+                <p className="ficha-nota-texto">{note}</p>
+              ) : (
+                <p className="ficha-nota-texto es-vacia">Sin nota.</p>
+              )}
+              <p className="ficha-nota-ayuda">Lo que te dices al comprarlo. Tu cliente todavía no la ve.</p>
+            </div>
+          </section>
+        ))}
+
+      {!nuevo && (
+        <DondeEstaPuesto
+          titulo="A quién se lo das"
+          gente={enDietas}
+          vacio="Todavía no está en ninguna dieta."
+        />
+      )}
+
+      {/* Si hay otro que se llama casi igual, se dice aquí: con «A quién se lo
+          das» encima, la pareja se resuelve mirando. */}
+      {!nuevo && parecidos.length > 0 && (
+        <Notice tone="info">
+          Tienes {parecidos.length === 1 ? 'otro que se llama' : 'otros que se llaman'} casi igual:{' '}
+          {parecidos.map((otro, i) => (
+            <span key={otro}>
+              {i > 0 && ', '}
+              <button type="button" className="cab-accion is-puerta" onClick={() => onIr?.(otro)}>
+                {otro}
+              </button>
+            </span>
+          ))}
+          . Mira a quién se lo das y quédate con uno.
+        </Notice>
+      )}
 
       {/*
-        ══ EL PIE DEJA DE SER EL PIE DE UN DIÁLOGO ═══════════════════════════
-
-        Aquí había «Cancelar / Guardar» siempre, y era el pie de un modal
-        trasplantado a una columna. El propio código ya lo decía por escrito en
-        `EjerciciosPanel`: «en un carril no hay nada que cerrar». Con él puesto,
-        dos de cada tres fichas —las del catálogo, que sólo dejan escribir la
-        nota— se leían como un formulario apagado esperando a que lo rellenaras.
-
-        · **«Cancelar» sólo donde cierra algo**: en la capa (`enCapa`) y en el
-          alta, que son los dos sitios donde salir es un gesto de verdad. En el
-          carril, cambiar de fila ya descarta el borrador — la `key` remonta la
-          ficha, que es la mecánica que ya existía.
-        · **«Guardar» sólo cuando hay algo que guardar.** Un botón primario
-          encendido sobre una ficha que no has tocado promete trabajo que no
-          hay. `tocado` compara el borrador con lo que se cargó al montar, y el
-          remontaje por `key` es lo que hace que esa comparación sea cierta.
+        ══ EL PIE ═════════════════════════════════════════════════════════════
+        Leyendo: «Editar alimento» y «Duplicar». El frame dibuja además un
+        «Nuevo alimento a partir de este» que hace exactamente lo mismo que
+        «Duplicar»: se queda uno, porque dos botones para un verbo obligan a
+        averiguar en qué se diferencian. Editando: cancelar y guardar, y
+        «Guardar» sólo se enciende con algo tocado.
       */}
-      {(enCapa || nuevo || tocado) && (
-        <div className="row-end ficha-ej-pie">
-          {(enCapa || nuevo) && (
-            <button type="button" className="btn btn-sm" onClick={onCerrar}>
-              Cancelar
-            </button>
-          )}
+      {escribe ? (
+        <div className="ficha-ej-pie">
+          <button type="button" className="btn btn-sm" onClick={onCerrar}>
+            Cancelar
+          </button>
           <button
             type="button"
             className="btn btn-primary btn-sm"
             onClick={guardar}
-            disabled={guardando || !valido || deOtro || (!nuevo && !tocado)}
+            disabled={guardando || !valido || (!nuevo && !tocado)}
           >
             Guardar
           </button>
+        </div>
+      ) : (
+        <div className="ficha-ej-pie es-lectura">
+          {puedeEditar && (
+            <button type="button" className="btn btn-secondary btn-sm grow" onClick={() => setEditando(true)}>
+              Editar alimento
+            </button>
+          )}
+          {onCrearElMio && (
+            <button type="button" className="link" onClick={() => onCrearElMio(alimento)}>
+              Duplicar
+            </button>
+          )}
         </div>
       )}
     </div>

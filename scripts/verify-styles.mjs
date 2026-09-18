@@ -336,7 +336,7 @@ const NO_SON_CAMPOS = ['.input-suffix'];
 /* Los comentarios fuera antes de partir en reglas: llevan dentro nombres de
    clase y puntos, y sin quitarlos medio comentario entra como selector. */
 const sinComentarios = (texto) => texto.replace(/\/\*[\s\S]*?\*\//g, ' ');
-const PEQUENA = /font-size:\s*var\(--fs-(3xs|2xs|xs|sm)\)/;
+const PEQUENA = /font-size:\s*var\(--fs-(3xs|2xs|xs|control|sm)\)/;
 const camposPequenos = [];
 const bloqueTactil = [];
 const miraCampos = (rel, crudo) => {

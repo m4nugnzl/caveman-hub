@@ -199,6 +199,8 @@ export const coachIntakeForm = (preferences) => {
     askMeasures: raw.askMeasures === true,
     askScreening: raw.askScreening === true,
     intro: String(raw.intro ?? '').trim().slice(0, 500),
+    /* Solo existe si el entrenador ha movido algo. Ver `camposDelCapitulo`. */
+    ...(raw.ordenPropio === true ? { ordenPropio: true } : {}),
   };
 };
 
@@ -326,8 +328,55 @@ export const intakeFormToPreferences = (form) => coachIntakeForm({ intakeForm: f
  */
 const enTu = (f) => ({ ...f, label: f.labelTu || f.label, hint: f.hintTu || f.hint });
 
+/**
+ * Los campos de un capítulo, en el orden en que se preguntan.
+ *
+ * ══ El orden del catálogo, salvo que el entrenador haya movido algo ════════
+ *
+ * Hasta el 18 sep el orden lo ponía SIEMPRE el catálogo de la ficha y el asa del
+ * constructor era de adorno. Desde el rediseño del alta (frame 98:275) se
+ * arrastra, y lo que se arrastra es `asked`. Pero `asked` ya tenía un orden
+ * antes —el de `DEFAULT_ASKED` y el de ir encendiendo preguntas—, que nadie
+ * eligió y que no es el del catálogo: leerlo a secas habría cambiado de golpe el
+ * alta de todos los clientes. Por eso manda solo con `ordenPropio`, que enciende
+ * el primer arrastre (`moverEnCapitulo`) y nada más.
+ *
+ * Es la ÚNICA lectura del orden: la usan el constructor y la hoja del cliente, y
+ * dos lecturas distintas acabarían enseñándole al entrenador un orden que el
+ * cliente no ve.
+ */
+export const camposDelCapitulo = (form, grupoId) => {
+  const asked = form?.asked || [];
+  const campos = PROFILE_FIELDS.filter((f) => f.group === grupoId && asked.includes(f.id));
+  if (!form?.ordenPropio) return campos;
+  return campos.sort((a, b) => asked.indexOf(a.id) - asked.indexOf(b.id));
+};
+
+/**
+ * Mover una pregunta dentro de su capítulo (o una de las propias entre ellas).
+ *
+ * `asked` se reescribe entero, capítulo tras capítulo: es la forma de que el
+ * orden guardado sea exactamente el que se ve. Las propias viven en `custom`,
+ * que ya se leía en su orden.
+ */
+export const moverEnCapitulo = (form, grupoId, desde, hasta) => {
+  if (desde === hasta) return form;
+  const mover = (lista) => {
+    const copia = [...lista];
+    const [pieza] = copia.splice(desde, 1);
+    if (pieza === undefined) return lista;
+    copia.splice(hasta, 0, pieza);
+    return copia;
+  };
+  if (grupoId === 'custom') return { ...form, custom: mover(form.custom || []) };
+  const asked = PROFILE_GROUPS.flatMap((g) => {
+    const ids = camposDelCapitulo(form, g.id).map((f) => f.id);
+    return g.id === grupoId ? mover(ids) : ids;
+  });
+  return { ...form, asked, ordenPropio: true };
+};
+
 export const formSections = (form) => {
-  const preguntadas = new Set(form?.asked || []);
 
   const tandas = PROFILE_GROUPS.map((grupo) => ({
     id: grupo.id,
@@ -338,7 +387,7 @@ export const formSections = (form) => {
        hablando de esa misma persona en tercera. Las otras dos tandas —la del
        entrenador y la del cribado— ya estaban en segunda persona. */
     label: grupo.labelTu || grupo.label,
-    fields: PROFILE_FIELDS.filter((f) => f.group === grupo.id && preguntadas.has(f.id)).map(enTu),
+    fields: camposDelCapitulo(form, grupo.id).map(enTu),
   })).filter((t) => t.fields.length > 0);
 
   const propias = (form?.custom || []).map((q) => ({ ...q, custom: true }));

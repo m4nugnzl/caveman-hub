@@ -288,6 +288,20 @@ describe('forecast', () => {
     );
     expect(serie[0]).toMatchObject({ total: 150, count: 2 });
   });
+
+  it('dice quién paga cada mes, por fecha', () => {
+    const serie = forecast(
+      [
+        client({ id: 'b', feeAmount: 90, billingPeriod: 'monthly', nextPaymentDate: '2026-08-25' }),
+        client({ id: 'a', feeAmount: 60, billingPeriod: 'monthly', nextPaymentDate: '2026-08-05' }),
+      ],
+      { months: 2, today: HOY }
+    );
+    expect(serie[1].cobros.map((c) => [c.client.id, c.date, c.amount])).toEqual([
+      ['a', '2026-09-05', 60],
+      ['b', '2026-09-25', 90],
+    ]);
+  });
 });
 
 describe('concentration', () => {

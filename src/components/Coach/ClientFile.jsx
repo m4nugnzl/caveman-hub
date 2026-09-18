@@ -17,7 +17,7 @@ import {
   UserCheck,
   Video,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clientPath } from '@/routes';
 
 import { useApp } from '@/context/AppContext';
@@ -30,7 +30,7 @@ import { PROFILE_GROUPS, cleanProfile } from '@/domain/profile';
 import { shortDate } from '@/lib/dates';
 /* La pausa y las etiquetas viven ahora con la hoja de ajustes de la cartera
    (`ClientSettings.jsx`): una sola implementación, dos sitios que la enseñan. */
-import { ClientSettingsSheet, LoQueLeHasMandado, PauseRow, TagsRow } from './ClientSettings';
+import { PauseRow, TagsRow } from './ClientSettings';
 import { clientProtocol, queLeLlevas } from '@/domain/protocol';
 import { protocoloDeCliente } from '@/domain/protocolos';
 import { necesitaSuPlan, protegidoDeSuPlan } from '@/lib/protocolTemplate';
@@ -1287,7 +1287,12 @@ export const ClientFile = () => {
      `carpeta`. Una sola, y en un solo estado: dos banderas independientes
      acabarían con dos hojas abiertas a la vez el día que alguien añada la
      tercera. */
-  const [hoja, setHoja] = useState(null);
+  /* Puede llegar puesta: el renglón «Alta» de la pestaña Protocolo trae aquí
+     con `state.hoja`, y aterrizar en la ficha sin la hoja abierta sería hacer
+     buscar lo que se acaba de pulsar. */
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [hoja, setHoja] = useState(() => location.state?.hoja || null);
   const cerrar = () => setHoja(null);
 
   /* Su carpeta y si hay Drive, leído una vez para toda la pantalla: lo usan la
@@ -1438,7 +1443,7 @@ export const ClientFile = () => {
                 ? 'Se ha quedado atrás'
                 : queLeLlevas(clientProtocol(activeClient.preferences))
           }
-          onClick={() => setHoja('protocolo')}
+          onClick={() => navigate(clientPath(activeClient.id, 'protocolo'))}
         />
 
         {pasosDelAlta.length > 0 && (
@@ -1549,17 +1554,12 @@ export const ClientFile = () => {
         <CustomAnswers client={activeClient} />
 
         {/*
-          Y lo que le has mandado suelto, detrás de lo que le preguntaste: son la
-          misma pregunta en dos tiempos —qué le pediste y qué ha vuelto—.
-
-          Vive aquí porque es donde la bandeja aterriza: las dos colas de lo
-          suelto («Leer lo que te han contestado» y «Les falta lo que les
-          mandaste») llevan a `seccion: 'ficha'`, y hasta ahora esta pantalla no
-          decía ni una palabra de ello — la lista solo estaba en la hoja de
-          ajustes de la cartera, así que la cola mandaba a un sitio donde no se
-          podía resolver. Es la misma pieza, con el marco de la ficha.
+          Aquí vivía «Lo que le has mandado». Se mudó a la pestaña «Protocolo»
+          (18 sep, Figma 98:86) como sus «Envíos puntuales», y las dos colas de
+          la bandeja que aterrizaban aquí —«Leer lo que te han contestado» y
+          «Les falta lo que les mandaste»— aterrizan ahora allí. Una lista, un
+          sitio.
         */}
-        <LoQueLeHasMandado client={activeClient} bloque />
 
         <EquipmentPanel client={activeClient} onSaveProfile={(profile) => editar({ profile })} />
       </div>
@@ -1614,21 +1614,6 @@ export const ClientFile = () => {
           )}
         </div>
       </Modal>
-
-      {/*
-        Su protocolo se abre en LA MISMA hoja que desde la cartera, no en una
-        copia: dos editores del mismo objeto es la forma de que uno de los dos se
-        quede sin la sección que se añadió el mes pasado.
-
-        Sin «Lo que le has mandado», que el cuerpo de esta ficha ya enseña unos
-        centímetros más abajo.
-      */}
-      <ClientSettingsSheet
-        client={activeClient}
-        open={hoja === 'protocolo'}
-        mandado={false}
-        onClose={cerrar}
-      />
 
       <Modal open={hoja === 'alta'} size="lg" title="Su alta" onClose={cerrar}>
         <div className="hoja-ficha">

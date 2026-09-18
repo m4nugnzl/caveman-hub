@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDown, ArrowUp, ClipboardPaste, Copy, GripVertical, Quote, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, ClipboardPaste, Copy, GripVertical, Link2, Quote, Trash2 } from 'lucide-react';
 
 import { restLabel, supersetLabels } from '@/domain/training';
 import { useArrastreOrden } from '@/lib/useArrastreOrden';
@@ -119,6 +119,19 @@ export const HojaDeSeries = ({
   */
   pautaEnMano = null,
   onPegarPauta = null,
+  /*
+    ── EL VÍDEO QUE LE PUSISTE AL EJERCICIO ──────────────────────────────────
+    `videoDe(ex)` devuelve la dirección del vídeo de su ficha, o `null`. Es lo
+    único que la hoja necesita saber de la biblioteca, y por eso llega como
+    pregunta y no como la ficha entera: lo que se dibuja es UNA marca.
+
+    No es la marca de `ExerciseList`, que es la del cliente y va con su ficha
+    abierta. Aquí es un eslabón de cadena pegado al nombre, que es lo que el
+    frame dibuja (`237:6`), y lo que dice es «de este ejercicio hay algo que
+    ver». Sigue vigente que en la hoja del entrenador no se pintan miniaturas
+    ni fotos: doce píxeles de glifo no son una miniatura.
+  */
+  videoDe = null,
 }) => {
   const [notaAbierta, setNotaAbierta] = useState(null);
   /*
@@ -179,6 +192,7 @@ export const HojaDeSeries = ({
         const enFoco = focusedId === ex.id;
         const excepcion = excepcionDe ? excepcionDe(ex) : null;
         const descanso = restLabel(ex.restSeconds);
+        const video = videoDe ? videoDe(ex) : null;
         return (
           <section
             key={ex.id}
@@ -223,7 +237,27 @@ export const HojaDeSeries = ({
                 y los mandos se quedan quietos a la altura de la primera.
               */}
               <span className="hoja-ej-titulo">
-                <span className="hoja-ej-nombre">{ex.name}</span>
+                <span className="hoja-ej-nombre">
+                  {ex.name}
+                  {/* Dentro del nombre y en línea: lo que dice es de ese
+                      nombre, y así sigue al texto cuando envuelve a dos
+                      renglones. En acento porque se pulsa —abre el vídeo en
+                      otra pestaña—, que es lo que el acento promete en esta
+                      casa. */}
+                  {video && (
+                    <a
+                      className="hoja-ej-video"
+                      href={video}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      title={`Ver el vídeo de ${ex.name}`}
+                      aria-label={`Ver el vídeo de ${ex.name}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Link2 size={13} aria-hidden="true" />
+                    </a>
+                  )}
+                </span>
                 <span className="hoja-ej-meta">
                   {/* Lo que el ejercicio ES: su músculo y sus series. Va PEGADO
                       al nombre y antes que la excepción, para que la hoja tenga

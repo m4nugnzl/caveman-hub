@@ -1,0 +1,201 @@
+/* ==========================================================================
+   LA CARTERA, DIBUJADA (18 sep 2026 · frame 164:1501 de Figma)
+   --------------------------------------------------------------------------
+   `/clientes` conserva la cinta de la casa arriba y, debajo, pasa de bandas
+   sobre el mismo papel a DOS CAJAS sobre una hoja hundida: la barra con la que
+   se mira la lista y la tabla. Cada caja es una pregunta distinta (qué miro /
+   a quién), y separadas se leen de arriba abajo sin que una se coma a la otra.
+
+   ── Por qué es un archivo aparte ──────────────────────────────────────────
+   Todo lo de aquí PISA piezas que la cartera comparte con otras pantallas:
+   la tabla (`.plantilla`, las cinco listas del Taller) y los chips. De la
+   cinta solo se tocan sus dos botones: la cinta en sí es la de `ui/Cinta`.
+   Así que va todo colgado de `.cartera` —que solo existe en
+   `ClientPortfolio`— y va DETRÁS de `chasis.css` y `revision.css`, que son
+   los que declaran esas piezas: en `superficies.css` estas reglas perderían
+   todos los empates. Lo que es SOLO de la cartera (`.p-lote`, `.p-tag`,
+   `.p-cara`, `.p-marca`) se corrigió en su sitio, en `superficies.css`.
+
+   ── Lo que NO se copió del frame, y por qué ───────────────────────────────
+   · La columna «Lleva» sigue siendo los atajos a Entreno y Dieta. El frame
+     pone ahí una flecha de tendencia en verde o rojo: pintar de rojo que alguien
+     baje de peso es juzgar un dato cuyo signo depende de su objetivo, y eso lo
+     tiene prohibido la ley del color («el semáforo juzga lo que se puede
+     juzgar»).
+   · Las caras conservan su matiz por persona en vez de ir todas en acento:
+     doce discos azules son doce botones que no se pulsan.
+   · El «···» de la fila sigue existiendo (el frame no lo dibuja): acceso,
+     rutina, protocolo, pausar y archivar no tienen otro sitio. En reposo no
+     se ve; sale con la fila.
+   · Los cuerpos suben un escalón (13 → 14, 12 → 13) por la regla de
+     `figma-dieta`: el frame está dibujado sobre 1.140 px y la hoja real corre
+     más ancha. Los MANDOS no: botones, buscador y chips hablan a 13
+     (`--fs-control`), como en el frame y como la cinta del bloque.
+   · El orden conserva su ⇅ y su flecha de menú (el frame pone un icono de
+     deslizadores): `MandoDeOrden` es compartido y ⇅ dice «orden».
+   ========================================================================== */
+
+/* ── La cinta y las dos cajas ───────────────────────────────────────────────
+   La cabecera es LA CINTA DE LA CASA, sin tocar: al canto de arriba de la
+   hoja, 20 px, los tramos en su línea y la marca mordiendo el filete, igual
+   que en el Taller. El frame la dibujaba como una tercera caja con los tramos
+   en un segundo renglón; el dueño la devolvió (18 sep): «las tabs tienen una
+   lógica distinta al resto de páginas». Debajo de la cinta la hoja se hunde un
+   escalón (`--surface-sunken`, el #f8fafc del frame) y la barra y la tabla van
+   en papel con su canto. En las otras pantallas la hoja sigue en blanco. */
+.cartera {
+  display: flex; flex-direction: column;
+  /* Aquí la hoja de la cartera era, en el móvil, una tarjeta. Ya no hay hoja
+     que dibujar: las cajas la sustituyen en todos los anchos. */
+  background: none; border: 0; border-radius: 0; box-shadow: none;
+}
+@media (min-width: 1024px) {
+  .shell-main:has(.cartera) { background: var(--surface-sunken); }
+}
+
+.cartera > .cartera-cuerpo > .cartera-barra,
+.cartera > .cartera-cuerpo > .plantilla {
+  background: var(--surface);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-lg);
+}
+
+/* ── Las dos acciones de la cinta, a la talla del frame ──────────────────────
+   La cinta es la de la casa; sus dos botones no: el frame los dibuja a 37 px
+   con canto de 12, un escalón por encima de la barra (33 y 10). Son las dos
+   únicas acciones de la pantalla y la talla lo dice. */
+.cartera .cartera-cab-acciones { gap: var(--s3); }
+.cartera .cartera-cab-acciones > .btn {
+  height: var(--h-control-lg); padding: 0 var(--s4);
+  border-radius: var(--r-control-lg);
+  font-size: var(--fs-control); font-weight: 600;
+}
+.cartera .cartera-cab-acciones > .btn-secondary { color: var(--text-secondary); }
+.cartera .cartera-cab-acciones > .btn-primary { font-weight: 700; }
+
+/* ══ LA BARRA: con qué se mira la lista ═════════════════════════════════════ */
+/* El cuerpo conserva el sangrado de la cinta (calle del chasis incluida): el
+   canto de las cajas cae a plomo con el titular. */
+.cartera > .cartera-cuerpo {
+  padding-top: var(--s5); padding-bottom: var(--s6);
+  display: flex; flex-direction: column; gap: var(--s5);
+}
+.cartera .cartera-barra {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-xs);
+}
+/* Orden y etiquetas, al otro canto: ahora la caja de la barra mide lo mismo
+   que la de la tabla, así que su canto derecho SÍ es el de la lista. */
+.cartera .cartera-barra-fin { margin-left: auto; }
+.cartera .cartera-barra .searchbox > .input {
+  min-height: var(--h-control); background: var(--surface-sunken);
+  border-radius: var(--r-control-md); font-size: var(--fs-control);
+}
+
+/* Los chips, en caja: papel con canto en reposo y acento lleno el elegido. En
+   la barra conviven con el buscador y el orden, y a la misma altura y con el
+   mismo canto los cinco mandos se leen como una fila y no como dos familias. */
+.cartera .cartera-barra .chip {
+  height: var(--h-control); padding: 0 var(--s3);
+  border-radius: var(--r-control-md);
+  background: var(--surface); box-shadow: inset 0 0 0 1px var(--edge-control);
+  font-size: var(--fs-control); font-weight: 500;
+}
+/* El orden, en tinta y a 600 (frame 164:1535): es el único mando de la barra
+   que no filtra, y dice cómo está puesta la lista entera. */
+.cartera .cartera-barra .chip.p-orden { color: var(--text); font-weight: 600; }
+.cartera .cartera-barra .chip:hover { background: var(--fill-subtle); }
+.cartera .cartera-barra .chip[aria-pressed='true'],
+.cartera .cartera-barra .chip.is-on {
+  background: var(--accent); color: var(--accent-on);
+  box-shadow: none; font-weight: 700;
+}
+/* Los chips ENVUELVEN y no ruedan: son cuatro preguntas excluyentes que hay
+   que ver todas para elegir (la regla de `.rail-wrap`, layout.css). El `.rail`
+   difumina su canto derecho SIEMPRE, quepa o no, y en esta barra —donde caben
+   de sobra— la última chapa salía desvanecida sin nada detrás. */
+.cartera .cartera-barra > .rail {
+  flex-wrap: wrap; overflow: visible;
+  -webkit-mask-image: none; mask-image: none;
+}
+.cartera .cartera-barra .chip-count {
+  font-family: inherit; font-size: inherit; font-weight: 500;
+  color: var(--text-tertiary); opacity: 1;
+}
+.cartera .cartera-barra .chip[aria-pressed='true'] .chip-count { color: inherit; font-weight: 700; }
+
+/* ══ LA TABLA ═══════════════════════════════════════════════════════════════ */
+/* La cabecera en banda hundida: es cromo, y así no se lee como una fila más. */
+.cartera .plantilla th {
+  padding: var(--s3);
+  background: var(--surface-sunken);
+  font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.cartera .plantilla :is(th, td):first-child { padding-left: var(--s4); }
+.cartera .plantilla :is(th, td):last-child { padding-right: var(--s4); }
+/* El rótulo cae sobre el ARRANQUE de la celda —la cara, el punto—, como en
+   el frame, y no sobre el texto de después: con la banda de fondo, el rótulo
+   ya no necesita la plomada para leerse como de su columna. */
+.cartera .plantilla th.p-quien > .th-orden,
+.cartera .plantilla th.p-estado > .th-orden { padding-left: 0; }
+
+/* La fila habla a 14. Tres de sus cifras suben de tinta porque son las que se
+   buscan leyendo la columna: el estado, por dónde va y el peso. */
+/* La cara, redonda y a 32. Se repite aquí lo de `.plantilla .p-cara`
+   (superficies.css) porque `.avatar.is-md` —38 px, esquina r-md— va en
+   `piezas.css`, el último archivo, con la misma especificidad. */
+.cartera .plantilla .p-cara {
+  width: 32px; height: 32px; border-radius: var(--r-pill); font-size: var(--fs-xs);
+}
+.cartera .plantilla .p-senal-texto { color: var(--text); }
+.cartera .plantilla .p-punto { width: 8px; height: 8px; }
+.cartera .plantilla td.p-semana { color: var(--text); font-weight: 600; }
+.cartera .plantilla td.p-peso { color: var(--text); font-weight: 700; }
+
+/* Correo y responsable en el mismo renglón, con el interpunto de la casa. */
+.cartera .plantilla .p-correo + .p-responsable::before {
+  content: '\00b7'; margin: 0 var(--s1); color: var(--text-tertiary);
+}
+/* En estrecho, el correo se retira: se comía el ancho del estado, que es la
+   columna que responde a lo que se viene a mirar. */
+@container cartera (max-width: 719.98px) {
+  .cartera .plantilla .p-correo { display: none; }
+  .cartera .plantilla .p-correo + .p-responsable::before { content: none; }
+}
+
+/* El «···», en reposo no está: sale con la fila, con el foco y abierto. En la
+   última columna no empuja a nadie, así que puede seguir midiendo. */
+.cartera .plantilla td.p-accion .menu-acciones {
+  opacity: 0; transition: opacity var(--fast);
+}
+.cartera .plantilla tbody tr:hover td.p-accion .menu-acciones,
+.cartera .plantilla td.p-accion .menu-acciones:focus-within { opacity: 1; }
+@media (hover: none) {
+  .cartera .plantilla td.p-accion .menu-acciones { opacity: 1; }
+  /* El buscador a 13 es la medida del frame; con el dedo vuelve a 16, o iOS
+     amplía la página al enfocarlo (ver el bloque táctil de `piezas.css`). */
+  .cartera .cartera-barra .searchbox > .input { font-size: var(--fs-base); }
+}
+
+/* ══ EL TELÉFONO ════════════════════════════════════════════════════════════
+   Las dos cajas se apilan sobre el lienzo con menos aire. */
+@media (max-width: 1023.98px) {
+  .cartera > .cartera-cuerpo { gap: var(--s3); padding-top: var(--s3); }
+  /* Sin la tarjeta de la hoja, la cinta se quedaba en papel suelto sobre el
+     lienzo. Toma el canto de las otras dos cajas; su filete de abajo, el que
+     muerde la marca, sigue siendo el suyo. */
+  .cartera > .cartera-cab {
+    background: var(--surface);
+    border: 1px solid var(--edge-card); border-bottom-color: var(--edge);
+    border-radius: var(--r-lg);
+  }
+  /* La tabla se tiraba 8 px hacia fuera por cada lado (superficies.css) para
+     que el relleno de sus filas cayera en el canto de la tarjeta de la hoja.
+     Ahora ella misma es la caja: tirada, se salía de la columna de las otras
+     dos. */
+  .cartera > .cartera-cuerpo > .plantilla { margin-inline: 0; }
+  .cartera .cartera-barra { padding: var(--s3); }
+  .cartera .cartera-barra-fin { margin-left: 0; }
+}

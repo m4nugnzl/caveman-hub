@@ -1,6 +1,9 @@
+import { useState } from 'react';
+
 import { Fila, Grupo } from '@/components/ui/Grupo';
+import { DiaPopup } from '@/components/nutrition/DiaPopup';
 import { MealCard } from '@/components/nutrition/MealCard';
-import { TiraDeLaDieta } from '@/components/nutrition/TiraDeLaDieta';
+import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
 import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
 
 /**
@@ -41,7 +44,7 @@ import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
  *
  * ══ Y la cinta de días tampoco se puede tocar ══════════════════════════════
  *
- * `TiraDeLaDieta` sin `onMas` ni `onRenombrar`: se cambia de día del ciclo y no
+ * `TarjetasDeDia` sin `onRenombrar`: se cambia de día del ciclo y no
  * se puede añadir ni renombrar ninguno. Misma ley que en Entreno — lo que se
  * puede hacer sale de lo que llega.
  *
@@ -85,6 +88,7 @@ export const DietaEnMonitor = ({ datos }) => {
     sinCifras,
     menuSinCifras,
   } = datos;
+  const [diaAbierto, setDiaAbierto] = useState(false);
 
   return (
     <div className="layout">
@@ -92,12 +96,17 @@ export const DietaEnMonitor = ({ datos }) => {
         <div className="dieta">
           <div className="dieta-menu">
             <div className="dieta-hoja">
-              {/* La cinta es la cabecera de la caja, igual que en el taller: dice
-                  qué día del ciclo se está mirando. Con una sola dieta no se
-                  pinta — una pestaña sola no es una elección. */}
-              {dias.length > 1 ? (
-                <TiraDeLaDieta dias={dias} activo={diaVisible?.id} onDia={onDia} />
-              ) : null}
+              {/* Los días, en sus tarjetas, igual que en el taller (frame 64:88).
+                  Con una sola dieta no se pintan: una pestaña sola no es una
+                  elección. Sin `onRenombrar` ni `soltar` — se cambia de día y no
+                  se toca nada, que es la misma ley de siempre: lo que se puede
+                  hacer sale de lo que llega.
+
+                  Y SIN LA CINTA, que aquí no tiene nada que decir: lleva el
+                  nombre del plan, cómo se le pauta y los verbos del entrenador,
+                  y las tres cosas son del taller. Una barra con un titular y
+                  nada más es un mueble vacío. */}
+              {dias.length > 1 ? <TarjetasDeDia dias={dias} activo={diaVisible?.id} onDia={onDia} /> : null}
 
               <div className="dieta-cuerpo">
                 {comidas.length === 0 ? (
@@ -124,11 +133,10 @@ export const DietaEnMonitor = ({ datos }) => {
                     todos los días. El chevron se queda para cerrar la que
                     estorbe.
                   */
-                  comidas.map((meal, i) => (
+                  comidas.map((meal) => (
                     <MealCard
                       key={meal.id}
                       meal={meal}
-                      numero={i + 1}
                       opcion={opcionDe(meal.id)}
                       onOpcion={(j) => onOpcion(meal.id, j)}
                       /*
@@ -155,8 +163,14 @@ export const DietaEnMonitor = ({ datos }) => {
             </div>
           </div>
 
-          <aside className="dieta-lado es-panel" aria-label="Tu objetivo y cómo va">
+          <aside className="dieta-lado" aria-label="Tu objetivo y cómo va">
             {/*
+              ── CAJAS SUELTAS, COMO EN EL TALLER (18 sep) ──────────────────
+              Llevaba `es-panel`, que funde la columna en una caja con las
+              secciones pegadas por un filete. El dueño: «le salen las 3 boxes
+              pegadas al cliente; en el entrenador no pasa». El taller las
+              separa desde el frame 64:244 y aquí se quedó la clase vieja.
+
               EL COSTADO DEL TALLER, sin el lápiz. `onEditarObjetivo` va nulo, y
               con él se apaga el único mando que tenía: lo que queda es el
               objetivo del día, lo que suma el menú abierto contra él, el reparto
@@ -174,6 +188,9 @@ export const DietaEnMonitor = ({ datos }) => {
                 registros={lecturas.registros}
                 cerrado={lecturas.cerrado}
                 onDia={onDia}
+                /* La ventana del día, como la del entrenador: se abre desde el
+                   título del objetivo. Ver `DiaPopup` abajo. */
+                onAbrirDia={comidas.length > 0 ? () => setDiaAbierto(true) : undefined}
                 tituloObjetivo={diaVisible?.name || null}
                 catalogo={lecturas.catalogo}
                 /* LO PAUTADO Y NADA MÁS. Ver `ObjetivoDelDia`: aquí salía
@@ -181,6 +198,37 @@ export const DietaEnMonitor = ({ datos }) => {
                    entre lo que su entrenador pidió y lo que le cuadró al
                    escribir el menú. Eso lo mira quien lo escribe. */
                 soloPautado
+              />
+            ) : null}
+
+            {/*
+              LA VENTANA DEL DÍA, en lectura: sin `onTarget` la tabla del
+              reparto se lee y no se escribe (ver `PlanDia`), y «Todos los
+              días» compara su día con los otros sin tocar nada. Sin el
+              desvío (`desvio`): lo real sobre lo pautado es lectura del que
+              reparte, y al cliente le basta la planificación.
+              Sin semáforo (`juzga`), por lo mismo que el costado va con
+              `soloPautado`: el descuadre es del que escribe el menú.
+            */}
+            {diaAbierto && lecturas ? (
+              <DiaPopup
+                open
+                label={(diaVisible?.name || 'el día').toLowerCase()}
+                meals={comidas}
+                targets={lecturas.targets}
+                elegidas={lecturas.elegidas}
+                juzga={false}
+                desvio={false}
+                dias={dias}
+                tituloReparto="Reparto · lo pautado en cada comida"
+                onIrA={(i) => {
+                  const id = comidas[i]?.id;
+                  window.setTimeout(
+                    () => document.getElementById(`comida-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                    50
+                  );
+                }}
+                onClose={() => setDiaAbierto(false)}
               />
             ) : null}
 

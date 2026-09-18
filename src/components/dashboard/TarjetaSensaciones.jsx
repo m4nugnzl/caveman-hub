@@ -60,7 +60,13 @@ export const TarjetaSensaciones = ({
   const noPregunta = preguntasSemana.length === 0 && preguntasSesion.length === 0;
 
   return (
-    <Tarjeta rotulo={isClient ? 'Cómo lo llevas' : 'Cómo lo lleva'} span={span} vacia={sinNada}>
+    /* El frame la titula «Adherencia & Sensaciones». Se queda con su nombre de
+       casa: la ley de la voz dice que las cosas se llaman por lo que la persona
+       reconoce, no por el término técnico, y «adherencia» es jerga de la
+       profesión puesta encima de siete palabras que son sueño, hambre y ganas.
+       Lo que sí se copia del frame es la FORMA de la fila: el nombre suelto a la
+       izquierda y la barra con su cifra alineadas a la derecha. */
+    <Tarjeta rotulo={isClient ? 'Cómo lo llevas' : 'Cómo lo lleva'} span={span} className="lo-lleva" vacia={sinNada}>
       {sinNada ? (
         <TarjetaVacia
           /* El vacío con su verbo (Q-05): si no se le pregunta nada, el sitio
