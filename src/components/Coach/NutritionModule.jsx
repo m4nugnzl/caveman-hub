@@ -4,6 +4,8 @@ import { ClipboardCopy, ClipboardPaste, Copy, CopyPlus, FileUp, Footprints, Hear
 import { useApp } from '@/context/AppContext';
 import { TIPO, copiar as copiarAlPortapapeles, usePortapapeles, useZonasDeSoltar } from '@/lib/portapapeles';
 import { useAtajosDeCopia } from '@/lib/useAtajosDeCopia';
+import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
+import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 import {
   buildFoodEntry,
   buildOption,
@@ -199,6 +201,15 @@ export const NutritionModule = () => {
   /* «Traer de un fichero»: la dieta que el cliente trae de fuera —y, si el
      mismo fichero la trae, también su rutina—. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
+  /* El fichero soltado sobre la dieta en blanco: la ventana lo abre leído. */
+  const [ficherosTraidos, setFicherosTraidos] = useState(null);
+  const traerFichero = (ficheros) => {
+    setFicherosTraidos(ficheros?.length ? [...ficheros] : null);
+    setPegarAbierto(true);
+  };
+  /* En blanco = sin objetivo y sin comidas: lo que hay es una invitación. */
+  const dietaEnBlanco = isEmptyDiet(plan);
+  const soltarFichero = useArrastreDeFicheros(traerFichero, dietaEnBlanco);
   /* «Traer la dieta de otro cliente»: el panel de réplica, el mismo de Entreno
      pero ofreciendo solo la dieta. */
   const [copiaAbierta, setCopiaAbierta] = useState(false);
@@ -1133,6 +1144,7 @@ export const NutritionModule = () => {
       {pegarAbierto && (
         <PastePlanDialog
           foco="dieta"
+          ficheros={ficherosTraidos}
           foods={alimentosDisponibles}
           dietaExistente={!isEmptyDiet(plan)}
           /* Con dos dietas hay que decir a cuál va lo que se trae, aunque la
@@ -1165,7 +1177,10 @@ export const NutritionModule = () => {
              ninguna semana, así que la decide `importRoutine`: la última si ya
              hay programa, y una nueva si no lo hay. */
           onImportDays={(days) => importRoutine(activeClient.id, days)}
-          onClose={() => setPegarAbierto(false)}
+          onClose={() => {
+            setPegarAbierto(false);
+            setFicherosTraidos(null);
+          }}
         />
       )}
 
@@ -1516,6 +1531,25 @@ export const NutritionModule = () => {
                   peso={pesoMedio?.average ?? null}
                   cuando={ultimoPesaje}
                 />
+              )}
+
+              {/*
+                ══ LA DIETA EN BLANCO INVITA A TRAER LA QUE YA TIENES ═══════
+                La misma puerta que la hoja en blanco del bloque: el lector es
+                uno y lee las dos mitades, así que desde aquí también entra la
+                rutina si va en el mismo fichero. Solo mientras no hay nada
+                pautado; después, «Traer de un fichero» sigue en el «+».
+              */}
+              {dietaEnBlanco && (
+                <div className="dieta-traer" {...soltarFichero.props}>
+                  <ZonaDeSoltar
+                    icon={FileUp}
+                    encima={soltarFichero.encima}
+                    titulo="Trae la dieta que ya tienes"
+                    sub="Suelta aquí su Excel, Word o PDF, o pulsa para buscarlo. Si trae su rutina, entra con ella."
+                    onClick={() => traerFichero(null)}
+                  />
+                </div>
               )}
 
               {!cerrado && repartoVisible && (

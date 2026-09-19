@@ -9,7 +9,6 @@ import {
   PersonStanding,
   Ruler,
   Search,
-  UserPlus,
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
@@ -25,7 +24,6 @@ import { dayMonthMaybeYear, todayISO } from '@/lib/dates';
 import { norm } from '@/lib/texto';
 import {
   COACH_CLIENT,
-  COACH_HOME,
   COACH_PRIMARY,
   COACH_TALLER,
   clientPath,
@@ -33,7 +31,6 @@ import {
   sameSectionFor,
   sectionsFor,
 } from '@/routes';
-import { EmptyState } from '@/components/ui/primitives';
 import { Avatar } from '@/components/ui/Avatar';
 import { EstadoDeRed, Nube } from '@/components/ui/EstadoDeRed';
 import { Pliegue } from '@/components/ui/Pliegue';
@@ -43,7 +40,6 @@ import { Logo } from '@/components/ui/Logo';
 import { ordenar, useOrden } from '@/components/ui/tabla';
 import { HeaderActions, Omnibox } from '@/components/Header';
 import { ClientSwitcher } from './ClientSwitcher';
-import { GettingStarted } from './GettingStarted';
 
 /*
   ── Cobros y Agenda son páginas ─────────────────────────────────────────────
@@ -166,6 +162,10 @@ const CobroDeLaCabecera = ({ client }) => {
  */
 const UMBRAL_FILTRO = 8;
 
+/** La chapa de quien está dado de alta y sin arrancar: el nombre de su tramo en
+    la cartera («Pendientes»), en azul como la cola «Poner en marcha». */
+const PENDIENTE = { id: 'pending', label: 'Pendiente', hint: 'Dado de alta y sin empezar todavía', tone: 'info' };
+
 /** La pestaña desde la que NO se ofrece «Revisar semana»: ya estás en ella. */
 const SECCION_SEMANA = COACH_CLIENT.find((s) => s.path === 'semana');
 /** El perfil: en escritorio se abre desde el nombre, no desde una pestaña. */
@@ -257,7 +257,6 @@ export const CoachLayout = () => {
   }, [location.pathname, loading]);
 
   const hoy = todayISO();
-  const hasClients = clients.length > 0;
   const onClient = Boolean(clientId);
 
   /*
@@ -274,6 +273,11 @@ export const CoachLayout = () => {
   );
   const inicioAbierto = clientId ? clients.find((c) => c.id === clientId)?.startDate || null : null;
   const resumenAbierto = clientId ? training[clientId] : null;
+  /* «Microciclo 1 · en curso» sale de su fecha de alta, y sin un solo
+     microciclo escrito es mentira: no hay nada en curso. Se mira el resumen de
+     la cartera (llega al arrancar) y el programa ya abierto (llega al entrar). */
+  const conPrograma =
+    (resumenAbierto?.microcycleCount ?? 0) > 0 || (programaAbierto?.microcycles?.length ?? 0) > 0;
   /* Depende de lo de ESE cliente, no de la cartera entera: una serie anotada en
      otro cliente o una foto subida por ahí no tienen por qué recalcular esto. */
   const semanaActiva = useMemo(() => {
@@ -363,7 +367,17 @@ export const CoachLayout = () => {
          como se llega a que dos pantallas digan cosas distintas de la misma
          persona. */
       estado: new Map(
-        rows.map((row) => [row.client.id, BOARD_COLUMNS.find((c) => c.id === columnFor(row)) || null])
+        rows.map((row) => [
+          row.client.id,
+          /* Quien aún no ha arrancado sale en «Pendientes» en la cartera, y la
+             cabecera tiene que decir lo mismo: `columnFor` lo mandaba a «Al
+             día» —no incumple nada, porque aún no se le pide nada— y un
+             cliente recién dado de alta, sin rutina ni un solo registro,
+             aparecía en verde. */
+          !row.paused && row.alerts.some((a) => a.id === 'not_started')
+            ? PENDIENTE
+            : BOARD_COLUMNS.find((c) => c.id === columnFor(row)) || null,
+        ])
       ),
     };
   }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts]);
@@ -1168,7 +1182,7 @@ export const CoachLayout = () => {
                           es lo único que dice que algo está PASANDO ahora
                           mismo. El verde es el de la casa (va, está bien), no
                           un color nuevo. */}
-                      {semanaActiva && (
+                      {semanaActiva && conPrograma && (
                         <span>
                           Microciclo {semanaActiva} · <em className="cliente-cab-vivo">en curso</em>
                         </span>
@@ -1253,39 +1267,10 @@ export const CoachLayout = () => {
           </header>
         )}
         <div className="layout">
-          
-{/* «Hoy» es la pantalla de entrada, así que es la primera que ve un
-              entrenador recién registrado y no puede limitarse a estar vacía.
-              «Clientes» ya trae su propio vacío —con el formulario de alta
-              dentro—, por eso aquí solo se cubre la de inicio.
-
-              La guía va delante del vacío y no dentro: sin clientes explica por
-              dónde se empieza, y con clientes sigue contestando la pregunta que
-              la trajo —dónde se hace la rutina— hasta que se cierra. */}
-          {!hasClients && location.pathname === COACH_HOME ? (
-            <div className="stack">
-              <GettingStarted />
-              <EmptyState
-                icon={UserPlus}
-                title="Todavía no tienes clientes"
-                message="Da de alta a tu primer atleta en «Clientes» y aquí aparecerá lo que le falta por hacer cada semana."
-                /* El mismo nombre que en la cartera —«Nuevo cliente»—, y llega
-                   con el formulario abierto: dos palabras para el mismo gesto
-                   eran dos gestos hasta que se pulsaban. Ver `producto.md` §5.8. */
-                action={
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-lg"
-                    onClick={() => navigate('/clientes', { state: { alta: true } })}
-                  >
-                    <UserPlus size={15} /> Nuevo cliente
-                  </button>
-                }
-              />
-            </div>
-          ) : (
-            <Outlet />
-          )}
+          {/* El Inicio sin clientes lo pinta el propio Inicio (`Today.jsx`):
+              aquí vivía una guía y DEBAJO un vacío que decían la misma frase
+              —«da de alta a tu primer cliente»— con dos botones distintos. */}
+          <Outlet />
         </div>
 
         {/*

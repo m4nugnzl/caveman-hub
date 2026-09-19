@@ -1,0 +1,72 @@
+/* ══ «TUS SEMANAS» ════════════════════════════════════════════════════════════
+   El rastro del cliente, al pie de la Revisión en el monitor y en su pantalla
+   en el teléfono (`components/Client/TusSemanas.jsx`).
+
+   La lista NO tiene traje propio: es `Grupo` + `Fila`, lo mismo que «Tu
+   entrega» justo encima —es la misma pantalla y habla con el mismo traje—.
+   Aquí solo vive lo de dentro de la ventana lateral que abre cada semana.
+   Ni un color que juzgue: el estado va en gris y la media no lleva flecha.
+   Ver `la ley del color`.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rastro { display: flex; flex-direction: column; min-width: 0; }
+.rastro-ancla { display: block; height: 0; scroll-margin-top: var(--s5); }
+
+.rastro-nada {
+  margin: 0; padding: var(--s4);
+  color: var(--text-secondary); font-size: var(--fs-sm);
+}
+
+/* La lista entera, dentro de la ventana. */
+.rastro-todas { box-shadow: none; }
+
+/* ── La semana abierta ─────────────────────────────────────────────────── */
+.rastro-cuerpo { display: flex; flex-direction: column; gap: var(--s5); }
+
+/* La media es la cifra de la semana: la misma lectura que «Tu media». */
+.rastro-media { display: flex; flex-direction: column; gap: var(--s1); }
+.rastro-media-cifra { color: var(--text); font-size: var(--fs-xl); font-weight: 700; }
+.rastro-media-cifra small { color: var(--text-tertiary); font-size: var(--fs-sm); font-weight: 500; }
+.rastro-media-antes { color: var(--text-tertiary); font-size: var(--fs-xs); }
+
+.rastro-parte { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.rastro-rotulo {
+  margin: 0; color: var(--text-tertiary);
+  font-size: var(--fs-xs); font-weight: 600;
+}
+
+.rastro-pesajes { list-style: none; margin: 0; padding: 0; }
+.rastro-pesaje {
+  display: flex; align-items: center; gap: var(--s3); min-height: 36px;
+  font-size: var(--fs-sm);
+}
+.rastro-pesaje + .rastro-pesaje { border-top: 1px solid var(--hairline); }
+.rastro-dia { flex: 1; min-width: 0; color: var(--text-secondary); }
+.rastro-peso { color: var(--text); font-weight: 600; }
+.rastro-quitar-si { display: flex; gap: var(--s2); }
+
+.rastro-medidas {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s2) var(--s4); margin: 0;
+}
+.rastro-medidas > div { display: flex; justify-content: space-between; gap: var(--s2); font-size: var(--fs-sm); }
+.rastro-medidas dt { color: var(--text-secondary); }
+.rastro-medidas dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+
+.rastro-fotos {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--s2);
+}
+.rastro-fotos li { display: flex; flex-direction: column; gap: var(--s1); font-size: var(--fs-xs); color: var(--text-tertiary); }
+.rastro-fotos img,
+.rastro-foto-vacia {
+  display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover;
+  border-radius: var(--r-md); background: var(--surface-sunken);
+}
+
+.rastro-respuesta { margin: 0; color: var(--text); font-size: var(--fs-sm); white-space: pre-line; }
+.rastro-video { align-self: flex-start; }
+
+/* El pie: volver a la lista a un lado, recorrer las semanas al otro. */
+.rastro-pie { display: flex; align-items: center; gap: var(--s2); width: 100%; }
+.rastro-pie-pasos { display: flex; gap: var(--s2); margin-left: auto; }

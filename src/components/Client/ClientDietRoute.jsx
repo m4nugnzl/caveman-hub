@@ -239,6 +239,22 @@ export const ClientDietRoute = () => {
     dias,
     diaVisible,
     onDia: setDiaElegido,
+    /*
+      ══ POR MACROS NO ES UNA DIETA VACÍA (19 sep) ════════════════════════════
+
+      El monitor solo sabía pintar comidas con alimentos, y un plan por macros
+      no tiene: o no tiene comidas —se pauta el día entero— o las tiene como
+      filas del reparto, con sus cifras y sin menú. Las dos caían en «Cuando te
+      la monten, aparecerá aquí» con el objetivo escrito en el costado: la
+      dieta estaba y la pantalla decía que no. El taller la pinta como la
+      prescripción del día o como la tabla del reparto, y el portal monta esas
+      mismas dos piezas en lectura. Ver `DietaEnMonitor`.
+
+      Con algo pautado: `emptyNutrition()` también nace por macros, y un plan
+      sin una cifra sí es el vacío de «cuando te la monten».
+    */
+    porMacros:
+      Boolean(plan) && plan.type !== 'closed' && ((objetivos?.kcals || 0) > 0 || comidasCrudas.length > 0),
     /* Las comidas EN CRUDO: `MealCard` trabaja sobre la comida del plan, con
        sus opciones y sus alimentos, no sobre una copia aplanada. */
     comidas: comidasCrudas,

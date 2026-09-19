@@ -66,13 +66,13 @@ import { PantallaRevision as RevisionEnTelefono } from './movil/PantallaRevision
  * baja en `datos.respuesta` a las dos pantallas. La casilla del peso se queda:
  * pesarse es diario y no depende de la entrega (ver `datos.peso`).
  *
- * ── Y la báscula entera: depende del aparato ──────────────────────────────
- * Anotar los nueve perímetros y los seis pliegues es un formulario largo. En el
- * MONITOR va al pie de esta misma pantalla (`SemanasAnteriores`): hay sitio, y
- * el recorrido natural es apuntar, entregar y mirar atrás sin cambiar de sitio.
- * En el TELÉFONO sigue detrás de su fila, en `/mi/evolucion/medidas`, porque en
- * 390 px apilarla dejaría lo que hay que hacer perdido arriba de un scroll
- * largo. Ver `SemanasAnteriores`, que es la misma pieza en los dos.
+ * ── Y el rastro: depende del aparato ──────────────────────────────────────
+ * «Tus semanas» (`TusSemanas`) —pesajes, medidas, fotos y lo que te contestó,
+ * semana a semana— solo se LEE: el peso se apunta arriba y en ningún otro sitio.
+ * En el MONITOR va al pie de esta misma pantalla: hay sitio, y el recorrido
+ * natural es apuntar, entregar y mirar atrás sin cambiar de sitio. En el
+ * TELÉFONO va detrás de su fila, en `/mi/evolucion/semanas`, porque en 390 px
+ * apilarla dejaría lo que hay que hacer perdido arriba de un scroll largo.
  */
 export const ClientRevisionRoute = () => {
   const {

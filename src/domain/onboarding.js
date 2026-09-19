@@ -64,7 +64,7 @@ export const onboardingSteps = ({ clients = [], training = {}, protocolTocado = 
       id: 'programar',
       titulo: 'Prográmale la semana',
       texto:
-        'Dentro del cliente, en «Rutina». Montas los días, los ejercicios y las series; en «Nutrición» va su plan de comidas.',
+        'Dentro del cliente, en «Entreno». Montas los días, los ejercicios y las series; en «Dieta» va su plan de comidas.',
       accion: sinProgramar ? `Programar a ${sinProgramar.name}` : 'Programar',
       /* El recuento de microciclos viene en el resumen de la cartera, que sí se
          carga al arrancar. El contenido del programa no, y no hace falta. */
@@ -88,7 +88,7 @@ export const onboardingSteps = ({ clients = [], training = {}, protocolTocado = 
       id: 'protocolo',
       titulo: 'Decide qué le pides a tus clientes',
       texto:
-        'En Ajustes → Protocolo eliges qué módulos usas y qué preguntas al terminar de entrenar. Lo que apagues no existe, ni al programar ni en su móvil.',
+        'En Tu taller → Protocolos eliges qué lleva, qué pasa cada semana y a quién se lo pones. Lo que apagues no existe, ni al programar ni en su móvil.',
       accion: 'Configurar mi protocolo',
       sabido: true,
       hecho: protocolTocado,

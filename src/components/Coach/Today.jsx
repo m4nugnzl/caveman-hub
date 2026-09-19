@@ -8,13 +8,13 @@ import {
   ChevronRight,
   CircleCheck,
   ClipboardList,
-  Inbox,
   KeyRound,
   MessageCircle,
   MessageSquare,
   Send,
   TriangleAlert,
   UserCheck,
+  UserPlus,
   Wallet,
 } from 'lucide-react';
 
@@ -559,6 +559,21 @@ export const Today = () => {
   const vista = useMemo(() => semanaDeUnVistazo(eventos, rows, today), [eventos, rows, today]);
   const actividad = eventos.slice(0, 5);
 
+  /*
+    ── Arrancando: nadie tiene programa y nadie ha registrado nada ────────────
+    Con el primer cliente recién dado de alta, Inicio enseñaba cuatro cifras a
+    cero, una banda verde de «todo al día» justo debajo de «1 sin programar» y
+    una caja de actividad diciendo que nadie había hecho nada: tres piezas
+    contando que todavía no hay nada, alrededor de la única que dice qué hacer.
+    Mientras dura, se pinta solo lo que pide un gesto —la guía, las colas con
+    gente, los trámites y la agenda si hay algo apuntado—. El resto aparece con
+    el primer microciclo o el primer registro, que es cuando significa algo.
+    Es la misma regla que el Resumen de un cliente sin historia
+    (`TarjetaArranque`), a la escala de la cartera.
+  */
+  const arrancando =
+    eventos.length === 0 && !clients.some((c) => (training?.[c.id]?.microcycleCount ?? 0) > 0);
+
   /* ── Acciones ──────────────────────────────────────────────────────────── */
   const open = (clientId, section) => navigate(clientPath(clientId, section));
 
@@ -645,13 +660,44 @@ export const Today = () => {
       }
     : null;
 
+  /*
+    ── El primer minuto: UNA pieza, con el mismo saludo de siempre ────────────
+    Sin nadie en la cartera, Inicio pintaba la guía «Por dónde empezar» y
+    debajo un vacío que decía lo mismo con otro botón («Ir a Clientes» arriba,
+    «Nuevo cliente» abajo). Ahora es el vacío solo, con el verbo que da de alta
+    —llega a la cartera con el formulario abierto—. El paseo que estuvo al
+    lado se ha ido: la primera vez que se entra aquí se abre sola la guía de
+    Inicio, y su último paso señala este mismo botón (`pantalla-inicio` en
+    `domain/tutoriales`). La guía «Por dónde empezar» aparece cuando hay un
+    segundo paso que dar, que es cuando tiene algo que contar.
+
+    El saludo va también aquí: el día que entra alguien por primera vez es
+    cuando más importa que Inicio tenga la cara que va a tener siempre.
+  */
   if (clients.length === 0) {
     return (
-      <EmptyState
-        icon={Inbox}
-        title="Todavía no hay nada que hacer"
-        message="En cuanto des de alta a tu primer cliente, aquí verás a quién le debes respuesta, a quién le falta rutina y quién te debe."
-      />
+      <div className="stack cascada">
+        <div className="ini">
+          <header className="ini-cab">
+            <h1>{saludo(profileName)}</h1>
+            <p>{capitalizar(weekdayName(`${today}T00:00:00Z`, { conFecha: true }))}</p>
+          </header>
+          <EmptyState
+            icon={UserPlus}
+            title="Empieza por tu primer cliente"
+            message="Con su nombre basta. Su entreno, su dieta y sus revisiones cuelgan de ahí."
+            action={
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate('/clientes', { state: { alta: true } })}
+              >
+                <UserPlus size={15} /> Nuevo cliente
+              </button>
+            }
+          />
+        </div>
+      </div>
     );
   }
 
@@ -719,6 +765,7 @@ export const Today = () => {
         <GettingStarted />
 
         {/* ── Tu semana: lo que ha pasado, en cuatro cifras ────────────────── */}
+        {!arrancando && (
         <section className="ini-tramo" aria-labelledby="ini-semana">
           <h2 id="ini-semana" className="ini-rotulo">
             Tu semana
@@ -750,6 +797,7 @@ export const Today = () => {
             />
           </div>
         </section>
+        )}
 
         {/* ── Requiere tu atención: las colas con gente ───────────────────── */}
         <section className="ini-tramo" ref={atencionRef} aria-labelledby={atencion.length > 0 ? 'ini-atencion' : undefined}>
@@ -791,7 +839,7 @@ export const Today = () => {
               )}
             </>
           )}
-          {(nadaPendiente || fraseAlDia) && (
+          {!arrancando && (nadaPendiente || fraseAlDia) && (
             <p className="ini-aldia">
               <CircleCheck size={20} aria-hidden="true" />
               {nadaPendiente ? 'Todo al día' : `${capitalizar(fraseAlDia)}, al día`}
@@ -799,6 +847,7 @@ export const Today = () => {
           )}
         </section>
 
+        {(!arrancando || agendaFilas.length > 0) && (
         <div className="ini-mesa">
           <div className="ini-col">
             <section className="ini-caja" aria-labelledby="ini-agenda">
@@ -837,7 +886,7 @@ export const Today = () => {
                 <ColaRevisar lista={porRevisar} onOpen={open} onCerrar={cerrarRevision} onAplazar={aplazarRevision} />
               </section>
             )}
-            {actividadALaIzquierda && cajaActividad}
+            {actividadALaIzquierda && !arrancando && cajaActividad}
           </div>
 
           <div className="ini-col">
@@ -853,9 +902,10 @@ export const Today = () => {
               </section>
             )}
 
-            {!actividadALaIzquierda && cajaActividad}
+            {!actividadALaIzquierda && !arrancando && cajaActividad}
           </div>
         </div>
+        )}
 
         {/*
           ── Trámites ──────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Layers, Salad, UploadCloud } from 'lucide-react';
 
 import { dietSummary, foodNames } from '@/domain/dietSheet';
@@ -157,10 +157,21 @@ export const PastePlanDialog = ({
   dietaExistente = false,
   dietaConVariantes = false,
   onImportDiet,
+  /* Los ficheros que ya se soltaron FUERA, sobre la hoja en blanco del bloque:
+     llegan leídos, y la ventana se abre directamente en la revisión. */
+  ficheros = null,
   onClose,
 }) => {
   const fuente = useSheetSource();
   const { libro, rutina, dieta } = fuente;
+
+  /* Una vez y al abrir: son los de la puerta por la que se ha entrado. Si
+     luego se eligen otros, mandan esos. */
+  const traidos = useRef(ficheros);
+  const abrir = useRef(fuente.abrirFicheros);
+  useEffect(() => {
+    if (traidos.current?.length) abrir.current(traidos.current);
+  }, []);
 
   const [targetIndex, setTargetIndex] = useState(targetPreference);
   const [destino, setDestino] = useState(null);
@@ -600,13 +611,15 @@ export const PastePlanDialog = ({
                 fuente.abriendo
                   ? 'Abriendo el fichero…'
                   : foco === 'dieta'
-                    ? 'Trae el PDF o la hoja de tu dieta'
-                    : 'Trae el Excel de tu rutina'
+                    ? 'Trae la dieta que ya tienes'
+                    : 'Trae la rutina que ya tienes'
               }
               sub={
                 fuente.abriendo
                   ? 'Estoy leyendo todas sus pestañas'
-                  : 'Suéltalo aquí, o pulsa para buscarlo en tu ordenador'
+                  : /* Lo mismo desde las dos puertas: se lee el fichero entero,
+                       y lo que traiga de la otra mitad entra también. */
+                    'Suéltalo aquí o pulsa para buscarlo. Si trae su rutina y su dieta, entran las dos.'
               }
               onClick={() => fuente.ficheroRef.current?.click()}
             >

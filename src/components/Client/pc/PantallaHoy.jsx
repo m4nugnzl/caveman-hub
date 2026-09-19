@@ -271,7 +271,7 @@ export const PantallaHoy = ({ datos }) => {
                   icono={Scale}
                   rotulo="Apuntar tu peso"
                   frase={hoy.pesaje}
-                  to="/mi/evolucion/medidas"
+                  to="/mi/evolucion"
                 />
               ) : null}
               {hoy.revision ? (

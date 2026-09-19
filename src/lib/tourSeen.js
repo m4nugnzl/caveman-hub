@@ -50,3 +50,34 @@ export const markTourSeen = (userId) => {
     return false;
   }
 };
+
+/* ── Las guías de «Aprende» que ya ha hecho ────────────────────────────────
+   Mismo criterio que arriba —el navegador, por usuario— y mismo compromiso:
+   en un navegador nuevo las guías vuelven a salir sin la marca de hechas, que
+   es un error leve. Solo sirve para marcar la lista; no bloquea nada. */
+
+const claveGuias = (userId) => `caveman-aprende:${userId || 'anon'}`;
+
+/** Los identificadores de las guías terminadas. Sin almacenamiento, ninguna. */
+export const guiasHechas = (userId) => {
+  try {
+    const lista = JSON.parse(localStorage.getItem(claveGuias(userId)) || '[]');
+    return Array.isArray(lista) ? lista.filter((id) => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+};
+
+/** Anota una guía como terminada. Devuelve la lista nueva. */
+export const marcarGuiaHecha = (userId, id) => {
+  const lista = guiasHechas(userId);
+  if (lista.includes(id)) return lista;
+  const nueva = [...lista, id];
+  try {
+    localStorage.setItem(claveGuias(userId), JSON.stringify(nueva));
+  } catch {
+    // Sin persistencia la marca se pierde al recargar. La guía ya se ha hecho:
+    // no hay nada que interrumpir por ello.
+  }
+  return nueva;
+};

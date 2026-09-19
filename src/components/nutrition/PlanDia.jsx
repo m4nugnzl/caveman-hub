@@ -58,6 +58,9 @@ export const PlanDia = ({
   /* El candado de una comida: solo donde el reparto se edita. */
   onFijar = null,
   juzga = true,
+  /* La fila de lo que suman los alimentos. En un plan por macros no hay
+     alimentos que sumar y la fila sale en guiones: el portal la apaga. */
+  conSuma = true,
 }) => {
   const [renombrando, setRenombrando] = useState(null);
   const objetivoKcal = toNum0(targets?.targetKcals);
@@ -85,7 +88,13 @@ export const PlanDia = ({
   /* «Cuadra» dice de qué: el veredicto mira los cuatro números y no solo las
      kcal. Aquí decía «cuadra» con la proteína repartida 48 g por encima de su
      objetivo, en la misma fila donde se veían los dos números. */
-  const lectura = reparto.meals === 0 ? (objetivoKcal ? 'sin repartir' : '') : vozDelReparto(reparto) || '';
+  /* Sin juicio no hay veredicto: «quedan 150 kcal por repartir» habla a quien
+     reparte, no a quien come. */
+  const lectura = !juzga
+    ? ''
+    : reparto.meals === 0
+      ? objetivoKcal ? 'sin repartir' : ''
+      : vozDelReparto(reparto) || '';
   const pctDia = objetivoKcal && suma.kcal ? `${Math.round((suma.kcal / objetivoKcal) * 100)} %` : '';
   /* ¿Cuadran las CUATRO? Es lo que enciende la banda verde del pie. */
   const cuadraTodo =
@@ -143,6 +152,10 @@ export const PlanDia = ({
                   onRename={(nombre) => onRename(i, nombre)}
                   onDone={() => setRenombrando(null)}
                 />
+              ) : !onRename && !onIrA ? (
+                /* Sin ningún destino el nombre se lee: un botón que no hace
+                   nada al pulsarlo es una promesa rota. */
+                <span className="plan-dia-nombre">{meal.name}</span>
               ) : (
                 <button
                   type="button"
@@ -257,6 +270,7 @@ export const PlanDia = ({
           que hay que leer cifra a cifra —y para eso están las cifras en
           rojo—. La banda verde es un visto bueno, no medio semáforo.
         */}
+        {conSuma && (
         <div className={`plan-dia-fila is-suma${cuadraTodo ? ' is-cuadra' : ''}`}>
           <span className="is-nombre">
             Suman <small>con las opciones abiertas</small>
@@ -273,6 +287,7 @@ export const PlanDia = ({
             {pctDia}
           </span>
         </div>
+        )}
       </div>
     </section>
   );

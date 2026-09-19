@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useActions, useApp, useSession } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme';
-import { useTour } from '@/components/WelcomeTour';
+import { useAprende } from '@/components/Aprende';
 import { weightSeries } from '@/domain/anthropometry';
 import { resolvedMicrocycles } from '@/domain/blocks';
 import { estadoDeLaEntrega } from '@/domain/calendar';
@@ -53,7 +53,7 @@ export const ClientTu = () => {
      los engancha quien la monta. Ver `pc/PantallaTu`. */
   const { session, profileName } = useSession();
   const { isDark, setTheme } = useTheme();
-  const tour = useTour();
+  const aprende = useAprende();
   const oculto = useOculto();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   /* La carpeta se consulta AQUÍ y no dentro de `ClientFolder`: la fila no se
@@ -141,10 +141,11 @@ export const ClientTu = () => {
     rastro: [
       {
         icono: 'regla',
-        rotulo: 'Tu peso y tus medidas',
-        frase: 'lo que anotas cada semana',
+        rotulo: 'Tus semanas',
+        frase: 'tus pesajes, tus medidas y lo que te contestó',
         cifra: ultimoPeso,
-        to: '/mi/evolucion/medidas',
+        /* En el monitor, «Tus semanas» vive al pie de la Revisión. */
+        to: '/mi/evolucion#tus-semanas',
       },
       {
         icono: 'entrega',
@@ -214,7 +215,7 @@ export const ClientTu = () => {
         `domain/intakeForm.js`, que ya tropezó con esto.
       */
       entrenador: null,
-      onTutorial: () => tour.setOpen(true),
+      onTutorial: aprende.abrirIndice,
       onSalir: signOut,
     },
   };
@@ -243,7 +244,8 @@ export const ClientTu = () => {
         icono: 'medidas',
         titulo: 'Tus medidas',
         sub: ultimaMedida(historialPeso) ? `Las últimas, el ${ultimaMedida(historialPeso)}` : 'Perímetros y pliegues',
-        to: '/mi/evolucion/medidas',
+        /* Se leen semana a semana en «Tus semanas»; se toman en la revisión. */
+        to: '/mi/evolucion/semanas',
       },
       {
         icono: 'semana',

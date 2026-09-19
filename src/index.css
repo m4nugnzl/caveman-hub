@@ -70,6 +70,10 @@
    la lista en cajas por grupo y la ficha en lectura. Pisa `.plantilla`, los
    chips y la ficha de `taller.css`, así que va detrás. */
 @import './styles/libreria.css';
+/* Las guías de «Aprende»: una capa encima de todo, con su propio prefijo. */
+@import './styles/aprende.css';
+/* «Tus semanas», el rastro del cliente al pie de su Revisión. */
+@import './styles/semanas.css';
 /*
   ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
 

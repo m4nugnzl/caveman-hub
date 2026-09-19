@@ -830,12 +830,15 @@ export const IncomePanel = () => {
         con el primer apunte, que es cuando significan algo.
       */}
       {payments !== null && totales.count === 0 && !error ? (
+        /* Sin cartera, este renglón se calla: lo dice el vacío de abajo. */
+        clients.length > 0 && (
         <div className="vacio-invita">
           <p>Todavía no hay ningún cobro apuntado. Nacen al marcar «Cobrado» — o los trae una integración.</p>
           <Link className="cab-accion is-puerta" to="/ajustes/integraciones">
             Conectar una integración
           </Link>
         </div>
+        )
       ) : (
         <div className="cobros-mesa">
           <Caja
@@ -906,27 +909,35 @@ export const IncomePanel = () => {
         </div>
       )}
 
+      {/*
+        ── Sin cartera, UNA tarjeta ───────────────────────────────────────────
+        Sin clientes esta pantalla decía que estaba vacía tres veces: la frase de
+        «ningún cobro apuntado» con su enlace a integraciones, este vacío metido
+        en una caja (una tarjeta dentro de otra tarjeta) y la nota del pie. Ahora
+        dice una cosa, con el verbo que la resuelve —el mismo «Nuevo cliente» de
+        Inicio y la cartera, que llega con el formulario abierto—.
+      */}
       {clients.length === 0 && (
-        <div className="cobros-caja">
-          <EmptyState
-            icon={Users}
-            title="Todavía no hay cartera"
-            message="Cuando des de alta a tu primer cliente y le pongas su tarifa, esta pantalla empieza a contar."
-            action={
-              <Link className="btn btn-primary" to="/clientes">
-                Ir a clientes
-              </Link>
-            }
-          />
-        </div>
+        <EmptyState
+          icon={Users}
+          title="Aquí sumarás lo que cobras"
+          message="Da de alta a un cliente, ponle su tarifa y esta pantalla cuenta sola."
+          action={
+            <Link className="btn btn-primary" to="/clientes" state={{ alta: true }}>
+              <Plus size={15} /> Nuevo cliente
+            </Link>
+          }
+        />
       )}
 
       {/* La frase que separa esta pantalla de la factura del propio
           entrenador, al pie: es contexto, no lo primero que hay que leer. */}
-      <p className="cobros-nota">
-        Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman
-        Hub: eso está en Ajustes.
-      </p>
+      {clients.length > 0 && (
+        <p className="cobros-nota">
+          Lo que factura tu cartera, lo que falta por cobrar y lo que ha entrado. No es tu plan de Caveman
+          Hub: eso está en Ajustes.
+        </p>
+      )}
       </div>
 
       {registrando && (

@@ -568,21 +568,9 @@
 .plan-seccion { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .plan-seccion + .plan-seccion { padding-top: var(--s5); border-top: 1px solid var(--hairline); }
 
-/* El hueco que deja continuar el programa: se dice y se resuelve en la misma
-   línea. Las acciones van juntas a la derecha —a veces son dos: escribirlo aquí
-   o traerlo de un fichero— y bajan enteras cuando la fila envuelve. */
-/* `flex-direction: row` dicho aquí: el hueco lleva también `.plan-seccion` —de
-   ahí le viene el filete que lo separa de la línea de bloques— y esa clase se
-   declara ANTES, en columna. Sin decirlo, la frase y sus botones se apilaban
-   centrados en mitad de la caja: un cartel grande donde había que poner un
-   renglón. Es el choque de especificidad del que avisa CLAUDE.md §25.9. */
-.plan-hueco {
-  display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap;
-  padding: var(--s3) var(--s4); border-radius: var(--r-md);
-  background: var(--surface-sunken); border: 1px solid var(--hairline);
-  font-size: var(--fs-sm); color: var(--text-secondary);
-}
-.plan-hueco-acciones { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; flex-shrink: 0; }
+/* Aquí vivía `.plan-hueco`, la franja «el bloque no tiene ningún ejercicio
+   todavía» encima de las hojas. Se fue el 19 sep: su oferta vive ahora DENTRO
+   de la hoja en blanco (`.plan-traer`, al final de este archivo). */
 /* El alta de una hoja es UN renglón: el campo, «Añadir» y la salida. Como el
    formulario era un elemento flexible sin ancho, se quedaba en su tamaño de
    contenido —337 px medidos, menos de lo que piden sus tres piezas— y
@@ -4464,3 +4452,19 @@ a.title:hover { text-decoration: underline; }
 .entreno.is-conjunto .tira-fila.is-una .btn-icon {
   width: 24px; height: 24px; border-radius: 6px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA HOJA EN BLANCO INVITA A TRAER LA QUE YA TIENES (19 sep 2026)
+   --------------------------------------------------------------------------
+   Con el bloque recién creado, la primera hoja lleva dentro la zona de soltar
+   su Excel, Word o PDF (`ConjuntoDelBloque`, `hojaQueInvita`). Ocupa lo que a
+   la hoja le sobra —la lista está vacía— y deja «+ ejercicio» en su pie de
+   siempre, que es la otra salida: escribirla de cero.
+   ══════════════════════════════════════════════════════════════════════════ */
+.plan-col:has(> .plan-traer) > .plan-ejs { flex: 0 0 auto; }
+.plan-traer { display: flex; flex: 1 1 auto; min-height: 0; }
+.plan-traer > .soltar { justify-content: center; padding: var(--s5) var(--s4); }
+.plan-traer .soltar-sub { max-width: 34ch; text-wrap: balance; }
+/* La dieta en blanco, la misma puerta: debajo del objetivo y a su ancho. */
+.dieta-traer { display: flex; }
+.dieta-traer > .soltar { padding: var(--s5) var(--s4); }

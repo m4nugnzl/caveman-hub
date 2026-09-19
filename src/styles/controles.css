@@ -1496,26 +1496,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    hace ahora la rejilla, sin decir nada del relleno. */
 .modal-footer .btn { min-height: var(--h-control-lg); padding-inline: var(--s4); }
 
-/* ── Bienvenida ────────────────────────────────────────────────────────────
-   El cuerpo de cada paso reutiliza `.empty` —icono en círculo, título y párrafo
-   de 44ch, centrados—, que es exactamente la misma forma. Lo único propio es el
-   pie: el indicador de posición a la izquierda y la navegación a la derecha.
-
-   `.modal-footer` alinea a la derecha, así que el pie ocupa el ancho entero y
-   reparte por dentro. Envuelve en móvil, donde «Crear mi primer cliente» y
-   «Atrás» no caben en una línea junto a los puntos. */
-.tour-foot {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3); width: 100%; flex-wrap: wrap;
-}
-.tour-dots { display: inline-flex; align-items: center; gap: 6px; }
-.tour-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--fill-strong); transition: background-color var(--fast), width var(--fast);
-}
-/* El paso actual es una cápsula, no un punto más oscuro: en tema claro la
-   diferencia de color sola casi no se ve. */
-.tour-dot.is-on { width: 18px; border-radius: var(--r-pill); background: var(--accent); }
+/* ── Bienvenida: se fue con `WelcomeTour`. Las guías viven en `aprende.css`. */
 
 .popover {
   position: absolute; z-index: 60; background: var(--surface);

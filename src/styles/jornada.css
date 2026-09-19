@@ -475,6 +475,9 @@
 }
 .guia-linea > svg { color: var(--accent); flex-shrink: 0; }
 .guia-linea .btn-icon { margin-left: auto; }
+/* «Ver los cuatro pasos», desplegada: un verbo de puerta a plomo con el texto
+   del paso, no una píldora estirada a lo ancho de la tarjeta. */
+.cab-accion.guia-ver-todo { align-self: flex-start; padding-left: 0; }
 
 /* ══ EL VACÍO QUE INVITA ═══════════════════════════════════════════════════
    Sin caja punteada: la frase dice lo que hay y el gesto está al lado. La

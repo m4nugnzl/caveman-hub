@@ -1,12 +1,10 @@
-import { ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
 import { metricColor } from '@/domain/metrics';
 import { localeNumber } from '@/lib/dates';
 import { GroupHead, Panel } from '@/components/ui/primitives';
 import { Sparkline } from '@/components/ui/charts';
 import { PasosDeLaEntrega } from './PasosDeLaEntrega';
 import { PesoDeHoy } from './PesoDeHoy';
+import { TusSemanas } from './TusSemanas';
 
 /**
  * «ENTREGA TU SEMANA» EN EL MONITOR — tres cosas que hacer y una que mirar.
@@ -49,10 +47,8 @@ import { PesoDeHoy } from './PesoDeHoy';
  *     │ 1. Tu peso de hoy                 │ │ Tu media          │
  *     │ 2. Lo que te falta para entregar  │ │  60,9 kg          │
  *     │ 3. Lo que te dijo la vez pasada   │ │  la anterior 61,2 │
- *     └───────────────────────────────────┘ │  ▁▂▃▄▅            │
- *                                           │ Tu peso y tus     │
- *                                           │ medidas        ›  │
- *                                           └───────────────────┘
+ *     │ 4. Tus semanas                    │ │  ▁▂▃▄▅            │
+ *     └───────────────────────────────────┘ └───────────────────┘
  *
  * ── La media sube al costado, y en grande ─────────────────────────────────
  * Es «lo que el sistema va haciendo de cara a la revisión», o sea la cifra por
@@ -60,12 +56,13 @@ import { PesoDeHoy } from './PesoDeHoy';
  * báscula. Ahora es la cifra de la pantalla y la báscula deja de decirla
  * (`conMedia={false}`): una cifra, un sitio.
  *
- * ── Y el instrumento se va a su sitio, no se borra ────────────────────────
- * `SemanasAnteriores` —la báscula entera, las medidas, las fotos y lo que le
- * fue contestando— vuelve a ser la pantalla que ya era: `/mi/evolucion/medidas`,
- * a un enlace desde aquí. No se pierde nada; deja de estar EN MEDIO del
- * mandado. En el teléfono siempre estuvo así, y el rodeo de la tarde del 14 de
- * septiembre —montarla al pie— es lo que produjo las tres básculas.
+ * ── Y el rastro, al pie y SIN báscula (19 sep 2026) ───────────────────────
+ * Estuvo detrás de una tarjeta del costado, en `/mi/evolucion/medidas`: la
+ * báscula del entrenador en versión cliente, con sus casillas y su papelera.
+ * El dueño la llamó «un resquicio» y pidió el historial aquí. Vuelve al pie,
+ * pero no como el 14 de septiembre —cuando montarla aquí produjo las tres
+ * básculas—: `TusSemanas` solo LEE. El peso se apunta arriba y en ningún otro
+ * sitio; lo único que se hace en el rastro es quitar un pesaje mal apuntado.
  *
  * ── Ni una cifra que juzgue ───────────────────────────────────────────────
  * La media, la anterior y la línea. Sin flecha de color, sin «vas bien» y sin
@@ -109,24 +106,13 @@ export const RevisionEnMonitor = ({ datos }) => {
                 </Panel>
               </div>
             ) : null}
+
+            {/* 4. Mirar atrás, cuando ya está hecho lo de arriba. */}
+            <TusSemanas />
           </div>
 
-          <aside className="entrega-lado es-panel" aria-label="Tu media y tu rastro">
+          <aside className="entrega-lado es-panel" aria-label="Tu media">
             {media ? <TuMedia {...media} /> : null}
-
-            {/*
-              LA PUERTA DEL RASTRO. Una fila, no una pantalla incrustada. Lleva
-              a `/mi/evolucion/medidas`, que es la misma dirección que abre la
-              fila «Tu peso y tus medidas» de «Tú» y la misma que usa el
-              teléfono: una pregunta, una dirección.
-            */}
-            <Link className="lado-tarjeta entrega-puerta" to="/mi/evolucion/medidas">
-              <span>
-                <span className="section-label">Tu peso y tus medidas</span>
-                <span className="lado-desde">todo lo que llevas apuntado</span>
-              </span>
-              <ChevronRight size={15} aria-hidden="true" />
-            </Link>
           </aside>
         </div>
       </div>

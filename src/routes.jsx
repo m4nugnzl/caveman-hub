@@ -545,7 +545,7 @@ export const SETTINGS_SECTIONS = [
     path: 'ayuda',
     label: 'Ayuda',
     icon: LifeBuoy,
-    hint: 'Escríbenos y sigue tus conversaciones',
+    hint: 'Las guías de la app, y escribirnos',
   },
 ];
 
@@ -727,6 +727,7 @@ export const CLIENT_SECTIONS = [
     icon: CalendarCheck,
     also: [
       'evolucion/medidas',
+      'evolucion/semanas',
       'evolucion/fotos',
       'evolucion/peso',
       'evolucion/fotos-de-la-semana',

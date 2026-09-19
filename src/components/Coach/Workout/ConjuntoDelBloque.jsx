@@ -30,6 +30,8 @@ import { Autocomplete } from '@/components/ui/Autocomplete';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
 import { TIPO, useZonasDeSoltar } from '@/lib/portapapeles';
+import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
+import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 
 /**
  * EL BLOQUE EN CONJUNTO: sus hojas, su estructura y su información, a la vez.
@@ -356,6 +358,10 @@ export const ConjuntoDelBloque = ({
   const conPlanPropio = componiendo || hasBlockPlan(bloque);
   /* El bloque en blanco: ninguna hoja tiene un solo ejercicio. */
   const bloqueVacio = plan.sessions.every((s) => (s.exercises || []).length === 0);
+  /* Con el bloque en blanco, un fichero soltado en cualquier sitio de la mesa
+     es la rutina que se trae: apuntar a la hoja justa no puede ser condición. */
+  const traeFichero = esActual && bloqueVacio && Boolean(onTraerFichero);
+  const soltarFichero = useArrastreDeFicheros((ficheros) => onTraerFichero?.(ficheros), traeFichero);
 
   const enBloque = (w) => w - (bloque?.fromWeek ?? 1) + 1;
   const etiqueta = (w) => `${unitInitial(cycleType)}${enBloque(w)}`;
@@ -521,51 +527,27 @@ export const ConjuntoDelBloque = ({
     );
   }
 
+  /* La hoja que invita a traer el fichero: la primera de la rejilla, y una
+     sola. Con cuatro hojas en blanco, cuatro zonas iguales serían la misma
+     oferta cuatro veces; el fichero trae todos los días de una vez. */
+  const hojaQueInvita = traeFichero ? (piezasRejilla?.[0]?.hoja || plan.sessions[0])?.dayName : null;
+
   return (
-    <div className="bloque-conjunto">
+    <div className="bloque-conjunto" {...(traeFichero ? soltarFichero.props : {})}>
 
         {/*
-          ══ EL HUECO: dos huecos distintos, dos ofertas distintas ═══════════
+          ══ EL HUECO SE HA IDO DE ENCIMA DE LA HOJA (19 sep) ════════════════
+          Aquí había una franja —«"Bloque 1" no tiene ningún ejercicio todavía:
+          su hoja "Día 1" está en blanco»— con «Escribir el primero» y «Traer de
+          un fichero». El dueño, al verla nada más crear el bloque: «no tiene
+          sentido». Decía lo que se estaba viendo, un segundo después de haberlo
+          hecho, y las dos salidas quedaban lejos de la hoja que había que
+          llenar.
 
-          Si el bloque tiene plantilla, lo que falta es copiarla a los
-          microciclos en blanco: una frase y el botón que lo hace.
-
-          Si NO la tiene —el bloque entero está vacío—, no hay nada que copiar,
-          y el botón de la plantilla se pulsaba sin efecto ni aviso. Lo que hace
-          falta ahí son las dos rutas de verdad: escribirlo en la hoja, o traer
-          el fichero donde ya está escrito. Es el mismo par que ofrece el vacío
-          del programa entero (`WorkoutLogEditor`), en el sitio donde ahora hace
-          falta.
+          Las dos se mudan DENTRO de la hoja en blanco, que es donde se miran:
+          escribir sigue siendo su «+ ejercicio» de siempre, y traer lo que ya
+          tienes es la zona de soltar que la llena. Ver `invitaAFichero`.
         */}
-        {/*
-          ── Y CALLA mientras se está escribiendo ────────────────────────────
-          El hueco es una oferta: «esto está en blanco, ¿lo escribes o lo
-          traes?». En cuanto se acepta —se abre el alta de una hoja o la de un
-          ejercicio— deja de ser una oferta y pasa a ser un cartel que dice lo
-          que ya se está haciendo, encima del sitio donde se está haciendo.
-          Vuelve solo si se cierra el alta sin haber escrito nada.
-        */}
-        {esActual && onAnadirEjercicio && bloqueVacio && altaEn === null && nuevaHoja === null && (
-          <div className="plan-hueco plan-seccion">
-            <span>
-              «{comoSeLlama}» no tiene ningún ejercicio todavía:{' '}
-              {plan.sessions.length === 1
-                ? `su hoja «${plan.sessions[0].dayName}» está en blanco`
-                : `sus ${plan.sessions.length} hojas están en blanco`}
-              .
-            </span>
-            <div className="plan-hueco-acciones">
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setAltaEn(plan.sessions[0].dayName)}>
-                <Plus size={15} /> Escribir el primero
-              </button>
-              {onTraerFichero && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={onTraerFichero}>
-                  <FileUp size={15} /> Traer de un fichero
-                </button>
-              )}
-            </div>
-          </div>
-        )}
 
         {/*
           ── «Poner la plantilla» se ha ido ───────────────────────────────────
@@ -1184,6 +1166,26 @@ export const ConjuntoDelBloque = ({
                       );
                     })}
                   </ol>
+
+                  {/*
+                    ══ LA HOJA EN BLANCO INVITA A TRAER LA QUE YA TIENES ═════
+                    Quien llega de un Excel no tiene que volver a escribir su
+                    rutina: la suelta aquí y el lector saca los días, los
+                    ejercicios y las series —y la dieta, si va en el mismo
+                    fichero—. Escribir de cero sigue abajo, en «+ ejercicio».
+                    Calla mientras se escribe el primero: ya se ha elegido.
+                  */}
+                  {hoja.dayName === hojaQueInvita && altaEn !== hoja.dayName && (
+                    <div className="plan-traer">
+                      <ZonaDeSoltar
+                        icon={FileUp}
+                        encima={soltarFichero.encima}
+                        titulo="Trae la rutina que ya tienes"
+                        sub="Suelta aquí su Excel, Word o PDF, o pulsa para buscarlo. Si trae su dieta, entra con ella."
+                        onClick={() => onTraerFichero()}
+                      />
+                    </div>
+                  )}
 
                   {/* El pie es el carril de «+ ejercicio» y de los avisos de la
                       hoja. Sin ninguno de los dos no se pinta: un pie vacío son

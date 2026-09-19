@@ -1,5 +1,5 @@
 import { Outlet, useParams } from 'react-router-dom';
-import { Camera, Columns2, Ruler } from 'lucide-react';
+import { Camera, Columns2, History, Ruler } from 'lucide-react';
 
 import { clientPath } from '@/routes';
 import { Migas } from '@/components/ui/Migas';
@@ -32,7 +32,7 @@ import { Migas } from '@/components/ui/Migas';
  * Con la revisión otra vez en la barra del pulgar, `/mi/evolucion` es un DESTINO:
  * un destino con miga de vuelta es un destino que finge ser una subpantalla, y
  * además la miga apuntaba a «Lo tuyo», que ya no es de donde se viene. Este marco
- * envuelve solo lo que de verdad se empuja —la báscula y el archivo de fotos— y
+ * envuelve solo lo que de verdad se empuja —«Tus semanas» y el archivo de fotos— y
  * el primer eslabón vuelve a la propia revisión. Ver `App.jsx`.
  */
 export const ReviewLayout = ({ audience = 'coach' }) => {
@@ -50,7 +50,7 @@ export const ReviewLayout = ({ audience = 'coach' }) => {
         hermanos={
           isClient
             ? [
-                { to: '/mi/evolucion/medidas', label: 'Tu peso', icon: Ruler },
+                { to: '/mi/evolucion/semanas', label: 'Tus semanas', icon: History },
                 { to: '/mi/evolucion/fotos', label: 'Fotos', icon: Camera },
               ]
             : [

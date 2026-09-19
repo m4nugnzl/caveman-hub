@@ -4,6 +4,8 @@ import { ArrowRight, Check, Compass, X } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { onboardingCurrent, onboardingProgress, onboardingSteps } from '@/domain/onboarding';
+import { GUIA_DEL_PASO } from '@/domain/tutoriales';
+import { useAprende } from '@/components/Aprende';
 import { clientPath } from '@/routes';
 import { Panel, SectionTitle } from '@/components/ui/primitives';
 import { useInvite } from './useInvite';
@@ -63,6 +65,7 @@ export const GettingStarted = () => {
      recuerda entre visitas a propósito: al volver, vuelve la línea. */
   const [desplegada, setDesplegada] = useState(false);
   const { busy: invitando, send: invitar, result: invite } = useInvite();
+  const aprende = useAprende();
 
   /* Que haya tocado su protocolo alguna vez: se mira si existe la clave, no si
      su contenido difiere del de por defecto —eso marcaría el paso como hecho a
@@ -141,8 +144,12 @@ export const GettingStarted = () => {
       <div className="row between wrap gap-2">
         <SectionTitle icon={Compass}>Por dónde empezar</SectionTitle>
         <div className="row gap-2">
+          {/* EN QUÉ PASO ESTÁS, no cuántos van: el recuento solo cuenta lo que
+              se puede comprobar (`onboardingProgress`), así que decía «0 de 2»
+              sin clientes y «1 de 4» al dar de alta al primero — la lista
+              parecía crecer al avanzar. La posición es estable. */}
           <span className="badge">
-            {hechos} de {total}
+            Paso {pasos.indexOf(actual) + 1} de {pasos.length}
           </span>
           <button
             type="button"
@@ -173,6 +180,16 @@ export const GettingStarted = () => {
             {invitando ? 'Generando…' : actual.accion} <ArrowRight size={15} />
           </button>
 
+          {/* La misma tarea, contada sobre la pantalla: la guía te lleva y te
+              señala cada botón. Ver `components/Aprende`. */}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => aprende.empezar(GUIA_DEL_PASO[actual.id], { cliente: actual.cliente?.id })}
+          >
+            Ver cómo
+          </button>
+
           {/* El enlace se copia solo, y hay que decirlo: si no, el botón parece
               no haber hecho nada. */}
           {actual.id === 'invitar' && invite?.ok && (
@@ -190,11 +207,17 @@ export const GettingStarted = () => {
         </div>
       </div>
 
-      {/* Y el resto, en una línea. Están para saber que existen, no para hacerse
-          ahora: los de abajo dependen de éste. */}
+      {/* El paseo de un minuto ya no va aquí: con cero pasos dados no hay
+          cartera, y ese Inicio lo pinta su propio vacío, que lo ofrece al lado
+          de «Nuevo cliente» (ver `Today.jsx`).
+
+          Y el resto de pasos, en una línea. Están para saber que existen, no
+          para hacerse ahora: los de abajo dependen de éste. Es un verbo de
+          puerta, como «Seguir»: la píldora gris centrada que llevaba era la del
+          acceso (`login-alt`) y aquí se leía como un botón apagado. */}
       <button
         type="button"
-        className="btn btn-sm login-alt"
+        className="cab-accion is-puerta guia-ver-todo"
         aria-expanded={verTodo}
         onClick={() => setVerTodo((v) => !v)}
       >

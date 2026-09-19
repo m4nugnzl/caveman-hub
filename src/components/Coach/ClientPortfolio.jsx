@@ -17,6 +17,7 @@ import {
 
 import { useApp } from '@/context/AppContext';
 import { Nube } from '@/components/ui/EstadoDeRed';
+import { Cinta } from '@/components/ui/Cinta';
 import { Pliegue } from '@/components/ui/Pliegue';
 import { traeALaVista } from '@/lib/motion';
 import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio, filtrosUtiles } from '@/domain/portfolio';
@@ -722,16 +723,30 @@ export const ClientPortfolio = () => {
     }
     return t;
   }, [rows]);
+  /*
+    ── La casa es «Activos»… si hay alguien activo ────────────────────────────
+    Con la cartera recién empezada nadie ha arrancado: el primer cliente cae en
+    «Pendientes». Abrir en «Activos 0» con «Ningún cliente en este tramo» hacía
+    que la persona que ACABAS de dar de alta desapareciera de la pantalla en el
+    mismo gesto —el aviso de arriba decía «ya está en tu cartera» y la lista
+    decía que no—. Sin activos, la casa es el primer tramo con gente, y la
+    pestaña «Activos» no se pinta hasta que tenga a alguien (la regla de los
+    chips a cero, que ya valía para las otras tres).
+  */
+  const casa =
+    tramos.activos.length > 0
+      ? 'activos'
+      : ['pendientes', 'pausa'].find((t) => tramos[t].length > 0) || 'activos';
   /* Si el tramo abierto se queda sin gente (se reanuda al último pausado), se
      vuelve a casa en vez de enseñar una lista vacía con su pestaña muerta. */
   const tramoVivo =
     tramo === 'archivo'
       ? archivedClients.length > 0
         ? tramo
-        : 'activos'
-      : tramos[tramo]?.length > 0 || tramo === 'activos'
+        : casa
+      : tramos[tramo]?.length > 0
         ? tramo
-        : 'activos';
+        : casa;
   const delTramo = useMemo(
     () => (tramoVivo === 'archivo' ? [] : tramos[tramoVivo]),
     [tramoVivo, tramos]
@@ -1038,23 +1053,32 @@ export const ClientPortfolio = () => {
   /* Sin clientes no hay tablero que enseñar, pero sí hay algo que hacer — y el
      botón para hacerlo tiene que estar aquí. Antes esta pantalla se limitaba a
      decir que estaba vacía y mandaba a buscar el alta a otro sitio. */
+  /* Con su cinta, como Cobros y la Agenda vacías: era la única pantalla de la
+     barra que perdía el título al no tener nada, así que el primer clic del
+     primer día aterrizaba en una tarjeta suelta sin decir dónde estabas. Y la
+     misma frase que el vacío de Inicio: es la misma invitación. */
   if (clients.length === 0) {
     return (
-      <div className="stack">
-        {alta && <NewClientForm onCreate={crear} onCancel={() => setAlta(false)} />}
-        {!alta && (
-          <EmptyState
-            icon={UserPlus}
-            title="Empieza dando de alta a tu primer cliente"
-            message="En cuanto exista podrás programarle la rutina, su plan nutricional y seguir su evolución. Aquí verás lo que le falta cada semana."
-            action={
-              <button type="button" className="btn btn-primary btn-lg" onClick={() => setAlta(true)}>
-                <Plus size={15} /> Nuevo cliente
-              </button>
-            }
-          />
-        )}
-        <ArchivedClients />
+      <div className="stack cascada">
+        <div className="cartera">
+        <Cinta titulo="Clientes" />
+        <div className="cartera-cuerpo">
+          {alta && <NewClientForm onCreate={crear} onCancel={() => setAlta(false)} />}
+          {!alta && (
+            <EmptyState
+              icon={UserPlus}
+              title="Empieza por tu primer cliente"
+              message="Con su nombre basta. Su entreno, su dieta y sus revisiones cuelgan de ahí."
+              action={
+                <button type="button" className="btn btn-primary" onClick={() => setAlta(true)}>
+                  <Plus size={15} /> Nuevo cliente
+                </button>
+              }
+            />
+          )}
+          <ArchivedClients />
+        </div>
+        </div>
       </div>
     );
   }
@@ -1213,15 +1237,17 @@ export const ClientPortfolio = () => {
                 role="tablist"
                 aria-label="Tramos de la cartera"
               >
-                <button
-                  type="button"
-                  role="tab"
-                  className="tab"
-                  aria-selected={tramoVivo === 'activos'}
-                  onClick={() => setTramo('activos')}
-                >
-                  Activos <span className="chip-count">{tramos.activos.length}</span>
-                </button>
+                {casa === 'activos' && (
+                  <button
+                    type="button"
+                    role="tab"
+                    className="tab"
+                    aria-selected={tramoVivo === 'activos'}
+                    onClick={() => setTramo('activos')}
+                  >
+                    Activos <span className="chip-count">{tramos.activos.length}</span>
+                  </button>
+                )}
                 {tramos.pendientes.length > 0 && (
                   <button
                     type="button"

@@ -3280,27 +3280,6 @@ transition: background-color var(--fast), color var(--fast);
 .entrega { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s5); align-items: start; }
 .entrega-mesa { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
 .entrega-lado { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; position: sticky; top: var(--s5); }
-/* La puerta del rastro: una fila del costado que lleva a `/mi/evolucion/medidas`.
- Se enciende entera —la ley de los gestos: la caja es el control— y el galón
- se separa del rótulo, no del canto.
-
- ── Va con el padre delante, y no es manía ────────────────────────────────
- Es `.lado-tarjeta` además de esto, y `.lado-tarjeta` vive en `piezas.css`,
- que se importa DESPUÉS de esta hoja: a igual especificidad gana el último, y
- su `flex-direction: column` tiraba el galón a un renglón propio debajo del
- rótulo, centrado. Con el padre delante esto pesa 0-2-0 y manda. Es la trampa
- que CLAUDE.md §24/§9 señala: dos clases que se anulan por el orden de los
- `@import` y no por lo que dicen. */
-.entrega-lado .entrega-puerta {
-display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: var(--s3);
-text-decoration: none; color: inherit; cursor: pointer;
-transition: background-color var(--fast);
-}
-.entrega-lado .entrega-puerta > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.entrega-lado .entrega-puerta > svg { color: var(--text-tertiary); flex-shrink: 0; }
-.entrega-lado .entrega-puerta:hover { background: var(--fill-subtle); }
-.entrega-lado .entrega-puerta:hover > svg { color: var(--text-secondary); }
-.entrega-lado .entrega-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* ── La báscula no crece con la mesa ───────────────────────────────────────
  `PesoDeHoy` se dibujó para el teléfono, donde la casilla mide lo que mide la
  pantalla. En la mesa del monitor la misma pieza se estiraba a 1.220 px: un
@@ -4234,6 +4213,7 @@ transition: background-color var(--fast);
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .plan-dia-nombre:hover { color: var(--text); }
+span.plan-dia-nombre { cursor: default; }
 .plan-dia-fila > .is-peso { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
 .plan-dia-fila > .is-peso > small { font-size: var(--fs-2xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; width: 34px; text-align: right; flex-shrink: 0; }
 .plan-dia-fila.is-total { padding-top: 6px; margin-top: 2px; box-shadow: inset 0 1px 0 var(--hairline-strong); }
@@ -6619,6 +6599,12 @@ button.progreso-cifra:focus-visible { outline: 2px solid var(--accent); outline-
   .shell-main:has(.entreno-pagina) > .layout > .stack { flex: 1; display: flex; flex-direction: column; }
   .entreno-pagina { flex: 1; }
   .entreno-pagina > .entreno { flex: 1; align-items: stretch; }
+  /* Y el sobrante va a la MESA, no a partes iguales. Sin filas declaradas, la
+     rejilla estirada repartía el alto libre entre la barra y la mesa: con el
+     bloque recién creado, la barra de una sola línea medía 178 px y dejaba un
+     hueco blanco debajo de sus botones (captura del dueño, 19 sep). La tercera
+     fila, implícita, es el costado cuando baja debajo (< 1440). */
+  .entreno-pagina > .entreno.is-conjunto { grid-template-rows: auto minmax(0, 1fr); grid-auto-rows: auto; }
   .entreno-pagina .entreno > .entreno-hoja { min-height: 0; }
   /* El costado NO se estira: son tarjetas de lectura, y estiradas dejarían un
      hueco muerto debajo de la última. Lo que llena el lienzo es la mesa. */

@@ -118,7 +118,7 @@ import { PlanNotice } from '@/components/PlanNotice';
 import { EstadoDeRed } from '@/components/ui/EstadoDeRed';
 import { ManoDelPortapapeles } from '@/components/Coach/ManoDelPortapapeles';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
-import { TourProvider, WelcomeTour } from '@/components/WelcomeTour';
+import { Aprende, AprendeProvider } from '@/components/Aprende';
 
 /**
  * Mapa de rutas.
@@ -400,11 +400,12 @@ export default function App() {
     */
     <CommandPaletteProvider>
       {/*
-        La bienvenida envuelve a la aplicación por el mismo motivo que la paleta:
-        la abren dos sitios que no se conocen entre sí —la primera visita y el menú
-        de cuenta—, así que el booleano tiene que estar por encima de los dos.
+        Las guías de «Aprende» envuelven a la aplicación por el mismo motivo que la
+        paleta: las abren sitios que no se conocen entre sí —el menú de cuenta,
+        «Tú» del cliente y «Por dónde empezar»—, así que su estado tiene que estar
+        por encima de todos.
       */}
-      <TourProvider>
+      <AprendeProvider>
       <Header />
       {/* La barra del modo preview cuelga del MODO, no de una pantalla: tiene
           que ofrecer la salida también cuando el portal no puede pintarse
@@ -780,10 +781,16 @@ export default function App() {
                   <Route path="fotos-de-la-semana" element={<ClientFotosDeLaSemanaRoute />} />
                   <Route path="cuestionario" element={<ClientCuestionarioRoute />} />
                   <Route element={<HojaDePortal><ReviewLayout audience="client" /></HojaDePortal>}>
-                    <Route path="medidas" element={<ClientCheckInsRoute />} />
+                    {/* «Tus semanas» en el teléfono. En el monitor vive al pie
+                        de la propia revisión y esta dirección lleva allí. */}
+                    <Route path="semanas" element={<ClientCheckInsRoute />} />
                     <Route path="fotos" element={<ClientPhotosRoute />} />
                   </Route>
                 </Route>
+                {/* La báscula vieja («Tu peso y tus medidas», 19 sep): su rastro
+                    es ahora «Tus semanas». Se conserva la dirección para los
+                    enlaces guardados y los avisos que la llevan. */}
+                <Route path="evolucion/medidas" element={<Navigate to="/mi/evolucion/semanas" replace />} />
                 <Route path="checkins" element={<Navigate to="/mi/evolucion" replace />} />
                 <Route path="fotos" element={<Navigate to="/mi/evolucion/fotos" replace />} />
 
@@ -819,8 +826,8 @@ export default function App() {
           una pantalla desaparecería justo en ese trayecto, que es su motivo de
           existir. Solo se pinta con algo dentro. Ver `ui/Portapapeles`. */}
       {isCoach && <ManoDelPortapapeles />}
-      <WelcomeTour />
-      </TourProvider>
+      <Aprende />
+      </AprendeProvider>
     </CommandPaletteProvider>
   );
 }

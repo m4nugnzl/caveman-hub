@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
@@ -383,17 +383,25 @@ export const CoachCalendar = () => {
 
   if (activos.length === 0) {
     return (
-      <div className="stack">
+      <div className="stack cascada">
+        <div className="agenda">
         <Cinta titulo="Agenda" />
-        <EmptyState
-          title="Todavía no hay a quién agendar"
-          message="Da de alta a tu primer cliente y su día de revisión aparecerá aquí, junto al de los demás."
-          action={
-            <Link className="btn btn-primary btn-sm" to="/clientes">
-              Ir a Clientes
-            </Link>
-          }
-        />
+        {/* Con el sangrado del cuerpo, como la agenda llena: sin él la tarjeta
+            iba de canto a canto de la hoja, pegada a los bordes. Y el mismo
+            vacío que Inicio y Cobros —azulejo, frase, «Nuevo cliente»—. */}
+        <div className="cartera-cuerpo agenda-cuerpo">
+          <EmptyState
+            icon={CalendarDays}
+            title="Aquí verás las revisiones de tu cartera"
+            message="Da de alta a un cliente y su día de revisión aparece solo, junto al de los demás."
+            action={
+              <Link className="btn btn-primary" to="/clientes" state={{ alta: true }}>
+                <Plus size={15} /> Nuevo cliente
+              </Link>
+            }
+          />
+        </div>
+        </div>
       </div>
     );
   }

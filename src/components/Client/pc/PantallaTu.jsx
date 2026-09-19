@@ -43,7 +43,7 @@ import { Caja, Fila, Filas, Teselas } from './Piezas';
  *     │ Peso y medidas   │ │ Tema ☼ ☾         │ │  MR  Marta Ruiz  │
  *     │ Revisiones       │ │ Datos y privac.  │ │      marta@…     │
  *     │ Fotos            │ │ Documentos       │ │ Tu entrenador    │
- *     │ Calendario       │ │ Ver el tutorial  │ │ Cerrar sesión    │
+ *     │ Calendario       │ │ Cómo funciona    │ │ Cerrar sesión    │
  *     │ Lo que te mandó  │ │                  │ │                  │
  *     └──────────────────┘ └──────────────────┘ └──────────────────┘
  *
@@ -167,8 +167,8 @@ export const PantallaTu = ({ datos }) => {
 
               <Fila
                 icono={LifeBuoy}
-                rotulo="Ver el tutorial"
-                frase="cómo se hace lo primero"
+                rotulo="Cómo funciona"
+                frase="guías sobre tu propia pantalla"
                 onClick={cuenta.onTutorial}
               />
 

@@ -2,7 +2,9 @@ import { useState } from 'react';
 
 import { Fila, Grupo } from '@/components/ui/Grupo';
 import { DiaPopup } from '@/components/nutrition/DiaPopup';
+import { MacroTargetCard } from '@/components/nutrition/MacroTargetCard';
 import { MealCard } from '@/components/nutrition/MealCard';
+import { PlanDia } from '@/components/nutrition/PlanDia';
 import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
 import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
 
@@ -87,6 +89,7 @@ export const DietaEnMonitor = ({ datos }) => {
     vacia,
     sinCifras,
     menuSinCifras,
+    porMacros,
   } = datos;
   const [diaAbierto, setDiaAbierto] = useState(false);
 
@@ -109,7 +112,38 @@ export const DietaEnMonitor = ({ datos }) => {
               {dias.length > 1 ? <TarjetasDeDia dias={dias} activo={diaVisible?.id} onDia={onDia} /> : null}
 
               <div className="dieta-cuerpo">
-                {comidas.length === 0 ? (
+                {porMacros ? (
+                  /*
+                    ── POR MACROS: LA MESA DEL TALLER, EN LECTURA ───────────
+                    Lo mismo que ve su entrenador: sin reparto, la prescripción
+                    del día en grande; con reparto, la tabla de lo que toca en
+                    cada comida. Sin lápiz, sin semáforo y sin la fila de lo
+                    que suman los alimentos, que aquí no hay.
+                  */
+                  sinCifras ? (
+                    <p className="t-secondary">
+                      Tu dieta va por cifras, y en tu app no se enseñan.
+                    </p>
+                  ) : comidas.length === 0 ? (
+                    <MacroTargetCard
+                      forma="mesa"
+                      plan={lecturas?.plan}
+                      variant={diaVisible?.id}
+                      title={dias.length > 1 ? `Lo que te toca · ${diaVisible?.name.toLowerCase()}` : 'Lo que te toca al día'}
+                      dice="Sin menú cerrado: cómo llegar a estas cifras lo eliges tú."
+                    />
+                  ) : (
+                    <section className="dieta-reparto" aria-label="El reparto del día">
+                      <div className="dieta-reparto-asa">
+                        <span className="section-label">El reparto</span>
+                        <span className="dieta-reparto-dice">
+                          {`${comidas.length} ${comidas.length === 1 ? 'comida' : 'comidas'}`}
+                        </span>
+                      </div>
+                      <PlanDia meals={comidas} targets={lecturas?.targets} juzga={false} conSuma={false} />
+                    </section>
+                  )
+                ) : comidas.length === 0 ? (
                   <p className="t-secondary">{vacia}</p>
                 ) : sinCifras ? (
                   /* Sin cifras: el menú a secas. Ver la cabecera. */
@@ -192,6 +226,10 @@ export const DietaEnMonitor = ({ datos }) => {
                    título del objetivo. Ver `DiaPopup` abajo. */
                 onAbrirDia={comidas.length > 0 ? () => setDiaAbierto(true) : undefined}
                 tituloObjetivo={diaVisible?.name || null}
+                /* Por macros y sin reparto el objetivo ya está en la mesa, en
+                   grande: repetirlo aquí sería la segunda lista de los mismos
+                   cuatro números. Misma regla que el taller. */
+                conElDia={!(porMacros && comidas.length === 0)}
                 catalogo={lecturas.catalogo}
                 /* LO PAUTADO Y NADA MÁS. Ver `ObjetivoDelDia`: aquí salía
                    «Proteína 111/120 g · −9 g» en rojo, que es el descuadre

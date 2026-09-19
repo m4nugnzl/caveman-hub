@@ -854,12 +854,20 @@ export const WeekReview = () => {
 
   if (semanas.length === 0) {
     return (
+      /* Sin la fila de mando: su única línea era «Todavía no tiene ninguna
+         semana montada», la misma frase que el vacío dice justo debajo. Y el
+         vacío lleva el verbo que lo resuelve, no solo el nombre de la pestaña
+         donde se resuelve. */
       <div className="stack">
-        <Mando contexto="Todavía no tiene ninguna semana montada." />
         <EmptyState
           icon={ClipboardCheck}
           title="Aún no hay ninguna semana que cerrar"
-          message="Móntale su primera semana en «Entreno» y aquí aparecerá lo que hace con ella, lo que entrega y el sitio para contestarle."
+          message="Cuando entrene su primera semana, aquí verás lo que hizo, lo que entregó y el sitio para contestarle."
+          action={
+            <Link className="btn btn-primary" to={clientPath(activeClient.id, 'rutina')}>
+              Montar su semana
+            </Link>
+          }
         />
       </div>
     );

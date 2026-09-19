@@ -54,6 +54,10 @@ export const MacroTargetCard = ({
      del costado diciéndolos. Ver `bloque-cifras` más abajo. */
   peso = null,
   cuando = null,
+  /* La frase de debajo de la cifra cuando quien lee no es quien pauta: las de
+     serie hablan al entrenador («Salen de los macros que le has puesto») y el
+     portal del cliente pasa la suya. */
+  dice = null,
   /* El menú del día y de dónde salieron las calorías la última vez, para que el
      editor pueda enseñar qué le hace el objetivo nuevo al menú. Va nulo desde la
      revisión, que no tiene menú delante. Ver `EditarObjetivo`. */
@@ -164,7 +168,7 @@ export const MacroTargetCard = ({
           se dibujan estas tres series en todo el producto. Da la casualidad de
           que es también la del frame del asistente (66:161).
         */}
-        <section className="dieta-prescripcion" aria-label="Lo que le pides al día">
+        <section className="dieta-prescripcion" aria-label={title || 'Lo que le pides al día'}>
           <div className="presc-cab">
             <div className="presc-say">
               <span className="section-label">{title || 'Prescripción diaria'}</span>
@@ -172,11 +176,12 @@ export const MacroTargetCard = ({
                 {kcals > 0 ? kcals : '—'} <small>kcal</small> <em>al día</em>
               </p>
               <span className="presc-dice">
-                {macros.total === 0
-                  ? 'Ponle las kcal y los macros que tiene que cuadrar.'
-                  : derived
-                    ? 'Salen de los macros que le has puesto.'
-                    : 'Sin reparto por comidas: lo que cuadra es el día entero.'}
+                {dice ??
+                  (macros.total === 0
+                    ? 'Ponle las kcal y los macros que tiene que cuadrar.'
+                    : derived
+                      ? 'Salen de los macros que le has puesto.'
+                      : 'Sin reparto por comidas: lo que cuadra es el día entero.')}
               </span>
             </div>
             {editable && (

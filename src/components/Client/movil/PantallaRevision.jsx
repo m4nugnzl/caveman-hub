@@ -99,7 +99,7 @@ export const PantallaRevision = ({ datos }) => {
           <Fila
             titulo="Semanas anteriores"
             sub={atrasadas > 0 ? `${atrasadas} sin entregar` : 'tus medidas y lo que entregaste'}
-            to="/mi/evolucion/medidas"
+            to="/mi/evolucion/semanas"
           />
           <Fila titulo="Tus fotos" sub="todas, por semana" to="/mi/evolucion/fotos" />
         </Lista>

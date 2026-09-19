@@ -233,6 +233,9 @@ export const WorkoutLogEditor = () => {
   const [importAbierto, setImportAbierto] = useState(false);
   /* «Traer de un fichero»: la rutina que el cliente trae de fuera. */
   const [pegarAbierto, setPegarAbierto] = useState(false);
+  /* Y el fichero que ya viene en la mano: el que se soltó sobre la hoja en
+     blanco del bloque. La ventana lo abre leído. */
+  const [ficherosTraidos, setFicherosTraidos] = useState(null);
   /* El ejercicio copiado que está esperando a que se diga hasta cuándo vale.
      Se guarda la PIEZA y no un booleano: la ventana nombra lo que se pega, y
      al pegado desde la mano no le llega por ningún otro sitio. */
@@ -649,6 +652,7 @@ export const WorkoutLogEditor = () => {
   const dialogoDePegado = pegarAbierto && (
     <PastePlanDialog
       foco="rutina"
+      ficheros={ficherosTraidos}
       targetDayName={nav.day?.dayName || null}
       unidad={unitLabel(cycleType).toLowerCase()}
       targetPreference={coachPrefs?.importador?.objetivo ?? 0}
@@ -696,6 +700,7 @@ export const WorkoutLogEditor = () => {
       onClose={() => {
         setPegarAbierto(false);
         setImportarLimpio(false);
+        setFicherosTraidos(null);
       }}
     />
   );
@@ -773,13 +778,13 @@ export const WorkoutLogEditor = () => {
       <div className="stack">
         <EmptyState
           icon={Layers}
-          title="Este cliente no tiene programa todavía"
+          title="Móntale su primer microciclo"
           message={
             bloquesCopiados.length > 0
               ? 'Pega el bloque que llevas copiado, empieza de cero o trae el fichero donde ya tengas su rutina: un Excel, un Word o un PDF.'
               : hayDeQuienTraer
                 ? 'Empieza de cero, trae el fichero donde ya tengas su rutina —un Excel, un Word o un PDF—, o trae el programa de alguien a quien ya se lo tengas montado.'
-                : 'Empieza de cero, o trae el fichero donde ya tengas escrita su rutina: un Excel, un Word o un PDF.'
+                : 'Escríbela aquí o trae la que ya tienes en un Excel, un Word o un PDF. Si en el mismo fichero va su dieta, se trae también.'
           }
           action={
             <div className="row wrap gap-2">
@@ -2642,7 +2647,14 @@ export const WorkoutLogEditor = () => {
               onRecordarEjercicio={upsertLibraryExercise}
               onGuardarPieza={guardarPieza}
               onSplit={(dia, valor) => updateWeeklySplit(activeClient.id, dia, valor)}
-              onTraerFichero={() => setPegarAbierto(true)}
+              onTraerFichero={(ficheros) => {
+                /* Solo se ofrece con el bloque en blanco: lo que se traiga
+                   sustituye a la hoja vacía con la que nace, como al montar el
+                   programa desde cero. */
+                setImportarLimpio(true);
+                setFicherosTraidos(ficheros?.length ? [...ficheros] : null);
+                setPegarAbierto(true);
+              }}
             />
             </div>
           ) : nav.day ? (

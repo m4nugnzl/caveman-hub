@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChevronsUpDown, LifeBuoy, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
+import { ChevronsUpDown, LogOut, Moon, Settings, Stethoscope, Sun } from 'lucide-react';
 
 import { useSession, useActions } from '@/context/AppContext';
 import { COACH_TALLER } from '@/routes';
 import { useEsAdminPlataforma } from '@/context/useRadiografia';
-import { useTour } from '@/components/WelcomeTour';
 import { useTheme } from '@/lib/useTheme.jsx';
 import { Avatar } from '@/components/ui/Avatar';
 import { useClickOutside } from '@/lib/useClickOutside';
@@ -41,7 +40,6 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
   const { signOut } = useActions();
   const { isDark, toggle } = useTheme();
   const esAdmin = useEsAdminPlataforma();
-  const tour = useTour();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -179,22 +177,11 @@ export const AccountMenu = ({ variante = 'avatar' }) => {
           )}
 
           {/*
-            La bienvenida sale sola la primera vez y luego no vuelve. Sin una
-            forma de recuperarla, quien la cerró sin leerla —o quien la vio hace
-            tres meses— no tiene dónde mirar cómo se hacía lo primero. Aquí, junto
-            al resto de lo que se consulta de vez en cuando.
+            Aquí estuvieron las guías de «Aprende», y se han ido (19 sep): el
+            dueño no quería la ayuda en el menú de su nombre. El entrenador la
+            tiene en Ajustes › Ayuda, y el cliente en «Tú». Ver
+            `GuiasDeAyuda` en `components/Aprende`.
           */}
-          <button
-            type="button"
-            className="account-item"
-            role="menuitem"
-            onClick={() => {
-              tour.setOpen(true);
-              setOpen(false);
-            }}
-          >
-            <LifeBuoy size={15} /> Ver el tutorial
-          </button>
 
           <button
             type="button"

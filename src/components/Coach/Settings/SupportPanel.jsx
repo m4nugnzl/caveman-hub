@@ -10,6 +10,7 @@ import {
   validateAttachment,
 } from '@/domain/attachments';
 import { recentIssues } from '@/lib/diagnostics';
+import { GuiasDeAyuda } from '@/components/Aprende';
 import {
   BotonAccion,
   EmptyState,
@@ -92,7 +93,7 @@ export const SupportPanel = () => {
         sub={
           isSupport
             ? 'Lo que ha escrito la gente que usa esto.'
-            : 'Escríbenos y sigue tus conversaciones.'
+            : 'Las guías de la app, y escríbenos si algo no va.'
         }
         action={
           /*
@@ -116,6 +117,11 @@ export const SupportPanel = () => {
           ) : null
         }
       />
+
+      {/* Las guías, antes que escribir: casi siempre lo que se busca es cómo
+          se hace algo, y la guía lo enseña en la propia pantalla. Aquí viven
+          las del entrenador desde que el dueño quitó el «?» fijo de la barra. */}
+      <GuiasDeAyuda />
 
       {estado === 'error' && (
         <Notice tone="error">
