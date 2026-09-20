@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 
-import { localeNumber, todayISO } from '@/lib/dates';
+import { localeNumber, todayISO, weekdayName } from '@/lib/dates';
 import { Aire, Boton, Cabecera, Tramo } from './Piezas';
 
 /**
@@ -11,19 +11,48 @@ import { Aire, Boton, Cabecera, Tramo } from './Piezas';
  *   2. **La tendencia** de las dos últimas semanas, con sus medias debajo. La
  *      línea va en gris y su último tramo en la señal —el verde del dibujo es
  *      el azul de la casa—: dice dónde estás, no hacia dónde debe ir el peso.
- *   3. **Apuntar el de hoy**: la cifra viene puesta —la de hoy si ya te
- *      pesaste, la última si no— y se mueve de 100 en 100 g con − y +, o se
- *      escribe. Si no has tocado nada y ya está apuntada, el verbo se calla.
+ *   3. **Apuntar**: los siete días de la semana, y en el elegido la cifra —la
+ *      suya si ya está, la última si no— que se mueve de 100 en 100 g con − y
+ *      +, o se escribe. Si no has tocado nada y ya está apuntada, el verbo se
+ *      calla.
  *   4. **Los últimos pesajes**, cada uno con su cambio.
+ *
+ * ══ LA TIRA DE DÍAS ES EL MANDO ════════════════════════════════════════════
+ *
+ * Esta pantalla solo sabía escribir el peso de HOY, y un cliente lo dijo: se
+ * pesa a diario, la báscula se lo guarda en su propia aplicación y él lo
+ * transcribe todo el domingo. Con un único día escribible, de siete pesajes
+ * entraba uno — y la media del periodo, que es con lo que su entrenador decide,
+ * salía de ese uno.
+ *
+ * Los días no son una barra de progreso ni un semáforo: son siete casillas y
+ * cada una se toca. El elegido se enciende, que es la gramática de la casa —no
+ * hay flechas, la caja se enciende—. Los que no han llegado se pintan apagados
+ * y no responden: un peso con fecha futura no lo tiene nadie.
  */
 export const PantallaPeso = ({ datos }) => {
-  const { ahora, delta, tendencia, medias, propuesta, yaHoy, onApuntar, ultimos, onVolver } = datos;
+  const { ahora, delta, tendencia, medias, dias, hoy, ultimo, onApuntar, ultimos, onVolver } = datos;
+  /* `null` mientras no se elige: manda hoy. Una sola variable y no «día + si se
+     ha tocado», que deja escribir el imposible de no tener ninguno elegido. */
+  const [dia, setDia] = useState(null);
   const [escrito, setEscrito] = useState(null);
 
-  const valor = escrito ?? (propuesta === null ? '' : dec(propuesta));
+  const elegido = dia ?? hoy;
+  const delDia = dias.find((d) => d.date === elegido) || null;
+  /* La cifra que viene puesta: la de ese día si ya está, y si no la última
+     apuntada. Proponer la última es lo que hace que esto sean dos gestos. */
+  const propuesta = delDia?.peso ?? ultimo;
+  const valor = escrito ?? (propuesta === null || propuesta === undefined ? '' : dec(propuesta));
   const numero = Number(String(valor).replace(',', '.'));
   const valido = Number.isFinite(numero) && numero > 20 && numero < 400;
-  const yaEsta = yaHoy !== null && valido && Math.abs(numero - yaHoy) < 0.05;
+  const yaEsta = delDia?.peso != null && valido && Math.abs(numero - delDia.peso) < 0.05;
+
+  const elegir = (fecha) => {
+    setDia(fecha);
+    /* Lo escrito era de otro día: mantenerlo pondría la cifra del lunes en la
+       casilla del martes sin que nadie la haya escrito ahí. */
+    setEscrito(null);
+  };
 
   const mover = (paso) => {
     const base = valido ? numero : propuesta ?? 70;
@@ -60,7 +89,28 @@ export const PantallaPeso = ({ datos }) => {
         </Tramo>
       ) : null}
 
-      <Tramo rotulo="Registrar peso de hoy">
+      <Tramo rotulo="Registrar peso">
+        {/* Los siete días. El elegido encendido, los que ya tienen pesaje con su
+            punto, los que no han llegado apagados y sin respuesta. */}
+        <div className="tel-peso-dias" role="group" aria-label="Elige el día">
+          {dias.map((d) => (
+            <button
+              key={d.date}
+              type="button"
+              className={`tel-peso-dia${d.date === elegido ? ' es-elegido' : ''}${
+                d.peso != null ? ' es-puesto' : ''
+              }`}
+              disabled={d.futuro}
+              aria-pressed={d.date === elegido}
+              aria-label={`${weekdayName(d.date)}${d.peso != null ? `, ${dec(d.peso)} kilos` : ', sin apuntar'}`}
+              onClick={() => elegir(d.date)}
+            >
+              <b>{d.inicial}</b>
+              <i aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+
         <div className="tel-paso-grande">
           <button type="button" onClick={() => mover(-0.1)} aria-label="Bajar 100 gramos">
             <Minus size={15} aria-hidden="true" />
@@ -71,7 +121,7 @@ export const PantallaPeso = ({ datos }) => {
               inputMode="decimal"
               value={valor}
               onChange={(e) => setEscrito(e.target.value)}
-              aria-label="Tu peso de hoy, en kilos"
+              aria-label={`Peso del ${weekdayName(elegido)}, en kilos`}
               /* A la medida de la cifra, para que «kg» vaya pegado a ella
                  como en el dibujo y no al otro lado de una casilla fija. */
               style={{ width: `${Math.max(2.6, String(valor).length - 0.4)}ch` }}
@@ -82,17 +132,30 @@ export const PantallaPeso = ({ datos }) => {
             <Plus size={15} aria-hidden="true" />
           </button>
         </div>
-        <p className="tel-pie tel-centrado">En ayunas, por la mañana y después del baño.</p>
+        <p className="tel-pie tel-centrado">
+          {elegido === hoy
+            ? 'En ayunas, por la mañana y después del baño.'
+            : /* Qué día se está escribiendo, dicho donde se está escribiendo. El
+                 día encendido arriba lo dice sin palabras; esto lo dice con
+                 ellas, que es lo que evita guardar el domingo en el jueves. */
+              `Estás apuntando el del ${weekdayName(elegido).toLowerCase()}.`}
+        </p>
         <Boton
           callado={yaEsta}
           disabled={!valido || yaEsta}
           onClick={() => {
             if (!valido || yaEsta) return;
-            onApuntar(numero);
+            onApuntar(numero, elegido);
             setEscrito(null);
           }}
         >
-          {yaEsta ? 'Guardado hoy' : yaHoy !== null ? 'Corregir el de hoy' : 'Guardar peso'}
+          {yaEsta
+            ? 'Guardado'
+            : delDia?.peso != null
+              ? `Corregir el del ${weekdayName(elegido).toLowerCase()}`
+              : elegido === hoy
+                ? 'Guardar peso'
+                : `Guardar el del ${weekdayName(elegido).toLowerCase()}`}
         </Boton>
       </Tramo>
 

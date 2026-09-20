@@ -192,6 +192,42 @@ export const photoWeek = (photo, startDate) =>
   photo.week ?? weekFromStart(startDate, photo.date) ?? null;
 
 /**
+ * LOS ÁNGULOS QUE YA TIENE EL PERIODO QUE SE ENTREGA. Un `Set`, que es lo que
+ * la lista de la entrega necesita para decir cuáles faltan.
+ *
+ * ══ La semana del PERIODO, no la de hoy ════════════════════════════════════
+ *
+ * Esto lo hacían las pantallas, y lo hacían contra `weekFromStart(alta, hoy)`.
+ * Son la misma semana casi siempre y NO lo son en los dos casos que importan:
+ * con la ventana de gracia abierta se entrega la semana pasada mientras hoy ya
+ * es la siguiente, y con cadencia quincenal el periodo abarca dos semanas de
+ * programa de las que solo se miraba una. En los dos, la lista hablaba de unas
+ * fotos y la entrega iba con otras.
+ *
+ * ── Y sin fecha de alta se cae a las FECHAS ────────────────────────────────
+ * La semana de programa es un ordinal que se cuenta desde el alta; sin alta no
+ * existe. En vez de dar por buena cualquier foto —que es lo que pasaba cuando
+ * los dos lados salían `null` y `null === null`— se compara la fecha de la foto
+ * contra la ventana del periodo, que es exacta y no necesita ordinal.
+ */
+export const angulosDelPeriodo = (photos = [], { startDate = null, desde = null, semanas = 1 } = {}) => {
+  const tramo = Math.max(1, semanas);
+  const primera = desde ? weekFromStart(startDate, desde) : null;
+  const fin = desde
+    ? new Date(Date.parse(`${weekStart(desde)}T00:00:00Z`) + tramo * 7 * DAY_MS).toISOString().slice(0, 10)
+    : null;
+
+  const dentro = (foto) => {
+    if (!desde) return true;
+    if (primera === null) return foto.date >= weekStart(desde) && foto.date < fin;
+    const w = photoWeek(foto, startDate);
+    return w !== null && w >= primera && w < primera + tramo;
+  };
+
+  return new Set(photos.filter((p) => p?.angle && dentro(p)).map((p) => p.angle));
+};
+
+/**
  * LA DE ESTA SEMANA Y LA DE LA ÚLTIMA VEZ, por ángulo.
  *
  * `ahora` es la foto de ese ángulo en `semana`; `antes`, la más reciente de las

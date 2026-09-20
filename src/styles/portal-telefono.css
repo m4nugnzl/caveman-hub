@@ -872,6 +872,58 @@ button.tel-hoja-ej { cursor: pointer; }
 .tel-medias { margin: var(--s3) 0 0; font-size: var(--fs-xs); color: var(--tel-tinta-3); text-align: center; }
 .tel-medias b { font-weight: 600; color: var(--tel-tinta); }
 
+/* ══ LOS SIETE DÍAS, QUE SON EL MANDO ════════════════════════════════════
+   Una letra y su punto, como la tira del monitor (`.peso-hoy-semana`), pero
+   aquí cada casilla se toca: elige qué día se está apuntando. Van a 44 px de
+   alto porque son el objetivo de un pulgar, no un indicador.
+
+   El elegido se ENCIENDE —fondo y canto—, que es la gramática de la casa: no
+   hay flechas, la caja se enciende. El punto lleno dice que ese día ya tiene
+   pesaje, y es una cosa distinta de estar elegido: se pueden dar las dos. */
+.tel-peso-dias {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+}
+.tel-peso-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 44px;
+  padding: var(--s2) 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-control);
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.tel-peso-dia > b {
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+  color: var(--tel-tinta-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.tel-peso-dia > i { width: 7px; height: 7px; border-radius: 50%; background: var(--tel-filete-2); }
+.tel-peso-dia.es-puesto > b { color: var(--tel-tinta); }
+.tel-peso-dia.es-puesto > i { background: var(--accent); }
+.tel-peso-dia.es-elegido { background: var(--tel-hundido); border-color: var(--accent); }
+.tel-peso-dia.es-elegido > b { color: var(--accent); }
+/* Sin pesaje y elegido: el punto en hueco, que es el par de la casa para «esto
+   todavía no ha pasado». */
+.tel-peso-dia.es-elegido:not(.es-puesto) > i {
+  background: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+/* Los que no han llegado. Apagados y sin respuesta: un peso con fecha futura no
+   lo tiene nadie. */
+.tel-peso-dia:disabled { cursor: default; opacity: 0.4; }
+.tel-peso-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .tel-paso-grande { display: flex; align-items: center; justify-content: center; gap: var(--s4); }
 .tel-paso-grande > button {
   width: 48px;

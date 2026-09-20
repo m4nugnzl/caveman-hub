@@ -448,6 +448,27 @@ export const periodoAEntregar = ({
  *   enciende un punto: le toca YA y no la ha mandado. Antes del día no se le
  *   reclama nada.
  */
+/**
+ * LA FILA DE `check_ins` QUE ES DE ESTE PERIODO, o `null`.
+ *
+ * ══ Por qué no vale «de esta semana en adelante» ═══════════════════════════
+ *
+ * Era `entrega.weekStart >= desde`, escrito igual en tres sitios, y deja entrar
+ * filas de semanas POSTERIORES al periodo abierto. Esas existen: el entrenador
+ * cierra la semana en curso desde su pasada mientras el cliente todavía tiene
+ * abierta la anterior por la ventana de gracia (`useCloseReview`). Con la de más
+ * adelante colada aquí, el portal le contaba al cliente las respuestas de otra
+ * semana como suyas y daba por revisada una entrega que no había hecho.
+ *
+ * `checkIns` guarda una fila por cliente —la última—, así que esto es un filtro
+ * y no una búsqueda: o la que hay es de este periodo, o este periodo no tiene.
+ */
+export const entregaDelPeriodo = (entrega, desde, semanas = 1) => {
+  if (!entrega?.weekStart || !desde) return null;
+  const fin = addDays(desde, Math.max(1, semanas) * 7);
+  return entrega.weekStart >= desde && entrega.weekStart < fin ? entrega : null;
+};
+
 export const estadoDeLaEntrega = ({
   preferences,
   startDate,
@@ -458,7 +479,7 @@ export const estadoDeLaEntrega = ({
      puede saltarse una revisión. Ver `periodoAEntregar`. */
   const periodo = periodoAEntregar({ preferences, startDate, entrega, today });
   const desde = periodo?.start || weekStart(today);
-  const deEste = entrega?.weekStart >= desde ? entrega : null;
+  const deEste = entregaDelPeriodo(entrega, desde, periodo?.everyWeeks || 1);
   const sinEntregar = !deEste?.submittedAt && !deEste?.reviewedAt;
 
   return { periodo, desde, sinEntregar, espera: sinEntregar && Boolean(periodo?.isDue) };

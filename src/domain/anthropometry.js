@@ -331,6 +331,56 @@ export const weeklyRateOfChange = (history) => {
 export const hasMeasurements = (history) =>
   chronological(history).some((h) => h.skinFolds || h.perimeters);
 
+/**
+ * `(fecha) => bool` para el periodo `[desde, desde + semanas)`. Sin `desde`
+ * acepta todo: es el caso de quien pregunta por el historial entero.
+ */
+const ventanaDe = (desde, semanas = 1) => {
+  const inicio = desde ? weekStart(desde) : null;
+  if (!inicio) return () => true;
+  const fin = new Date(Date.parse(`${inicio}T00:00:00Z`) + Math.max(1, semanas) * 7 * 86400000)
+    .toISOString()
+    .slice(0, 10);
+  return (fecha) => Boolean(fecha) && fecha >= inicio && fecha < fin;
+};
+
+/**
+ * ¿ESTE REGISTRO TRAE MEDIDAS? Pliegues, perímetros o cualquiera de las medidas
+ * propias que el entrenador haya añadido en el protocolo.
+ *
+ * ── Por qué está aquí y no en la pantalla ──────────────────────────────────
+ * Porque la misma pregunta la hacían dos sitios con dos respuestas distintas: el
+ * renglón «Tus medidas» de la entrega la contestaba mirando SOLO pliegues y
+ * perímetros, y el guardián que deja entregar miraba además `medidas`. Con dos
+ * cuentas, la lista decía «hecho» y el botón mandaba al asistente a tomarlas.
+ */
+export const tieneMedidas = (log) =>
+  foldsSum(log?.folds) > 0 ||
+  Object.values(log?.perimeters || {}).some((v) => Number(v) > 0) ||
+  Object.values(log?.medidas || {}).some((v) => v !== null && v !== '');
+
+/**
+ * LA ÚLTIMA TOMA DE MEDIDAS DEL PERIODO QUE SE ENTREGA, o `null`.
+ *
+ * ══ Por qué lleva ventana, y por qué no la tenía ═══════════════════════════
+ *
+ * Sin ventana esto era «la última toma de SIEMPRE», y con eso el paso «Tus
+ * medidas» se quedaba en verde para el resto del programa: bastaba haberse
+ * medido una vez, en la semana 2, para que la semana 9 dijera que estaba hecha
+ * —fechada en la semana 2, que es como se descubrió—. Un cliente leyendo «3 de 4
+ * completadas» de una revisión en la que no había tocado nada.
+ *
+ * La ventana es la MISMA que la de los pesajes (`weekEntries`): el periodo
+ * abierto, que con cadencia quincenal son dos semanas y no una.
+ *
+ * Sin `desde` no se acota nada y se devuelve la última de todas, que es lo que
+ * quiere quien pregunta «¿se ha medido alguna vez?».
+ */
+export const ultimaMedidaDe = (history, { desde = null, semanas = 1 } = {}) => {
+  const dentro = ventanaDe(desde, semanas);
+  return reverseChronological(history).find((h) => dentro(h.date) && tieneMedidas(h)) || null;
+};
+
 // ── Check-in semanal ───────────────────────────────────────────────────────
 //
 // El seguimiento real de un cliente no es un pesaje suelto: es un CHECK-IN

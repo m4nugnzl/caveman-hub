@@ -1,7 +1,8 @@
 import { Camera, Check, MessageSquare, Ruler, Scale, Send } from 'lucide-react';
 
-import { PERIMETER_LABELS, foldsSum, reverseChronological } from '@/domain/anthropometry';
-import { ANGLES } from '@/domain/photos';
+import { PERIMETER_LABELS, foldsSum, ultimaMedidaDe } from '@/domain/anthropometry';
+import { entregaDelPeriodo } from '@/domain/calendar';
+import { ANGLES, angulosDelPeriodo } from '@/domain/photos';
 import { asksBlock } from '@/domain/protocol';
 import { localeNumber, shortDate } from '@/lib/dates';
 
@@ -153,22 +154,40 @@ export const PasosDeLaEntrega = ({
  * de cada paso tiene que decir lo mismo en los dos. Escrito dos veces, el día que
  * cambie la cuenta de pesajes solo cambiaría en uno.
  *
+ * ══ LA VENTANA LA PONE ESTA FUNCIÓN, no quien la llama ════════════════════
+ *
+ * Recibía ya masticado lo que había que contar —el `Set` de ángulos, las
+ * respuestas del periodo— y cada llamador lo calculaba por su cuenta. Los dos lo
+ * calculaban distinto y los dos lo calculaban mal: la portada contaba las fotos
+ * del cliente SIN filtrar por semana, y la revisión las contaba contra la semana
+ * de hoy en vez de contra la del periodo. Las medidas no las filtraba nadie.
+ *
+ * El resultado es el aviso que trae esto: un cliente leyendo «3 de 4
+ * completadas» de una revisión en la que no había subido nada. Así que lo que
+ * entra ahora es el material en crudo y la ventana, y el recorte se hace una
+ * vez y en un sitio — que es lo que esta función vino a ser desde el principio.
+ *
  * @param protocol  El protocolo ya resuelto (`clientProtocol`).
- * @param resumen   `weeklyCheckIn(...)` de esta semana.
- * @param history   Su antropometría, para la última toma de medidas.
- * @param fotos     Los ángulos que ya tiene esta semana (un `Set`).
+ * @param resumen   `weeklyCheckIn(...)` del periodo que se entrega.
+ * @param history   Su antropometría, en crudo.
+ * @param photos    Sus fotos de progreso, en crudo (ya filtradas por cliente).
+ * @param startDate Su alta, para poder fechar una foto por semana de programa.
+ * @param desde     El lunes del periodo que se entrega.
+ * @param semanas   Cuántas semanas naturales abarca ese periodo.
  * @param preguntas Las del cuestionario (`checkinQuestions`).
- * @param respuestas Las `answers` de la entrega de ESTE periodo, o `null`.
+ * @param entrega   La fila de `check_ins` que se tenga cargada, sin filtrar.
  * @param sinPeso   Con el peso oculto, el paso del peso no existe. Ver `Oculto`.
  */
 export const pasosDeLaEntrega = ({
   protocol,
   resumen,
   history = [],
-  fotos = new Set(),
+  photos = [],
+  startDate = null,
+  desde = null,
+  semanas = 1,
   preguntas = [],
-  respuestas = null,
-  entregada = false,
+  entrega = null,
   sinPeso = false,
 }) => {
   /* Los mismos guardianes que usa `ReviewWizard` para decidir sus pasos. Leer
@@ -178,15 +197,19 @@ export const pasosDeLaEntrega = ({
   const pideFolds = asksBlock(protocol, 'folds');
   const pideFotos = protocol?.askPhotos !== false;
 
-  /* La última toma con algo medido. `reverseChronological` ya ordena, así que el
-     primero que tenga medidas es el bueno: recorrer el historial entero para
-     quedarse con el último sería la misma cuenta al revés. */
-  const ultimaMedida = reverseChronological(history).find(
-    (h) => foldsSum(h.folds) > 0 || Object.values(h.perimeters || {}).some((v) => Number(v) > 0)
-  );
+  /* La última toma con algo medido DE ESTE PERIODO. La misma ventana que la de
+     los pesajes, y la misma que el guardián que deja entregar: si las dos
+     cuentas no coinciden, la lista dice «hecho» y el botón manda a tomarlas. */
+  const ultimaMedida = ultimaMedidaDe(history, { desde, semanas });
 
+  const fotos = angulosDelPeriodo(photos, { startDate, desde, semanas });
   const faltan = ANGLES.filter((a) => !fotos.has(a.id));
-  const contestadas = Object.values(respuestas || {}).some((v) => String(v ?? '').trim() !== '');
+
+  /* Y las respuestas, las de la fila de ESTE periodo. Las de la semana pasada no
+     contestan la de ahora, y las de una posterior tampoco. */
+  const deEste = entregaDelPeriodo(entrega, desde, semanas);
+  const entregada = Boolean(deEste?.submittedAt);
+  const contestadas = Object.values(deEste?.answers || {}).some((v) => String(v ?? '').trim() !== '');
 
   return [
     !sinPeso && {
@@ -227,9 +250,14 @@ export const pasosDeLaEntrega = ({
       titulo: 'Tus medidas',
       hecho: Boolean(ultimaMedida),
       verbo: 'Tomarlas',
+      /* «Sin tomar todavía» decía «nunca», y quien se midió hace tres semanas lo
+         leía como que se había perdido lo suyo. Lo que falta es la toma de ESTA
+         revisión, y así es como se dice. */
       estado: ultimaMedida
         ? `${resumenDeMedidas(ultimaMedida)} · tomadas el ${shortDate(ultimaMedida.date)}`
-        : 'Sin tomar todavía',
+        : semanas > 1
+          ? 'Sin tomar en este periodo'
+          : 'Sin tomar esta semana',
     },
     pideFotos && {
       id: 'fotos',

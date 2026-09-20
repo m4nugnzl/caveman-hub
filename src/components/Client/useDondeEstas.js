@@ -71,19 +71,23 @@ export const useDondeEstas = () => {
     target: weighInsTarget(protocolo),
   });
 
-  /* Los pasos de la entrega, los mismos que enseña «Revisión». */
-  const fotosDeLaSemana = new Set(
-    (progressPhotos || []).filter((p) => p.clientId === activeClient.id && p.angle).map((p) => p.angle)
-  );
+  /*
+    Los pasos de la entrega, los mismos que enseña «Revisión» — y ahora de
+    verdad los mismos. Aquí las fotos se contaban SIN semana: todas las del
+    cliente, desde su alta, así que el renglón salía hecho desde la primera y ya
+    no se apagaba nunca. El recorte lo hace `pasosDeLaEntrega` con la ventana
+    del periodo, que es la que ya usa el resumen de pesajes de aquí arriba.
+  */
   const pasos = pasosDeLaEntrega({
     protocol: protocolo,
     resumen,
     history: historial,
-    fotos: fotosDeLaSemana,
+    photos: (progressPhotos || []).filter((p) => p.clientId === activeClient.id),
+    startDate: activeClient.startDate,
+    desde,
+    semanas: periodo?.everyWeeks || 1,
     preguntas: checkinQuestions(protocolo),
-    /* Las respuestas solo cuentan si la entrega es de ESTE periodo: las de la
-       semana pasada no contestan la de ahora. */
-    respuestas: entrega?.weekStart >= desde ? (entrega.answers ?? null) : null,
+    entrega,
     sinPeso: oculto.weight,
   });
   const pasosHechos = pasos.filter((p) => p.hecho).length;

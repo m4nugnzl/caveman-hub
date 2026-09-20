@@ -6,7 +6,7 @@ import { localeNumber, todayISO, weekdayName } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
 /**
- * APUNTAR EL PESO DE HOY, ahí mismo.
+ * APUNTAR EL PESO, ahí mismo.
  *
  * ══ Qué sustituye, y por qué era lo que el dueño llamaba complicado ════════
  *
@@ -29,10 +29,16 @@ import { Panel } from '@/components/ui/primitives';
  * mal, se escribe encima y el botón vuelve a ofrecerse solo — sin modo
  * «editar», que era la tercera puerta que el prototipo mandó cerrar.
  *
- * ── Y la semana no es una barra de progreso ───────────────────────────────
- * Siete letras con su punto: los días en los que hay pesaje, el de hoy marcado.
- * No lleva porcentaje ni semáforo. Dice cuántos hay y cuáles; de los que faltan
- * no se echa la culpa a nadie (`la-app-no-receta`, `ley-del-color`).
+ * ── Y la semana no es una barra de progreso: es el mando ──────────────────
+ * Siete letras con su punto: los días en los que hay pesaje, el elegido
+ * encendido. No lleva porcentaje ni semáforo. Dice cuántos hay y cuáles; de los
+ * que faltan no se echa la culpa a nadie (`la-app-no-receta`, `ley-del-color`).
+ *
+ * Y cada casilla se toca, que es lo que arregla el aviso de un cliente que se
+ * pesa a diario y transcribe la semana entera el domingo desde la aplicación de
+ * su báscula: con un solo día escribible, de siete pesajes entraba uno y la
+ * media del periodo —la cifra con la que su entrenador decide— salía de ése.
+ * Los días que no han llegado se pintan y no responden.
  *
  * ── El asistente NO se va ─────────────────────────────────────────────────
  * Sigue siendo el sitio de las medidas y del cuestionario, que sí son
@@ -55,7 +61,8 @@ import { Panel } from '@/components/ui/primitives';
  *   pesaje para poder cruzar dieta y peso después. Lo mismo que guarda el
  *   asistente: si aquí no viajara, la mitad de los puntos de esa serie saldrían
  *   sin plan y la escalera se leería como un cambio que nadie hizo.
- * @param onApuntar `(log)` — escribe. Es `addAnthropometryLog` de la ruta.
+ * @param onApuntar `(log)` — escribe. La ruta decide si ese día ya existe: un
+ *   registro con medidas no se puede sustituir entero por un peso.
  * @param conMedia  El renglón de la media al pie. En el MONITOR va a `false`:
  *   allí la media es la cifra grande del costado (`RevisionEnMonitor · TuMedia`)
  *   y decirla dos veces en la misma pantalla, una en 12 px y otra en 34, es la
@@ -69,37 +76,54 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
      escribe, manda lo escrito — incluido el vacío, que es alguien borrando para
      poner otra cifra y no «vuelve a proponerme la tuya». */
   const [escrito, setEscrito] = useState(null);
+  /* Qué día se está apuntando. `null` es hoy, que es el caso de casi siempre. */
+  const [dia, setDia] = useState(null);
 
   const hoy = todayISO();
-  const deHoy = (resumen.entries || []).find((e) => e.date === hoy) || null;
 
-  /* Qué dice la casilla: lo de hoy si ya se apuntó, y si no, el último pesaje.
-     Proponer el de la semana pasada es lo que hace que esto sean dos gestos. */
-  const propuesta = deHoy?.weight ?? ultimo?.weight ?? null;
+  /* Las siete casillas del periodo que se entrega. Con cadencia quincenal el
+     periodo mide catorce días; se enseña la semana del lunes de la entrega,
+     que es la que la casilla de «hoy» puede marcar. */
+  const dias = weekDates(semana);
+  const porFecha = new Map((resumen.entries || []).map((e) => [e.date, e]));
+
+  /* Hoy si cae dentro de la semana que se enseña; si no —la ventana de gracia,
+     que entrega la semana pasada—, el último día de ésa. Sin esto el día
+     elegido por defecto no existiría en la tira. */
+  const pordefecto = dias.includes(hoy) ? hoy : dias.filter((d) => d <= hoy).pop() || dias[0] || hoy;
+  const elegido = dia ?? pordefecto;
+  const delDia = porFecha.get(elegido) || null;
+
+  /* Qué dice la casilla: lo de ese día si ya se apuntó, y si no, el último
+     pesaje. Proponer el anterior es lo que hace que esto sean dos gestos. */
+  const propuesta = delDia?.weight ?? ultimo?.weight ?? null;
   const valor = escrito ?? (propuesta === null ? '' : String(propuesta));
 
   const numero = Number(String(valor).replace(',', '.'));
   const valido = Number.isFinite(numero) && numero > 0;
   /* Ya apuntado y sin tocar la cifra: no hay nada que hacer. Tocarla vuelve a
      ofrecer el verbo, que es cómo se corrige sin un modo «editar». */
-  const yaEsta = deHoy !== null && numero === Number(deHoy.weight);
+  const yaEsta = delDia !== null && numero === Number(delDia.weight);
 
   const apuntar = () => {
     if (!valido) return;
-    onApuntar(buildWeightLog({ date: hoy, weight: numero, nutritionFoto: foto }));
+    onApuntar(buildWeightLog({ date: elegido, weight: numero, nutritionFoto: foto }));
     setEscrito(null);
   };
 
-  /* Las siete casillas del periodo que se entrega. Con cadencia quincenal el
-     periodo mide catorce días; se enseña la semana del lunes de la entrega,
-     que es la que la casilla de «hoy» puede marcar. */
-  const dias = weekDates(semana);
-  const conPeso = new Set((resumen.entries || []).map((e) => e.date));
+  const elegir = (fecha) => {
+    setDia(fecha);
+    /* Lo escrito era de otro día: llevárselo pondría la cifra del lunes en la
+       casilla del martes sin que nadie la haya escrito ahí. */
+    setEscrito(null);
+  };
 
   return (
     <Panel className="col gap-3 peso-hoy card-decide">
       <div className="row between gap-2">
-        <span className="section-label">Tu peso de hoy</span>
+        <span className="section-label">
+          {elegido === hoy ? 'Tu peso de hoy' : `Tu peso del ${weekdayName(elegido)}`}
+        </span>
         {/* Cuándo fue el último, en voz baja. Es lo que explica de dónde sale la
             cifra que viene puesta: sin esto, un número en una casilla vacía
             parece escrito por alguien. */}
@@ -135,7 +159,7 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
           className="input peso-hoy-input"
           value={valor}
           onChange={(e) => setEscrito(e.target.value)}
-          aria-label="Tu peso de hoy, en kilos"
+          aria-label={`Tu peso del ${weekdayName(elegido)}, en kilos`}
         />
         <span className="peso-hoy-u" aria-hidden="true">
           kg
@@ -152,17 +176,24 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
         )}
       </div>
 
-      <div className="peso-hoy-semana" aria-hidden="true">
+      <div className="peso-hoy-semana" role="group" aria-label="Elige el día">
         {dias.map((fecha) => (
-          <span
+          <button
             key={fecha}
-            className={`peso-hoy-dia${conPeso.has(fecha) ? ' es-puesto' : ''}${
-              fecha === hoy ? ' es-hoy' : ''
+            type="button"
+            className={`peso-hoy-dia${porFecha.has(fecha) ? ' es-puesto' : ''}${
+              fecha === elegido ? ' es-hoy' : ''
             }`}
+            disabled={fecha > hoy}
+            aria-pressed={fecha === elegido}
+            aria-label={`${weekdayName(fecha)}${
+              porFecha.has(fecha) ? `, ${kg(porFecha.get(fecha).weight)} kilos` : ', sin apuntar'
+            }`}
+            onClick={() => elegir(fecha)}
           >
             <b>{inicialDelDia(fecha)}</b>
-            <i />
-          </span>
+            <i aria-hidden="true" />
+          </button>
         ))}
       </div>
 

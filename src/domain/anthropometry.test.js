@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { kcalSteps, lastKcalChange, latestWeight, weeklyCheckIn } from './anthropometry';
+import {
+  kcalSteps,
+  lastKcalChange,
+  latestWeight,
+  tieneMedidas,
+  ultimaMedidaDe,
+  weeklyCheckIn,
+} from './anthropometry';
 
 /**
  * El último peso, que antes era una columna que nadie actualizaba.
@@ -199,5 +206,71 @@ describe('los cambios de kcal salen de la foto de cada pesaje', () => {
   it('los pesajes sin foto de la dieta no son un escalón', () => {
     const history = [log('2026-05-01', 82, null), log('2026-06-01', 80, 2500), log('2026-06-08', 79, 2500)];
     expect(kcalSteps(history)).toEqual([]);
+  });
+});
+
+/**
+ * LA VENTANA DE LAS MEDIDAS — el aviso de Manuel Viñuales (20 sep 2026).
+ *
+ * ══ Qué se está fijando aquí ═══════════════════════════════════════════════
+ *
+ * Un cliente abrió su revisión de la semana y se encontró «3 de 4 completadas»
+ * sin haber tocado nada: el renglón de las medidas iba en verde, fechado en una
+ * toma de dos semanas antes. La cuenta miraba el historial ENTERO, así que una
+ * vez medido el paso ya no se apagaba nunca.
+ *
+ * Es el fallo más caro de todos los de su clase, porque no se ve: el cliente
+ * cree que ya lo ha entregado, el entrenador recibe una semana sin medidas y
+ * nadie reclama nada.
+ */
+describe('ultimaMedidaDe', () => {
+  const medida = (date, extra) => ({ id: date, date, weight: 80, ...extra });
+  const conPerimetros = (date) => medida(date, { perimeters: { chest: 102, waist: 79 } });
+
+  it('no da por hecha la toma de una semana anterior', () => {
+    const history = [conPerimetros('2026-09-01'), medida('2026-09-16')];
+    expect(ultimaMedidaDe(history, { desde: '2026-09-14' })).toBeNull();
+  });
+
+  it('encuentra la del periodo abierto', () => {
+    const history = [conPerimetros('2026-09-01'), conPerimetros('2026-09-16')];
+    expect(ultimaMedidaDe(history, { desde: '2026-09-14' })).toMatchObject({ date: '2026-09-16' });
+  });
+
+  /* La misma ventana que los pesajes: con cadencia quincenal el periodo mide
+     catorce días, y medirse la primera de las dos semanas cuenta. */
+  it('con cadencia quincenal abarca las dos semanas', () => {
+    const history = [conPerimetros('2026-09-15')];
+    expect(ultimaMedidaDe(history, { desde: '2026-09-07', semanas: 2 })).toMatchObject({
+      date: '2026-09-15',
+    });
+    /* Y con cadencia semanal esa misma toma cae fuera: es de la semana de al lado. */
+    expect(ultimaMedidaDe(history, { desde: '2026-09-07' })).toBeNull();
+  });
+
+  /* Lo de después del periodo tampoco: la toma de la semana que viene no
+     entrega la de ahora. */
+  it('deja fuera lo posterior al periodo', () => {
+    expect(ultimaMedidaDe([conPerimetros('2026-09-22')], { desde: '2026-09-14' })).toBeNull();
+  });
+
+  /* Un pesaje no es una medida. Era lo que separaba esta cuenta de la del
+     guardián que deja entregar, y por eso decían cosas distintas. */
+  it('un registro con solo peso no cuenta como medida', () => {
+    expect(ultimaMedidaDe([medida('2026-09-16')], { desde: '2026-09-14' })).toBeNull();
+  });
+
+  /* Las medidas propias del protocolo cuentan igual que los perímetros: el
+     guardián ya las contaba y el renglón no, que es de donde salía el
+     desacuerdo entre la lista y el botón. */
+  it('las medidas propias del protocolo también son medidas', () => {
+    const history = [medida('2026-09-16', { medidas: { brazo_iso: 36.5 } })];
+    expect(ultimaMedidaDe(history, { desde: '2026-09-14' })).toMatchObject({ date: '2026-09-16' });
+    expect(tieneMedidas({ medidas: { brazo_iso: '' } })).toBe(false);
+  });
+
+  it('sin ventana devuelve la última de todas', () => {
+    const history = [conPerimetros('2026-09-01'), conPerimetros('2026-09-16')];
+    expect(ultimaMedidaDe(history)).toMatchObject({ date: '2026-09-16' });
   });
 });

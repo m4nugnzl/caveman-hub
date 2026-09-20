@@ -2,14 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
-  foldsSum,
   reverseChronological,
+  ultimaMedidaDe,
   weeklyCheckIn,
   weeklyWeightAverages,
 } from '@/domain/anthropometry';
 import { clientCycleSlots } from '@/domain/blocks';
 import { cycleFoto } from '@/domain/nutrition';
-import { weekFromStart } from '@/domain/photos';
 import {
   checkinQuestions,
   clientProtocol,
@@ -82,6 +81,7 @@ export const ClientRevisionRoute = () => {
     progressPhotos,
     workoutData,
     addAnthropometryLog,
+    updateAnthropometryLog,
     uploadProgressPhoto,
     submitCheckIn,
     saveStatus,
@@ -202,12 +202,6 @@ export const ClientRevisionRoute = () => {
 
   if (!activeClient) return null;
 
-  const hechas = new Set(
-    photos
-      .filter((p) => p.angle && (p.week ?? weekFromStart(activeClient.startDate, p.date)) === semanaFoto)
-      .map((p) => p.angle)
-  );
-
   /*
     Los pesajes DEL PERIODO QUE SE ENTREGA, no los de la semana de hoy. Miraba
     `todayISO()`, que es la ventana equivocada dos veces: con cadencia quincenal
@@ -221,16 +215,35 @@ export const ClientRevisionRoute = () => {
     weeks: semanasDelPeriodo,
   });
 
+  /* Todo en crudo y la ventana del periodo: el recorte lo hace `pasosDeLaEntrega`
+     una sola vez, para que la portada y esta pantalla no puedan contar cosas
+     distintas. Ver su cabecera, «LA VENTANA LA PONE ESTA FUNCIÓN». */
   const pasos = pasosDeLaEntrega({
     protocol,
     resumen,
     history,
-    fotos: hechas,
+    photos,
+    startDate: activeClient.startDate,
+    desde: semana,
+    semanas: semanasDelPeriodo,
     preguntas: checkinQuestions(protocol),
-    respuestas: deEste?.answers ?? null,
-    entregada: yaEntregada,
+    entrega: deEste,
     sinPeso: oculto.weight,
   });
+
+  /*
+    APUNTAR UN PESAJE SIN PISAR EL DÍA. Iba directo a `addAnthropometryLog`, que
+    SUSTITUYE el registro de esa fecha entero: apuntar el peso de un día en el
+    que ya se habían tomado las medidas se llevaba las medidas por delante. Con
+    la tira de días escribible —se puede apuntar cualquier día de la semana— eso
+    deja de ser un caso raro y pasa a ser el normal. Es la misma cuenta que hace
+    `ClientPesoRoute`, y por el mismo motivo.
+  */
+  const apuntarPeso = (log) => {
+    const delDia = history.find((h) => h.date === log.date);
+    if (delDia?.id) updateAnthropometryLog(activeClient.id, delDia.id, { weight: log.weight });
+    else addAnthropometryLog(activeClient.id, log);
+  };
 
   /* La última revisión con algo escrito. Es lo que se lee mientras se prepara la
      siguiente: «¿qué me dijo la vez pasada?». */
@@ -307,7 +320,7 @@ export const ClientRevisionRoute = () => {
             semana,
             ultimo: history.length > 0 ? reverseChronological(history)[0] : null,
             foto: fotoDelPlan,
-            onApuntar: (log) => addAnthropometryLog(activeClient.id, log),
+            onApuntar: apuntarPeso,
           }
         : null,
     /*
@@ -371,12 +384,12 @@ export const ClientRevisionRoute = () => {
   const pideMedidasObligatorias =
     requiredBlocks(protocol).length > 0 ||
     medidasDeRevision(protocol).some((m) => requiresBlock(protocol, m.id));
-  const medidasDelPeriodo = history.some(
-    (h) =>
-      h.date >= semana &&
-      (foldsSum(h.folds) > 0 ||
-        Object.values(h.perimeters || {}).some((v) => Number(v) > 0) ||
-        Object.values(h.medidas || {}).some((v) => v !== null && v !== ''))
+  /* La MISMA cuenta que pinta el renglón «Tus medidas», y por eso sale de la
+     misma función: escrita aquí a mano se fue de la otra —ésta acotaba al
+     periodo y aquélla no—, y el precio fue una lista diciendo «hecho» sobre un
+     botón que mandaba a tomarlas. Ver `ultimaMedidaDe`. */
+  const medidasDelPeriodo = Boolean(
+    ultimaMedidaDe(history, { desde: semana, semanas: semanasDelPeriodo })
   );
 
   const entregarDesdeElTelefono = async () => {

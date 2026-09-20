@@ -6,6 +6,7 @@ import {
   checkInDates,
   checkInSchedule,
   currentCheckInPeriod,
+  entregaDelPeriodo,
   estadoDeLaEntrega,
   moveCheckIn,
   monthGrid,
@@ -459,5 +460,46 @@ describe('la cadencia', () => {
     expect(WEEKDAYS[0]).toBe('Lun');
     expect(DIAS[6].corto).toBe('domingo');
     expect(WEEKDAYS[6]).toBe('Dom');
+  });
+});
+
+/**
+ * LA FILA DE ESTE PERIODO Y NO «DE ESTE LUNES EN ADELANTE».
+ *
+ * ══ Qué se está fijando aquí ═══════════════════════════════════════════════
+ *
+ * `entrega.weekStart >= desde`, escrito igual en tres sitios, dejaba entrar
+ * filas de semanas POSTERIORES al periodo abierto. Esas existen y no son raras:
+ * `useCloseReview` crea la fila con `submit_check_in` cuando el entrenador
+ * cierra una semana que el cliente no llegó a entregar, y esa función sella
+ * `submitted_at`. Con la fila de más adelante colada aquí, el portal daba por
+ * entregada y revisada una semana que el cliente no había tocado, y le contaba
+ * las respuestas de otra como suyas.
+ */
+describe('entregaDelPeriodo', () => {
+  const fila = (weekStart) => ({ weekStart, submittedAt: '2026-09-20T10:00:00Z' });
+
+  it('acepta la del periodo', () => {
+    expect(entregaDelPeriodo(fila('2026-09-14'), '2026-09-14')).not.toBeNull();
+  });
+
+  it('deja fuera la de una semana anterior', () => {
+    expect(entregaDelPeriodo(fila('2026-09-07'), '2026-09-14')).toBeNull();
+  });
+
+  /* La de la semana que VIENE: es la que crea el entrenador al cerrar por
+     delante mientras el cliente todavía debe la anterior. */
+  it('deja fuera la de una semana posterior', () => {
+    expect(entregaDelPeriodo(fila('2026-09-21'), '2026-09-14')).toBeNull();
+  });
+
+  it('con cadencia quincenal el periodo mide dos semanas', () => {
+    expect(entregaDelPeriodo(fila('2026-09-21'), '2026-09-14', 2)).not.toBeNull();
+    expect(entregaDelPeriodo(fila('2026-09-28'), '2026-09-14', 2)).toBeNull();
+  });
+
+  it('sin fila o sin periodo no hay nada', () => {
+    expect(entregaDelPeriodo(null, '2026-09-14')).toBeNull();
+    expect(entregaDelPeriodo(fila('2026-09-14'), null)).toBeNull();
   });
 });

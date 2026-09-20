@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext';
-import { periodoAEntregar } from '@/domain/calendar';
+import { entregaDelPeriodo, periodoAEntregar } from '@/domain/calendar';
 import { weekFromStart } from '@/domain/photos';
 import { todayISO, weekStart } from '@/lib/dates';
 
@@ -29,22 +29,35 @@ export const useSemanaDeEntrega = () => {
       })
     : null;
   const semana = periodo?.start || weekStart(todayISO());
-  const deEste = entrega?.weekStart >= semana ? entrega : null;
+  const semanasDelPeriodo = periodo?.everyWeeks || 1;
+  /* La fila de ESTE periodo y no «la de este lunes en adelante»: una fila de
+     una semana posterior —el entrenador cerrando la que viene mientras el
+     cliente todavía debe la anterior— daba por entregada y revisada una semana
+     que el cliente no había tocado. Ver `entregaDelPeriodo`. */
+  const deEste = entregaDelPeriodo(entrega, semana, semanasDelPeriodo);
 
   return {
     periodo,
     /** El lunes del periodo que se entrega. */
     semana,
     /** Cuántas semanas naturales abarca ese periodo. */
-    semanasDelPeriodo: periodo?.everyWeeks || 1,
+    semanasDelPeriodo,
     /** La fila de `check_ins` de este periodo, entregada o en borrador. */
     deEste,
     yaEntregada: Boolean(deEste?.submittedAt),
     /** Revisada: ya no queda nada que hacer contra ella. */
     cerrada: Boolean(deEste?.reviewedAt),
-    /* La semana de las FOTOS se cuenta desde su alta y no es la misma cifra que
-       el lunes del periodo: una fecha para agrupar entregas, un ordinal para
-       fechar fotos. Ver `domain/photos`. */
-    semanaFoto: activeClient ? weekFromStart(activeClient.startDate, todayISO()) : null,
+    /*
+      La semana de las FOTOS se cuenta desde su alta y no es la misma cifra que
+      el lunes del periodo: una fecha para agrupar entregas, un ordinal para
+      fechar fotos. Ver `domain/photos`.
+
+      Se cuenta desde `semana` y no desde hoy: es la semana QUE SE ENTREGA. Con
+      la ventana de gracia abierta no son la misma —hoy ya es la siguiente— y
+      las fotos se sellaban con la de hoy mientras la entrega iba a la anterior.
+      La pantalla que las sube y la lista que las cuenta tienen que decir la
+      misma cifra, y ahora las dos salen de aquí.
+    */
+    semanaFoto: activeClient ? weekFromStart(activeClient.startDate, semana) : null,
   };
 };

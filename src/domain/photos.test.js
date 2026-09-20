@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  angulosDelPeriodo,
   photoCoverage,
   thumbnailUrl,
   weekComparison,
@@ -223,5 +224,67 @@ describe('weekComparison', () => {
     expect(weekComparison({ photos: fotos, weekNumber: 3 })).toBe(null);
     expect(weekComparison({ photos: [], weekNumber: 1 })).toBe(null);
     expect(weekComparison({ photos: fotos, weekNumber: null })).toBe(null);
+  });
+});
+
+/**
+ * LOS ÁNGULOS DEL PERIODO — el otro lado del aviso del 20 de septiembre.
+ *
+ * La portada contaba las fotos del cliente SIN semana —todas, desde su alta—,
+ * así que el renglón salía hecho desde la primera y no se apagaba nunca. La
+ * revisión sí filtraba, pero contra la semana de HOY en vez de la del periodo:
+ * son la misma casi siempre, y no lo son justo cuando importa.
+ */
+describe('angulosDelPeriodo', () => {
+  const foto = (week, angle) => ({ week, angle, date: '2026-01-01' });
+  const ALTA = '2026-01-05'; // lunes
+
+  it('deja fuera las de semanas anteriores', () => {
+    const fotos = [foto(1, 'frontal'), foto(1, 'lateral'), foto(1, 'espalda')];
+    const set = angulosDelPeriodo(fotos, { startDate: ALTA, desde: weekStartOfProgramWeek(ALTA, 4) });
+    expect(set.size).toBe(0);
+  });
+
+  it('cuenta las del periodo que se entrega', () => {
+    const fotos = [foto(3, 'frontal'), foto(4, 'frontal'), foto(4, 'lateral')];
+    const set = angulosDelPeriodo(fotos, { startDate: ALTA, desde: weekStartOfProgramWeek(ALTA, 4) });
+    expect([...set].sort()).toEqual(['frontal', 'lateral']);
+  });
+
+  /* Con cadencia quincenal el periodo abarca dos semanas de programa, y solo se
+     miraba una: la foto de la primera no contaba para su propia entrega. */
+  it('con cadencia quincenal abarca las dos semanas', () => {
+    const fotos = [foto(3, 'frontal'), foto(4, 'lateral')];
+    const set = angulosDelPeriodo(fotos, {
+      startDate: ALTA,
+      desde: weekStartOfProgramWeek(ALTA, 3),
+      semanas: 2,
+    });
+    expect([...set].sort()).toEqual(['frontal', 'lateral']);
+  });
+
+  /* Las de MÁS ADELANTE tampoco: entregar tarde la semana pasada no se completa
+     con las fotos de ésta. */
+  it('deja fuera las de semanas posteriores', () => {
+    const set = angulosDelPeriodo([foto(5, 'frontal')], {
+      startDate: ALTA,
+      desde: weekStartOfProgramWeek(ALTA, 4),
+    });
+    expect(set.size).toBe(0);
+  });
+
+  /* Sin alta no hay ordinal que contar, y antes los dos lados salían `null` y
+     `null === null` daba por buena cualquier foto. Se cae a las fechas. */
+  it('sin fecha de alta compara por fecha y no da por buenas todas', () => {
+    const fotos = [
+      { week: null, angle: 'frontal', date: '2026-09-16' },
+      { week: null, angle: 'lateral', date: '2026-08-01' },
+    ];
+    const set = angulosDelPeriodo(fotos, { startDate: null, desde: '2026-09-14' });
+    expect([...set]).toEqual(['frontal']);
+  });
+
+  it('sin periodo no acota nada', () => {
+    expect(angulosDelPeriodo([foto(1, 'frontal')], { startDate: ALTA }).size).toBe(1);
   });
 });
