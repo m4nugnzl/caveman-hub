@@ -21,8 +21,7 @@ import {
   cycleMap,
   cycleMatchesSplit,
 } from '@/domain/nutrition';
-import { cycleSlots } from '@/domain/training';
-import { blockPlan, currentBlock, structureOfBlock } from '@/domain/blocks';
+import { cicloPropio, clientCycleSlots, entrenaPorSuCuenta } from '@/domain/blocks';
 import { dietLog } from '@/domain/timeline';
 import { rollingWeightAverage, weightSeries } from '@/domain/anthropometry';
 import { piezaDePlato, platoFoods, platoKcals, scalePlatoTo } from '@/domain/platos';
@@ -31,6 +30,7 @@ import { MAX_GRUPOS, buildGrupo, gruposOf } from '@/domain/gruposEquiv';
 import { mergeCatalog } from '@/domain/catalog';
 import { ajusteDe, clientProtocol, isModuleOn, toggleModule } from '@/domain/protocol';
 import { toNum0 } from '@/lib/num';
+import { todayISO } from '@/lib/dates';
 import { norm } from '@/lib/texto';
 import { SaveIndicator, SegmentedControl } from '@/components/ui/primitives';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
@@ -173,6 +173,8 @@ export const NutritionModule = () => {
     ensureNutrition,
     saveClientException,
     updateClientPreferences,
+    /* Su tipo de ciclo y su patrón, cuando entrena por su cuenta. */
+    updateClient,
     setFoodEquivalences,
   } = useApp();
 
@@ -696,18 +698,16 @@ export const NutritionModule = () => {
     cliente. Y copia una vez: no queda enlazado, porque el split es por bloque y
     una dieta que se recoloca sola el día que cambias el entreno es la
     aplicación decidiendo por ti.
+
+    ── Y quien solo tiene la dieta ───────────────────────────────────────────
+    No tiene bloque del que leer, así que sus días de entreno los marca su
+    entrenador aquí, en «Ajustes del plan» (`entrenaPorSuCuenta`). Las casillas
+    salen de la misma función que usan el portal y la revisión.
   */
   const programa = workoutData[activeClient.id];
-  const casillas = useMemo(() => {
-    const bloque = currentBlock(programa);
-    const rotativo = (activeClient.cycleType || 'weekly') === 'rotating';
-    return cycleSlots({
-      cycleType: activeClient.cycleType,
-      pattern: activeClient.cyclePattern,
-      sessions: rotativo && bloque ? blockPlan(programa, bloque).sessions : [],
-      weeklySplit: bloque ? structureOfBlock(programa, bloque).weeklySplit || {} : {},
-    });
-  }, [programa, activeClient.cycleType, activeClient.cyclePattern]);
+  const casillas = useMemo(() => clientCycleSlots(activeClient, programa), [programa, activeClient]);
+  const porSuCuenta = entrenaPorSuCuenta(activeClient);
+  const [ajustesAbiertos, setAjustesAbiertos] = useState(false);
 
   /* El botón solo existe si el ciclo dice algo: una semana entera en blanco no
      reparte nada, y el mapa a mano sigue estando. En el rotativo el patrón
@@ -1388,6 +1388,33 @@ export const NutritionModule = () => {
                        sus preferencias y no en el protocolo de esta persona. */
                     avanzado={avanzado}
                     onAvanzado={(v) => updateCoachPreferences('dieta', { micros: v })}
+                    abierto={ajustesAbiertos}
+                    onAbierto={setAjustesAbiertos}
+                    /* Cuándo entrena, solo para quien no entrena con nosotros:
+                       con entreno lo dice su bloque. */
+                    ciclo={
+                      porSuCuenta
+                        ? {
+                            tipo: activeClient.cycleType || 'weekly',
+                            patron: activeClient.cyclePattern || { train: 2, rest: 1 },
+                            ...cicloPropio(activeClient),
+                          }
+                        : null
+                    }
+                    onTipoDeCiclo={(tipo) => {
+                      updateClient(activeClient.id, { cycleType: tipo });
+                      /* El rotativo necesita un día 1 para saber qué toca hoy:
+                         si no lo hay, empieza hoy y se cambia al lado. */
+                      if (tipo === 'rotating' && !cicloPropio(activeClient).inicio) {
+                        updateClientPreferences(activeClient.id, 'ciclo', { inicio: todayISO() });
+                      }
+                    }}
+                    onPatron={(patron) =>
+                      updateClient(activeClient.id, {
+                        cyclePattern: { ...(activeClient.cyclePattern || { train: 2, rest: 1 }), ...patron },
+                      })
+                    }
+                    onCiclo={(patch) => updateClientPreferences(activeClient.id, 'ciclo', patch)}
                   />
                   {/* ── LA PAPELERA, LA ÚLTIMA Y SEPARADA POR LO QUE HACE ─────
                       Al final de la barra y en tinta de peligro, que es donde
@@ -1448,7 +1475,13 @@ export const NutritionModule = () => {
                 Se dice que ya no coinciden y el botón está ahí mismo.
               */
               avisoCiclo={
-                hayEntreno && parejaParaElSplit && !cicloCuadra ? (
+                porSuCuenta && variosDias && !hayEntreno ? (
+                  <span className="dieta-semana-aviso">
+                    <button type="button" className="cab-accion" onClick={() => setAjustesAbiertos(true)}>
+                      Marcar sus días de entreno
+                    </button>
+                  </span>
+                ) : hayEntreno && parejaParaElSplit && !cicloCuadra ? (
                   <span className="dieta-semana-aviso">
                     {cicloRepartido && 'No coincide con su entreno.'}
                     <button

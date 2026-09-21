@@ -65,6 +65,8 @@ import {
   abreSoloElCiclo,
   cicloPorAbrir,
   semanaDelCliente,
+  clientCycleSlots,
+  entrenaPorSuCuenta,
 } from './blocks';
 
 const programa = (semanas, extra = {}) => ({
@@ -1574,5 +1576,59 @@ describe('semanaDelCliente', () => {
     const program = { microcycles: [{ weekNumber: 1, date: '2026-09-30', days: [] }] };
     const semana = semanaDelCliente({ cycleType: 'rotating' }, program, casillas, HOY);
     expect(semana.every((d) => casillas.some((c) => c.key === d.key))).toBe(true);
+  });
+});
+
+/* ══ QUIEN SOLO TIENE LA DIETA ══════════════════════════════════════════════
+   Sin entreno con nosotros no hay bloque: sus días de entreno los marca su
+   entrenador en la dieta y se guardan en su ficha. */
+describe('el ciclo de quien entrena por su cuenta', () => {
+  const soloDieta = (extra = {}) => ({
+    cycleType: 'weekly',
+    ...extra,
+    preferences: {
+      protocol: { services: { training: false, nutrition: true } },
+      ...(extra.preferences || {}),
+    },
+  });
+  /* Un programa viejo que ya no manda: con el entreno apagado no se lee. */
+  const programaViejo = {
+    blocks: [],
+    microcycles: [{ weekNumber: 1, date: '2026-01-05', days: [] }],
+  };
+
+  it('solo cuenta quien tiene el entreno apagado', () => {
+    expect(entrenaPorSuCuenta(soloDieta())).toBe(true);
+    expect(entrenaPorSuCuenta({ preferences: {} })).toBe(false);
+    expect(entrenaPorSuCuenta(null)).toBe(false);
+  });
+
+  it('semanal: los días marcados son de entreno y el resto descanso', () => {
+    const client = soloDieta({ preferences: { ciclo: { dias: ['Viernes', 'Lunes', 'Inventado'] } } });
+    const casillas = clientCycleSlots(client, programaViejo);
+    expect(casillas.filter((c) => !c.rest).map((c) => c.key)).toEqual(['Lunes', 'Viernes']);
+    expect(casillas).toHaveLength(7);
+  });
+
+  it('sin días marcados, todo es descanso', () => {
+    expect(clientCycleSlots(soloDieta(), null).every((c) => c.rest)).toBe(true);
+  });
+
+  it('rotativo: el patrón pone las casillas y el día 1 las coloca en la semana', () => {
+    const client = soloDieta({
+      cycleType: 'rotating',
+      cyclePattern: { train: 2, rest: 1 },
+      preferences: { ciclo: { inicio: '2026-09-07' } },
+    });
+    const casillas = clientCycleSlots(client, programaViejo);
+    expect(casillas.map((c) => c.rest)).toEqual([false, false, true]);
+    /* Anclado en su día 1 (lunes 7) y no en el microciclo viejo de enero. */
+    const semana = semanaDelCliente(client, programaViejo, casillas, '2026-09-11');
+    expect(semana.map((d) => d.key)).toEqual(['1', '2', '3', '1', '2', '3', '1']);
+  });
+
+  it('rotativo sin día 1 no inventa la semana', () => {
+    const client = soloDieta({ cycleType: 'rotating', cyclePattern: { train: 2, rest: 1 } });
+    expect(semanaDelCliente(client, programaViejo, clientCycleSlots(client, null), '2026-09-11')).toBeNull();
   });
 });

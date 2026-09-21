@@ -5,6 +5,9 @@ import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useClickOutside } from '@/lib/useClickOutside';
 import { useDismissable } from '@/lib/useDismissable';
 import { SegmentedControl, Switch } from '@/components/ui/primitives';
+import { WEEK_DAYS } from '@/domain/training';
+import { clampInt } from '@/lib/num';
+import { enumeraEs } from '@/lib/texto';
 
 /**
  * LOS AJUSTES DEL PLAN, con controles de verdad.
@@ -52,8 +55,26 @@ export const AjustesPlan = ({
   onReparto,
   avanzado,
   onAvanzado,
+  /* Cuándo entrena quien solo tiene la dieta: `{ tipo, patron, dias, inicio }`,
+     o nada si entrena con nosotros —ahí lo dice su bloque—. Ver
+     `entrenaPorSuCuenta` en `domain/blocks`. */
+  ciclo = null,
+  onTipoDeCiclo,
+  onPatron,
+  onCiclo,
+  /* Abierto desde fuera: el aviso de la cinta («Marcar sus días de entreno»)
+     trae aquí. Sin estas dos, el panel lleva su propio estado. */
+  abierto: abiertoFuera,
+  onAbierto,
 }) => {
-  const [abierto, setAbierto] = useState(false);
+  const [abiertoPropio, setAbiertoPropio] = useState(false);
+  const controlado = abiertoFuera !== undefined;
+  const abierto = controlado ? abiertoFuera : abiertoPropio;
+  const setAbierto = (valor) => {
+    const siguiente = typeof valor === 'function' ? valor(abierto) : valor;
+    if (controlado) onAbierto?.(siguiente);
+    else setAbiertoPropio(siguiente);
+  };
   const ref = useRef(null);
   useClickOutside(ref, () => setAbierto(false), abierto);
   const pop = useDismissable(abierto);
@@ -137,6 +158,96 @@ export const AjustesPlan = ({
                   : 'Un solo objetivo al día: se organiza las comidas como quiera.'}
               </p>
             </div>
+          )}
+
+          {/*
+            ══ CUÁNDO ENTRENA, para quien solo tiene la dieta ══════════════
+            Sin entreno con nosotros no hay bloque que diga qué días entrena, y
+            sin eso los días de dieta no se pueden repartir por el entreno. Lo
+            decide su entrenador aquí, no el cliente en su app.
+          */}
+          {ciclo && (
+            <>
+              <hr className="menu-sep" />
+              <div className="ajustes-plan-grupo">
+                <span className="ajustes-plan-k">Cuándo entrena</span>
+                <SegmentedControl
+                  ancho
+                  label="Cómo es su ciclo"
+                  value={ciclo.tipo}
+                  onChange={onTipoDeCiclo}
+                  options={[
+                    { id: 'weekly', label: 'Semanal' },
+                    { id: 'rotating', label: 'Rotativo' },
+                  ]}
+                />
+
+                {ciclo.tipo === 'rotating' ? (
+                  <div className="ajustes-plan-patron">
+                    <label>
+                      <span>Entrena</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="input input-center"
+                        value={ciclo.patron.train}
+                        onChange={(e) => onPatron({ train: clampInt(e.target.value, 1, 14, 1) })}
+                      />
+                    </label>
+                    <label>
+                      <span>Descansa</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        className="input input-center"
+                        value={ciclo.patron.rest}
+                        onChange={(e) => onPatron({ rest: clampInt(e.target.value, 0, 14, 0) })}
+                      />
+                    </label>
+                    <label>
+                      <span>Día 1</span>
+                      <input
+                        type="date"
+                        className="input"
+                        value={ciclo.inicio || ''}
+                        onChange={(e) => onCiclo({ inicio: e.target.value || null })}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="ajustes-plan-dias" role="group" aria-label="Días que entrena">
+                    {WEEK_DAYS.map((dia) => {
+                      const puesto = ciclo.dias.includes(dia);
+                      return (
+                        <button
+                          key={dia}
+                          type="button"
+                          className="chip"
+                          aria-pressed={puesto}
+                          aria-label={dia}
+                          title={dia}
+                          onClick={() =>
+                            onCiclo({
+                              dias: puesto ? ciclo.dias.filter((d) => d !== dia) : [...ciclo.dias, dia],
+                            })
+                          }
+                        >
+                          {dia.slice(0, 3)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <p className="ajustes-plan-pie">
+                  {ciclo.tipo === 'rotating'
+                    ? `${ciclo.patron.train} de entreno y ${ciclo.patron.rest} de descanso, en bucle desde el día 1.`
+                    : ciclo.dias.length > 0
+                      ? `Entrena ${enumeraEs(ciclo.dias.map((d) => d.toLowerCase()))}.`
+                      : 'Marca los días que entrena para repartir su dieta por el entreno.'}
+                </p>
+              </div>
+            </>
           )}
 
           {/*

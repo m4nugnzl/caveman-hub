@@ -4676,6 +4676,14 @@ span.plan-dia-nombre { cursor: default; }
 .ajustes-plan-pie { font-size: var(--fs-xs); color: var(--text-tertiary); line-height: 1.4; }
 .ajustes-plan .menu-sep { margin: var(--s3) 0; }
 .ajustes-plan .switch-row + .switch-row { margin-top: var(--s3); }
+/* Cuándo entrena: los siete días en una fila, y el patrón del rotativo. */
+.ajustes-plan-dias { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--s1); }
+.ajustes-plan-dias .chip { justify-content: center; padding: var(--s1) 0; }
+/* width 0 + min-width 100 %: la rejilla llena el panel sin empujarlo — los campos, con su ancho natural, lo abrían a casi 1.000 px. */
+.ajustes-plan-patron { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: var(--s2); width: 0; min-width: 100%; }
+.ajustes-plan-patron label { display: flex; flex-direction: column; gap: var(--s1); min-width: 0; }
+.ajustes-plan-patron span { font-size: var(--fs-xs); color: var(--text-secondary); }
+.ajustes-plan-patron .input { width: 100%; min-width: 0; }
 
 /* Añadir comida: al pie de la lista, separado de la última comida lo mismo que
    las comidas entre sí. */

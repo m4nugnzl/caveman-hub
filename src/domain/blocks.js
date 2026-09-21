@@ -31,6 +31,7 @@ import {
   tecnicaOf,
 } from './training';
 import { executedSessions, sesionAMedias, sessionTonnage } from './sessions';
+import { clientProtocol, isServiceOn } from './protocol';
 
 /** La última semana montada del programa (0 sin ninguna). */
 export const lastWeekNumber = (microcycles = []) =>
@@ -1900,6 +1901,39 @@ export const removePlanExerciseOnlyIn = (program, weekNumber, dayName, exerciseI
 };
 
 /**
+ * ¿ENTRENA POR SU CUENTA? Quien solo tiene la dieta con nosotros.
+ *
+ * ══ La avería que lo trajo (21 sep 2026) ═══════════════════════════════════
+ *
+ * «Un cliente que solo tiene nutrición quiere días de entreno y de descanso.»
+ * Las casillas del ciclo sacaban qué días entrena del bloque en curso, y sin
+ * servicio de entreno no hay bloque ni pantalla donde decir si su ciclo es
+ * semanal o rotativo: los siete días salían de descanso, «Repartir por el
+ * entreno» no aparecía y un «2 y 1» no se podía repartir.
+ *
+ * Así que para esta persona lo dice su entrenador desde la dieta (`AjustesPlan`)
+ * y se guarda en su ficha: el tipo de ciclo y el patrón en las MISMAS columnas
+ * que usa Entreno —si mañana se le activa el entreno, no hay dos respuestas— y
+ * los días de la semana y el arranque del rotativo en `preferences.ciclo`, que
+ * es lo que en Entreno pone el bloque. Lo decide el entrenador, no el cliente.
+ */
+export const entrenaPorSuCuenta = (client) =>
+  Boolean(client) && !isServiceOn(clientProtocol(client.preferences), 'training');
+
+/**
+ * Su ciclo, saneado al leer: `dias` en el orden de la semana y sin claves
+ * inventadas; `inicio` es el día 1 del rotativo, o `null` si no se ha dicho.
+ */
+export const cicloPropio = (client) => {
+  const raw = client?.preferences?.ciclo || {};
+  const dias = Array.isArray(raw.dias) ? raw.dias : [];
+  return {
+    dias: WEEK_DAYS.filter((dia) => dias.includes(dia)),
+    inicio: typeof raw.inicio === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.inicio) ? raw.inicio : null,
+  };
+};
+
+/**
  * LAS CASILLAS DEL CICLO DE UNA PERSONA, en un solo sitio.
  *
  * ══ Estaba escrito dos veces, y ahora hacían falta cinco ═══════════════════
@@ -1915,6 +1949,15 @@ export const removePlanExerciseOnlyIn = (program, weekNumber, dayName, exerciseI
  * mismo. Ver `cycleSlots`, que es quien las dibuja.
  */
 export const clientCycleSlots = (client, program) => {
+  if (entrenaPorSuCuenta(client)) {
+    const { dias } = cicloPropio(client);
+    return cycleSlots({
+      cycleType: client?.cycleType,
+      pattern: client?.cyclePattern,
+      weeklySplit: Object.fromEntries(dias.map((dia) => [dia, 'Entreno'])),
+    });
+  }
+
   const bloque = currentBlock(program);
   const rotativo = (client?.cycleType || 'weekly') === 'rotating';
   return cycleSlots({
@@ -2027,7 +2070,9 @@ export const semanaDelCliente = (client, program, casillas = [], hoy = todayISO(
     });
   }
 
-  const ancla = anclaDelCiclo(program);
+  /* Quien entrena por su cuenta no tiene ciclos montados de los que fechar la
+     vuelta: el día 1 lo pone su entrenador junto al patrón. */
+  const ancla = entrenaPorSuCuenta(client) ? cicloPropio(client).inicio : anclaDelCiclo(program);
   if (!ancla || casillas.length === 0) return null;
 
   return dias.map((fecha) => {
