@@ -177,7 +177,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
           {ANGLES.filter((angle) => !photos.some((p) => p.angle === angle.id))
             .map((a) => a.label.toLowerCase())
             .join(', ')}
-          . Con los tres ángulos tu entrenador ve mucho mejor los cambios.
+          . Con los {ANGLES.length} tu entrenador ve mucho mejor los cambios.
         </Notice>
       )}
     </div>

@@ -5,6 +5,7 @@ import { entregaDelPeriodo } from '@/domain/calendar';
 import { ANGLES, angulosDelPeriodo } from '@/domain/photos';
 import { asksBlock } from '@/domain/protocol';
 import { localeNumber, shortDate } from '@/lib/dates';
+import { enumeraEs } from '@/lib/texto';
 
 /**
  * LO QUE TE FALTA PARA ENTREGAR: la semana en cuatro renglones, cada uno con su
@@ -264,13 +265,17 @@ export const pasosDeLaEntrega = ({
       icono: Camera,
       titulo: 'Tus fotos',
       hecho: faltan.length === 0,
-      verbo: faltan.length === ANGLES.length ? 'Hacerlas' : 'Subirla',
+      verbo:
+        faltan.length === ANGLES.length ? 'Hacerlas' : faltan.length === 1 ? 'Subirla' : 'Subirlas',
+      /* Con cuatro ángulos la enumeración ya no cabía en un `join(' y ')`: «la de
+         frontal y la de lateral izquierdo y la de espalda» son tres conjunciones
+         seguidas. `enumeraEs` pone las comas y deja la «y» para la última. */
       estado:
         faltan.length === 0
           ? `Las ${ANGLES.length}, hechas`
           : `Llevas ${ANGLES.length - faltan.length} de ${ANGLES.length} · te falta${
               faltan.length === 1 ? '' : 'n'
-            } ${faltan.map((a) => `la de ${a.label.toLowerCase()}`).join(' y ')}`,
+            } ${enumeraEs(faltan.map((a) => `la de ${a.label.toLowerCase()}`))}`,
     },
     preguntas.length > 0 && {
       id: 'cuestionario',

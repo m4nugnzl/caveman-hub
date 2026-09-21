@@ -20,7 +20,7 @@ import {
   foldsSum,
   weeklyCheckIn,
 } from '@/domain/anthropometry';
-import { photoWeek, weekFromStart } from '@/domain/photos';
+import { ANGLES, photoWeek, weekFromStart } from '@/domain/photos';
 import {
   asksBlock,
   checkinQuestions,
@@ -32,6 +32,7 @@ import {
 } from '@/domain/protocol';
 import { compactMedidas, problemaDeMedida } from '@/domain/medidas';
 import { todayISO } from '@/lib/dates';
+import { enumeraEs } from '@/lib/texto';
 import { toNum } from '@/lib/num';
 import { Field, HUECO_CIFRA, Notice, SaveIndicator } from '@/components/ui/primitives';
 import { Modal } from '@/components/ui/Modal';
@@ -39,7 +40,7 @@ import { CarrilDePasos } from '@/components/ui/Asistente';
 import { MedirConGuia } from './MedirConGuia';
 import { PhotoPicker } from '@/components/photos/PhotoPicker';
 import { RejillaDeMedidas } from './RejillaDeMedidas';
-import { TresAngulos } from './TresAngulos';
+import { AngulosDeLaSemana } from './AngulosDeLaSemana';
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { useOculto } from '@/components/Client/Oculto';
@@ -52,7 +53,7 @@ import { useOculto } from '@/components/Client/Oculto';
  * Lo que hay que hacer una vez por semana son tres cosas seguidas y de distinta
  * naturaleza: confirmar el peso, medirse si tu entrenador lo pide, y hacerte las
  * fotos. Enseñadas a la vez en un solo diálogo, eso eran veinte campos y dos
- * avisos delante de alguien que ha abierto la aplicación para subir tres fotos.
+ * avisos delante de alguien que ha abierto la aplicación para subir sus fotos.
  *
  * Y había algo peor que la longitud: las fotos vivían detrás de un botón que
  * abría **otro diálogo encima de este**. Dos modales apilados atrapan el foco dos
@@ -335,7 +336,7 @@ export const ReviewWizard = ({
   ]);
   /* Lo elegido en el selector cuenta como cubierto aunque todavía no haya
      subido: quien acaba de marcar «esta es la lateral» no tiene que ver que le
-     sigue faltando. Ver `TresAngulos`. */
+     sigue faltando. Ver `AngulosDeLaSemana`. */
 
   const sum = foldsSum(folds);
   const pct = fatPercent(folds, client.gender);
@@ -450,7 +451,7 @@ export const ReviewWizard = ({
    *
    * Antes eran dos gestos separados: este asistente guardaba el registro, y
    * «entregar» era otro botón en otra tarjeta de la misma pantalla. O sea que un
-   * cliente podía confirmar su peso, medirse y subir sus tres fotos —todo lo que
+   * cliente podía confirmar su peso, medirse y subir sus fotos —todo lo que
    * él entiende por «mandar mi semana»— y no enterarse de que aún le faltaba
    * pulsar algo. Al entrenador no le llegaba nada, y la semana quedaba en la
    * cola como «sin subir» con todos los datos dentro.
@@ -883,16 +884,16 @@ export const ReviewWizard = ({
               <p className="t-sm t-secondary">
                 {semana === null
                   ? 'Se guardarán en la semana 1: este cliente no tiene fecha de inicio.'
-                  : `Se guardarán en la semana ${semana}. Frontal, lateral y espalda: puedes elegirlas todas de una vez y decir cuál es cuál.`}
+                  : `Se guardarán en la semana ${semana}. ${enumeraEs(ANGLES.map((a) => a.label))}: puedes elegirlas todas de una vez y decir cuál es cuál.`}
               </p>
 
               {/*
-                Los tres ángulos, con la de la semana pasada debajo del que
-                falta. Sustituye a dos recuadros de aviso y a la frase de «hazlas
+                Los ángulos, con la de la semana pasada debajo del que falta.
+                Sustituye a dos recuadros de aviso y a la frase de «hazlas
                 siempre igual», que era el consejo más importante del paso y el
-                único que iba en gris. Ver `TresAngulos` y `M-12`.
+                único que iba en gris. Ver `AngulosDeLaSemana` y `M-12`.
               */}
-              <TresAngulos
+              <AngulosDeLaSemana
                 photos={photos}
                 semana={semana}
                 startDate={client.startDate}

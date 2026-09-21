@@ -1,6 +1,6 @@
 import { CalendarRange } from 'lucide-react';
 
-import { ANGLES } from '@/domain/photos';
+import { ANGLES, ANGULOS_RETIRADOS } from '@/domain/photos';
 import { Field, Panel, SectionTitle, WeekPicker } from '@/components/ui/primitives';
 
 /**
@@ -28,6 +28,8 @@ export const WeekAnglePicker = ({
   const filled = matrix.cells.filter((c) => c.photoId).length;
   const total = matrix.cells.length;
 
+  const ofrecidos = [...ANGLES, ...ANGULOS_RETIRADOS.filter((a) => angles.includes(a.id))];
+
   return (
     <Panel className="col gap-4">
       <SectionTitle icon={CalendarRange}>
@@ -48,16 +50,20 @@ export const WeekAnglePicker = ({
       </Field>
 
       {/*
-        Se ofrecen SIEMPRE los tres ángulos, aunque alguno no tenga fotos todavía.
+        Se ofrecen SIEMPRE todos los ángulos, aunque alguno no tenga fotos todavía.
         Antes se filtraban a los disponibles, y el resultado era que «Espalda»
         simplemente no aparecía: parecía que la aplicación no admitía ese ángulo, en
         lugar de que a ese cliente le faltaran esas fotos. Los que no tienen se
         marcan como vacíos y se pueden elegir igual —la fila saldrá en blanco, que
         es información útil: dice que hay que pedírselas.
+
+        La excepción es el lateral retirado: ése solo sale si este cliente tiene
+        alguno. Ofrecer un ángulo que ya no se pide, a quien nunca lo tuvo, sería
+        una fila garantizada en blanco — y eso ya no dice nada que pedir.
       */}
       <Field label="Ángulos">
         <div className="rail-wrap" role="group" aria-label="Ángulos a comparar">
-          {ANGLES.map((angle) => {
+          {ofrecidos.map((angle) => {
             const has = angles.includes(angle.id);
             return (
               <button

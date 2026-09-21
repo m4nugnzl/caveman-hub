@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ANGLE_IDS,
+  angleLabel,
   angulosDelPeriodo,
+  angulosParaFiltrar,
+  availableAngles,
   photoCoverage,
+  sortPhotos,
   thumbnailUrl,
   weekComparison,
   weekFromStart,
@@ -286,5 +291,73 @@ describe('angulosDelPeriodo', () => {
 
   it('sin periodo no acota nada', () => {
     expect(angulosDelPeriodo([foto(1, 'frontal')], { startDate: ALTA }).size).toBe(1);
+  });
+});
+
+/**
+ * LOS DOS PERFILES, Y LO QUE PASA CON LAS LATERALES DE ANTES.
+ *
+ * El 20 de septiembre de 2026 la «Lateral · mismo lado siempre» se partió en
+ * izquierdo y derecho: una lateral izquierda contra una derecha no compara
+ * nada, y la instrucción de acordarse del lado no la cumple nadie tres semanas
+ * seguidas. Lo que no se puede es tirar lo ya subido, porque no hay forma de
+ * saber de qué lado era cada foto.
+ *
+ * Estas pruebas fijan las dos mitades de esa decisión: lo retirado no se pide,
+ * y sigue teniendo nombre, orden y sitio.
+ */
+describe('los ángulos retirados', () => {
+  const foto = (angle, date) => ({ angle, date, week: 1 });
+
+  it('la lateral antigua no se pide', () => {
+    expect(ANGLE_IDS).not.toContain('lateral');
+    expect(ANGLE_IDS).toEqual(['frontal', 'izquierdo', 'derecho', 'espalda']);
+  });
+
+  /* Sin esto una foto de hace un mes saldría rotulada «lateral» en minúscula en
+     el archivo, la descarga y el montaje: el `|| id` del final de `angleLabel`
+     es un último recurso, no un sitio donde se quede nada. */
+  it('pero sigue teniendo nombre', () => {
+    expect(angleLabel('lateral')).toBe('Lateral (antiguo)');
+  });
+
+  /* Entre los dos perfiles nuevos: una carpeta con las dos generaciones
+     mezcladas se lee igual, de frente hacia la espalda. */
+  it('y su sitio en el orden', () => {
+    const revueltas = [
+      foto('espalda', '2026-01-01'),
+      foto('derecho', '2026-01-01'),
+      foto('lateral', '2026-01-01'),
+      foto('frontal', '2026-01-01'),
+    ];
+    expect(sortPhotos(revueltas).map((f) => f.angle)).toEqual([
+      'frontal',
+      'lateral',
+      'derecho',
+      'espalda',
+    ]);
+    expect(availableAngles(revueltas)).toEqual(['frontal', 'lateral', 'derecho', 'espalda']);
+  });
+
+  /* El filtro solo la ofrece a quien tiene alguna: una pestaña de un ángulo que
+     ya no se pide, delante de quien empezó la semana pasada, no lleva a ningún
+     sitio. */
+  it('el filtro la ofrece solo a quien la tiene', () => {
+    expect(angulosParaFiltrar([foto('frontal', '2026-01-01')]).map((a) => a.id)).toEqual(ANGLE_IDS);
+    expect(angulosParaFiltrar([foto('lateral', '2026-01-01')]).map((a) => a.id)).toEqual([
+      ...ANGLE_IDS,
+      'lateral',
+    ]);
+  });
+
+  /* Y no tapa a ninguno de los dos perfiles cuando se cuenta lo que falta de
+     esta semana: no se sabe de qué lado era. */
+  it('no cuenta como ninguno de los dos perfiles', () => {
+    const set = angulosDelPeriodo([{ week: 1, angle: 'lateral', date: '2026-01-05' }], {
+      startDate: '2026-01-05',
+      desde: '2026-01-05',
+    });
+    expect(set.has('izquierdo')).toBe(false);
+    expect(set.has('derecho')).toBe(false);
   });
 });

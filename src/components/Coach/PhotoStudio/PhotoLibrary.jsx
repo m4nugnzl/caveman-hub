@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, Trash2, Upload } from 'lucide-react';
 
-import { ANGLES, angleLabel, angleShort, groupByWeek } from '@/domain/photos';
+import { angleLabel, angleShort, angulosParaFiltrar, groupByWeek } from '@/domain/photos';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { fmt } from '@/lib/num';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -63,7 +63,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
         >
           Todos
         </button>
-        {ANGLES.map((angle) => (
+        {angulosParaFiltrar(photos).map((angle) => (
           <button
             key={angle.id}
             type="button"

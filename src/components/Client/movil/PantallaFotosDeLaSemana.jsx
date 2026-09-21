@@ -4,23 +4,28 @@ import { Check, ChevronDown, Plus, X } from 'lucide-react';
 
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
 import { Thumb } from '@/components/photos/Thumb';
+import { enumeraEs } from '@/lib/texto';
 import { Aire, Boton, Cabecera, Tramo } from './Piezas';
 
 /**
  * «FOTOS DE PROGRESO» EN EL TELÉFONO — el frame `328:518` del 18 sep 2026.
  *
- * ══ Tres huecos, uno por ángulo ════════════════════════════════════════════
+ * ══ Un hueco por ángulo ════════════════════════════════════════════════════
  *
- * En el asistente se elegían las tres de golpe y luego se decía cuál era cuál
- * con tres chips debajo de cada una. Aquí el orden es el del cuerpo: tocas el
- * hueco de la lateral y lo que elijas ES la lateral. No hay etiqueta que
+ * En el asistente se elegían todas de golpe y luego se decía cuál era cuál con
+ * unos chips debajo de cada una. Aquí el orden es el del cuerpo: tocas el hueco
+ * del lateral derecho y lo que elijas ES el lateral derecho. No hay etiqueta que
  * corregir porque no hay forma de equivocarse de hueco.
+ *
+ * Y es lo que hace que los dos perfiles no cuesten nada de explicar: el lado se
+ * elige tocando su hueco, no acordándose de una instrucción de hace tres
+ * semanas. Ver `ANGLES` en `domain/photos`.
  *
  * ── La de la semana pasada, de fondo ─────────────────────────────────────
  * El dibujo pone una silueta en el hueco vacío. Aquí va la foto de ese ángulo
  * de la última vez, apagada: es «misma luz, misma pose» sin leer nada, lo que
- * `TresAngulos` ya hacía en el asistente con una miniatura debajo. Sin foto
- * anterior, el hueco es el signo de sumar y nada más.
+ * `AngulosDeLaSemana` ya hacía en el asistente con una miniatura debajo. Sin
+ * foto anterior, el hueco es el signo de sumar y nada más.
  *
  * ── Guardar no es entregar ───────────────────────────────────────────────
  * «Guardar fotos» las sube a tu semana y ahí se quedan: están en tu archivo,
@@ -28,8 +33,8 @@ import { Aire, Boton, Cabecera, Tramo } from './Piezas';
  * semana está lista es la entrega, que es el botón de la lista de la revisión.
  *
  * Una foto ya guardada no se cambia desde aquí: subir otra encima dejaría dos
- * laterales en la misma semana. Para quitar una está el archivo, en «Tus
- * fotos».
+ * fotos del mismo ángulo en la misma semana. Para quitar una está el archivo,
+ * en «Tus fotos».
  *
  * Lo que NO se copia: el «en ayunas» del dibujo —es una pauta de tu
  * entrenador, no de la aplicación— y el verde del marco, que aquí es el tic de
@@ -69,7 +74,7 @@ export const PantallaFotosDeLaSemana = ({ datos }) => {
 
       <Tramo>
         <p className="tel-pie tel-pie-arriba">
-          Frente, lateral y espalda. Toca un hueco para hacer o elegir esa foto.
+          {enumeraEs(angulos.map((a) => a.label))}. Toca un hueco para hacer o elegir esa foto.
         </p>
 
         <input

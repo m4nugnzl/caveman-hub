@@ -27,17 +27,87 @@ import { toNum } from '@/lib/num';
 import { daysBetween, weekStart } from '@/lib/dates';
 import { weeklyWeightAverages } from './anthropometry';
 
+/*
+ * LOS ÁNGULOS QUE SE PIDEN, Y POR QUÉ SON CUATRO
+ * --------------------------------------------------------------------------
+ * Eran tres, y el del medio era «Lateral · de perfil, mismo lado siempre». Esa
+ * instrucción es justo la que nadie cumple: se pide una vez, se hace bien la
+ * primera, y a la tercera semana la lateral está desde el otro lado. Y una
+ * lateral izquierda contra una derecha no es una comparación — es la misma
+ * persona girada, con la luz al revés y el brazo tapando lo que antes se veía.
+ * La serie entera deja de medir nada sin que se note, que es la peor forma de
+ * perder un dato.
+ *
+ * Con un hueco para cada lado no hay nada que recordar: el hueco dice qué lado
+ * toca, y la foto de la última vez que lleva dentro dice cómo iba. Que sean dos
+ * fotos en vez de una es además lo que hacía falta de todas formas — los dos
+ * perfiles no cuentan lo mismo.
+ *
+ * ── Las laterales de antes se quedan ──────────────────────────────────────
+ * Las fotos ya subidas llevan `lateral` escrito en su ruta de Storage y no se
+ * migran: no hay forma de saber de qué lado era cada una, e inventarlo sería
+ * meter ruido en la única prueba visual que tiene el cliente. Siguen viéndose,
+ * ordenándose y comparándose entre ellas (`ANGULOS_RETIRADOS`); lo único que ya
+ * no hacen es pedirse.
+ */
 export const ANGLES = [
   { id: 'frontal', label: 'Frontal', short: 'F', hint: 'De frente, brazos relajados' },
-  { id: 'lateral', label: 'Lateral', short: 'L', hint: 'De perfil, mismo lado siempre' },
+  {
+    id: 'izquierdo',
+    label: 'Lateral izquierdo',
+    short: 'I',
+    hint: 'De perfil, con tu lado izquierdo hacia la cámara',
+  },
+  {
+    id: 'derecho',
+    label: 'Lateral derecho',
+    short: 'D',
+    hint: 'De perfil, con tu lado derecho hacia la cámara',
+  },
   { id: 'espalda', label: 'Espalda', short: 'E', hint: 'De espaldas, brazos relajados' },
 ];
 
-/** Inicial del ángulo, para etiquetas donde no cabe la palabra. */
-export const angleShort = (id) => ANGLES.find((a) => a.id === id)?.short || '?';
+/**
+ * Los que ya no se piden pero que están en el archivo de quien lleva tiempo.
+ * No se ofrecen en ningún hueco ni cuentan para «te faltan fotos»: existen para
+ * que lo ya subido siga teniendo nombre, orden y sitio donde mirarse.
+ */
+export const ANGULOS_RETIRADOS = [
+  { id: 'lateral', label: 'Lateral (antiguo)', short: 'L', hint: 'De perfil, sin lado anotado' },
+];
 
+/**
+ * Todos los que puede llevar una foto, EN ORDEN DE LECTURA. La lateral antigua
+ * va entre las dos nuevas porque es de donde salieron: así una carpeta con las
+ * dos generaciones mezcladas sigue leyéndose de frente hacia la espalda.
+ */
+export const TODOS_LOS_ANGULOS = [ANGLES[0], ANGLES[1], ANGULOS_RETIRADOS[0], ANGLES[2], ANGLES[3]];
+
+const angulo = (id) => TODOS_LOS_ANGULOS.find((a) => a.id === id);
+
+/** Inicial del ángulo, para etiquetas donde no cabe la palabra. */
+export const angleShort = (id) => angulo(id)?.short || '?';
+
+/** Los que se piden hoy: lo que cuenta para «te faltan fotos de esta semana». */
 export const ANGLE_IDS = ANGLES.map((a) => a.id);
-export const angleLabel = (id) => ANGLES.find((a) => a.id === id)?.label || id || 'Sin ángulo';
+
+/** Y el orden de todos, retirados incluidos: con el que se ordena y se compara. */
+export const ORDEN_DE_ANGULOS = TODOS_LOS_ANGULOS.map((a) => a.id);
+
+export const angleLabel = (id) => angulo(id)?.label || id || 'Sin ángulo';
+
+/**
+ * LOS ÁNGULOS QUE OFRECE UN FILTRO: los que se piden, más los retirados que
+ * esta persona tenga de verdad.
+ *
+ * Una pestaña «Lateral (antiguo)» delante de quien empezó la semana pasada es
+ * un mando que no lleva a ningún sitio; no tenerla delante de quien tiene
+ * cuarenta laterales antiguas las deja sin forma de encontrarse.
+ */
+export const angulosParaFiltrar = (photos = []) => [
+  ...ANGLES,
+  ...ANGULOS_RETIRADOS.filter((a) => photos.some((p) => p?.angle === a.id)),
+];
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 export const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15 MB — fotos de móvil actuales
@@ -232,7 +302,7 @@ export const angulosDelPeriodo = (photos = [], { startDate = null, desde = null,
  *
  * `ahora` es la foto de ese ángulo en `semana`; `antes`, la más reciente de las
  * anteriores —manda la semana, y a igualdad de semana la que se subió
- * después—. Es lo que enseñan los tres ángulos del asistente (`TresAngulos`) y
+ * después—. Es lo que enseñan los ángulos del asistente (`AngulosDeLaSemana`) y
  * las fotos de la semana del teléfono: la de antes, puesta donde falta la de
  * ahora, es «hazlas siempre igual» sin tener que leerlo.
  *
@@ -282,7 +352,7 @@ export const sortPhotos = (photos) =>
   [...photos].sort((a, b) => {
     const byDate = String(b.date).localeCompare(String(a.date));
     if (byDate !== 0) return byDate;
-    return ANGLE_IDS.indexOf(a.angle) - ANGLE_IDS.indexOf(b.angle);
+    return ORDEN_DE_ANGULOS.indexOf(a.angle) - ORDEN_DE_ANGULOS.indexOf(b.angle);
   });
 
 const dateRangeOf = (photos) => {
@@ -306,7 +376,7 @@ export const suggestPair = (photos) => {
   const sorted = sortPhotos(photos);
   if (sorted.length < 2) return { before: null, after: sorted[0] || null };
 
-  for (const angle of ANGLE_IDS) {
+  for (const angle of ORDEN_DE_ANGULOS) {
     const ofAngle = sorted.filter((p) => p.angle === angle);
     if (ofAngle.length >= 2) {
       return { before: ofAngle[ofAngle.length - 1], after: ofAngle[0] };
@@ -381,7 +451,7 @@ export const weightDelta = (before, after, history = []) => {
  */
 export const weekAngleMatrix = ({ photos, weeks, angles, startDate }) => {
   const chosenWeeks = [...weeks].sort((a, b) => a - b);
-  const chosenAngles = ANGLE_IDS.filter((id) => angles.includes(id));
+  const chosenAngles = ORDEN_DE_ANGULOS.filter((id) => angles.includes(id));
 
   const byKey = new Map();
   for (const photo of sortPhotos(photos)) {
@@ -494,7 +564,7 @@ export const photoCoverage = ({ photos = [], startDate, angles = ANGLE_IDS }) =>
 };
 
 export const availableAngles = (photos) =>
-  ANGLE_IDS.filter((id) => photos.some((p) => p.angle === id));
+  ORDEN_DE_ANGULOS.filter((id) => photos.some((p) => p.angle === id));
 
 /** Semanas transcurridas entre dos fotos según su semana de programa. */
 export const weekSpan = (before, after, startDate) => {
@@ -549,7 +619,7 @@ export const weekComparison = ({
   const actual = semanas.find((g) => g.week === weekNumber);
   if (!actual) return null;
 
-  const angles = ANGLE_IDS.filter((id) => actual.photos.some((p) => p.angle === id));
+  const angles = ORDEN_DE_ANGULOS.filter((id) => actual.photos.some((p) => p.angle === id));
   if (angles.length === 0) return null;
 
   const elegido = angles.includes(angle) ? angle : angles[0];

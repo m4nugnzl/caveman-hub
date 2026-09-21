@@ -216,12 +216,17 @@
    diálogo. */
 .campo-fecha { width: 168px; }
 
-/* ── Los tres ángulos de las fotos ───────────────────────────────────────────
-   Ver `anthropometry/TresAngulos.jsx`. Tres casillas iguales: el ángulo, qué
-   hay que hacer y, debajo del que falta, la foto de la última vez. */
+/* ── Los ángulos de las fotos ────────────────────────────────────────────────
+   Ver `anthropometry/AngulosDeLaSemana.jsx`. Casillas iguales: el ángulo, qué
+   hay que hacer y, debajo del que falta, la foto de la última vez.
+
+   `auto-fit` y no `repeat(4, …)`: desde que los perfiles son dos son cuatro
+   casillas, y cuatro columnas de 3/4 dentro del diálogo del asistente dejan las
+   miniaturas en 90 px. Con un mínimo de 132 px caben las cuatro en el ancho
+   cómodo y bajan solas a dos filas cuando no. */
 .angulos {
   list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s2);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(132px, 1fr)); gap: var(--s2);
 }
 .angulo {
   display: flex; flex-direction: column; gap: var(--s1); min-width: 0;

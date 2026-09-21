@@ -13,9 +13,9 @@ import { PantallaFotosDeLaSemana } from './movil/PantallaFotosDeLaSemana';
  * (frame `328:518`, 18 sep 2026).
  *
  * Era un paso del asistente de la revisión. Desde el rediseño del teléfono la
- * revisión es una lista de pasos sueltos, y éste tiene su pantalla: tres
- * huecos, uno por ángulo, y se guardan al pulsar «Guardar fotos» sin entregar
- * nada. La entrega es otro gesto, en la lista.
+ * revisión es una lista de pasos sueltos, y éste tiene su pantalla: un hueco
+ * por ángulo, y se guardan al pulsar «Guardar fotos» sin entregar nada. La
+ * entrega es otro gesto, en la lista.
  *
  * `/mi/evolucion/fotos` sigue siendo el ARCHIVO —todas, por semana—; ésta es
  * la de hacer las de ahora.

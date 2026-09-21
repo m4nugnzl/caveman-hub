@@ -151,6 +151,11 @@ export const ClientDietRoute = () => {
       id: meal.id,
       nombre: meal.name,
       kcal: sinCifras ? null : optionKcals(option),
+      /* La pauta que su entrenador escribió en ESA comida —«2 h antes de
+         dormir», «el yogur, de la marca X»—. El monitor la pinta desde que
+         existe (`ComidaDelCliente`); el teléfono no la recibía, así que la
+         condición con la que se come se quedaba en el ordenador. */
+      nota: meal.note || '',
       opciones: lista.length,
       /*
         LAS OPCIONES, ENTERAS Y EN UN SOLO RENGLÓN.
@@ -356,6 +361,20 @@ export const ClientDietRoute = () => {
     catalogo,
     grupos,
     sinCifras,
+    /*
+      ══ LAS PAUTAS TAMBIÉN EN EL TELÉFONO (20 sep) ═════════════════════════
+
+      Se calculaban aquí arriba y se entregaban SOLO al monitor, así que quien
+      abría la dieta desde el móvil —que es casi todo el mundo, y desde luego
+      quien la abre delante de la nevera— veía el menú y no veía por qué era
+      así. Lo que su entrenador se molestó en escribir a mano no llegaba al
+      aparato en el que se lee.
+
+      Son las mismas, con el mismo rótulo que en el monitor: «Lo que te pidió»
+      dice lo mismo en los dos sitios porque es lo mismo, y dos nombres para una
+      cosa es lo que obliga a aprenderse la aplicación dos veces.
+    */
+    notas: notas.map((n) => ({ id: n.id, titulo: n.title, cuerpo: n.body })),
     /*
       CÓMO VAN TUS CALORÍAS: el dato y no quién lo escribió.
 

@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Camera, Check, Plus, X } from 'lucide-react';
 
 import { ANGLES } from '@/domain/photos';
+import { enumeraEs } from '@/lib/texto';
 import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 
@@ -60,7 +61,7 @@ export const PhotoPicker = ({ items, busy, onAddFiles, onSetTag, onDrop, compact
         >
           <span className="t-xs t-tertiary">
             {compacto
-              ? 'Frontal, lateral y espalda · las tres de una vez'
+              ? `${enumeraEs(ANGLES.map((a) => a.label))} · las ${ANGLES.length} de una vez`
               : 'Varias a la vez · JPG, PNG, WEBP o HEIC · máximo 15 MB'}
           </span>
         </ZonaDeSoltar>

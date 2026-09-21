@@ -699,6 +699,16 @@ button.tel-hoja-ej { cursor: pointer; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* La pauta de la comida: entre la cabecera y los alimentos, que es donde se
+   lee antes de mirar qué hay que pesar. Sin caja propia —ya está dentro de la
+   de la comida— y con los saltos de línea que escribió su entrenador. */
+.tel-comida-nota {
+  margin: var(--s3) 0 0;
+  font-size: var(--fs-xs);
+  line-height: 18px;
+  color: var(--tel-tinta-2);
+  white-space: pre-line;
+}
 .tel-comida-lista {
   display: flex;
   flex-direction: column;
@@ -724,6 +734,22 @@ button.tel-hoja-ej { cursor: pointer; }
 }
 .tel-comida-plegada .tel-comida-nom { font-size: var(--fs-sm); font-weight: 600; }
 .tel-comida-plegada .tel-comida-kc { font-size: 13px; color: var(--tel-tinta); }
+
+/* ── «Lo que te pidió»: las pautas del plan ──────────────────────────────
+   Una caja por pauta, con su título si lo tiene. Es texto escrito a mano, así
+   que manda el renglón largo: 20 px de interlínea y los saltos de línea tal
+   cual, como la respuesta del entrenador en la revisión (`.tel-respuesta`). */
+.tel-pautas { display: flex; flex-direction: column; gap: var(--s3); }
+.tel-pauta { padding: var(--s4); }
+.tel-pauta > b { display: block; font-size: 13px; font-weight: 600; }
+.tel-pauta > p {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 20px;
+  color: var(--tel-tinta-2);
+  white-space: pre-line;
+}
+.tel-pauta > b + p { margin-top: var(--s2); }
 
 /* Las opciones de una comida: un punto cada una, y el botón a la medida del
    dedo, no del punto. */
@@ -977,13 +1003,20 @@ button.tel-hoja-ej { cursor: pointer; }
 }
 
 /* ══ LAS FOTOS DE LA SEMANA (frame `328:518`) ═════════════════════════════
-   Tres huecos, uno por ángulo. Vacío: canto discontinuo, la foto de la última
-   vez apagada al fondo y el signo de sumar encima. Elegida y sin guardar:
-   canto azul, que es «aquí estás». Guardada: canto quieto y el tic verde, que
-   es «hecho» y lo único verde de la pantalla. */
+   Un hueco por ángulo. Vacío: canto discontinuo, la foto de la última vez
+   apagada al fondo y el signo de sumar encima. Elegida y sin guardar: canto
+   azul, que es «aquí estás». Guardada: canto quieto y el tic verde, que es
+   «hecho» y lo único verde de la pantalla.
+
+   DOS COLUMNAS, no una por ángulo. El dibujo traía tres en fila porque los
+   ángulos eran tres; con los dos perfiles separados, cuatro columnas en un
+   teléfono de 360 px dejan cada hueco en 78 px de ancho —una miniatura en la
+   que no se distingue una pose— y el pie en dos líneas. En 2×2 el hueco mide
+   152 px y la foto de la semana pasada que lleva dentro, que es la guía, se
+   ve de verdad. */
 .tel-huecos {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s3);
   margin: var(--s4) 0 0;
   padding: 0;

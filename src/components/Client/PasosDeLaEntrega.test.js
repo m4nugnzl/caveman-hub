@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { weeklyCheckIn } from '@/domain/anthropometry';
+import { ANGLE_IDS } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
 import { pasosDeLaEntrega } from './PasosDeLaEntrega';
 
@@ -54,6 +55,11 @@ const construir = (extra = {}) =>
     entrega: extra.entrega ?? null,
   });
 
+/* Los ángulos que se piden, del dominio: el día que cambien —como el 20 de
+   septiembre, cuando la lateral se partió en izquierdo y derecho— estos
+   fixtures no tienen que enterarse. */
+const TODAS = ANGLE_IDS;
+
 const paso = (pasos, id) => pasos.find((p) => p.id === id);
 
 describe('pasosDeLaEntrega', () => {
@@ -62,7 +68,7 @@ describe('pasosDeLaEntrega', () => {
       /* Todo lo del periodo ANTERIOR: medidas tomadas, fotos hechas y la semana
          entregada con su cuestionario. Nada de eso entrega la de ahora. */
       history: [medida(ANTES)],
-      photos: [foto(3, 'frontal'), foto(3, 'lateral'), foto(3, 'espalda')],
+      photos: TODAS.map((angulo) => foto(3, angulo)),
       entrega: { weekStart: ANTES, submittedAt: '2026-09-13T10:00:00Z', answers: { dietAdherence: '4' } },
     });
 
@@ -73,7 +79,7 @@ describe('pasosDeLaEntrega', () => {
   it('cuenta lo que sí es de este periodo', () => {
     const pasos = construir({
       history: [medida('2026-09-16')],
-      photos: [foto(4, 'frontal'), foto(4, 'lateral'), foto(4, 'espalda')],
+      photos: TODAS.map((angulo) => foto(4, angulo)),
       entrega: { weekStart: SEMANA, submittedAt: '2026-09-20T10:00:00Z', answers: { dietAdherence: '4' } },
     });
 
@@ -105,11 +111,35 @@ describe('pasosDeLaEntrega', () => {
     expect(paso(pasos, 'cuestionario').estado).toBe('Contestado · se manda al entregar');
   });
 
-  /* Lo que llevaba la portada: las fotos SIN filtrar. Media entrega —una foto de
-     tres— no es la entrega hecha. */
+  /* Lo que llevaba la portada: las fotos SIN filtrar. Media entrega —una foto
+     de las cuatro— no es la entrega hecha. */
   it('las fotos a medias no dan el paso por hecho', () => {
     const pasos = construir({ photos: [foto(4, 'frontal')] });
     expect(paso(pasos, 'fotos').hecho).toBe(false);
-    expect(paso(pasos, 'fotos').estado).toContain('Llevas 1 de 3');
+    expect(paso(pasos, 'fotos').estado).toContain(`Llevas 1 de ${TODAS.length}`);
+  });
+
+  /* Los dos perfiles se cuentan por separado: una lateral sin la otra deja el
+     paso a medias. Es toda la razón de que el ángulo lleve el lado escrito —una
+     izquierda contra una derecha no compara nada—, así que si esto vuelve a dar
+     el paso por hecho, la separación se ha deshecho sin que nadie lo vea. */
+  it('el lateral izquierdo no tapa al derecho', () => {
+    const pasos = construir({
+      photos: [foto(4, 'frontal'), foto(4, 'izquierdo'), foto(4, 'espalda')],
+    });
+    expect(paso(pasos, 'fotos').hecho).toBe(false);
+    expect(paso(pasos, 'fotos').estado).toContain('te falta la de lateral derecho');
+  });
+
+  /* Y las laterales de antes de la separación no cuentan para lo de ahora: no
+     se sabe de qué lado eran. Lo que se ve es que faltan las dos, no una. */
+  it('una lateral antigua no cubre ninguno de los dos perfiles', () => {
+    const pasos = construir({
+      photos: [foto(4, 'frontal'), foto(4, 'lateral'), foto(4, 'espalda')],
+    });
+    expect(paso(pasos, 'fotos').hecho).toBe(false);
+    expect(paso(pasos, 'fotos').estado).toContain(
+      'te faltan la de lateral izquierdo y la de lateral derecho'
+    );
   });
 });

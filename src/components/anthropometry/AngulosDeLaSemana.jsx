@@ -4,14 +4,14 @@ import { ANGLES, fotosPorAngulo, photoWeek } from '@/domain/photos';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
- * LOS TRES ÁNGULOS, Y LA DE LA SEMANA PASADA DEBAJO DEL QUE FALTA. (`M-12`)
+ * LOS ÁNGULOS DE LA SEMANA, Y LA DE LA SEMANA PASADA DEBAJO DEL QUE FALTA. (`M-12`)
  *
  * ══ Qué sustituye ══════════════════════════════════════════════════════════
  *
  * A dos recuadros de aviso y una frase de consejo: «ya tienes 1 foto de esta
  * semana: frontal», «te falta lateral y espalda» y «hazlas siempre igual:
- * misma luz, misma distancia, misma pose». Tres párrafos para decir lo que un
- * dibujo de tres casillas dice de un vistazo — y el consejo, que es el más
+ * misma luz, misma distancia, misma pose». Tres párrafos para decir lo que una
+ * rejilla de casillas dice de un vistazo — y el consejo, que es el más
  * importante de los tres, era el que iba en gris y al final.
  *
  * ══ Por qué la foto de la semana pasada ════════════════════════════════════
@@ -25,6 +25,10 @@ import { Thumb } from '@/components/photos/Thumb';
  * La foto de la última vez, en miniatura y debajo del ángulo que falta, es esa
  * instrucción hecha dato: mismo sitio, misma luz, misma pose, sin leer nada.
  *
+ * Desde que los perfiles son dos —izquierdo y derecho, ver `ANGLES`— la casilla
+ * hace además de recordatorio del LADO: no hay que acordarse de cuál se hizo la
+ * otra vez porque cada lado tiene su hueco y su foto anterior dentro.
+ *
  * ── Es información, no una corrección ────────────────────────────────────
  * No dice «la hiciste mal» ni compara: enseña la de antes para que la de ahora
  * se le parezca. Y no bloquea nada — se puede terminar sin fotos, que es lo que
@@ -37,14 +41,14 @@ import { Thumb } from '@/components/photos/Thumb';
  *   que están esperando en el selector. Lo segundo importa —quien acaba de
  *   marcar «esta es la lateral» no tiene que ver que le sigue faltando—, y solo
  *   lo sabe el paso, que es quien tiene el lote.
- * @param tira       El traje de TIRA en vez del de rejilla: tres casillas que se
+ * @param tira       El traje de TIRA en vez del de rejilla: casillas que se
  *   deslizan y se salen por el canto de la pantalla. Es para «Tú», donde esto
  *   deja de ser el pie de un formulario y pasa a ser lo segundo que se ve —tres
  *   columnas de 110 px con su título y su descripción se leen como campos, no
  *   como fotos—. En el asistente y en el panel del entrenador manda la rejilla,
- *   que es donde hay que ver los tres a la vez sin deslizar nada.
+ *   que es donde hay que verlos todos a la vez sin deslizar nada.
  */
-export const TresAngulos = ({ photos = [], semana, startDate, yaEstan = null, tira = false }) => {
+export const AngulosDeLaSemana = ({ photos = [], semana, startDate, yaEstan = null, tira = false }) => {
   /* La última foto de cada ángulo ANTES de esta semana, y la de esta semana si
      ya está subida. Ver `fotosPorAngulo`, que comparte con el teléfono. */
   const { ahora: deAhora, antes: anteriores } = fotosPorAngulo(photos, semana, startDate);
@@ -70,7 +74,7 @@ export const TresAngulos = ({ photos = [], semana, startDate, yaEstan = null, ti
               /*
                 ── En la REJILLA se dice; en la TIRA se enseña ────────────────
                 En el asistente, quien acaba de sacarse la foto no necesita verla
-                otra vez, y tres miniaturas grandes empujarían el botón de
+                otra vez, y cuatro miniaturas grandes empujarían el botón de
                 terminar fuera de la pantalla. Ese argumento es del asistente.
 
                 En «Tú» la tira ES las fotos: un hueco vacío marcado «Subida»

@@ -4,7 +4,7 @@ import { History, MessageSquare, Play, Scale, Send } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { MEDIDAS_FIJAS } from '@/domain/medidas';
-import { ANGLES } from '@/domain/photos';
+import { angleLabel } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
 import { semanasDelRastro } from '@/domain/tusSemanas';
 import { localeNumber, shortDate, todayISO, weekdayName } from '@/lib/dates';
@@ -43,8 +43,6 @@ import { useOculto } from './Oculto';
 
 const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const cifra = (v) => (typeof v === 'number' ? localeNumber(v, { maximumFractionDigits: 1 }) : String(v));
-const ANGULO = Object.fromEntries(ANGLES.map((a) => [a.id, a.label]));
-
 /* Cuántas caben al pie de la Revisión antes de «Ver todas». */
 const EN_LA_REVISION = 4;
 
@@ -279,11 +277,14 @@ const Semana = ({ s, medidas, conPeso, onQuitar }) => {
             {s.fotos.map((f) => (
               <li key={f.id}>
                 {f.url ? (
-                  <img src={f.url} alt={`Tu foto ${ANGULO[f.angle]?.toLowerCase() || ''}`} loading="lazy" />
+                  <img src={f.url} alt={`Tu foto ${angleLabel(f.angle).toLowerCase()}`} loading="lazy" />
                 ) : (
                   <span className="rastro-foto-vacia" aria-hidden="true" />
                 )}
-                <span>{ANGULO[f.angle] || 'Foto'}</span>
+                {/* `angleLabel` y no un mapa propio de `ANGLES`: aquí salen fotos
+                    del archivo entero, incluidas las de un ángulo que ya no se
+                    pide, y ésas se quedaban rotuladas «Foto». */}
+                <span>{angleLabel(f.angle)}</span>
               </li>
             ))}
           </ul>

@@ -21,7 +21,12 @@ import { Aire, Cabecera, Tramo } from './Piezas';
  *     un día alto a uno bajo, y es lo que el dibujo pide sin mentir.
  *   · **Las comidas**: la abierta en su caja, con sus opciones como puntos
  *     arriba a la derecha y cada alimento con su ración. Las demás, plegadas
- *     debajo, se abren al tocarlas. Delante de la nevera se mira UNA comida.
+ *     debajo, se abren al tocarlas. Delante de la nevera se mira UNA comida. Si
+ *     su entrenador le escribió una pauta a esa comida, va ENCIMA de los
+ *     alimentos: es el marco en el que se leen, igual que en el monitor.
+ *   · **Lo que te pidió**: las pautas del plan, al final. No son cifras ni
+ *     menú —son lo que no cabe en un número—, así que no compiten con la comida
+ *     de ahora: se leen una vez y explican todo lo de arriba.
  *   · **El símbolo de cambio** junto a un alimento dice que tiene
  *     equivalencias; tocar la fila las despliega debajo. Sin equivalencias, la
  *     fila no se toca.
@@ -30,7 +35,17 @@ import { Aire, Cabecera, Tramo } from './Piezas';
  * es del dato, y en toda la aplicación la proteína es la misma.
  */
 export const PantallaComer = ({ datos }) => {
-  const { cabecera, dias, dia, comidas, historia, catalogo = [], grupos = [], sinCifras } = datos;
+  const {
+    cabecera,
+    dias,
+    dia,
+    comidas,
+    notas = [],
+    historia,
+    catalogo = [],
+    grupos = [],
+    sinCifras,
+  } = datos;
   const [abierta, setAbierta] = useState(comidas[0]?.id ?? null);
   const hoyKey = dias.find((d) => d.esHoy)?.key ?? null;
   const [elegido, setElegido] = useState(hoyKey);
@@ -117,6 +132,7 @@ export const PantallaComer = ({ datos }) => {
                     </span>
                   ) : null}
                 </div>
+                {c.nota ? <p className="tel-comida-nota">{c.nota}</p> : null}
                 <div className="tel-comida-lista">
                   {c.alimentos.map((a) => (
                     <Alimento key={a.id} alimento={a} catalogo={catalogo} grupos={grupos} sinCifras={sinCifras} />
@@ -141,6 +157,22 @@ export const PantallaComer = ({ datos }) => {
           <p className="tel-pie tel-pie-arriba">
             Tu dieta va por cifras: estas son las de hoy, y cómo llegar a ellas lo eliges tú.
           </p>
+        </Tramo>
+      ) : null}
+
+      {/* Lo que le pidió por escrito: texto suyo, tal cual lo escribió. Con
+          los saltos de línea que puso, que es lo que separa una pauta de tres
+          instrucciones metidas en un párrafo. */}
+      {notas.length > 0 ? (
+        <Tramo rotulo="Lo que te pidió">
+          <div className="tel-pautas">
+            {notas.map((n) => (
+              <div className="tel-caja tel-pauta" key={n.id}>
+                {n.titulo ? <b>{n.titulo}</b> : null}
+                <p>{n.cuerpo}</p>
+              </div>
+            ))}
+          </div>
         </Tramo>
       ) : null}
 

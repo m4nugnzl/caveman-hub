@@ -4,9 +4,9 @@ import { Camera, ChevronDown, ChevronRight, Download, Trash2 } from 'lucide-reac
 
 import { useApp } from '@/context/AppContext';
 import {
-  ANGLES,
   angleLabel,
   angleShort,
+  angulosParaFiltrar,
   groupByWeek,
   photoFileName,
   photoWeight,
@@ -318,7 +318,7 @@ export const PhotoArchive = () => {
             <MandoTab on={angulo === 'all'} onClick={() => setAngulo('all')}>
               Todas
             </MandoTab>
-            {ANGLES.map((a) => (
+            {angulosParaFiltrar(suyas).map((a) => (
               <MandoTab key={a.id} on={angulo === a.id} onClick={() => setAngulo(a.id)}>
                 {a.label}
               </MandoTab>
