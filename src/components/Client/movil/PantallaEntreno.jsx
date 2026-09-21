@@ -24,7 +24,8 @@ import { HojaAntesDeEmpezar } from './HojaAntesDeEmpezar';
 export const PantallaEntreno = ({ datos }) => {
   if (datos.hoja) return <HojaAntesDeEmpezar hoja={datos.hoja} />;
 
-  const { cabecera, microciclos, proxima, sesiones, cajon, bloques, onEjercicio } = datos;
+  const { cabecera, microciclos, proxima, sesiones, nueva, cajon, bloques, onEjercicio } = datos;
+  const unidad = cabecera.unidad || 'microciclo';
 
   return (
     <>
@@ -57,7 +58,7 @@ export const PantallaEntreno = ({ datos }) => {
       ) : null}
 
       {sesiones.length > 0 ? (
-        <Tramo rotulo={`Sesiones del ${cabecera.unidad || 'microciclo'}`}>
+        <Tramo rotulo={`Sesiones del ${unidad}`}>
           <Lista>
             {sesiones.map((s) => (
               <Fila
@@ -69,6 +70,21 @@ export const PantallaEntreno = ({ datos }) => {
                 galon={false}
               />
             ))}
+          </Lista>
+        </Tramo>
+      ) : null}
+
+      {/* El siguiente, que se añade el propio cliente: las mismas sesiones con
+          sus notas y su calentamiento, sin sus números. Vivía al final de la
+          cinta de hojas, y el rediseño del 18 sep se lo llevó con ella. */}
+      {nueva && sesiones.length > 0 ? (
+        <Tramo rotulo={`El ${unidad} que viene`}>
+          <Lista>
+            <Fila
+              titulo={`Añadir el ${unidad} ${nueva.numero}`}
+              sub="Las mismas sesiones, sin tus números"
+              onClick={nueva.onContinuar}
+            />
           </Lista>
         </Tramo>
       ) : null}

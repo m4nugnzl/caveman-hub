@@ -411,6 +411,10 @@
      fila más, porque anunciarla en rojo desde lejos es pedirle atención a lo
      que menos se usa. Ver la ley del color. */
 .pc-fila.pc-ajuste > .segmented { flex: none; }
+/* Un mando de rótulos largos no cabe al final del renglón en una caja de cuatro
+   columnas: baja a su propio piso, a todo lo ancho, bajo el texto. */
+.pc-fila.pc-ajuste.is-dos-pisos { flex-wrap: wrap; row-gap: var(--s3); }
+.pc-fila.pc-ajuste.is-dos-pisos > .segmented { flex-basis: 100%; }
 .pc-fila.pc-quien { gap: 13px; }
 .pc-fila.pc-quien .avatar { flex: none; }
 .pc-fila.pc-salir .pc-rotulo,

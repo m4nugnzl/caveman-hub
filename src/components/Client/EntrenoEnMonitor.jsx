@@ -1,5 +1,6 @@
 import { Dumbbell } from 'lucide-react';
 
+import { BotonMas } from '@/components/ui/BotonMas';
 import { EmptyState } from '@/components/ui/primitives';
 import { Fila, Grupo } from '@/components/ui/Grupo';
 import { TiraDelPrograma } from '@/components/Coach/Workout/TiraDelPrograma';
@@ -112,6 +113,19 @@ export const EntrenoEnMonitor = ({ datos }) => {
               vista="bloque"
               onIrBloque={onIrBloque}
               onIrSemana={onIrSemana}
+              /* El mismo «+» que usa su entrenador, pegado a los microciclos,
+                 pero sin menú: el cliente solo tiene una salida, la copia en
+                 blanco. Solo en el bloque en curso, que es donde cae. */
+              masMicrociclo={
+                nueva && esActual ? (
+                  <BotonMas
+                    palabra={unidad.toLowerCase()}
+                    que="microciclo"
+                    title={`Añadir el ${unidad.toLowerCase()} ${nueva.numero}: las mismas sesiones, sin tus números`}
+                    onClick={nueva.onContinuar}
+                  />
+                ) : null
+              }
             />
           ) : null}
           <section className="entreno-hoja mesa-panel" aria-label="Tu programa">
@@ -158,19 +172,6 @@ export const EntrenoEnMonitor = ({ datos }) => {
                     onAbrirHoja={onEntrenarHoja}
                     onIrSemana={onIrSemana}
                   />
-
-                  {/* La repetición siguiente, cuando la suya se acaba. Es la
-                      misma pieza que cierra la cinta de hojas del teléfono. */}
-                  {nueva ? (
-                    <Grupo title={`El ${unidad.toLowerCase()} que viene`}>
-                      <Fila
-                        title={`${unidad} ${nueva.numero}`}
-                        sub="se copia de este"
-                        verbo
-                        onClick={nueva.onContinuar}
-                      />
-                    </Grupo>
-                  ) : null}
                 </div>
               ) : (
                 <EmptyState

@@ -3,6 +3,7 @@ import {
   CheckCheck,
   FolderOpen,
   Inbox,
+  Repeat,
   Ruler,
   Scale,
   ShieldCheck,
@@ -10,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { AccountMenu } from '@/components/AccountMenu';
+import { SegmentedControl } from '@/components/ui/primitives';
 import { Aire, Fila, Record } from './Piezas';
 
 /**
@@ -37,7 +39,7 @@ import { Aire, Fila, Record } from './Piezas';
  * dice «esto se toca», no una categoría por fila.
  */
 export const PantallaTu = ({ datos }) => {
-  const { nombre, iniciales, desde, record, filas, cuenta } = datos;
+  const { nombre, iniciales, desde, record, filas, cicloSolo, cuenta } = datos;
 
   return (
     <>
@@ -65,6 +67,33 @@ export const PantallaTu = ({ datos }) => {
             />
           ))}
         </div>
+
+        {/* Lo que la portada pregunta una vez, para cambiarlo después. El
+            carril va debajo del rótulo: a 390 px no caben los dos en un renglón. */}
+        {cicloSolo ? (
+          <>
+            <h2 className="tel-rotulo tel-rotulo-suelto">Tu rutina</h2>
+            <div className="tel-acciones">
+              <div className="tel-fila tel-fila-ajuste">
+                <Icono nombre="ciclo" />
+                <span className="tel-fila-tx">
+                  <span className="tel-fila-tit">El siguiente {cicloSolo.unidad}</span>
+                  <span className="tel-fila-sub">Al tener este entero apuntado</span>
+                </span>
+                <SegmentedControl
+                  ancho
+                  value={cicloSolo.valor}
+                  onChange={cicloSolo.onCambiar}
+                  options={[
+                    { id: 'solo', label: 'Se abre solo' },
+                    { id: 'yo', label: 'Lo abro yo' },
+                  ]}
+                  label={`Cómo se abre el siguiente ${cicloSolo.unidad}`}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
 
         <h2 className="tel-rotulo tel-rotulo-suelto">Tu cuenta</h2>
         <div className="tel-acciones">
@@ -99,6 +128,7 @@ const ICONOS = {
   progreso: TrendingUp,
   privacidad: ShieldCheck,
   documentos: FolderOpen,
+  ciclo: Repeat,
 };
 
 const Icono = ({ nombre }) => {

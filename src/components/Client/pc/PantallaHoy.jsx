@@ -7,6 +7,7 @@ import {
   Salad,
   Send,
   Dumbbell,
+  Repeat,
 } from 'lucide-react';
 
 import { miles } from '@/lib/dates';
@@ -61,6 +62,7 @@ export const PantallaHoy = ({ datos }) => {
     alta,
     media,
     nueva,
+    preguntaDelCiclo,
     semana,
     unidad,
     porDonde,
@@ -102,6 +104,29 @@ export const PantallaHoy = ({ datos }) => {
           </span>
           <Boton pri to="/mi/alta">
             Seguir
+          </Boton>
+        </div>
+      ) : null}
+
+      {/* Una sola vez: contestada, se cambia desde «Lo tuyo». Ver
+          `preguntaDelCiclo` en `ClientStart`. */}
+      {preguntaDelCiclo ? (
+        <div className="pc-aviso">
+          <span className="pc-icono">
+            <Repeat size={15} />
+          </span>
+          <span className="pc-cuerpo">
+            <span className="pc-rotulo">
+              ¿Abrimos solo el siguiente {preguntaDelCiclo.unidad}?
+            </span>
+            <span className="pc-frase">
+              Cuando tengas todas las sesiones de este apuntadas, se crea el siguiente con las
+              mismas sesiones y sin tus números.
+            </span>
+          </span>
+          <Boton onClick={preguntaDelCiclo.onNo}>No, lo abro yo</Boton>
+          <Boton pri onClick={preguntaDelCiclo.onSi}>
+            Sí, que se abra solo
           </Boton>
         </div>
       ) : null}
@@ -149,7 +174,7 @@ export const PantallaHoy = ({ datos }) => {
                   <Boton pri onClick={nueva.onContinuar}>
                     Abrir el {unidad.toLowerCase()} {nueva.numero}
                   </Boton>
-                  <span>Se copia del anterior, con sus pesos</span>
+                  <span>Las mismas sesiones, sin tus números</span>
                 </>
               }
             >

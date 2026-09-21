@@ -5,6 +5,7 @@ import {
   Inbox,
   LifeBuoy,
   LogOut,
+  Repeat,
   Moon,
   Ruler,
   Scale,
@@ -133,6 +134,28 @@ export const PantallaTu = ({ datos }) => {
                   label="Tema de la aplicación"
                 />
               </div>
+
+              {ajustes.cicloSolo ? (
+                <div className="pc-fila pc-ajuste is-dos-pisos">
+                  <span className="pc-icono">
+                    <Repeat size={15} />
+                  </span>
+                  <span className="pc-cuerpo">
+                    <span className="pc-rotulo">El siguiente {ajustes.cicloSolo.unidad}</span>
+                    <span className="pc-frase">al tener este entero apuntado</span>
+                  </span>
+                  <SegmentedControl
+                    ancho
+                    value={ajustes.cicloSolo.valor}
+                    onChange={ajustes.cicloSolo.onCambiar}
+                    options={[
+                      { id: 'solo', label: 'Se abre solo' },
+                      { id: 'yo', label: 'Lo abro yo' },
+                    ]}
+                    label={`Cómo se abre el siguiente ${ajustes.cicloSolo.unidad}`}
+                  />
+                </div>
+              ) : null}
 
               {ajustes.filas.map((f) => (
                 <Fila

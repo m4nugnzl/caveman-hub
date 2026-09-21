@@ -1127,6 +1127,19 @@ button.tel-hueco-marco:focus-visible { outline: 2px solid var(--accent); outline
   text-underline-offset: 3px;
 }
 .tel-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+/* El mismo enlace cuando es un botón (la otra salida de una pregunta): sin
+   el dibujo del navegador y con 44 px de dedo, que el texto solo no llega. */
+button.tel-enlace {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--s2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
 
 /* Lo que ha fallado, dicho en su sitio. */
 .tel-pie.tel-error { color: var(--negative); }
@@ -1259,6 +1272,9 @@ button.tel-hueco-marco:focus-visible { outline: 2px solid var(--accent); outline
 }
 /* La cuenta es el menú de siempre con su traje de fila. */
 .tel-fila.tel-fila-cuenta { display: block; padding: 0; }
+/* Un ajuste: el rótulo arriba y el carril a todo lo ancho debajo. */
+.tel-fila.tel-fila-ajuste { flex-wrap: wrap; row-gap: var(--s3); }
+.tel-fila-ajuste > .segmented { flex-basis: 100%; }
 
 /* ══ «MI PROGRESO» — sin frame propio, con las piezas de antes ════════════ */
 .tel-tarjeta {

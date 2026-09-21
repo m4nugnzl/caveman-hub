@@ -4,11 +4,12 @@ import { useActions, useApp, useSession } from '@/context/AppContext';
 import { useTheme } from '@/lib/useTheme';
 import { useAprende } from '@/components/Aprende';
 import { weightSeries } from '@/domain/anthropometry';
-import { resolvedMicrocycles } from '@/domain/blocks';
+import { abreSoloElCiclo, resolvedMicrocycles } from '@/domain/blocks';
 import { estadoDeLaEntrega } from '@/domain/calendar';
 import { weekFromStart } from '@/domain/photos';
 import { pendientesDeCliente } from '@/domain/envios';
 import { allSessions } from '@/domain/sessions';
+import { unitLabel } from '@/domain/training';
 import { localeNumber, shortDate, todayISO } from '@/lib/dates';
 import { initials } from '@/lib/initials';
 import { useMediaQuery } from '@/lib/useMediaQuery';
@@ -45,8 +46,16 @@ import { PantallaTu as TuEnTelefono } from './movil/PantallaTu';
  * nadie guarda en marcadores. Ver `la app es panel, no documento`.
  */
 export const ClientTu = () => {
-  const { activeClient, anthropometry, workoutData, progressPhotos, checkIns, envioRows } =
-    useApp();
+  const {
+    activeClient,
+    anthropometry,
+    workoutData,
+    progressPhotos,
+    checkIns,
+    envioRows,
+    updateClientPreferences,
+    isCoach,
+  } = useApp();
   const { loadClientFolder, ensurePhotoUrls, signOut } = useActions();
   /* Los tres mandos que antes vivían escondidos dentro de `AccountMenu`: el
      tema, el tutorial y la salida. Ahora son filas de esta pantalla, así que
@@ -100,6 +109,21 @@ export const ClientTu = () => {
   const entregadas = historial.filter((c) => c.submittedAt || c.reviewedAt).length;
   const sesiones = allSessions(micros).length;
   const fotos = (progressPhotos || []).filter((p) => p.clientId === activeClient.id);
+
+  /*
+    SI EL MICROCICLO SIGUIENTE SE ABRE SOLO. La portada lo pregunta una vez
+    (`preguntaDelCiclo` en `ClientStart`); aquí se cambia después. Sin plan no
+    hay microciclo que abrir, y con «Ver como» no sale: es del cliente.
+  */
+  const cicloSolo =
+    !isCoach && micros.length > 0
+      ? {
+          unidad: unitLabel(workoutData?.[activeClient.id]?.cycleType).toLowerCase(),
+          valor: abreSoloElCiclo(activeClient.preferences) ? 'solo' : 'yo',
+          onCambiar: (v) =>
+            updateClientPreferences(activeClient.id, 'rutina', { seguirSolo: v === 'solo' }),
+        }
+      : null;
 
   /* Si le toca entregar, para el estado de la fila del teléfono. */
   const { periodo, sinEntregar } = estadoDeLaEntrega({
@@ -186,6 +210,7 @@ export const ClientTu = () => {
     ajustes: {
       oscuro: isDark,
       onTema: setTheme,
+      cicloSolo,
       filas: [
         {
           icono: 'escudo',
@@ -268,6 +293,7 @@ export const ClientTu = () => {
       },
       { icono: 'calendario', titulo: 'Tu calendario', sub: 'Lo que tienes por delante', to: '/mi/calendario' },
     ].filter(Boolean),
+    cicloSolo,
     cuenta: [
       carpeta
         ? { icono: 'documentos', titulo: 'Tus documentos', sub: 'La carpeta que compartís', onClick: () => setCapa('carpeta') }

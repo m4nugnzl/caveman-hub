@@ -5,7 +5,7 @@ import { Dumbbell, FileText, Salad, Scale, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
 import { weightSeries } from '@/domain/anthropometry';
-import { abreSoloElCiclo, cicloPorAbrir, clientCycleSlots, semanaDelCliente } from '@/domain/blocks';
+import { cicloPorAbrir, clientCycleSlots, semanaDelCliente } from '@/domain/blocks';
 import { clientIntake, clientSteps, intakeDeliverables, stepDone } from '@/domain/intake';
 import { dietaDeHoy } from '@/domain/nutrition';
 import { onboardingState } from '@/domain/onboardingState';
@@ -103,6 +103,7 @@ export const ClientStart = () => {
     discardSession,
     continueProgram,
     updateClientPreferences,
+    isCoach,
   } = useApp();
   const navigate = useNavigate();
   const oculto = useOculto();
@@ -189,7 +190,32 @@ export const ClientStart = () => {
   /* Cuándo le toca uno nuevo lo dice el DOMINIO y no esta pantalla: la misma
      regla la pregunta el automatismo de «que el siguiente se abra solo». */
   const ofreceNueva = Boolean(cicloPorAbrir(program));
-  const seguirSolo = abreSoloElCiclo(activeClient.preferences);
+  const ponerSeguirSolo = (valor) =>
+    updateClientPreferences(activeClient.id, 'rutina', { seguirSolo: valor });
+
+  /*
+    ══ LA PREGUNTA DE SI EL SIGUIENTE SE ABRE SOLO ═══════════════════════════
+
+    El automatismo existía (`useCicloAutomatico`), pero su interruptor vivía en
+    la cinta de hojas del teléfono y se fue con ella el 18 sep: nadie podía
+    pedirlo. Ahora se PREGUNTA, una vez, en la portada y junto a la sesión, que
+    es donde se decide cómo se entrena. Contestada —sí o no—, deja de salir y se
+    cambia desde «Lo tuyo».
+
+    «Sin contestar» es que la clave no exista, no que sea falsa: `false` es un
+    «no» dicho, y volver a preguntárselo sería no haberle escuchado.
+
+    Con «Ver como» no sale: la preferencia es del cliente, no de quien mira.
+  */
+  const contestado = typeof activeClient.preferences?.rutina?.seguirSolo === 'boolean';
+  const preguntaDelCiclo =
+    !isCoach && !contestado && micros.length > 0
+      ? {
+          unidad: unidad.toLowerCase(),
+          onSi: () => ponerSeguirSolo(true),
+          onNo: () => ponerSeguirSolo(false),
+        }
+      : null;
 
   const pesajes = weightSeries(historial);
   const objetivo = effectiveGoal(activeClient, phases, todayISO())?.targetWeightKg ?? null;
@@ -405,11 +431,9 @@ export const ClientStart = () => {
             onContinuar: () => {
               if (continueProgram(activeClient.id)) navigate('/mi/rutina');
             },
-            seguirSolo,
-            onSeguirSolo: (valor) =>
-              updateClientPreferences(activeClient.id, 'rutina', { seguirSolo: valor }),
           }
         : null,
+    preguntaDelCiclo,
     semana: semana?.days?.length > 0 ? { ...semana, days: conFecha(semana.days) } : null,
     hoy: {
       dieta: dieta
@@ -598,6 +622,7 @@ export const ClientStart = () => {
   const fotosSuyas = (progressPhotos || []).filter((p) => p.clientId === activeClient.id);
 
   const datosMovil = {
+    preguntaDelCiclo,
     cabecera: {
       titulo: nombrePila ? `Hola, ${nombrePila}` : diaCorto,
       sub: [

@@ -159,13 +159,26 @@ export const ClientRoutineRoute = () => {
      `LecturasDelBloque`, y hacerla dos veces era arriesgarse a dos cifras. */
   const sesionesAnotadas = allSessions(micros).length;
 
-  const nueva =
-    bloque && delBloque.length > 0 && vaPor === delBloque.length
-      ? {
-          numero: vaPor + 1,
-          onContinuar: () => continueProgram(activeClient.id),
-        }
-      : null;
+  /*
+    EL MICROCICLO SIGUIENTE, que el cliente se añade solo: las mismas hojas con
+    sus notas, su calentamiento y sus pautas, y sin un solo número suyo (ver
+    `continueProgram`). Cae siempre detrás del ÚLTIMO del bloque en curso, así
+    que se cuenta desde ese bloque y no desde el que se esté mirando.
+
+    Estuvo atado a mirar el último microciclo, y en el teléfono ni eso: el
+    rediseño del 18 sep se llevó la cinta de hojas, que era donde vivía, y el
+    cliente se quedó sin manera de seguir. Al crearlo se pasa a mirarlo.
+  */
+  const bloqueEnCurso = semanaEnCurso !== null ? blockOfWeek(program, semanaEnCurso) : null;
+  const nueva = bloqueEnCurso
+    ? {
+        numero: weeksOfBlock(program, bloqueEnCurso).length + 1,
+        onContinuar: () => {
+          const creada = continueProgram(activeClient.id);
+          if (creada) setSemanaVista(creada);
+        },
+      }
+    : null;
 
   const irASesion = (dayName) => {
     seguir({ weekNumber: semanaActual, dayName });
@@ -320,6 +333,7 @@ export const ClientRoutineRoute = () => {
     /* Una raya por microciclo del bloque: los pasados en tinta, el de ahora en
        azul —dónde estás—, los que faltan en gris. */
     microciclos: delBloque.map((w) => (w < semanaActual ? 'hecha' : w === semanaActual ? 'ahora' : 'falta')),
+    nueva,
     proxima: proximaDia
       ? {
           rotulo: proximaDia.esHoy ? 'Hoy te toca' : proximaDia.hechas > 0 ? 'A medias' : 'Próxima sesión',

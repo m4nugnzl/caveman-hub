@@ -27,7 +27,7 @@ import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Pie
  * estar en la barra con su punto cuando espera.
  */
 export const PantallaHoy = ({ datos }) => {
-  const { cabecera, dias, entreno, recados, peso, sensaciones, ultimo } = datos;
+  const { cabecera, dias, entreno, preguntaDelCiclo, recados, peso, sensaciones, ultimo } = datos;
 
   return (
     <>
@@ -36,6 +36,8 @@ export const PantallaHoy = ({ datos }) => {
       {dias ? <SieteDias dias={dias} /> : null}
 
       {entreno ? <Entreno entreno={entreno} /> : null}
+
+      {preguntaDelCiclo ? <PreguntaDelCiclo pregunta={preguntaDelCiclo} /> : null}
 
       {recados.length > 0 ? (
         <Tramo rotulo="De tu entrenador">
@@ -123,6 +125,31 @@ const SieteDias = ({ dias }) => (
       </li>
     ))}
   </ol>
+);
+
+/**
+ * SI EL SIGUIENTE SE ABRE SOLO. Se pregunta una vez, debajo del entreno;
+ * contestada, se cambia desde «Tú». Ver `preguntaDelCiclo` en `ClientStart`.
+ */
+const PreguntaDelCiclo = ({ pregunta }) => (
+  <Tramo>
+    <div className="tel-caja tel-proxima">
+      <div className="tel-proxima-tx">
+        <span className="tel-proxima-rot">Tu próximo {pregunta.unidad}</span>
+        <span className="tel-proxima-tit">¿Lo abrimos solo cuando acabes este?</span>
+        <span className="tel-proxima-sub">
+          Con todas las sesiones apuntadas, se crea el siguiente con las mismas sesiones y sin tus
+          números.
+        </span>
+      </div>
+      <Boton onClick={pregunta.onSi} className="tel-boton-44">
+        Sí, que se abra solo
+      </Boton>
+      <button type="button" className="tel-enlace" onClick={pregunta.onNo}>
+        No, lo abro yo
+      </button>
+    </div>
+  </Tramo>
 );
 
 /** TU ENTRENO DE HOY: el nombre, los grupos, lo que llevas y el verbo. */
