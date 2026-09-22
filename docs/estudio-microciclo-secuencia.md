@@ -4,7 +4,8 @@ Estudio y plan aprobados el 22 sep 2026. Objetivo: admitir repartos asimétricos
 («2-1 2-1 3-1») sin cambiar nada de lo que ya se ve ni de lo que ya está fechado.
 
 Estado: **F1 construida** (dominio y pruebas, sin UI y sin persistir) y **F2a
-construida** (apariciones y `previstoHasta`). F2b, F2c y F3 pendientes.
+construida** (apariciones y `previstoHasta`) y **F2b construida** (la secuencia
+se guarda en el bloque al escribir). F2c y F3 pendientes.
 
 ---
 
@@ -250,10 +251,19 @@ Semanal
   (`ClientRoutineRoute`) la usa en vez de su propia búsqueda.
 - `previstoHasta` de `tramoDelBloque` mide con `duracionDe` (adelantado de F3).
 
-*F2b — persistencia, sin editor.* `materializarMicrociclos` en `applyPlan`,
-`updateWeeklySplit` y el Compositor escriben la secuencia; `weekly_split` como
-copia del bloque abierto desde un solo sitio. Antes de conectarlo, ensayo sobre
-la copia de seguridad. `CycleSettings` no cambia.
+*F2b — persistencia, sin editor (HECHA).*
+- `applyPlan` guarda la secuencia de los bloques que aún la derivan, con la
+  ficha de antes, y después `seguirALasHojas` hace lo que hacía la lectura: los
+  bloques nuevos (el Compositor) guardan la suya con el reparto que traen, y los
+  rotativos que siguen siendo lo generado se regeneran con las hojas nuevas.
+  Sin la ficha del cliente no se guarda nada.
+- `updateWeeklySplit` escribe el día en el semanal guardado (`ponerDiaSemanal`).
+- `weekly_split` es copia del bloque abierto, escrita solo por
+  `conRepartoDelAbierto` dentro de `applyWorkout`.
+- `CycleSettings` no cambia de cara, pero el tipo y el patrón pasan al bloque
+  abierto (`cambiarCicloDelBloque`); los cerrados ya no los siguen.
+- Ensayo (`npm run ensayo:microciclo`) con la copia del 22 sep: 44 programas,
+  48 bloques (41 semanales, 7 rotativos), 0 diferencias, `weekly_split` intacto.
 
 *F2c — el editor.* La tira (§6), la regeneración mientras no se retoque, el
 aviso al añadir una hoja a una secuencia retocada, la reconciliación (§5) y el

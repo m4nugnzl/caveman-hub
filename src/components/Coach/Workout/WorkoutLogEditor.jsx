@@ -161,6 +161,7 @@ export const WorkoutLogEditor = () => {
     updateClient,
     saveClientException,
     updateWeeklySplit,
+    cambiarCicloDelBloque,
     startSession,
     logSessionSet,
     updateSession,
@@ -862,7 +863,12 @@ export const WorkoutLogEditor = () => {
   const ajustesDelPrograma = (
     <CycleSettings
       client={activeClient}
-      onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
+      onChange={(fields) => {
+        /* El tipo y el patrón rigen el bloque abierto, que ya guarda su
+           secuencia: primero él, con la ficha de antes; después la ficha. */
+        if ('cycleType' in fields || 'cyclePattern' in fields) cambiarCicloDelBloque(activeClient.id, fields);
+        updateClient(activeClient.id, fields, { immediate: false });
+      }}
       protocol={protocol}
       /* Igual que el interruptor de la dieta: cambiar el protocolo desde aquí
          es hacerlo para ESTE cliente, así que queda marcado como excepción y

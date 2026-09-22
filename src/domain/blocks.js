@@ -24,15 +24,20 @@ import { addDays, daysBetween, todayISO, weekStart } from '@/lib/dates';
 import {
   MRV_GOALS,
   WEEK_DAYS,
+  cadenaDe,
   casillasDe,
   claveDelDia,
   cloneExerciseAsTemplate,
   cycleSlots,
   dayPlannedVolume,
   duracionDe,
+  generarSecuencia,
+  isRestDay,
   normalizaMicrociclo,
+  normalizePattern,
   rotatingSlots,
   secuenciaSemanal,
+  tandasDe,
   tecnicaOf,
   vecesDeCadaHoja,
 } from './training';
@@ -1048,10 +1053,11 @@ export const fraseDeHorizonte = (program, bloque, semanaEnCurso, { unidad, unida
 
    @param client `{ cycleType, cyclePattern }`: solo cuentan para derivar.
 */
-export const microcicloDelBloque = (program, block, client = null) => {
-  const guardado = normalizaMicrociclo(block?.microciclo);
-  if (guardado) return guardado;
+export const microcicloDelBloque = (program, block, client = null) =>
+  normalizaMicrociclo(block?.microciclo) || derivarMicrociclo(program, block, client);
 
+/** El que se lee sin nada guardado: del reparto o del patrón del cliente. */
+export const derivarMicrociclo = (program, block, client = null) => {
   if ((client?.cycleType || 'weekly') !== 'rotating') {
     return { tipo: 'semanal', dias: secuenciaSemanal(block ? structureOfBlock(program, block).weeklySplit : {}) };
   }
@@ -1121,9 +1127,10 @@ export const fechaDelCicloSiguiente = (program, previous, client = null) => {
  * tienen no se tocan, y si todos la tienen devuelve el mismo programa. No toca
  * `microcycles`, así que fechas y analítica no pueden moverse.
  *
- * Todavía SIN CONECTAR (F1): conectarla antes de que `updateWeeklySplit` y
- * `CycleSettings` escriban la secuencia dejaría a esos dos escribiendo donde ya
- * nadie lee. Entra en `applyPlan` en F2.
+ * Conectada en F2b: la llaman `applyPlan`, `updateWeeklySplit` y el cambio de
+ * ciclo de `CycleSettings` antes de escribir, con la ficha del cliente de
+ * ANTES del cambio. Sin ficha no se llama: se guardaría un semanal a quien es
+ * rotativo.
  */
 export const materializarMicrociclos = (program, client = null) => {
   const lista = blocksOf(program);
@@ -1134,6 +1141,129 @@ export const materializarMicrociclos = (program, client = null) => {
       normalizaMicrociclo(b.microciclo) ? b : { ...b, microciclo: microcicloDelBloque(program, b, client) }
     ),
   };
+};
+
+/* ── Lo que hacía la lectura, ahora al escribir ──────────────────────────────
+   Derivado en cada lectura, el rotativo seguía solo a las hojas y al patrón del
+   cliente, y el semanal al reparto del programa. Guardado, eso hay que hacerlo
+   al escribir, o la secuencia se quedaría con las hojas de cuando se guardó.
+   Estas tres funciones son ese seguimiento, y nada más: lo que se lee después
+   de cada escritura es lo que se leía derivando. */
+
+const igualQue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const conMicrociclo = (program, blockId, microciclo) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) => (b.id === blockId ? { ...b, microciclo } : b)),
+});
+const hojasDelBloque = (program, block) => blockPlan(program, block).sessions.map((s) => s.dayName);
+
+/**
+ * La cadena con la que el generador da EXACTAMENTE esta secuencia rotativa con
+ * estas hojas, o `null` si no la da ninguna: se ha retocado a mano (§5 del
+ * estudio). Se prueba con el patrón del cliente —con él se derivaba—, con la
+ * primera tanda sola y con la cadena literal.
+ */
+export const cadenaQueLaGenera = (microciclo, hojas, client = null) => {
+  if (microciclo?.tipo !== 'rotativo') return null;
+  const [primera] = tandasDe(microciclo.dias);
+  const patron = client?.cycleType === 'rotating' ? normalizePattern(client.cyclePattern) : null;
+  const candidatas = [
+    patron && `${patron.train}-${patron.rest}`,
+    primera && `${primera.entreno}-${primera.descanso}`,
+    cadenaDe(microciclo.dias),
+  ].filter(Boolean);
+  return candidatas.find((c) => igualQue(generarSecuencia(c, hojas), microciclo.dias)) || null;
+};
+
+/**
+ * TRAS UNA ESCRITURA DEL PLAN, LA SECUENCIA SIGUE A LAS HOJAS.
+ *
+ * `antes` ya tiene todas sus secuencias guardadas; `despues` es lo que ha
+ * dejado la escritura. Los bloques nuevos —los abre el Compositor— guardan la
+ * suya, derivada de cómo ha quedado el programa: el reparto que se le ha dado o
+ * el patrón del cliente con sus hojas. Los rotativos que siguen siendo lo que da
+ * el generador se regeneran con sus hojas nuevas. El semanal no se toca: sus
+ * días los pone el reparto, no las hojas.
+ *
+ * Una secuencia que la propia escritura ha cambiado no se regenera: es la que
+ * se quería.
+ */
+export const seguirALasHojas = (antes, despues, client = null) => {
+  const previos = new Map(blocksOf(antes).map((b) => [b.id, b]));
+  const guardado = materializarMicrociclos(despues, client);
+  let cambia = guardado !== despues;
+  const blocks = blocksOf(guardado).map((b) => {
+    const previo = previos.get(b.id);
+    const microciclo = normalizaMicrociclo(b.microciclo);
+    if (!previo || previo.microciclo !== b.microciclo || microciclo?.tipo !== 'rotativo') return b;
+    const hojasAntes = hojasDelBloque(antes, previo);
+    const hojas = hojasDelBloque(guardado, b);
+    if (igualQue(hojasAntes, hojas)) return b;
+    const cadena = cadenaQueLaGenera(microciclo, hojasAntes, client);
+    const dias = cadena && generarSecuencia(cadena, hojas);
+    if (!dias || igualQue(dias, microciclo.dias)) return b;
+    cambia = true;
+    return { ...b, microciclo: { tipo: 'rotativo', dias } };
+  });
+  return cambia ? { ...guardado, blocks } : despues;
+};
+
+/**
+ * EL CICLO DE LA FICHA, EN EL BLOQUE ABIERTO.
+ *
+ * Mientras `CycleSettings` siga cambiando el tipo y el patrón (hasta F2c), el
+ * bloque abierto pasa a leerse como se derivaría con la ficha nueva. Los
+ * cerrados se quedan como están: la estructura es de cada bloque.
+ */
+export const conCicloDelCliente = (program, client) => {
+  const abierto = currentBlock(program);
+  const microciclo = derivarMicrociclo(program, abierto, client);
+  return igualQue(normalizaMicrociclo(abierto.microciclo), microciclo)
+    ? program
+    : conMicrociclo(program, abierto.id, microciclo);
+};
+
+/**
+ * Un día del semanal abierto: lo que escribe «Cae el …». `null` si el bloque
+ * abierto no tiene un semanal guardado.
+ */
+export const ponerDiaSemanal = (program, dia, valor) => {
+  const i = WEEK_DAYS.indexOf(dia);
+  const abierto = currentBlock(program);
+  const microciclo = normalizaMicrociclo(abierto?.microciclo);
+  if (i < 0 || microciclo?.tipo !== 'semanal') return null;
+  const nuevo = isRestDay(valor) ? { descanso: true } : { hoja: String(valor).trim() };
+  return conMicrociclo(program, abierto.id, {
+    tipo: 'semanal',
+    dias: microciclo.dias.map((d, j) => (j === i ? nuevo : d)),
+  });
+};
+
+/**
+ * `weekly_split`, COPIA DEL BLOQUE ABIERTO. El único sitio que la escribe
+ * mientras ese bloque tenga su semanal guardado: lo llama `applyWorkout` tras
+ * cada escritura.
+ *
+ * Se sigue guardando para quien todavía lee el reparto —la app en caché de un
+ * teléfono, y los lectores de F3—; se retira cuando no quede ninguno. Si ya dice
+ * lo mismo, no se toca: un día puede decir «» o «Descanso» y los dos son
+ * descanso.
+ */
+export const conRepartoDelAbierto = (program) => {
+  const microciclo = normalizaMicrociclo(currentBlock(program)?.microciclo);
+  if (microciclo?.tipo !== 'semanal') return program;
+  /* Un día de entreno sin hoja no cabe en un reparto: se copia como descanso. */
+  const dias = microciclo.dias.map((d) => (d.hoja ? d : { descanso: true }));
+  const previo = program?.weeklySplit || {};
+  if (igualQue(secuenciaSemanal(previo), dias)) return program;
+  const weeklySplit = Object.fromEntries(
+    WEEK_DAYS.map((dia, i) => {
+      const { hoja } = dias[i];
+      if (!hoja) return [dia, previo[dia] !== undefined && isRestDay(previo[dia]) ? previo[dia] : 'Descanso'];
+      return [dia, String(previo[dia] ?? '').trim() === hoja ? previo[dia] : hoja];
+    })
+  );
+  return { ...program, weeklySplit };
 };
 
 /* ══════════════════════════════════════════════════════════════════════════

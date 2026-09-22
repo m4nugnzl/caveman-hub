@@ -61,6 +61,11 @@ import {
   proyectarPlanEnDias,
   resolvedMicrocycles,
   fechaDelCicloSiguiente,
+  conCicloDelCliente,
+  conRepartoDelAbierto,
+  materializarMicrociclos,
+  ponerDiaSemanal,
+  seguirALasHojas,
 } from '@/domain/blocks';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
@@ -153,7 +158,9 @@ export const useWorkout = ({
   const applyWorkout = useCallback(
     (clientId, updater, { immediate = true, skipPersist = false, sinHistorial = false } = {}) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
-      const next = updater(current);
+      /* `weekly_split` se copia del bloque abierto aquí y en ningún otro sitio:
+         ver `conRepartoDelAbierto`. */
+      const next = conRepartoDelAbierto(updater(current));
       if (next === current) return current;
 
       setWorkoutData({ ...workoutRef.current, [clientId]: next });
@@ -999,14 +1006,58 @@ export const useWorkout = ({
     [applyWorkout]
   );
 
+  /**
+   * La ficha del cliente, para guardar la secuencia de los bloques que aún no
+   * la tienen. Sin ficha no se guarda nada: derivada sin ella, la de un
+   * rotativo saldría semanal. Ver `materializarMicrociclos`.
+   */
+  const conSecuencias = useCallback(
+    (clientId, program) => {
+      const client = clientsRef.current.find((c) => c.id === clientId);
+      return client ? { program: materializarMicrociclos(program, client), client } : { program, client: null };
+    },
+    [clientsRef]
+  );
+
+  /**
+   * «Cae el …»: un día del reparto. Con el semanal guardado se escribe en la
+   * secuencia del bloque abierto, y `weekly_split` la copia al pasar por
+   * `applyWorkout`. En un rotativo el reparto no rige y se guarda como antes.
+   */
   const updateWeeklySplit = useCallback(
     (clientId, day, value) =>
       applyWorkout(
         clientId,
-        (cd) => ({ ...cd, weeklySplit: { ...cd.weeklySplit, [day]: value } }),
+        (cd) => {
+          const { program } = conSecuencias(clientId, cd);
+          return (
+            ponerDiaSemanal(program, day, value) || { ...program, weeklySplit: { ...program.weeklySplit, [day]: value } }
+          );
+        },
         { immediate: false }
       ),
-    [applyWorkout]
+    [applyWorkout, conSecuencias]
+  );
+
+  /**
+   * El tipo o el patrón de la ficha, cambiados en `CycleSettings`: el bloque
+   * abierto pasa a leerse con la ficha nueva (`conCicloDelCliente`). Se llama
+   * ANTES de guardar la ficha, para que los bloques sin secuencia la guarden con
+   * la de antes. Sin historial: ⌘Z no deshace la ficha, y deshacer solo el
+   * bloque los dejaría en desacuerdo.
+   */
+  const cambiarCicloDelBloque = useCallback(
+    (clientId, campos) =>
+      applyWorkout(
+        clientId,
+        (cd) => {
+          if ((cd.microcycles || []).length === 0) return cd;
+          const { program, client } = conSecuencias(clientId, cd);
+          return client ? conCicloDelCliente(program, { ...client, ...campos }) : cd;
+        },
+        { immediate: false, sinHistorial: true }
+      ),
+    [applyWorkout, conSecuencias]
   );
 
   /**
@@ -1254,14 +1305,25 @@ export const useWorkout = ({
      deja ahí lo mismo que la pantalla lee, y lo hace en el mismo gesto que toca
      el plan: quien edita es el entrenador, que sí puede escribir la fila.
   */
+  /*
+     ── Y la secuencia del microciclo, guardada en cada bloque ──────────────
+     Antes de escribir, los bloques que aún la derivan la guardan; después, la
+     secuencia sigue a las hojas como lo hacía al derivarse (`seguirALasHojas`).
+     Los bloques que abre la escritura —el Compositor— guardan la suya con el
+     reparto que se les ha dado.
+  */
   const applyPlan = useCallback(
     (clientId, updater, options) =>
       applyWorkout(
         clientId,
-        (cd) => proyectarPlanEnDias(updater(migrateBlockPlans(cd).program)),
+        (cd) => {
+          const { program: antes, client } = conSecuencias(clientId, migrateBlockPlans(cd).program);
+          const despues = updater(antes);
+          return proyectarPlanEnDias(client ? seguirALasHojas(antes, despues, client) : despues);
+        },
         options
       ),
-    [applyWorkout]
+    [applyWorkout, conSecuencias]
   );
 
   /** Sube el plan de este cliente al bloque, sin cambiar nada más. */
@@ -1311,6 +1373,10 @@ export const useWorkout = ({
 
           `null` no toca nada: quien no reparte hereda el reparto que ya
           hubiera, que es lo que hacía esto antes de existir este parámetro.
+
+          La secuencia del bloque nuevo sale de aquí: `applyPlan` la guarda en
+          el bloque con este reparto (semanal) o con el patrón del cliente y
+          las hojas nuevas (rotativo). Ver `seguirALasHojas`.
         */
         weeklySplit = null,
       } = {}
@@ -2294,6 +2360,7 @@ export const useWorkout = ({
     removeDay,
     restoreDay,
     updateWeeklySplit,
+    cambiarCicloDelBloque,
     startProgram,
     appendMicrocycle,
     appendMicrocycleWithDays,

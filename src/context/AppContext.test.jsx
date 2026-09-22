@@ -441,7 +441,11 @@ describe('AppProvider', () => {
     // `saveCheckInAnswers` guarda las respuestas de la semana sin entregarla,
     // porque en el teléfono la revisión se hace por pasos sueltos y se entrega
     // al final con un botón aparte.
-    expect(Object.keys(visto.app).length).toBe(291);
+    //
+    // Y 292 desde que EL MICROCICLO SE GUARDA EN EL BLOQUE (F2b):
+    // `cambiarCicloDelBloque` lleva el tipo y el patrón de la ficha al bloque
+    // abierto, que ya no los lee de la ficha.
+    expect(Object.keys(visto.app).length).toBe(292);
   });
 
   /*

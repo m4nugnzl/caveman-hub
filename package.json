@@ -11,6 +11,7 @@
     "verify": "node scripts/verify-styles.mjs",
     "backup": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/backup.mjs",
     "ensayo:plan": "vite-node scripts/ensayo-plan-bloque.mjs",
+    "ensayo:microciclo": "vite-node scripts/ensayo-microciclo.mjs",
     "reparar:ids": "vite-node scripts/reparar-ids-del-plan.mjs",
     "radiografia": "node --env-file-if-exists=.env --env-file-if-exists=.env.backup scripts/radiografia.mjs",
     "catalogo": "node scripts/generar-catalogo.mjs",
