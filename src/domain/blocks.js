@@ -24,10 +24,15 @@ import { addDays, daysBetween, todayISO, weekStart } from '@/lib/dates';
 import {
   MRV_GOALS,
   WEEK_DAYS,
+  casillasDe,
   claveDelDia,
   cloneExerciseAsTemplate,
   cycleSlots,
   dayPlannedVolume,
+  duracionDe,
+  normalizaMicrociclo,
+  rotatingSlots,
+  secuenciaSemanal,
   tecnicaOf,
 } from './training';
 import { executedSessions, sesionAMedias, sessionTonnage } from './sessions';
@@ -1004,6 +1009,83 @@ export const fraseDeHorizonte = (program, bloque, semanaEnCurso, { unidad, unida
 };
 
 /* ══════════════════════════════════════════════════════════════════════════
+   EL MICROCICLO DEL BLOQUE
+   ══════════════════════════════════════════════════════════════════════════
+
+   La estructura —qué se entrena cada día y cuándo se descansa— es del BLOQUE:
+   cambiarla en uno no cambia cómo se leen los anteriores. Se guarda en
+   `block.microciclo` (ver «El microciclo como secuencia» en `training.js`).
+
+   ══ Mientras no esté guardado, se DERIVA de lo de siempre ════════════════════
+   · Semanal: el reparto del bloque —el del programa si es el abierto, su copia
+     congelada si está cerrado—, día a día.
+   · Rotativo: `rotatingSlots` con el patrón de la ficha del cliente y las hojas
+     del bloque, que es exactamente lo que se pintaba hasta ahora.
+
+   Así los lectores pasan a preguntar aquí sin que cambie nada visible, y el día
+   que se guarde (`materializarMicrociclos`), lo guardado es idéntico a lo que ya
+   se leía. Ver `docs/estudio-microciclo-secuencia.md`.
+
+   @param client `{ cycleType, cyclePattern }`: solo cuentan para derivar.
+*/
+export const microcicloDelBloque = (program, block, client = null) => {
+  const guardado = normalizaMicrociclo(block?.microciclo);
+  if (guardado) return guardado;
+
+  if ((client?.cycleType || 'weekly') !== 'rotating') {
+    return { tipo: 'semanal', dias: secuenciaSemanal(block ? structureOfBlock(program, block).weeklySplit : {}) };
+  }
+
+  const sesiones = block ? blockPlan(program, block).sessions : [];
+  return {
+    tipo: 'rotativo',
+    dias: rotatingSlots(client?.cyclePattern, sesiones).map((slot) =>
+      slot.rest ? { descanso: true } : { hoja: sesiones.length > 0 ? slot.name || null : null }
+    ),
+  };
+};
+
+/** El microciclo del bloque que corre. */
+export const microcicloEnCurso = (program, client = null) =>
+  microcicloDelBloque(program, currentBlock(program), client);
+
+/**
+ * Cuándo nace el microciclo que va después de `previous`: su fecha más lo que
+ * dura la secuencia de SU bloque. Sin fecha anterior —datos viejos—, hoy.
+ *
+ * Sustituye a `nextCycleDate`, que medía con el patrón del cliente y los `days`
+ * del microciclo anterior. Difiere solo si esos `days` arrastran hojas
+ * retiradas con kilos antiguos (`proyectarPlanEnDias`): entonces el siguiente
+ * nace unos días antes. Lo ya fechado no se mueve.
+ */
+export const fechaDelCicloSiguiente = (program, previous, client = null) => {
+  const bloque = previous ? blockOfWeek(program, previous.weekNumber) : currentBlock(program);
+  return addDays(previous?.date, duracionDe(microcicloDelBloque(program, bloque, client))) || todayISO();
+};
+
+/**
+ * GUARDA EN CADA BLOQUE LA SECUENCIA QUE YA SE LEE.
+ *
+ * Pura, idempotente y perezosa, como `migrateBlockPlans`: los bloques que ya la
+ * tienen no se tocan, y si todos la tienen devuelve el mismo programa. No toca
+ * `microcycles`, así que fechas y analítica no pueden moverse.
+ *
+ * Todavía SIN CONECTAR (F1): conectarla antes de que `updateWeeklySplit` y
+ * `CycleSettings` escriban la secuencia dejaría a esos dos escribiendo donde ya
+ * nadie lee. Entra en `applyPlan` en F2.
+ */
+export const materializarMicrociclos = (program, client = null) => {
+  const lista = blocksOf(program);
+  if (lista.every((b) => normalizaMicrociclo(b.microciclo))) return program;
+  return {
+    ...program,
+    blocks: lista.map((b) =>
+      normalizaMicrociclo(b.microciclo) ? b : { ...b, microciclo: microcicloDelBloque(program, b, client) }
+    ),
+  };
+};
+
+/* ══════════════════════════════════════════════════════════════════════════
    LA BITÁCORA DEL BLOQUE
    ══════════════════════════════════════════════════════════════════════════
 
@@ -1958,14 +2040,7 @@ export const clientCycleSlots = (client, program) => {
     });
   }
 
-  const bloque = currentBlock(program);
-  const rotativo = (client?.cycleType || 'weekly') === 'rotating';
-  return cycleSlots({
-    cycleType: client?.cycleType,
-    pattern: client?.cyclePattern,
-    sessions: rotativo && bloque ? blockPlan(program, bloque).sessions : [],
-    weeklySplit: bloque ? structureOfBlock(program, bloque).weeklySplit || {} : {},
-  });
+  return casillasDe(microcicloEnCurso(program, client));
 };
 
 /**
@@ -2054,7 +2129,10 @@ export const semanaDelCliente = (client, program, casillas = [], hoy = todayISO(
   if (!lunes) return null;
 
   const dias = Array.from({ length: 7 }, (_, i) => addDays(lunes, i));
-  const rotativo = (client?.cycleType || 'weekly') === 'rotating';
+  /* Quien entrena por su cuenta no tiene bloque: su tipo es el de su ficha. */
+  const rotativo = entrenaPorSuCuenta(client)
+    ? (client?.cycleType || 'weekly') === 'rotating'
+    : microcicloEnCurso(program, client).tipo === 'rotativo';
 
   if (!rotativo) {
     return dias.map((fecha) => {

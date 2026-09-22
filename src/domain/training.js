@@ -301,6 +301,186 @@ export const rotatingSlots = (pattern, days = []) => {
   return slots;
 };
 
+/* ══════════════════════════════════════════════════════════════════════════
+   EL MICROCICLO COMO SECUENCIA
+   ══════════════════════════════════════════════════════════════════════════
+
+   Un patrón `{train, rest}` solo sabe decir «2 y 1» para siempre: no cabe un
+   «2-1 2-1 3-1», ni una semana con dos descansos seguidos en rotativo. Así que
+   el microciclo pasa a ser lo que de verdad es, una SECUENCIA de días:
+
+       { tipo: 'semanal' | 'rotativo',
+         dias: [{ hoja: 'Push' } | { hoja: null } | { descanso: true }, …] }
+
+   · Semanal: siempre siete, empezando en lunes.
+   · Rotativo: los que sean, y se repite sin ancla de calendario.
+   · `{ hoja: null }` es un día de entreno sin hoja todavía: solo lo pone el
+     generador cuando el bloque aún no tiene hojas.
+
+   Vive en el bloque (`block.microciclo`, ver `microcicloDelBloque`). La cadena
+   «2-1 2-1 3-1» NO se guarda: es un generador (`generarSecuencia`) y se relee
+   de la secuencia (`cadenaDe`). Ver `docs/estudio-microciclo-secuencia.md`.
+*/
+
+/** Del tipo de ciclo de la ficha del cliente al del microciclo. */
+export const TIPO_DEL_CICLO = { weekly: 'semanal', rotating: 'rotativo' };
+
+const DESCANSO = Object.freeze({ descanso: true });
+
+const diaSaneado = (dia) => {
+  if (dia?.descanso === true) return { descanso: true };
+  const hoja = typeof dia?.hoja === 'string' ? dia.hoja.trim() : '';
+  return { hoja: hoja || null };
+};
+
+/**
+ * Un microciclo guardado, saneado al leer. Devuelve `null` si no se puede leer
+ * como tal —quien llama deriva entonces el de siempre—: un tipo desconocido o
+ * una secuencia vacía no pueden fechar nada.
+ *
+ * El semanal se ajusta a siete días (lo que falte, descanso): un semanal de
+ * catorce no existe.
+ */
+export const normalizaMicrociclo = (raw) => {
+  if (!raw || (raw.tipo !== 'semanal' && raw.tipo !== 'rotativo')) return null;
+  const dias = (Array.isArray(raw.dias) ? raw.dias : []).map(diaSaneado);
+  if (raw.tipo === 'semanal') {
+    return { tipo: 'semanal', dias: WEEK_DAYS.map((_, i) => dias[i] || { descanso: true }) };
+  }
+  if (dias.length === 0) return null;
+  return { tipo: 'rotativo', dias };
+};
+
+/**
+ * La cadena de tandas, leída: «2-1 2-1 3-1» → `[{entreno:2, descanso:1}, …]`.
+ *
+ * Acepta guion o barra y cualquier separador entre tandas. Una tanda «0-0» no
+ * aporta días y se descarta; «0-2» vale (el ciclo empieza descansando). Sin
+ * ninguna tanda legible, `null`.
+ */
+export const leerCadena = (texto) => {
+  const tandas = [...String(texto ?? '').matchAll(/(\d+)\s*[-/]\s*(\d+)/g)]
+    .map(([, e, d]) => ({ entreno: Number(e), descanso: Number(d) }))
+    .filter((t) => t.entreno + t.descanso > 0);
+  return tandas.length > 0 ? tandas : null;
+};
+
+/**
+ * Las tandas de una secuencia: entrenos seguidos y los descansos que los
+ * siguen. Es la cadena que se enseña en el campo «Tandas», derivada: guardarla
+ * aparte serían dos versiones de lo mismo en cuanto se retoca un día.
+ */
+export const tandasDe = (dias = []) => {
+  const tandas = [];
+  let actual = null;
+  for (const dia of dias) {
+    if (dia?.descanso) {
+      if (!actual) actual = { entreno: 0, descanso: 0 };
+      actual.descanso += 1;
+    } else {
+      if (actual && actual.descanso > 0) {
+        tandas.push(actual);
+        actual = null;
+      }
+      if (!actual) actual = { entreno: 0, descanso: 0 };
+      actual.entreno += 1;
+    }
+  }
+  if (actual) tandas.push(actual);
+  return tandas;
+};
+
+/** La cadena de una secuencia, escrita: «2-1 2-1 3-1». */
+export const cadenaDe = (dias = []) =>
+  tandasDe(dias)
+    .map((t) => `${t.entreno}-${t.descanso}`)
+    .join(' ');
+
+/**
+ * LA SECUENCIA QUE SALE DE UNA CADENA, con las hojas en orden.
+ *
+ * ── Una sola tanda («2-1»): se repite hasta colocar todas las hojas ────────
+ * Es lo de siempre, y da EXACTAMENTE lo mismo que `rotatingSlots` —hay una
+ * prueba que lo demuestra para cualquier número de hojas—: se descansa cada
+ * `entreno` sesiones, y la última tanda cierra descansando aunque quede corta.
+ *
+ * ── Varias tandas («2-1 2-1 3-1»): literal ─────────────────────────────────
+ * La cadena fija la longitud. Si sobran casillas de entreno, las hojas vuelven a
+ * empezar en orden (repeticiones); si sobran hojas, se quedan fuera —«Sin
+ * día»—. No se inventa una tanda «1-1» que nadie escribió.
+ *
+ * Sin hojas, los días de entreno salen `{ hoja: null }`: la forma del ciclo se
+ * ve antes de tener nombres que poner.
+ *
+ * @param cadena Texto («2-1 2-1 3-1») o las tandas ya leídas.
+ * @param hojas  Nombres, o `[{ dayName }]`.
+ * @returns `[{ hoja } | { descanso: true }]`, o `null` si la cadena no se lee.
+ */
+export const generarSecuencia = (cadena, hojas = []) => {
+  const tandas = Array.isArray(cadena) ? cadena : leerCadena(cadena);
+  if (!tandas || tandas.length === 0) return null;
+  const nombres = (hojas || []).map((h) => (typeof h === 'string' ? h : h?.dayName)).filter(Boolean);
+  const hojaEn = (i) => ({ hoja: nombres.length > 0 ? nombres[i % nombres.length] : null });
+
+  if (tandas.length > 1) {
+    const dias = [];
+    let i = 0;
+    for (const { entreno, descanso } of tandas) {
+      for (let k = 0; k < entreno; k += 1) dias.push(hojaEn(i++));
+      for (let k = 0; k < descanso; k += 1) dias.push({ ...DESCANSO });
+    }
+    return dias;
+  }
+
+  const { entreno, descanso } = tandas[0];
+  if (entreno === 0) return Array.from({ length: descanso }, () => ({ ...DESCANSO }));
+  /* Con hojas, una casilla por hoja y ni una más —«3-1» con dos hojas es
+     A B ·, no A B A ·—; sin ninguna, la tanda entera para ver su forma. */
+  const total = nombres.length > 0 ? nombres.length : entreno;
+  const dias = [];
+  for (let i = 0; i < total; i += 1) {
+    dias.push(hojaEn(i));
+    const cierraTanda = (i + 1) % entreno === 0 || i === total - 1;
+    if (cierraTanda) for (let k = 0; k < descanso; k += 1) dias.push({ ...DESCANSO });
+  }
+  return dias;
+};
+
+/** La secuencia semanal que describe un reparto `{ Lunes: 'Push', … }`. */
+export const secuenciaSemanal = (weeklySplit) =>
+  WEEK_DAYS.map((dia) =>
+    isRestDay(weeklySplit?.[dia]) ? { descanso: true } : { hoja: String(weeklySplit[dia]).trim() }
+  );
+
+/** Cuántos días dura un microciclo. */
+export const duracionDe = (microciclo) => microciclo?.dias?.length || 0;
+
+/** Cuántos de sus días son de entreno. */
+export const entrenosDe = (microciclo) => (microciclo?.dias || []).filter((d) => !d.descanso).length;
+
+/**
+ * Las casillas de un microciclo, con la forma de `cycleSlots`: la clave es el
+ * día de la semana en el semanal y la POSICIÓN («1»…«N») en el rotativo, que es
+ * lo que guarda `nutrition_plans.week`.
+ */
+export const casillasDe = (microciclo) => {
+  const dias = microciclo?.dias || [];
+  if (microciclo?.tipo === 'rotativo') {
+    return dias.map((dia, i) => ({
+      key: String(i + 1),
+      corto: `D${i + 1}`,
+      sesion: dia.descanso ? null : dia.hoja || 'Entreno',
+      rest: Boolean(dia.descanso),
+    }));
+  }
+  return WEEK_DAYS.map((dia, i) => ({
+    key: dia,
+    corto: dia.slice(0, 3),
+    sesion: dias[i]?.descanso || !dias[i]?.hoja ? null : dias[i].hoja,
+    rest: Boolean(dias[i]?.descanso || !dias[i]?.hoja),
+  }));
+};
+
 // ── Constructores ──────────────────────────────────────────────────────────
 
 /**
@@ -390,7 +570,11 @@ export const cycleSlots = ({
   pattern = null,
   sessions = [],
   weeklySplit = null,
+  microciclo = null,
 } = {}) => {
+  /* La secuencia del bloque manda sobre todo lo demás: tipo, patrón y reparto
+     son la forma vieja de decir lo mismo. Ver `microcicloDelBloque`. */
+  if (microciclo) return casillasDe(microciclo);
   if (cycleType === 'rotating') {
     /* La clave es la POSICIÓN dentro del ciclo y no el nombre de la sesión: un
        ciclado de hidratos puede pedir cosas distintas en dos días que se llaman

@@ -864,6 +864,7 @@ puede parar sin dejar la aplicación a medias entre dos modelos.
 | 3 | **Quitar los planos de más** | Las tarjetas-pestaña de Progreso y de Revisión → chips; el saludo deja de ser una tarjeta | **HECHA** |
 | 4 | **«Su semana»** | La pantalla de §6, en `/c/:id/semana`, con `domain/week.js` y once pruebas. Convive con las secciones actuales sin sustituir ninguna | **HECHA** |
 | 5 | **Reagrupar las secciones** | Seis secciones a cinco, sin una sola redirección. §4.2 (el portal) sigue sin decidir | **HECHA en parte** (26 ago 2026) |
+| 6 | **El microciclo como secuencia** | La estructura baja al bloque como secuencia de días (`block.microciclo`) y admite repartos asimétricos («2-1 2-1 3-1»). F1 dominio y pruebas · F2 conteo de hojas repetidas, persistencia y editor · F3 portal, panel y dieta. Ver `estudio-microciclo-secuencia.md` | **F1 HECHA** (22 sep 2026) |
 
 > **§4.3 estaba equivocado en el precio, y era lo que bloqueaba esta fase.** Este
 > documento daba por hecho que reagrupar obliga a mover URLs —`/rutina` →

@@ -12,7 +12,6 @@ import {
   findMicrocycle,
   firstCycleDate,
   microcycleIds,
-  nextCycleDate,
   nextWeekNumber,
   reidExercises,
   restWeekSplit,
@@ -61,6 +60,7 @@ import {
   hasBlockPlan,
   proyectarPlanEnDias,
   resolvedMicrocycles,
+  fechaDelCicloSiguiente,
 } from '@/domain/blocks';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
@@ -1012,17 +1012,17 @@ export const useWorkout = ({
   /**
    * Con qué fecha nace el ciclo que va después de `previous`.
    *
-   * El tipo de ciclo y el patrón son del CLIENTE, no del programa, así que se
-   * leen aquí: en el semanal son siete días y en el rotativo lo que dure el
-   * ciclo anterior con sus sesiones dentro —seis sesiones a 2/1 son nueve días,
-   * no tres—. Ver `cycleSpanDays`.
+   * Lo que dura el anterior lo dice la secuencia de SU bloque: siete días en el
+   * semanal, los que tenga en el rotativo —seis hojas a 2/1 son nueve días, no
+   * tres—. El cliente solo hace falta para derivarla mientras el bloque no la
+   * tenga guardada. Ver `fechaDelCicloSiguiente`.
    */
   const fechaSiguienteCiclo = useCallback(
     (clientId, previous) => {
       const client = clientsRef.current.find((c) => c.id === clientId);
-      return nextCycleDate(previous, client?.cycleType, client?.cyclePattern);
+      return fechaDelCicloSiguiente(workoutRef.current[clientId], previous, client);
     },
-    [clientsRef]
+    [clientsRef, workoutRef]
   );
 
   /**
@@ -1120,7 +1120,7 @@ export const useWorkout = ({
             days: days.length > 0 ? days : [{ dayName: 'Día 1', exercises: [] }],
             /* Va DETRÁS de la anterior, no en la fecha de hoy: programar cuatro
                semanas de una sentada es el gesto normal, y con la fecha de hoy
-               las cuatro nacían el mismo día. Ver `nextCycleDate`. */
+               las cuatro nacían el mismo día. Ver `fechaDelCicloSiguiente`. */
             date: fechaSiguienteCiclo(clientId, last),
           }),
         ],
