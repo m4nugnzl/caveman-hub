@@ -459,6 +459,22 @@ export const duracionDe = (microciclo) => microciclo?.dias?.length || 0;
 export const entrenosDe = (microciclo) => (microciclo?.dias || []).filter((d) => !d.descanso).length;
 
 /**
+ * Cuántas veces sale cada hoja en la secuencia. Una hoja puede caer dos días
+ * —Push el lunes y el jueves— y entonces pide dos sesiones, no una. Los días
+ * de entreno sin hoja no cuentan.
+ *
+ * @returns {Map<string, number>}
+ */
+export const vecesDeCadaHoja = (microciclo) => {
+  const veces = new Map();
+  for (const dia of microciclo?.dias || []) {
+    if (dia.descanso || !dia.hoja) continue;
+    veces.set(dia.hoja, (veces.get(dia.hoja) || 0) + 1);
+  }
+  return veces;
+};
+
+/**
  * Las casillas de un microciclo, con la forma de `cycleSlots`: la clave es el
  * día de la semana en el semanal y la POSICIÓN («1»…«N») en el rotativo, que es
  * lo que guarda `nutrition_plans.week`.

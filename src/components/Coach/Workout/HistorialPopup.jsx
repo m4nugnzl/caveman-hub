@@ -57,7 +57,7 @@ const Cambios = ({ bloque, etiqueta }) => {
   );
 };
 
-export const HistorialPopup = ({ open, onClose, program, bloque, semanaEnCurso, unidad, unidades, onIrBloque, onIrSemana, onFechaSemana }) => {
+export const HistorialPopup = ({ open, onClose, program, cliente = null, bloque, semanaEnCurso, unidad, unidades, onIrBloque, onIrSemana, onFechaSemana }) => {
   const bloques = blocksOf(program);
   const microcycles = program?.microcycles || [];
   const letra = unidad.charAt(0);
@@ -81,7 +81,7 @@ export const HistorialPopup = ({ open, onClose, program, bloque, semanaEnCurso, 
         )}
 
         {[...bloques].reverse().map((b, i) => {
-          const r = blockSummary(program, b);
+          const r = blockSummary(program, b, cliente);
           const esEste = b.id === bloque.id;
           const numero = bloques.length - i;
           const etiqueta = (w) => `${letra}${w - b.fromWeek + 1}`;

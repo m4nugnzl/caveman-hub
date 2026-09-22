@@ -34,6 +34,7 @@ import {
   rotatingSlots,
   secuenciaSemanal,
   tecnicaOf,
+  vecesDeCadaHoja,
 } from './training';
 import { executedSessions, sesionAMedias, sessionTonnage } from './sessions';
 import { clientProtocol, isServiceOn } from './protocol';
@@ -539,8 +540,17 @@ export const blockPlan = (program, block) => {
  * `kg`, `hechas` y `planificadas` son lo que PASÓ. Son dos preguntas y las dos
  * hacen falta para juzgar un bloque: uno con mucho volumen y media adherencia
  * no es un bloque de mucho volumen.
+ *
+ * ── Se cuentan APARICIONES, no hojas ────────────────────────────────────────
+ * Una hoja que cae dos días del microciclo son dos sesiones planificadas, y
+ * `hechas` solo suma las que cubren una aparición: la tercera sesión de una
+ * hoja que sale dos veces no sube la adherencia. Las sesiones de una hoja que
+ * ya no está en el plan cuentan como hasta ahora. Ver `vecesDeLaHoja`.
+ *
+ * @param client `{ cycleType, cyclePattern }`: para derivar la secuencia de los
+ *   bloques que aún no la tienen guardada.
  */
-export const blockSummary = (program, block) => {
+export const blockSummary = (program, block, client = null) => {
   const semanas = weeksOfBlock(program, block);
   const microcycles = program?.microcycles || [];
   const suyos = semanas.map((w) => microcycles.find((m) => m.weekNumber === w)).filter(Boolean);
@@ -562,12 +572,22 @@ export const blockSummary = (program, block) => {
   const detalle = [];
   for (const micro of suyos) {
     const sesiones = executedSessions(micro);
-    const suyasPlan = planOfWeek(program, micro.weekNumber).length;
-    hechas += sesiones.length;
+    const plan = planOfWeek(program, micro.weekNumber);
+    const veces = vecesDeLaHoja(program, micro.weekNumber, client);
+    const porHoja = sesionesPorHoja(sesiones);
+    const enElPlan = new Set(plan.map((h) => h.dayName));
+
+    const suyasPlan = plan.reduce((n, h) => n + veces(h.dayName), 0);
+    const suyasHechas =
+      plan.reduce((n, h) => n + Math.min(porHoja.get(h.dayName) || 0, veces(h.dayName)), 0) +
+      sesiones.filter((s) => !enElPlan.has(s.dayName)).length;
+
+    hechas += suyasHechas;
     planificadas += suyasPlan;
     for (const s of sesiones) kg += sessionTonnage(s);
-    detalle.push({ semana: micro.weekNumber, hechas: sesiones.length, planificadas: suyasPlan });
+    detalle.push({ semana: micro.weekNumber, hechas: suyasHechas, planificadas: suyasPlan });
   }
+
 
   const fechas = suyos.map((m) => m.date).filter(Boolean);
   return {
@@ -1048,6 +1068,37 @@ export const microcicloDelBloque = (program, block, client = null) => {
 /** El microciclo del bloque que corre. */
 export const microcicloEnCurso = (program, client = null) =>
   microcicloDelBloque(program, currentBlock(program), client);
+
+/** El microciclo del bloque al que pertenece la semana `weekNumber`. */
+export const microcicloDeLaSemana = (program, weekNumber, client = null) =>
+  microcicloDelBloque(program, blockOfWeek(program, weekNumber), client);
+
+/**
+ * CUÁNTAS SESIONES PIDE CADA HOJA EN UNA SEMANA: las veces que sale en la
+ * secuencia de su bloque, y una como mínimo.
+ *
+ * Una hoja que cae el lunes y el jueves pide dos sesiones; contarla una vez
+ * daba el microciclo por cerrado con la mitad hecha. El «como mínimo una» es
+ * para las hojas que no caen en ningún día —un semanal sin días asignados, o
+ * una hoja en «Sin día»—: siguen siendo del plan y se entrenan, como hasta
+ * ahora.
+ *
+ * La i-ésima sesión de una hoja, por fecha, cubre su i-ésima aparición; las que
+ * pasen de ahí no cubren nada. Ver `docs/estudio-microciclo-secuencia.md` §5.
+ *
+ * @returns {(dayName: string) => number}
+ */
+export const vecesDeLaHoja = (program, weekNumber, client = null) => {
+  const veces = vecesDeCadaHoja(microcicloDeLaSemana(program, weekNumber, client));
+  return (dayName) => Math.max(1, veces.get(dayName) || 0);
+};
+
+/** Cuántas sesiones lleva cada hoja en un microciclo. */
+const sesionesPorHoja = (sesiones) => {
+  const cuenta = new Map();
+  for (const s of sesiones) cuenta.set(s.dayName, (cuenta.get(s.dayName) || 0) + 1);
+  return cuenta;
+};
 
 /**
  * Cuándo nace el microciclo que va después de `previous`: su fecha más lo que
@@ -2196,8 +2247,14 @@ export const semanaDelCliente = (client, program, casillas = [], hoy = todayISO(
  * Devuelve el número de la semana que se abriría, o `null`. El número sirve
  * para la clave del guardado (ver `continueProgram`); lo que la portada escribe
  * es la posición dentro del bloque, que es otra cuenta y es suya.
+ *
+ * «Entero anotado» cuenta APARICIONES: una hoja que cae el lunes y el jueves
+ * necesita dos sesiones. Ver `vecesDeLaHoja`.
+ *
+ * @param client `{ cycleType, cyclePattern }`: para derivar la secuencia del
+ *   bloque si aún no la tiene guardada.
  */
-export const cicloPorAbrir = (program) => {
+export const cicloPorAbrir = (program, client = null) => {
   const conPlan = program ? { ...program, microcycles: resolvedMicrocycles(program) } : null;
   const micros = conPlan?.microcycles || [];
   if (micros.length === 0 || sesionAMedias(micros)) return null;
@@ -2209,8 +2266,9 @@ export const cicloPorAbrir = (program) => {
      «entero anotado», está sin montar. */
   if (dias.length === 0) return null;
 
-  const anotadas = new Set(executedSessions(micro).map((s) => s.dayName));
-  if (!dias.every((d) => anotadas.has(d.dayName))) return null;
+  const anotadas = sesionesPorHoja(executedSessions(micro));
+  const veces = vecesDeLaHoja(conPlan, actual, client);
+  if (!dias.every((d) => (anotadas.get(d.dayName) || 0) >= veces(d.dayName))) return null;
 
   const bloque = blockOfWeek(conPlan, actual);
   if (!bloque || !isCurrentBlock(conPlan, bloque)) return null;

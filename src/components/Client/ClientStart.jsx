@@ -5,7 +5,7 @@ import { Dumbbell, FileText, Salad, Scale, Send } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
 import { weightSeries } from '@/domain/anthropometry';
-import { cicloPorAbrir, clientCycleSlots, semanaDelCliente } from '@/domain/blocks';
+import { cicloPorAbrir, clientCycleSlots, microcicloDeLaSemana, semanaDelCliente } from '@/domain/blocks';
 import { clientIntake, clientSteps, intakeDeliverables, stepDone } from '@/domain/intake';
 import { dietaDeHoy } from '@/domain/nutrition';
 import { onboardingState } from '@/domain/onboardingState';
@@ -189,7 +189,7 @@ export const ClientStart = () => {
   const aMedias = sesionAMedias(micros);
   /* Cuándo le toca uno nuevo lo dice el DOMINIO y no esta pantalla: la misma
      regla la pregunta el automatismo de «que el siguiente se abra solo». */
-  const ofreceNueva = Boolean(cicloPorAbrir(program));
+  const ofreceNueva = Boolean(cicloPorAbrir(program, activeClient));
   const ponerSeguirSolo = (valor) =>
     updateClientPreferences(activeClient.id, 'rutina', { seguirSolo: valor });
 
@@ -523,7 +523,11 @@ export const ClientStart = () => {
      rotativo— el bloque del entreno no se cae: ofrece la siguiente del
      microciclo, la misma que la caja «Próxima sesión» de Entreno. En un día de
      descanso del reparto no: ese día lo que toca es descansar. */
-  const proxima = !laSesion && !hoy?.descanso ? proximaDelMicrociclo(micros) : null;
+  const ultimo = micros[micros.length - 1];
+  const proxima =
+    !laSesion && !hoy?.descanso && ultimo
+      ? proximaDelMicrociclo(micros, microcicloDeLaSemana(program, ultimo.weekNumber, activeClient))
+      : null;
   const ejerciciosDelHeroe = laSesion?.ejercicios || proxima?.day?.exercises || [];
 
   const heroe = laSesion

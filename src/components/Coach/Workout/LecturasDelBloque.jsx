@@ -303,7 +303,7 @@ export const LecturasDelBloque = ({
   const cycleType = cliente?.cycleType || 'weekly';
   const unidad = unitLabel(cycleType);
   const unidades = unitLabelPlural(cycleType);
-  const resumen = blockSummary(program, bloque);
+  const resumen = blockSummary(program, bloque, cliente);
   const grupos = volumeByGroup(plan.sessions);
 
   /* La progresión de los ejercicios de ESTE bloque, solo en el actual: en un
@@ -335,6 +335,7 @@ export const LecturasDelBloque = ({
           open
           onClose={() => setVentana(null)}
           program={program}
+          cliente={cliente}
           bloque={bloque}
           semanaEnCurso={semanaEnCurso}
           unidad={unidad}

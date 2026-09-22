@@ -131,20 +131,50 @@ const inicial = (dia) => (dia === 'Miércoles' ? 'X' : dia.charAt(0));
  * (sin reparto por días o con ciclo rotativo), para que el bloque «Tu entreno»
  * no desaparezca.
  *
+ * ── En el orden de la secuencia, y cada aparición ──────────────────────────
+ * Con `microciclo` (la secuencia del bloque, ver `microcicloDeLaSemana`) se
+ * recorre día a día: una hoja que cae el lunes y el jueves son dos sesiones, y
+ * la segunda toca aunque la primera esté hecha. La i-ésima sesión de la hoja,
+ * por fecha, cubre su i-ésima aparición; la última aparición se queda con la
+ * mejor de las que sobran, que es lo que se hacía con una sola. Las hojas que
+ * no caen en ningún día van detrás, una vez cada una. Sin `microciclo`, el
+ * orden de las hojas.
+ *
  * @returns `{ dayName, day, hechas, series, weekNumber }` o `null` si todo está hecho.
  */
-export const proximaDelMicrociclo = (micros = []) => {
+export const proximaDelMicrociclo = (micros = [], microciclo = null) => {
   const micro = micros[micros.length - 1];
   if (!micro) return null;
-  for (const day of micro.days || []) {
+  const dias = micro.days || [];
+
+  const enLaSecuencia = (microciclo?.dias || [])
+    .filter((d) => !d.descanso && d.hoja && dias.some((day) => day.dayName === d.hoja))
+    .map((d) => d.hoja);
+  const orden = [...enLaSecuencia, ...dias.map((d) => d.dayName).filter((n) => !enLaSecuencia.includes(n))];
+  const veces = (dayName) => Math.max(1, enLaSecuencia.filter((n) => n === dayName).length);
+  const vistas = new Map();
+
+  for (const dayName of orden) {
+    const i = vistas.get(dayName) || 0;
+    vistas.set(dayName, i + 1);
+
+    const day = dias.find((d) => d.dayName === dayName);
     const series = (day.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
     if (series === 0) continue;
-    const sesiones = allSessionsOfDay(micro, day.dayName);
-    const hechas = sesiones.length > 0 ? Math.max(...sesiones.map(sessionSetCount)) : 0;
-    if (hechas < series) return { dayName: day.dayName, day, hechas, series, weekNumber: micro.weekNumber };
+
+    const sesiones = porFecha(allSessionsOfDay(micro, dayName));
+    const suyas = i < veces(dayName) - 1 ? sesiones.slice(i, i + 1) : sesiones.slice(i);
+    const hechas = suyas.length > 0 ? Math.max(...suyas.map(sessionSetCount)) : 0;
+    if (hechas < series) return { dayName, day, hechas, series, weekNumber: micro.weekNumber };
   }
   return null;
 };
+
+/** Las sesiones de más antigua a más nueva. */
+const porFecha = (sesiones) =>
+  [...sesiones].sort((a, b) =>
+    String(a.date || a.startedAt || '').localeCompare(String(b.date || b.startedAt || ''))
+  );
 
 /** Lunes = 0, igual que `hojas.js`. */
 const diaDeHoy = () => WEEK_DAYS[(new Date().getDay() + 6) % 7];

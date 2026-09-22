@@ -42,7 +42,7 @@ export const useCicloAutomatico = () => {
   const clientId = activeClient?.id ?? null;
   const program = clientId ? workoutData?.[clientId] : null;
 
-  const siguiente = useMemo(() => cicloPorAbrir(program), [program]);
+  const siguiente = useMemo(() => cicloPorAbrir(program, activeClient), [program, activeClient]);
   const abreSolo = abreSoloElCiclo(activeClient?.preferences);
 
   useEffect(() => {

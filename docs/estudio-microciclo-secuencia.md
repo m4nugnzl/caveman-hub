@@ -3,8 +3,8 @@
 Estudio y plan aprobados el 22 sep 2026. Objetivo: admitir repartos asimétricos
 («2-1 2-1 3-1») sin cambiar nada de lo que ya se ve ni de lo que ya está fechado.
 
-Estado: **F1 construida** (dominio y pruebas, sin UI y sin persistir). F2 y F3
-pendientes.
+Estado: **F1 construida** (dominio y pruebas, sin UI y sin persistir) y **F2a
+construida** (apariciones y `previstoHasta`). F2b, F2c y F3 pendientes.
 
 ---
 
@@ -238,14 +238,26 @@ Semanal
   `CycleSettings`) escribirían donde ya nadie lee. Derivando al leer, F1 no
   cambia nada visible por construcción.
 
-**F2 — persistencia, conteo de apariciones y editor.**
-1. Contar apariciones en `cicloPorAbrir`, `blockSummary`, adherencia y
-   `proximaDelMicrociclo` (orden de la secuencia). Arregla el semanal.
-2. `materializarMicrociclos` en `applyPlan`; `weekly_split` como copia del
-   bloque abierto escrita desde un solo sitio.
-3. `updateWeeklySplit`, Compositor y `startBlock*` escriben y heredan la
-   secuencia; reconciliación (§5); portapapeles.
-4. La tira (§6); `CycleSettings` pierde tipo y patrón.
+**F2 — en tres entregas, cada una con su commit.**
+
+*F2a — arreglos de lo que ya falla (HECHA).*
+- Apariciones: `vecesDeCadaHoja` (training), `microcicloDeLaSemana` y
+  `vecesDeLaHoja` (blocks). Una hoja que no cae en ningún día cuenta una vez.
+- `cicloPorAbrir` y `blockSummary` (adherencia incluida) cuentan apariciones y
+  reciben el cliente; una sesión de más no sube la adherencia; las de hojas que
+  ya no están en el plan cuentan como antes.
+- `proximaDelMicrociclo` recorre la secuencia; la «Próxima sesión» del teléfono
+  (`ClientRoutineRoute`) la usa en vez de su propia búsqueda.
+- `previstoHasta` de `tramoDelBloque` mide con `duracionDe` (adelantado de F3).
+
+*F2b — persistencia, sin editor.* `materializarMicrociclos` en `applyPlan`,
+`updateWeeklySplit` y el Compositor escriben la secuencia; `weekly_split` como
+copia del bloque abierto desde un solo sitio. Antes de conectarlo, ensayo sobre
+la copia de seguridad. `CycleSettings` no cambia.
+
+*F2c — el editor.* La tira (§6), la regeneración mientras no se retoque, el
+aviso al añadir una hoja a una secuencia retocada, la reconciliación (§5) y el
+portapapeles. `CycleSettings` pierde tipo y patrón.
 
 **F3 — consumidores.** `hoy.js`/`hojas.js`, las tres cifras del panel, «D4» en
 `TiraDelPrograma`, retirar `CycleChain`, `PlanDelBloque`, `buildTape`.
@@ -261,10 +273,9 @@ Semanal
   cuenta las hojas del plan del bloque, así que en ese caso raro un microciclo
   rotativo futuro nace unos días antes. Lo pasado no cambia. Escrito en la
   prueba de F1.
-- **`previstoHasta` de `tramoDelBloque`** sigue midiendo cada semana prevista
-  con UNA tanda del patrón (3 días en un 2-1 con seis hojas, no 9). Es una avería
-  anterior que F1 conserva a propósito para no cambiar nada visible; se corrige
-  en F3 con `duracionDe`.
+- **`previstoHasta` de `tramoDelBloque`** medía cada semana prevista con UNA
+  tanda del patrón (3 días en un 2-1 con seis hojas, no 9). F1 lo conservó para
+  no cambiar nada visible; F2a lo corrige con `duracionDe`.
 - **Claves de la dieta:** insertar un día desplaza las casillas `"3".."N"`. Se
   avisa con «no coincide con el entreno»; no se recoloca solo.
 - **Quien entrena por su cuenta** sigue en «X-Y» simétrico.

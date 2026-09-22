@@ -267,9 +267,9 @@ export const ListaDeBloques = ({
   const tramos = useMemo(
     () =>
       bloques
-        .map((b) => ({ b, r: blockSummary(program, b), semanas: weeksOfBlock(program, b) }))
+        .map((b) => ({ b, r: blockSummary(program, b, cliente), semanas: weeksOfBlock(program, b) }))
         .sort((x, y) => (y.b.fromWeek ?? 0) - (x.b.fromWeek ?? 0)),
-    [program, bloques]
+    [program, bloques, cliente]
   );
 
   if (tramos.length === 0) {

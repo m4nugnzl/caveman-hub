@@ -8,6 +8,7 @@ import {
   blocksOf,
   currentBlock,
   isCurrentBlock,
+  microcicloDeLaSemana,
   resolvedMicrocycles,
   structureOfBlock,
   weeksOfBlock,
@@ -25,7 +26,7 @@ import {
 import { drillsForDay, unitLabel, unitLabelPlural } from '@/domain/training';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import { marcaDeEjercicio, pautaDe, sesionDeHoy } from './hoy';
+import { marcaDeEjercicio, pautaDe, proximaDelMicrociclo, sesionDeHoy } from './hoy';
 import { useFichaDe } from './useFichaDe';
 import { FichaDelEjercicio } from './movil/FichaDelEjercicio';
 import { EntrenoEnMonitor } from './EntrenoEnMonitor';
@@ -264,11 +265,22 @@ export const ClientRoutineRoute = () => {
     LA PRÓXIMA SESIÓN es la de hoy si hoy se entrena; si no, la primera del
     microciclo que no está terminada. Con todas hechas no hay caja: el
     microciclo está cerrado y lo que toca es el siguiente.
+
+    «La primera sin terminar» la dice `proximaDelMicrociclo`, la misma regla
+    que la portada: en el orden de la secuencia y contando cada aparición de
+    una hoja que cae dos días.
   */
+  const siguiente =
+    micro && semanaActual !== null
+      ? proximaDelMicrociclo([micro], microcicloDeLaSemana(program, semanaActual, activeClient))
+      : null;
+  const laSiguiente = siguiente ? dias.find((d) => d.dayName === siguiente.dayName) : null;
   const proximaDia =
     hojaDeHoy && (hojaDeHoy.series === 0 || hojaDeHoy.hechas < hojaDeHoy.series)
       ? hojaDeHoy
-      : dias.find((d) => d.series > 0 && d.hechas < d.series) || null;
+      : laSiguiente
+        ? { ...laSiguiente, hechas: siguiente.hechas, series: siguiente.series }
+        : null;
 
   /* La hoja ABIERTA antes de empezar, si la hay. Vive en la URL y no en un
      estado: el «atrás» del teléfono tiene que cerrarla, no sacarte de Entreno. */
