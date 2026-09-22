@@ -469,6 +469,40 @@ export const entregaDelPeriodo = (entrega, desde, semanas = 1) => {
   return entrega.weekStart >= desde && entrega.weekStart < fin ? entrega : null;
 };
 
+/**
+ * EL SELLO DE UN REGISTRO: el lunes del periodo abierto cuando la fecha con la
+ * que se está apuntando cae FUERA de él, y `null` cuando cae dentro.
+ *
+ * ══ La avería que arregla ══════════════════════════════════════════════════
+ *
+ * `periodoAEntregar` dejó que la revisión del viernes se entregue el martes
+ * siguiente, pero lo que el cliente APUNTA desde ella seguía yéndose a la
+ * semana de su fecha. El resultado, tal y como lo contó un entrenador: el
+ * cliente se pesa, se mide, y su revisión sigue diciendo «te pide 1 pesaje y
+ * llevas 0» y «sin tomar esta semana», con el botón de entregar rebotando
+ * contra un peso que acaba de escribir. Nada falla; todo se guarda; nada cuenta.
+ *
+ * ── Por qué un sello y no una ventana más ancha ────────────────────────────
+ * Porque una ventana que llegue hasta hoy mete el pesaje del martes en las DOS
+ * semanas: en la que se entrega tarde y en la que está viviendo. Dos medias con
+ * el mismo pesaje dentro es peor que el fallo que venía a arreglar. El sello es
+ * una asignación: el registro cuenta en una semana, se ve en cuál, y la
+ * siguiente no lo pierde por sorpresa sino porque está escrito.
+ *
+ * Solo hay sello mientras la revisión anterior siga abierta: entregada o
+ * cerrada, `periodoAEntregar` ya devuelve el periodo de hoy y esto da `null`.
+ *
+ * @param periodo `periodoAEntregar(...)` — el periodo que se está entregando.
+ * @param fecha   La fecha con la que se va a guardar el registro.
+ */
+export const selloDelPeriodo = (periodo, fecha) => {
+  const inicio = periodo?.start ? weekStart(periodo.start) : null;
+  const semana = fecha ? weekStart(fecha) : null;
+  if (!inicio || !semana) return null;
+  const fin = addDays(inicio, Math.max(1, periodo.everyWeeks || 1) * 7);
+  return semana < inicio || semana >= fin ? inicio : null;
+};
+
 export const estadoDeLaEntrega = ({
   preferences,
   startDate,

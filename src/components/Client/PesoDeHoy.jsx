@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { buildWeightLog, weekDates } from '@/domain/anthropometry';
 import { inicialDelDia } from '@/domain/blocks';
-import { localeNumber, todayISO, weekdayName } from '@/lib/dates';
+import { localeNumber, todayISO, weekStart, weekdayName } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
 /**
@@ -56,6 +56,12 @@ import { Panel } from '@/components/ui/primitives';
  *   la media y la de la semana anterior. Se calcula una vez en la pantalla.
  * @param semana   El lunes del periodo (`weekStart`), que es el que fija las
  *   siete casillas. No es «esta semana» cuando se entrega con retraso.
+ * @param historial Su antropometría en crudo, para poner el punto en los días
+ *   que ya tienen pesaje. Hace falta el historial y no los pesajes del periodo
+ *   porque la tira puede enseñar DOS semanas —la que se entrega y la de hoy—.
+ * @param revision Cómo se llama la revisión que se debe de antes («tu revisión
+ *   del 18 sept»), para poder decir qué es cada fila de la tira. `null` cuando
+ *   no se debe ninguna, que es cuando la tira tiene una sola semana.
  * @param ultimo   El último pesaje de su historial, venga de donde venga.
  * @param foto     `cycleFoto(...)` — las kcal vigentes, que viajan con el
  *   pesaje para poder cruzar dieta y peso después. Lo mismo que guarda el
@@ -71,7 +77,16 @@ import { Panel } from '@/components/ui/primitives';
  */
 const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApuntar, conMedia = true }) => {
+export const PesoDeHoy = ({
+  resumen,
+  semana,
+  historial = [],
+  revision = null,
+  ultimo = null,
+  foto = null,
+  onApuntar,
+  conMedia = true,
+}) => {
   /* `null` mientras no se ha tocado: entonces manda la propuesta. En cuanto se
      escribe, manda lo escrito — incluido el vacío, que es alguien borrando para
      poner otra cifra y no «vuelve a proponerme la tuya». */
@@ -81,15 +96,32 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
 
   const hoy = todayISO();
 
-  /* Las siete casillas del periodo que se entrega. Con cadencia quincenal el
-     periodo mide catorce días; se enseña la semana del lunes de la entrega,
-     que es la que la casilla de «hoy» puede marcar. */
-  const dias = weekDates(semana);
-  const porFecha = new Map((resumen.entries || []).map((e) => [e.date, e]));
+  /*
+    Las siete casillas del periodo que se entrega. Con cadencia quincenal el
+    periodo mide catorce días; se enseña la semana del lunes de la entrega, que
+    es la que la casilla de «hoy» puede marcar.
 
-  /* Hoy si cae dentro de la semana que se enseña; si no —la ventana de gracia,
-     que entrega la semana pasada—, el último día de ésa. Sin esto el día
-     elegido por defecto no existiría en la tira. */
+    ── Y la semana de HOY detrás, cuando no son la misma ────────────────────
+    Es la ventana de entrega tardía: la revisión que se debe es la del viernes
+    pasado y hoy es martes. Con solo la semana de la entrega, quien se pesa a
+    diario no tenía dónde apuntar el de hoy; con solo la de hoy —que es lo que
+    hacía el teléfono— no tenía dónde apuntar el que su revisión le pide. Las
+    dos, en dos filas de siete alineadas por día de la semana, dicen «la de tu
+    revisión y ésta» sin ningún rótulo. Lo apuntado en la segunda cuenta igual
+    para la revisión que se entrega (`selloDelPeriodo`).
+  */
+  const lunes = weekStart(hoy);
+  const dias = [...weekDates(semana), ...(weekStart(semana) === lunes ? [] : weekDates(lunes))];
+  /* Del historial entero y no de los pesajes del periodo: la segunda fila es de
+     otra semana, y sus puntos saldrían todos vacíos. Con la lista sin pasar
+     —cualquier otro que monte esta pieza— se cae a los del periodo. */
+  const pesajes = historial.length > 0 ? historial : resumen.entries || [];
+  const porFecha = new Map(
+    pesajes.filter((h) => h?.date && h.weight !== null && h.weight !== '').map((h) => [h.date, h])
+  );
+
+  /* Hoy si cae dentro de los días que se enseñan; si no, el último que ya pasó:
+     el día elegido por defecto tiene que existir en la tira. */
   const pordefecto = dias.includes(hoy) ? hoy : dias.filter((d) => d <= hoy).pop() || dias[0] || hoy;
   const elegido = dia ?? pordefecto;
   const delDia = porFecha.get(elegido) || null;
@@ -122,7 +154,11 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
     <Panel className="col gap-3 peso-hoy card-decide">
       <div className="row between gap-2">
         <span className="section-label">
-          {elegido === hoy ? 'Tu peso de hoy' : `Tu peso del ${weekdayName(elegido)}`}
+          {/* Con dos semanas en la tira hay dos viernes, así que el rótulo lleva
+              fecha: sin ella nombra una casilla y se escribe en la otra. */}
+          {elegido === hoy
+            ? 'Tu peso de hoy'
+            : `Tu peso del ${weekdayName(elegido, { conFecha: dias.length > 7 })}`}
         </span>
         {/* Cuándo fue el último, en voz baja. Es lo que explica de dónde sale la
             cifra que viene puesta: sin esto, un número en una casilla vacía
@@ -175,6 +211,12 @@ export const PesoDeHoy = ({ resumen, semana, ultimo = null, foto = null, onApunt
           </button>
         )}
       </div>
+
+      {/* Con dos semanas en la tira, qué es cada fila: catorce casillas iguales
+          no dicen que la de arriba es la de la revisión que se debe. */}
+      {revision && dias.length > 7 && (
+        <span className="t-xs t-tertiary">Los días de {revision} y los de esta semana.</span>
+      )}
 
       <div className="peso-hoy-semana" role="group" aria-label="Elige el día">
         {dias.map((fecha) => (

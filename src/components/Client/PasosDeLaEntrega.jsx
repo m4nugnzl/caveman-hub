@@ -1,6 +1,6 @@
 import { Camera, Check, MessageSquare, Ruler, Scale, Send } from 'lucide-react';
 
-import { PERIMETER_LABELS, foldsSum, ultimaMedidaDe } from '@/domain/anthropometry';
+import { PERIMETER_LABELS, foldsSum, pliegesDe, ultimaMedidaDe } from '@/domain/anthropometry';
 import { entregaDelPeriodo } from '@/domain/calendar';
 import { ANGLES, angulosDelPeriodo } from '@/domain/photos';
 import { asksBlock } from '@/domain/protocol';
@@ -315,7 +315,10 @@ const resumenDeMedidas = (log) => {
     .slice(0, 3)
     .map(([k, v]) => `${PERIMETER_LABELS[k] || k} ${localeNumber(Number(v), { maximumFractionDigits: 1 })}`);
 
-  const suma = foldsSum(log.folds);
+  /* Por `pliegesDe` y no por `log.folds`: lo guardado se llama `skinFolds`, y
+     leyendo la clave del formulario esta línea se comía los pliegues enteros.
+     Ver `pliegesDe`. */
+  const suma = foldsSum(pliegesDe(log));
   if (suma > 0) trozos.push(`pliegues ${localeNumber(suma, { maximumFractionDigits: 0 })} mm`);
 
   return trozos.join(' · ') || 'tomadas';

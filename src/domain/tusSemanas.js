@@ -1,6 +1,6 @@
 import { toNum, round } from '@/lib/num';
 import { weekStart } from '@/lib/dates';
-import { FOLDS_LABELS, PERIMETER_LABELS } from './anthropometry';
+import { FOLDS_LABELS, PERIMETER_LABELS, pliegesDe, semanaDelRegistro } from './anthropometry';
 import { photoWeek, weekStartOfProgramWeek } from './photos';
 
 /**
@@ -39,7 +39,7 @@ const medidasDe = (log, catalogo) => {
   for (const [k, v] of Object.entries(log.perimeters || {})) {
     if (toNum(v) > 0) lista.push({ id: `p-${k}`, etiqueta: PERIMETER_LABELS[k] || k, valor: toNum(v), unidad: 'cm' });
   }
-  const pliegues = log.skinFolds || log.folds || {};
+  const pliegues = pliegesDe(log) || {};
   for (const [k, v] of Object.entries(pliegues)) {
     if (toNum(v) > 0) lista.push({ id: `f-${k}`, etiqueta: FOLDS_LABELS[k] || k, valor: toNum(v), unidad: 'mm' });
   }
@@ -85,7 +85,11 @@ export const semanasDelRastro = ({
   };
 
   for (const log of history) {
-    const lunes = weekStart(log.date);
+    /* La semana para la que CUENTA, que es la que su Revisión leyó: un pesaje
+       apuntado dentro de la ventana de entrega tardía lleva el sello de la
+       revisión que se entregó con él, y este rastro tiene que contar lo mismo
+       que ella. Ver `semanaDelRegistro`. */
+    const lunes = semanaDelRegistro(log);
     if (!lunes) continue;
     const peso = toNum(log.weight);
     const conMedidas = medidasDe(log, catalogo).length > 0;

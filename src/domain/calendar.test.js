@@ -12,6 +12,7 @@ import {
   monthGrid,
   nextCheckIn,
   periodoAEntregar,
+  selloDelPeriodo,
   weekCells,
 } from './calendar';
 import { DIAS } from './protocol';
@@ -501,5 +502,42 @@ describe('entregaDelPeriodo', () => {
   it('sin fila o sin periodo no hay nada', () => {
     expect(entregaDelPeriodo(null, '2026-09-14')).toBeNull();
     expect(entregaDelPeriodo(fila('2026-09-14'), null)).toBeNull();
+  });
+});
+
+/**
+ * EL SELLO: a qué revisión va lo que se apunta dentro de la ventana de gracia.
+ *
+ * La regla es una y se lee de un vistazo: fuera del periodo abierto, se sella
+ * con su lunes; dentro, no hace falta sello. Lo de fuera es el caso que el
+ * aviso del 22 de septiembre destapó —el pesaje del martes contra la revisión
+ * del viernes anterior—; lo de dentro es el 99 % de los registros de la casa, y
+ * no se les añade nada.
+ */
+describe('selloDelPeriodo', () => {
+  const periodo = { start: '2026-09-14', everyWeeks: 1 };
+
+  it('sella lo de después del periodo con su lunes', () => {
+    expect(selloDelPeriodo(periodo, '2026-09-22')).toBe('2026-09-14');
+    expect(selloDelPeriodo(periodo, '2026-09-21')).toBe('2026-09-14');
+  });
+
+  it('no sella lo que ya cae dentro', () => {
+    expect(selloDelPeriodo(periodo, '2026-09-14')).toBeNull();
+    expect(selloDelPeriodo(periodo, '2026-09-20')).toBeNull();
+  });
+
+  /* Con cadencia quincenal el periodo mide catorce días: la segunda semana está
+     dentro, y sellarla movería todos los pesajes de medio periodo a su lunes. */
+  it('respeta la cadencia del periodo', () => {
+    const quincenal = { start: '2026-09-07', everyWeeks: 2 };
+    expect(selloDelPeriodo(quincenal, '2026-09-16')).toBeNull();
+    expect(selloDelPeriodo(quincenal, '2026-09-22')).toBe('2026-09-07');
+  });
+
+  it('sin periodo o sin fecha no sella nada', () => {
+    expect(selloDelPeriodo(null, '2026-09-22')).toBeNull();
+    expect(selloDelPeriodo(periodo, null)).toBeNull();
+    expect(selloDelPeriodo({ start: null, everyWeeks: 1 }, '2026-09-22')).toBeNull();
   });
 });

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAnthropometryLog,
+  buildWeightLog,
   kcalSteps,
   lastKcalChange,
   latestWeight,
+  semanaDelRegistro,
   tieneMedidas,
   ultimaMedidaDe,
   weeklyCheckIn,
+  weeklyWeightAverages,
 } from './anthropometry';
 
 /**
@@ -272,5 +276,96 @@ describe('ultimaMedidaDe', () => {
   it('sin ventana devuelve la última de todas', () => {
     const history = [conPerimetros('2026-09-01'), conPerimetros('2026-09-16')];
     expect(ultimaMedidaDe(history)).toMatchObject({ date: '2026-09-16' });
+  });
+});
+
+/**
+ * EL SELLO: para qué revisión cuenta un registro.
+ *
+ * ══ De dónde sale esta prueba ══════════════════════════════════════════════
+ *
+ * Del aviso de un entrenador el 22 de septiembre de 2026: un cliente dentro de
+ * la ventana de entrega tardía —hoy martes, entregando la revisión del viernes
+ * anterior— se pesaba, se medía, y su revisión seguía diciendo «te pide 1
+ * pesaje y llevas 0» y «sin tomar esta semana». Nada fallaba: todo se guardaba
+ * con la fecha de hoy, que es de la semana SIGUIENTE, y la revisión abierta no
+ * miraba ahí.
+ *
+ * Lo que se fija: que el sello mete ese registro en la revisión que se entrega
+ * y —esto es la otra mitad— que NO lo deja además en la semana de su fecha. Una
+ * ventana estirada hasta hoy habría arreglado lo primero contando el mismo
+ * pesaje dos veces, que es peor que el fallo de partida.
+ */
+describe('el sello del periodo en un registro', () => {
+  const HOY = '2026-09-22'; // martes
+  const REVISION = '2026-09-14'; // el lunes de la semana que se entrega tarde
+
+  it('sin sello, un registro cuenta para la semana natural de su fecha', () => {
+    expect(semanaDelRegistro({ date: HOY })).toBe('2026-09-21');
+    expect(semanaDelRegistro({ date: HOY, semana: REVISION })).toBe(REVISION);
+  });
+
+  /* Solo se guarda cuando dice algo: sellar con la semana en la que ya cae la
+     fecha sería un campo repetido en todos los registros de la casa. */
+  it('no se escribe cuando la fecha ya cae dentro del periodo', () => {
+    expect(buildWeightLog({ date: '2026-09-17', weight: 61, semana: REVISION }).semana).toBeUndefined();
+    expect(buildWeightLog({ date: HOY, weight: 61, semana: REVISION }).semana).toBe(REVISION);
+  });
+
+  it('el pesaje sellado entra en la media de la revisión que se entrega', () => {
+    const history = [buildWeightLog({ date: HOY, weight: 60.9, semana: REVISION })];
+    const resumen = weeklyCheckIn(history, REVISION, { target: 1 });
+    expect(resumen.count).toBe(1);
+    expect(resumen.average).toBe(60.9);
+    expect(resumen.complete).toBe(true);
+  });
+
+  it('y NO cuenta además en la semana en la que está fechado', () => {
+    const history = [buildWeightLog({ date: HOY, weight: 60.9, semana: REVISION })];
+    expect(weeklyCheckIn(history, '2026-09-21', { target: 1 }).count).toBe(0);
+    /* Ni en las medias semanales, que es la serie con la que se lee el ritmo:
+       el mismo pesaje en dos semanas son dos puntos inventados. */
+    expect(weeklyWeightAverages(history)).toEqual([{ date: REVISION, value: 60.9, count: 1 }]);
+  });
+
+  it('las medidas selladas cuentan como tomadas en ese periodo', () => {
+    const log = buildAnthropometryLog({
+      date: HOY,
+      weight: 60.9,
+      perimeters: { pecho: 92 },
+      semana: REVISION,
+    });
+    expect(ultimaMedidaDe([log], { desde: REVISION })).toMatchObject({ date: HOY });
+    expect(ultimaMedidaDe([log], { desde: '2026-09-21' })).toBeNull();
+  });
+});
+
+/**
+ * LOS PLIEGUES SE GUARDAN EN `skinFolds`, y media aplicación leía `folds`.
+ *
+ * Avería del mismo aviso y ajena a la ventana de gracia: a un cliente al que su
+ * entrenador solo le pide PLIEGUES, medirse no contaba como medirse. El renglón
+ * «Tus medidas» se quedaba en «sin tomar esta semana» para siempre y, con el
+ * bloque marcado como obligatorio, «Entregar mi semana» le reabría el asistente
+ * una y otra vez sin dejarle entregar nunca.
+ */
+describe('tieneMedidas con pliegues', () => {
+  it('cuenta los pliegues tal y como se guardan', () => {
+    const log = buildAnthropometryLog({
+      date: '2026-09-17',
+      weight: 61,
+      folds: { abdominal: 12, muslo: 16 },
+      perimeters: {},
+    });
+    expect(log.skinFolds).toEqual({ abdominal: 12, muslo: 16 });
+    expect(tieneMedidas(log)).toBe(true);
+    expect(ultimaMedidaDe([log], { desde: '2026-09-14' })).toMatchObject({ date: '2026-09-17' });
+  });
+
+  /* Y la clave del formulario sigue valiendo: hay código que maneja el registro
+     antes de construirlo. */
+  it('vale también la clave del formulario', () => {
+    expect(tieneMedidas({ folds: { abdominal: 12 } })).toBe(true);
+    expect(tieneMedidas({ skinFolds: { abdominal: 0 } })).toBe(false);
   });
 });

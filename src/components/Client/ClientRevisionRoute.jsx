@@ -8,6 +8,7 @@ import {
   weeklyWeightAverages,
 } from '@/domain/anthropometry';
 import { clientCycleSlots } from '@/domain/blocks';
+import { selloDelPeriodo } from '@/domain/calendar';
 import { cycleFoto } from '@/domain/nutrition';
 import {
   checkinQuestions,
@@ -240,9 +241,24 @@ export const ClientRevisionRoute = () => {
     `ClientPesoRoute`, y por el mismo motivo.
   */
   const apuntarPeso = (log) => {
+    /*
+      Y PARA QUÉ REVISIÓN CUENTA. Con la ventana de gracia abierta, la tira
+      enseña también los días de esta semana: un pesaje de hoy está fechado en
+      la semana que viene y la revisión que se entrega no lo vería nunca. El
+      sello lo mete en la que se entrega y SOLO en ella. Ver `selloDelPeriodo`.
+    */
+    const sello = selloDelPeriodo(periodo, log.date);
     const delDia = history.find((h) => h.date === log.date);
-    if (delDia?.id) updateAnthropometryLog(activeClient.id, delDia.id, { weight: log.weight });
-    else addAnthropometryLog(activeClient.id, log);
+    if (delDia?.id) {
+      /* El sello solo se pone, nunca se quita: corregir un peso de una semana
+         ya entregada no puede cambiar de sitio lo que se entregó. */
+      updateAnthropometryLog(activeClient.id, delDia.id, {
+        weight: log.weight,
+        ...(sello && !delDia.semana ? { semana: sello } : null),
+      });
+    } else {
+      addAnthropometryLog(activeClient.id, sello ? { ...log, semana: sello } : log);
+    }
   };
 
   /* La última revisión con algo escrito. Es lo que se lee mientras se prepara la
@@ -318,6 +334,13 @@ export const ClientRevisionRoute = () => {
         ? {
             resumen,
             semana,
+            /* El historial entero: con la entrega tardía abierta la tira enseña
+               dos semanas —la que se entrega y la de hoy— y los puntos de la
+               segunda no están entre los pesajes del periodo. */
+            historial: history,
+            /* Cómo se llama la revisión que se debe, para que la tira de dos
+               filas pueda decir cuál es cuál. */
+            revision: periodo?.tarde ? `tu revisión del ${shortDate(periodo.dueOn || semana)}` : null,
             ultimo: history.length > 0 ? reverseChronological(history)[0] : null,
             foto: fotoDelPlan,
             onApuntar: apuntarPeso,

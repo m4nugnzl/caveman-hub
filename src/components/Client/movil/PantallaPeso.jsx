@@ -31,7 +31,12 @@ import { Aire, Boton, Cabecera, Tramo } from './Piezas';
  * y no responden: un peso con fecha futura no lo tiene nadie.
  */
 export const PantallaPeso = ({ datos }) => {
-  const { ahora, delta, tendencia, medias, dias, hoy, ultimo, onApuntar, ultimos, onVolver } = datos;
+  /* `revision` y `guardado` son opcionales: sin revisión atrasada no se dice
+     nada de ella, y sin estado de guardado la pantalla habla como antes. */
+  const {
+    ahora, delta, tendencia, medias, dias, hoy, ultimo, onApuntar, ultimos, onVolver,
+    revision = null, guardado = null,
+  } = datos;
   /* `null` mientras no se elige: manda hoy. Una sola variable y no «día + si se
      ha tocado», que deja escribir el imposible de no tener ninguno elegido. */
   const [dia, setDia] = useState(null);
@@ -58,6 +63,15 @@ export const PantallaPeso = ({ datos }) => {
     const base = valido ? numero : propuesta ?? 70;
     setEscrito(dec(Math.round((base + paso) * 10) / 10));
   };
+
+  /* Con una sola semana en la tira, el día de la semana identifica la casilla y
+     la fecha sobra. Con dos —la revisión que se debe y ésta— no: hay dos
+     viernes, y decir «el del viernes» sobre una casilla y guardarlo en la otra
+     es exactamente lo que esta línea existe para evitar. */
+  const nombreDelDia = (fecha) =>
+    dias.length > 7
+      ? weekdayName(fecha, { conFecha: true }).toLowerCase()
+      : weekdayName(fecha).toLowerCase();
 
   return (
     <>
@@ -90,6 +104,15 @@ export const PantallaPeso = ({ datos }) => {
       ) : null}
 
       <Tramo rotulo="Registrar peso">
+        {/* Con dos semanas en la tira, qué es cada fila. Sin esto son catorce
+            casillas iguales y el cliente no sabe que la de arriba es la de la
+            revisión que debe — que es justo la que ha venido a rellenar. */}
+        {revision && dias.length > 7 ? (
+          <p className="tel-pie tel-pie-arriba">
+            Los días de {revision} y los de esta semana.
+          </p>
+        ) : null}
+
         {/* Los siete días. El elegido encendido, los que ya tienen pesaje con su
             punto, los que no han llegado apagados y sin respuesta. */}
         <div className="tel-peso-dias" role="group" aria-label="Elige el día">
@@ -102,7 +125,11 @@ export const PantallaPeso = ({ datos }) => {
               }`}
               disabled={d.futuro}
               aria-pressed={d.date === elegido}
-              aria-label={`${weekdayName(d.date)}${d.peso != null ? `, ${dec(d.peso)} kilos` : ', sin apuntar'}`}
+              /* Con dos semanas hay dos viernes: el nombre del día solo no
+                 distingue las casillas, tampoco leído en voz alta. */
+              aria-label={`${weekdayName(d.date, { conFecha: dias.length > 7 })}${
+                d.peso != null ? `, ${dec(d.peso)} kilos` : ', sin apuntar'
+              }`}
               onClick={() => elegir(d.date)}
             >
               <b>{d.inicial}</b>
@@ -121,7 +148,7 @@ export const PantallaPeso = ({ datos }) => {
               inputMode="decimal"
               value={valor}
               onChange={(e) => setEscrito(e.target.value)}
-              aria-label={`Peso del ${weekdayName(elegido)}, en kilos`}
+              aria-label={`Peso del ${nombreDelDia(elegido)}, en kilos`}
               /* A la medida de la cifra, para que «kg» vaya pegado a ella
                  como en el dibujo y no al otro lado de una casilla fija. */
               style={{ width: `${Math.max(2.6, String(valor).length - 0.4)}ch` }}
@@ -137,8 +164,15 @@ export const PantallaPeso = ({ datos }) => {
             ? 'En ayunas, por la mañana y después del baño.'
             : /* Qué día se está escribiendo, dicho donde se está escribiendo. El
                  día encendido arriba lo dice sin palabras; esto lo dice con
-                 ellas, que es lo que evita guardar el domingo en el jueves. */
-              `Estás apuntando el del ${weekdayName(elegido).toLowerCase()}.`}
+                 ellas, que es lo que evita guardar el domingo en el jueves.
+
+                 Con dos semanas en la tira, el día de la semana NO basta: «el
+                 del viernes» son dos casillas distintas. Entonces lleva fecha. */
+              `Estás apuntando el del ${nombreDelDia(elegido)}.`}
+          {/* Y para qué revisión cuenta, cuando no es la de su propia semana.
+              Un pesaje que cambia de semana sin decirlo es el fallo de antes
+              con el signo cambiado. Ver `selloDelPeriodo`. */}
+          {revision && delDia?.paraLaRevision ? ` Cuenta para ${revision}.` : ''}
         </p>
         <Boton
           callado={yaEsta}
@@ -152,11 +186,20 @@ export const PantallaPeso = ({ datos }) => {
           {yaEsta
             ? 'Guardado'
             : delDia?.peso != null
-              ? `Corregir el del ${weekdayName(elegido).toLowerCase()}`
+              ? `Corregir el del ${nombreDelDia(elegido)}`
               : elegido === hoy
                 ? 'Guardar peso'
-                : `Guardar el del ${weekdayName(elegido).toLowerCase()}`}
+                : `Guardar el del ${nombreDelDia(elegido)}`}
         </Boton>
+
+        {/*
+          LO QUE PASÓ CON LO GUARDADO. La pantalla decía «Guardado» en cuanto se
+          pulsaba —eso es el verbo, no el resultado— y nunca volvía a hablar: un
+          pesaje que se quedaba en la cola sin cobertura, o que la base
+          rechazaba, se perdía sin que nadie se enterara. Con lo que el cliente
+          entrega en juego, un guardado mudo no vale. Ver `saveStatus`.
+        */}
+        <EstadoDelGuardado guardado={guardado} />
       </Tramo>
 
       {ultimos.length > 0 ? (
@@ -176,6 +219,30 @@ export const PantallaPeso = ({ datos }) => {
       <Aire />
     </>
   );
+};
+
+/**
+ * QUÉ PASÓ CON EL PESAJE. En silencio mientras no haya nada que contar —el
+ * verbo del botón ya dice que se ha guardado— y con voz cuando algo se queda
+ * fuera: sin conexión se guarda y se manda al volver, y un rechazo se dice con
+ * su reintento al lado para no tener que volver a teclear.
+ */
+const EstadoDelGuardado = ({ guardado }) => {
+  const status = guardado?.status;
+  if (status === 'pending') return <span className="tel-guardado">Sin conexión · se enviará</span>;
+  if (status === 'error') {
+    return (
+      <span className="tel-guardado tel-no" role="alert">
+        No se ha guardado tu peso
+        {guardado.onRetry ? (
+          <button type="button" onClick={guardado.onRetry}>
+            Reintentar
+          </button>
+        ) : null}
+      </span>
+    );
+  }
+  return null;
 };
 
 const dec = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });

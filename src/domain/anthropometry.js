@@ -13,12 +13,25 @@
  * pesajes con fecha real que alimentan la tendencia.
  *
  * Cada entrada de `history`:
- *   { id, date, weight, skinFolds?, perimeters?, nutrition? }
+ *   { id, date, weight, skinFolds?, perimeters?, medidas?, nutrition?, semana? }
  *
  * `weight` es lo único obligatorio. Pliegues y perímetros son opcionales y solo
  * se guardan si se han rellenado. `nutrition` es una foto de las kcal y macros
  * vigentes en ese momento, para poder cruzar dieta con evolución de peso (la
  * tabla de nutrición solo guarda el plan actual, sin histórico).
+ *
+ * ══ Y `semana`: PARA QUÉ REVISIÓN CUENTA ═══════════════════════════════════
+ *
+ * Casi siempre no está, y entonces un registro cuenta para la semana natural de
+ * su fecha — que es lo que hacía la aplicación entera y lo que sigue haciendo.
+ *
+ * Existe por la ventana de entrega tardía. Un cliente que entrega el martes la
+ * revisión del viernes anterior se pesa HOY: su único pesaje cae en la semana
+ * siguiente y la revisión que está entregando no lo veía nunca («te pide 1
+ * pesaje y llevas 0», con el botón de entregar rebotando). Con el sello, ese
+ * pesaje cuenta para la revisión abierta y **solo para ella**: no se cuela
+ * además en la semana en la que está fechado, que es lo que haría cualquier
+ * ventana estirada. Ver `semanaDelRegistro` y `selloDelPeriodo`.
  */
 
 import { toNum, toNum0, round } from '@/lib/num';
@@ -100,12 +113,23 @@ export const buildAnthropometryLog = ({
   */
   medidas = null,
   nutritionFoto = null,
+  /*
+    ── Y para qué revisión cuenta, si no es la de su fecha ───────────────────
+    El lunes del periodo que se está entregando, y solo cuando la fecha del
+    registro cae FUERA de él: es la ventana de entrega tardía. Lo decide quien
+    escribe —que es el único que sabe qué revisión tiene abierta— con
+    `selloDelPeriodo`, y aquí solo se guarda. Ver la cabecera del archivo.
+  */
+  semana = null,
 }) => {
   const log = {
     id: newId('log'),
     date: toISODate(date),
     weight: toNum(weight),
   };
+
+  const sello = semana ? weekStart(semana) : null;
+  if (sello && sello !== weekStart(log.date)) log.semana = sello;
 
   const skinFolds = compact(folds);
   const perims = compact(perimeters);
@@ -134,10 +158,34 @@ export const buildAnthropometryLog = ({
 };
 
 /** Pesaje rápido: solo fecha y peso, que es el caso habitual del cliente. */
-export const buildWeightLog = ({ date, weight, nutritionFoto = null }) =>
-  buildAnthropometryLog({ date, weight, nutritionFoto });
+export const buildWeightLog = ({ date, weight, nutritionFoto = null, semana = null }) =>
+  buildAnthropometryLog({ date, weight, nutritionFoto, semana });
 
 // ── Consultas ──────────────────────────────────────────────────────────────
+
+/**
+ * LA SEMANA PARA LA QUE CUENTA UN REGISTRO: la de su sello si lo lleva, y si no
+ * la natural de su fecha.
+ *
+ * Es la ÚNICA regla, y por eso está aquí sola: la usan la media del periodo
+ * (`weekEntries`), las medidas de la entrega (`ultimaMedidaDe`) y las medias
+ * semanales (`weeklyWeightAverages`). Escrita tres veces, la ventana de gracia
+ * volvería a contar distinto en cada pantalla — que es de donde venía el aviso.
+ */
+export const semanaDelRegistro = (log) => (log?.semana ? weekStart(log.semana) : weekStart(log?.date));
+
+/**
+ * LOS PLIEGUES DE UN REGISTRO, se llamen como se llamen.
+ *
+ * `buildAnthropometryLog` los guarda en `skinFolds`; el formulario los maneja
+ * como `folds`, y media aplicación leía una clave y media la otra. El precio
+ * era gordo y mudo: a un cliente al que su entrenador solo le pide PLIEGUES,
+ * `tieneMedidas` le decía que no se había medido por mucho que se midiera, el
+ * renglón se quedaba en «Sin tomar esta semana» para siempre y —con el bloque
+ * marcado como obligatorio— «Entregar mi semana» le reabría el asistente una y
+ * otra vez sin dejarle entregar nunca.
+ */
+export const pliegesDe = (log) => log?.skinFolds || log?.folds || null;
 
 /** De más antiguo a más reciente, para leer tendencias de izquierda a derecha. */
 export const chronological = (history) =>
@@ -290,11 +338,16 @@ export const rollingWeightAverage = (history, n = 3) => {
 /** Promedio de peso por semana natural: la tendencia limpia de ruido diario. */
 export const weeklyWeightAverages = (history) => {
   const buckets = new Map();
-  for (const point of weightSeries(history)) {
-    const key = weekStart(point.date);
+  for (const log of chronological(history)) {
+    const value = toNum(log.weight);
+    if (value === null) continue;
+    /* Por la semana para la que CUENTA y no por la de su fecha: un pesaje
+       sellado para la revisión que se entregó tarde tiene que salir en la
+       media de ESA semana, que es la que su entrenador leyó. */
+    const key = semanaDelRegistro(log);
     if (!key) continue;
     if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(point.value);
+    buckets.get(key).push(value);
   }
 
   return [...buckets.entries()]
@@ -332,8 +385,12 @@ export const hasMeasurements = (history) =>
   chronological(history).some((h) => h.skinFolds || h.perimeters);
 
 /**
- * `(fecha) => bool` para el periodo `[desde, desde + semanas)`. Sin `desde`
+ * `(registro) => bool` para el periodo `[desde, desde + semanas)`. Sin `desde`
  * acepta todo: es el caso de quien pregunta por el historial entero.
+ *
+ * Mira la semana para la que el registro CUENTA (`semanaDelRegistro`) y no su
+ * fecha: es lo que mete en la revisión que se entrega tarde el pesaje de hoy, y
+ * lo que a la vez lo deja fuera de la semana en la que está fechado.
  */
 const ventanaDe = (desde, semanas = 1) => {
   const inicio = desde ? weekStart(desde) : null;
@@ -341,7 +398,10 @@ const ventanaDe = (desde, semanas = 1) => {
   const fin = new Date(Date.parse(`${inicio}T00:00:00Z`) + Math.max(1, semanas) * 7 * 86400000)
     .toISOString()
     .slice(0, 10);
-  return (fecha) => Boolean(fecha) && fecha >= inicio && fecha < fin;
+  return (log) => {
+    const semana = semanaDelRegistro(log);
+    return Boolean(semana) && semana >= inicio && semana < fin;
+  };
 };
 
 /**
@@ -355,7 +415,7 @@ const ventanaDe = (desde, semanas = 1) => {
  * cuentas, la lista decía «hecho» y el botón mandaba al asistente a tomarlas.
  */
 export const tieneMedidas = (log) =>
-  foldsSum(log?.folds) > 0 ||
+  foldsSum(pliegesDe(log)) > 0 ||
   Object.values(log?.perimeters || {}).some((v) => Number(v) > 0) ||
   Object.values(log?.medidas || {}).some((v) => v !== null && v !== '');
 
@@ -378,7 +438,7 @@ export const tieneMedidas = (log) =>
  */
 export const ultimaMedidaDe = (history, { desde = null, semanas = 1 } = {}) => {
   const dentro = ventanaDe(desde, semanas);
-  return reverseChronological(history).find((h) => dentro(h.date) && tieneMedidas(h)) || null;
+  return reverseChronological(history).find((h) => dentro(h) && tieneMedidas(h)) || null;
 };
 
 // ── Check-in semanal ───────────────────────────────────────────────────────
@@ -407,13 +467,12 @@ export const weekEntries = (history, date, weeks = 1) => {
     Por defecto sigue siendo una semana, que es la cadencia de casi todo el mundo
     y lo que necesitan la analítica y el histórico.
   */
-  const fin = new Date(Date.parse(`${key}T00:00:00Z`) + Math.max(1, weeks) * 7 * 86400000)
-    .toISOString()
-    .slice(0, 10);
+  /* Por la semana para la que cada registro CUENTA, no por su fecha: con la
+     entrega tardía abierta, el pesaje de hoy lleva el sello de la revisión que
+     se está entregando y tiene que entrar en su media. Ver `ventanaDe`. */
+  const dentro = ventanaDe(key, weeks);
 
-  return chronological(history).filter(
-    (h) => h.date >= key && h.date < fin && toNum(h.weight) !== null
-  );
+  return chronological(history).filter((h) => dentro(h) && toNum(h.weight) !== null);
 };
 
 /**

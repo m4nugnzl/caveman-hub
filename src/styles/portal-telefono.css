@@ -1965,11 +1965,18 @@ button.tel-enlace {
   white-space: nowrap;
   cursor: pointer;
 }
-.tel-ses-guardado { font-size: var(--fs-2xs); color: var(--tel-tinta-3); font-weight: 600; }
-.tel-ses-guardado:empty { display: none; }
-.tel-ses-guardado.tel-si { color: var(--tel-verde); }
+/* `.tel-guardado` es el mismo renglón fuera de la sesión —lo usa el registro de
+   peso—: qué pasó con lo que se acaba de escribir. Misma lectura y mismo sitio
+   (bajo el verbo), así que comparten regla en vez de tener dos parecidas. */
+.tel-ses-guardado, .tel-guardado { font-size: var(--fs-2xs); color: var(--tel-tinta-3); font-weight: 600; }
+.tel-ses-guardado:empty, .tel-guardado:empty { display: none; }
+.tel-ses-guardado.tel-si, .tel-guardado.tel-si { color: var(--tel-verde); }
 .tel-ses-guardado.tel-no { color: var(--negative); display: inline-flex; gap: 6px; align-items: center; }
-.tel-ses-guardado.tel-no button {
+/* Fuera de la sesión el renglón va centrado bajo el verbo y a todo el ancho:
+   ahí no comparte fila con nada. El tono del fallo sí es el mismo. */
+.tel-guardado { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: var(--s2); }
+.tel-guardado.tel-no { color: var(--negative); }
+.tel-ses-guardado.tel-no button, .tel-guardado.tel-no button {
   background: none;
   border: 0;
   padding: 0;

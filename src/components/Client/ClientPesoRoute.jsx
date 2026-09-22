@@ -4,11 +4,13 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { buildWeightLog, weekDates, weightSeries } from '@/domain/anthropometry';
 import { clientCycleSlots, inicialDelDia } from '@/domain/blocks';
+import { selloDelPeriodo } from '@/domain/calendar';
 import { cycleFoto } from '@/domain/nutrition';
 import { effectiveGoal } from '@/domain/roadmap';
-import { localeNumber, todayISO, weekStart } from '@/lib/dates';
+import { addDays, localeNumber, shortDate, todayISO, weekStart } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useOculto } from './Oculto';
+import { useSemanaDeEntrega } from './useSemanaDeEntrega';
 import { PantallaPeso } from './movil/PantallaPeso';
 
 /**
@@ -49,6 +51,22 @@ import { PantallaPeso } from './movil/PantallaPeso';
  * ── Hacia atrás, no hacia delante ─────────────────────────────────────────
  * Los días que aún no han llegado no se ofrecen. Un peso con fecha futura no es
  * un dato que nadie tenga: es un número inventado entrando en la media.
+ *
+ * ══ Y LA TIRA LLEGA HASTA LA REVISIÓN QUE SE DEBE ══════════════════════════
+ *
+ * Era «los siete días de esta semana natural» y punto. Con la ventana de
+ * entrega tardía abierta —hoy es martes y lo que se entrega es la revisión del
+ * viernes pasado— esos siete días son todos de la semana SIGUIENTE: el cliente
+ * no tenía ninguna casilla en la que apuntar el pesaje que su revisión le pide,
+ * y el peso que escribía se iba a una semana que su entrenador aún no mira.
+ * «Te pide 1 pesaje y llevas 0» con el peso recién guardado, que es como lo
+ * contó el entrenador que lo reportó.
+ *
+ * Así que mientras se deba una revisión se enseñan también sus días, delante.
+ * Son dos filas de siete en la misma rejilla y alineadas por día de la semana,
+ * que es como se lee «la semana pasada y ésta» sin ningún rótulo. Lo que se
+ * apunte en un día de ESTA semana cuenta igual para la revisión que se debe
+ * (`selloDelPeriodo`), y la pantalla lo dice donde se escribe.
  */
 export const ClientPesoRoute = () => {
   const {
@@ -59,10 +77,15 @@ export const ClientPesoRoute = () => {
     phases,
     addAnthropometryLog,
     updateAnthropometryLog,
+    saveStatus,
+    retrySave,
   } = useApp();
   const navigate = useNavigate();
   const oculto = useOculto();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
+  /* La revisión que se debe: la misma cuenta que hace su pantalla, para que las
+     dos hablen del mismo periodo. Ver `useSemanaDeEntrega`. */
+  const { periodo, semana, semanasDelPeriodo } = useSemanaDeEntrega();
 
   const history = useMemo(
     () => anthropometry?.[activeClient?.id]?.history || [],
@@ -94,33 +117,58 @@ export const ClientPesoRoute = () => {
   */
   const apuntar = (peso, fecha = hoy) => {
     if (fecha > hoy) return;
+    /* Para qué revisión cuenta. `null` cuando la fecha ya cae dentro del
+       periodo abierto, que es lo normal; el lunes de ese periodo cuando se
+       apunta desde la ventana de gracia. Ver `selloDelPeriodo`. */
+    const sello = selloDelPeriodo(periodo, fecha);
     const delDia = history.find((h) => h.date === fecha) || null;
-    if (delDia?.id) updateAnthropometryLog(activeClient.id, delDia.id, { weight: peso });
-    else addAnthropometryLog(activeClient.id, buildWeightLog({ date: fecha, weight: peso, nutritionFoto: foto }));
+    if (delDia?.id) {
+      /* El sello solo se PONE, nunca se quita: corregir en enero el peso de una
+         semana ya entregada no puede cambiar de sitio lo que se entregó. */
+      updateAnthropometryLog(activeClient.id, delDia.id, {
+        weight: peso,
+        ...(sello && !delDia.semana ? { semana: sello } : null),
+      });
+    } else {
+      addAnthropometryLog(
+        activeClient.id,
+        buildWeightLog({ date: fecha, weight: peso, nutritionFoto: foto, semana: sello })
+      );
+    }
   };
 
   /*
-    LOS SIETE DÍAS DE SU SEMANA, cada uno con lo que tenga apuntado. Es la tira
-    que ya estaba —los días con pesaje en tinta— convertida en mando: se elige
-    uno y se escribe el suyo.
+    LOS DÍAS QUE SE PUEDEN ESCRIBIR, cada uno con lo que tenga apuntado. Es la
+    tira que ya estaba —los días con pesaje en tinta— convertida en mando: se
+    elige uno y se escribe el suyo.
 
-    La semana es la NATURAL de hoy y no la del periodo que se entrega: ésta es
-    la pantalla de pesarse, que es diario, y la casilla de hoy tiene que estar
-    siempre dentro. Los días que no han llegado se pintan pero no se pueden
-    tocar (ver la cabecera).
+    Siempre la semana NATURAL de hoy, porque pesarse es diario y la casilla de
+    hoy tiene que estar; y delante, si se debe una revisión de antes, los días
+    de su periodo. Los que no han llegado se pintan pero no se pueden tocar.
   */
   const lunes = weekStart(hoy);
-  const dias = weekDates(lunes).map((fecha) => {
-    const log = history.find((h) => h.date === fecha);
-    const valor = log && log.weight !== null && log.weight !== '' ? Number(log.weight) : null;
-    return {
-      date: fecha,
-      inicial: inicialDelDia(fecha),
-      peso: Number.isFinite(valor) ? valor : null,
-      esHoy: fecha === hoy,
-      futuro: fecha > hoy,
-    };
-  });
+  const delPeriodo =
+    periodo?.tarde && semana < lunes
+      ? Array.from({ length: Math.max(1, semanasDelPeriodo) }, (_, i) => weekDates(addDays(semana, i * 7))).flat()
+      : [];
+  const dias = [...delPeriodo, ...weekDates(lunes)]
+    .filter((fecha, i, lista) => lista.indexOf(fecha) === i)
+    .map((fecha) => {
+      const log = history.find((h) => h.date === fecha);
+      const valor = log && log.weight !== null && log.weight !== '' ? Number(log.weight) : null;
+      return {
+        date: fecha,
+        inicial: inicialDelDia(fecha),
+        peso: Number.isFinite(valor) ? valor : null,
+        esHoy: fecha === hoy,
+        futuro: fecha > hoy,
+        /* Si lo que se escriba ahí cuenta para la revisión que se debe y no
+           para la semana de su fecha. Es lo que la pantalla dice en voz alta:
+           un pesaje que cambia de semana sin avisar es el fallo de antes con el
+           signo cambiado. */
+        paraLaRevision: Boolean(selloDelPeriodo(periodo, fecha)),
+      };
+    });
 
   const datos = {
     ahora: ultimo ? kg(ultimo.value) : null,
@@ -135,6 +183,16 @@ export const ClientPesoRoute = () => {
     ].filter((m) => m.v !== null),
     dias,
     hoy,
+    /* La revisión que se debe, para poder decir a cuál va lo que se apunta
+       fuera de su semana. `null` cuando no se debe ninguna de antes. */
+    revision: periodo?.tarde ? `tu revisión del ${shortDate(periodo.dueOn || semana)}` : null,
+    /*
+      QUE UN GUARDADO NO SE PIERDA CALLADO. Esta pantalla decía «Guardado» en
+      cuanto se pulsaba y no volvía a hablar: si la escritura se quedaba en la
+      cola —sin cobertura, o rechazada—, el cliente se iba convencido de haberlo
+      apuntado. Ahora se dice, y se puede reintentar sin volver a teclear.
+    */
+    guardado: { ...saveStatus('anthro', activeClient.id), onRetry: () => retrySave('anthro', activeClient.id) },
     /* Con el día vacío, la cifra viene puesta con el último pesaje: es lo que
        hace que apuntar sean dos gestos y no cinco. */
     ultimo: ultimo?.value ?? null,

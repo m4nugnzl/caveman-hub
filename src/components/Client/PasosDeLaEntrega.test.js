@@ -143,3 +143,107 @@ describe('pasosDeLaEntrega', () => {
     );
   });
 });
+
+/**
+ * LA ENTREGA TARDÍA: lo que se apunta desde una revisión abierta cuenta para
+ * ella.
+ *
+ * ══ De dónde sale esta prueba ══════════════════════════════════════════════
+ *
+ * Del aviso de un entrenador el 22 de septiembre de 2026. Su cliente estaba
+ * dentro de la ventana de gracia —hoy martes 22, entregando la revisión del
+ * viernes 18— y se encontró esta pantalla:
+ *
+ *   · «Tu peso: te pide 1 pesaje y llevas 0», después de pesarse.
+ *   · «Tus medidas: sin tomar esta semana», después de medirse.
+ *   · «Entregar mi semana» rebotando contra un peso recién escrito.
+ *
+ * Todo se guardaba. Nada contaba: los registros iban fechados HOY, que es de la
+ * semana siguiente, y la revisión abierta no mira ahí. Con la pauta los viernes
+ * eso dura hasta seis días, y en ellos el cliente no tiene forma de entregar.
+ *
+ * Lo que se fija aquí es la regla entera y sus dos caras: que lo sellado cuenta
+ * para la revisión que se entrega, y que NO cuenta además para la suya.
+ */
+describe('pasosDeLaEntrega con la entrega tardía abierta', () => {
+  const HOY = '2026-09-22'; // martes; la revisión abierta es la del lunes 14
+  const conSello = (date, extra) => ({ id: date, date, weight: 60.9, semana: SEMANA, ...extra });
+
+  it('el pesaje de hoy, sellado, cuenta para la revisión que se entrega', () => {
+    const history = [conSello(HOY)];
+    const pasos = pasosDeLaEntrega({
+      protocol: PROTOCOLO,
+      resumen: weeklyCheckIn(history, SEMANA, { target: 1, weeks: 1 }),
+      history,
+      photos: [],
+      startDate: ALTA,
+      desde: SEMANA,
+      semanas: 1,
+      preguntas: [],
+      entrega: null,
+    });
+
+    expect(paso(pasos, 'peso').hecho).toBe(true);
+    expect(paso(pasos, 'peso').estado).toContain('llevas 1');
+  });
+
+  it('y las medidas de hoy, selladas, dejan de decir «sin tomar»', () => {
+    const history = [conSello(HOY, { perimeters: { chest: 102 } })];
+    const pasos = pasosDeLaEntrega({
+      protocol: PROTOCOLO,
+      resumen: weeklyCheckIn(history, SEMANA, { target: 1, weeks: 1 }),
+      history,
+      photos: [],
+      startDate: ALTA,
+      desde: SEMANA,
+      semanas: 1,
+      preguntas: [],
+      entrega: null,
+    });
+
+    expect(paso(pasos, 'medidas').hecho).toBe(true);
+    expect(paso(pasos, 'medidas').estado).toContain('tomadas el 22 sept');
+  });
+
+  /* La otra cara: entregar tarde la semana 4 no puede vaciar la 5. El registro
+     está en una y solo en una, y eso es lo que hace que la cuenta cuadre. */
+  it('lo sellado no cuenta además para la semana en la que está fechado', () => {
+    const history = [conSello(HOY, { perimeters: { chest: 102 } })];
+    const siguiente = '2026-09-21';
+    const pasos = pasosDeLaEntrega({
+      protocol: PROTOCOLO,
+      resumen: weeklyCheckIn(history, siguiente, { target: 1, weeks: 1 }),
+      history,
+      photos: [],
+      startDate: ALTA,
+      desde: siguiente,
+      semanas: 1,
+      preguntas: [],
+      entrega: null,
+    });
+
+    expect(paso(pasos, 'peso').hecho).toBe(false);
+    expect(paso(pasos, 'peso').estado).toContain('llevas 0');
+    expect(paso(pasos, 'medidas').hecho).toBe(false);
+  });
+
+  /* Los PLIEGUES, que se guardan en `skinFolds` y se leían en `folds`: a quien
+     solo le piden pliegues, medirse no contaba como medirse. */
+  it('unos pliegues tomados cuentan como medidas', () => {
+    const history = [{ id: 'p', date: '2026-09-17', weight: 61, skinFolds: { abdominal: 12, muslo: 16 } }];
+    const pasos = pasosDeLaEntrega({
+      protocol: PROTOCOLO,
+      resumen: weeklyCheckIn(history, SEMANA, { target: 1, weeks: 1 }),
+      history,
+      photos: [],
+      startDate: ALTA,
+      desde: SEMANA,
+      semanas: 1,
+      preguntas: [],
+      entrega: null,
+    });
+
+    expect(paso(pasos, 'medidas').hecho).toBe(true);
+    expect(paso(pasos, 'medidas').estado).toContain('pliegues 28 mm');
+  });
+});

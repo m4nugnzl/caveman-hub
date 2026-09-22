@@ -20,6 +20,7 @@ import {
   foldsSum,
   weeklyCheckIn,
 } from '@/domain/anthropometry';
+import { selloDelPeriodo } from '@/domain/calendar';
 import { ANGLES, photoWeek, weekFromStart } from '@/domain/photos';
 import {
   asksBlock,
@@ -328,7 +329,15 @@ export const ReviewWizard = ({
 
   const lote = usePhotoBatch({ onUpload: onUploadPhoto || (async () => ({ ok: false })) });
 
-  const semana = weekFromStart(client.startDate, todayISO());
+  /*
+    LA SEMANA DE PROGRAMA CON LA QUE SE SELLAN LAS FOTOS: la del periodo que se
+    entrega, no la de hoy. Con la ventana de entrega tardía abierta no son la
+    misma —hoy ya es la semana siguiente—, así que las fotos subidas aquí se
+    guardaban en una semana y la lista de la entrega las buscaba en otra: cuatro
+    fotos hechas y «te faltan las 4». Es el mismo arreglo que ya se hizo en
+    `useSemanaDeEntrega` para el resto de la pantalla.
+  */
+  const semana = weekFromStart(client.startDate, weekStart || todayISO());
   const yaSubidas = (photos || []).filter((p) => photoWeek(p, client.startDate) === semana);
   const cubiertos = new Set([
     ...yaSubidas.map((p) => p.angle),
@@ -497,6 +506,22 @@ export const ReviewWizard = ({
       /* Ya redondeadas a los decimales de cada una, y sin las que no se
          rellenaron: `null` es «no medido» y no cero. */
       medidas: compactMedidas(medidas, valores),
+      /*
+        ══ Y PARA QUÉ REVISIÓN CUENTA ════════════════════════════════════════
+
+        La fecha del registro es HOY salvo que se cambie a mano —y en el
+        teléfono (`soloMedidas`) no hay dónde cambiarla: el paso de la fecha va
+        con el del peso—. Con la ventana de entrega tardía abierta eso deja las
+        medidas fuera del periodo que se está entregando: se tomaban, se
+        guardaban bien, y el renglón seguía diciendo «sin tomar esta semana»
+        para siempre. Con el bloque marcado como obligatorio era peor todavía —
+        «Entregar mi semana» volvía a abrir este asistente una y otra vez.
+
+        El sello las mete en el periodo que se entrega, y solo en él. Vale igual
+        para el entrenador, que cierra la semana pasada un miércoles. Ver
+        `selloDelPeriodo`.
+      */
+      semana: selloDelPeriodo({ start: weekStart, everyWeeks: weeks }, date),
       /* Foto de las kcal y macros vigentes, para poder cruzar después dieta con
          evolución de peso: la tabla de nutrición no guarda histórico. Llega
          HECHA (`cycleFoto`): en un ciclado, la cifra que significa algo es la
