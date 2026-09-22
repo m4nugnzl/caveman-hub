@@ -29,6 +29,25 @@ valorar, reordenar y detectar fallos, y las **gráficas de volumen**.
 > y M-02**: no hay bloques previstos, no hay ascenso y la duración no se promete.
 > Siguen vigentes A-03, A-04, A-05, M-03, M-04, la §5-bis/5-ter sobre Coachway
 > y la §6.
+>
+> ✎ **ENMIENDA a la anulación de M-01** (22 sep 2026, decisión del dueño). La
+> previsión vuelve, pero **opcional**: con el creador del plan (el popup Plan
+> del roadmap) el entrenador puede dejar bloques en borrador detrás del abierto.
+> Lo que dijo el 7 de septiembre sigue valiendo como norma por defecto:
+> - Un bloque sin borradores detrás sigue abierto como hoy, sin fecha de fin.
+> - Ningún borrador empieza solo: ni por fecha, ni al cumplir su duración
+>   prevista, ni con el «que se abra solo» del cliente. Empieza cuando el
+>   entrenador pulsa «Empezar ahora», y solo el primero de la lista.
+> - Rellenar un borrador (escribir sus hojas) no lo empieza.
+>
+> Lo que **no** vuelve es la forma de M-01. Los borradores no van dentro de
+> `program.blocks` con `fromWeek: null`, sino en una columna aparte,
+> `workout_data.draft_blocks`. Todo el código, y también `continue_program`
+> (0109) y `training_summaries` (0110), supone que el último bloque de `blocks`
+> es el abierto, y unas cuarenta escrituras reconstruyen la lista desde
+> `blocksOf`. Un borrador ahí dentro pasaría por el bloque en curso o se
+> perdería al guardar. Tampoco vuelven `plannedBlocks`, `liveBlocks` ni
+> `promoteNextBlock`. A-01, A-02 y M-02 siguen anuladas.
 
 ---
 
@@ -182,6 +201,10 @@ futuro. El futuro es un plan, no un pasado en blanco.
 ---
 
 ## 4. El modelo (dominio)
+
+> ✎ Anulada el 7 sep y enmendada el 22 sep: la previsión vuelve como borradores
+> opcionales en `workout_data.draft_blocks`, no con esta forma. Ver la enmienda
+> al principio del documento.
 
 **M-01 · Bloques previstos.** `program.blocks` admite, detrás del abierto,
 bloques con `fromWeek: null`. `blocksOf` sigue devolviendo la cadena entera; se
