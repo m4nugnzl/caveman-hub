@@ -890,78 +890,46 @@
 }
 .plan-col-say { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 
-/* ══ LA CABECERA DE LA HOJA, EN DOS FILAS (17 sep · rediseño de Figma) ══════
-   El frame abre cada tarjeta con una fila de dos extremos —el día a la
-   izquierda, cómo va a la derecha— y el nombre debajo, con el ancho entero.
+/* ══ LA CABECERA DE LA HOJA: UNA FILA Y EL NOMBRE (23 sep) ═══════════════════
+       cuando (el día · cómo va)        verbos
+       nombre, a lo ancho
+   Fue una retícula 'dia cintillo' con la píldora de estado enfrente del día, y
+   en columna estrecha (menos de 300 px: bloques de 4-5 hojas) una consulta de
+   contenedor la partía en TRES renglones —día / verbos / nombre—: los iconos
+   quedaban en una fila propia entre el día y el titular. La causa no era el
+   ancho sino la fila que se dejaba partir.
 
-   Va con ÁREAS y no con dos flex anidados, y el motivo está medido en esta
-   misma pantalla: en fila, el nombre pierde tanto ancho como midan sus vecinos
-   de la derecha, y con los cuatro verbos ahí el titular se quedaba en «Emp…» a
-   150 px de columna. Con áreas, el nombre ocupa las dos columnas de la fila de
-   abajo y no negocia con nadie.
+   Ahora la primera fila no se parte nunca. El día y cómo va se agrupan a la
+   izquierda (las dos cosas dicen cuándo) y los verbos se quedan a la derecha;
+   si no cabe todo, cede la IZQUIERDA —la píldora de estado se recorta con
+   puntos hasta quedarse en su disco—, nunca bajan los verbos.
 
-       dia        cintillo     ← la píldora del día · cómo va + los verbos
-       nombre     nombre       ← el titular, ancho entero
-
-   El `align-items: start` de la primera fila es lo que deja las dos píldoras
-   alineadas por arriba aunque midan distinto. */
+   En reposo los verbos no ocupan sitio (flotan transparentes en la esquina),
+   así que la píldora se lee entera; al acercarse entran en el flujo y la
+   píldora cede lo que haga falta. Con el dedo están siempre. */
 .plan-col-alto {
+  position: relative;
   display: grid; min-width: 0;
-  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
-  grid-template-areas: 'dia cintillo' 'nombre nombre';
-  align-items: start; gap: var(--s2) var(--s2);
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'cuando acciones' 'nombre nombre';
+  align-items: center; gap: var(--s2);
 }
-.plan-col-alto > .plan-col-dia,
-.plan-col-alto > .menu-acciones { grid-area: dia; }
-/* ── Y EL RÓTULO MUDO NECESITA LO MISMO QUE EL MANDO ──────────────────────
-   «En las rutinas que no son semanales hay un espacio en blanco que tapa el día
-   de entrenamiento.»
-
-   La causa es la misma trampa que ya se pagó con el mando, y este rótulo se
-   quedó sin la cura: `.plan-col-dia` lleva `max-width: 100%`, y un porcentaje
-   sobre la propia pista que él tiene que medir es una referencia CIRCULAR — el
-   navegador la resuelve por el mínimo, la pista se queda en 14 px y el rótulo
-   sale con puntos suspensivos. Medido en un programa rotativo: «D1» pide 22 y
-   recibe 14, o sea «D…», y los 180 px que sobran se quedan de blanco entre él y
-   la píldora de estado, que va pegada al canto derecho. Eso es el «espacio en
-   blanco que tapa el día».
-
-   Sale en las rutinas NO semanales porque ahí el día no es un mando —no hay
-   siete casillas que elegir, lo dicta el patrón— y también en los bloques
-   cerrados, por lo mismo: sin nada que cambiar, el día es un rótulo. Es la
-   única rama que no pasaba por `button.plan-col-dia.is-mando`.
-
-   `width: max-content` y el tope fuera: mide lo suyo y la pista lo respeta. El
-   recorte vuelve solo durante el relevo, que es cuando de verdad hay que ceder
-   sitio (más abajo). */
-.plan-col-alto > .plan-col-dia { width: max-content; max-width: none; overflow: visible; }
+.plan-col-cuando {
+  grid-area: cuando; display: flex; align-items: center; gap: var(--s2);
+  min-width: 0; min-height: 22px;
+}
+.plan-col-cuando > .menu-acciones { flex-shrink: 0; min-width: 0; }
+.plan-col-cuando > .plan-col-dia { flex-shrink: 0; width: max-content; max-width: none; overflow: visible; }
+.plan-col-cuando > .plan-col-estado { flex-shrink: 1; min-width: 17px; }
 .plan-col-alto > .plan-col-cab { grid-area: nombre; }
-/* El cintillo se ancla al canto derecho: los verbos aparecen HACIA DENTRO y la
-   píldora de estado no se mueve un píxel al acercarse. Esta casa ya aprendió
-   que un dato que se aparta del cursor es un dato que no se puede apuntar
-   (ver `.plan-ej-quitar`). */
-/* Y mide lo que mide un botón (26), no lo que mide su contenido: en esa esquina
-   se relevan la píldora de estado (23) y la barra de verbos (26), y con el alto
-   libre el titular de debajo bajaba dos píxeles cada vez que el ratón entraba
-   en la tarjeta. Un renglón que cambia de alto al pasar por encima es un
-   renglón que no está alineado con el de al lado. */
-.plan-col-cintillo {
-  grid-area: cintillo; justify-self: end; position: relative;
-  display: flex; align-items: center; min-width: 0; min-height: var(--h-control-sm);
-  /* Y NO PUEDE PASARSE DE SU PISTA. Con `justify-self: end` y sin tope, el
-     cintillo se mide por su contenido y se sale por el canto IZQUIERDO —que es
-     el que queda libre—, o sea por encima del día. Medido a 1440 con tres
-     hojas: la píldora «hecha el jueves · 20 series» pide 166 en una pista de
-     151 y los quince que sobran caían sobre «D1», y encima pintados después
-     (va detrás en el marcado, así que gana). Con el tope puesto, el que cede es
-     el que sobra —la píldora se recorta con puntos, que ya los tiene puestos— y
-     el día no se toca: el rótulo es corto y fijo, la píldora es una frase.
-
-     El porcentaje no es circular aquí porque en reposo la pista es `1fr`, o sea
-     flexible: se resuelve antes de mirar el contenido. En el relevo sí lo sería
-     —ahí la pista mide por contenido— y por eso se levanta más abajo. */
-  max-width: 100%;
-}
+/* Sin día que decir, el mando se calla en reposo (`is-vacio`) y tampoco
+   guarda su sitio: si no, la píldora de estado arrancaba 50 px a la derecha de
+   la nada. Al acercarse vuelve a su hueco. */
+.plan-col-cuando > .menu-acciones:has(> .plan-col-dia.is-vacio) { position: absolute; left: 0; }
+.plan-col:hover .plan-col-cuando > .menu-acciones:has(> .plan-col-dia.is-vacio),
+.plan-col:focus-within .plan-col-cuando > .menu-acciones:has(> .plan-col-dia.is-vacio),
+.plan-col-cuando > .menu-acciones:has(> .plan-col-dia.is-vacio[aria-expanded='true']) { position: static; }
+@media (hover: none) { .plan-col-cuando > .menu-acciones:has(> .plan-col-dia.is-vacio) { position: static; } }
 /* ── TRES RENGLONES FIJOS, Y POR ESO LAS HOJAS CUADRAN ─────────────────────
    La cabecera llevaba los renglones que le tocaran: el día, el nombre, las
    series, la excepción si la había y el semáforo si lo había. «Push A» medía
@@ -1030,8 +998,10 @@
    con ella. En el portal del cliente sangra `--s4` y el −18 de arriba es el
    bueno: con caja de 20, el glifo queda centrado en el callejón en los dos. */
 .mesa-cuerpo .plan-asa { left: -21px; }
-.plan-col:hover > .plan-col-cab > .plan-asa,
-.plan-col:focus-within > .plan-col-cab > .plan-asa,
+/* El asa vive dentro de `.plan-col-alto`: con `>` directo desde la columna
+   el selector no casaba nunca y el asa de la hoja no salía al acercarse. */
+.plan-col:hover .plan-col-cab > .plan-asa,
+.plan-col:focus-within .plan-col-cab > .plan-asa,
 .plan-ej:hover .plan-asa,
 .plan-ej:focus-within .plan-asa,
 .plan-asa:focus-visible { opacity: 1; }
@@ -1118,7 +1088,8 @@
    parecen un fallo de pintado. Con el reparto así, los dos grupos que más
    pesan se leen enteros siempre y la merma la paga el que menos importa. */
 .plan-col-vol-g { flex-shrink: 0; gap: var(--s1); }
-.plan-col-vol-g:nth-child(3) { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* El tercer grupo, que es el cuarto chip: el primero es el total. */
+.plan-col-vol-g:nth-child(4) { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .plan-col-vol-n { font-weight: 700; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .plan-col-vol-mas { flex-shrink: 0; }
 
@@ -1129,182 +1100,41 @@
    *`): lo único suyo es el peso y que no se encoge —«✱ M2» ya es lo más corto
    que puede decirse—. */
 .plan-col-excepcion { font-weight: 600; letter-spacing: 0.02em; white-space: nowrap; flex-shrink: 0; }
-/* ── LOS BOTONES DE LA HOJA ────────────────────────────────────────────────
-   El «···» de la cabecera de la columna se ha abierto en sus tres verbos
-   —renombrar, guardar como pieza, quitar—: «las hojas dentro de bloque tampoco
-   tienen botones, deberían tener».
+/* ── Y ES UN MANDO (23 sep): abre qué difiere y «Es intencionado» ─────────
+   El envoltorio del menú no es un chip: la cápsula la lleva el botón, con la
+   misma medida que sus vecinos, y se enciende al pasar como cualquier mando. */
+.plan-col-vol > .menu-acciones { padding: 0; border: 0; background: none; height: auto; flex-shrink: 0; }
+.entreno.is-conjunto .plan-col-vol > .menu-acciones { background: none; }
+button.plan-col-excepcion.is-mando {
+  display: inline-flex; align-items: center; height: 18px; padding: 0 6px;
+  font: inherit; font-weight: 600; letter-spacing: 0.02em; color: var(--text-tertiary);
+  border: 1px solid var(--edge-control); border-radius: var(--r-pill); background: var(--surface);
+  cursor: pointer; transition: color var(--fast), background-color var(--fast);
+}
+button.plan-col-excepcion.is-mando:hover,
+button.plan-col-excepcion.is-mando[aria-expanded='true'] { color: var(--text); background: var(--fill-subtle); }
+/* ── LOS VERBOS DE LA HOJA: copiar, renombrar, guardar como pieza, quitar ──
+   Cuatro iconos de 13 en cajas de 22 (la densidad de la barra de arriba), a la
+   derecha de la primera fila. Aparecen al acercarse a SU columna o con el
+   foco dentro —con seis hojas en pantalla, veinticuatro iconos siempre
+   encendidos serían veinticuatro cosas que mirar— y con el dedo están siempre.
 
-   Misma ley que tenía el menú al que sustituyen: con seis hojas en pantalla,
-   dieciocho iconos siempre encendidos son dieciocho cosas que mirar. Aparecen
-   al acercarse a SU columna, y con el foco puesto —que es lo que los deja
-   alcanzar con el tabulador—. Con el dedo no hay «acercarse», así que se
-   quedan. */
-/* `flex-start` y no lo que herede: en la mesa la cabecera va centrada
-   (`.mesa-cuerpo .plan-col-cab`), y con tres renglones de rótulo eso dejaba los
-   tres botones flotando a media altura, a la de «hecha el miércoles», en vez de
-   al lado del nombre de la hoja, que es sobre lo que actúan. */
-/* ── LOS VERBOS DE LA HOJA, EN LA ESQUINA Y NO EN EL RENGLÓN ───────────────
-   Vivieron dentro de `.plan-col-cab`, en fila con el nombre. Con tres botones
-   ya apretaba; al entrar el cuarto —duplicar— el titular se quedó en «Emp…»
-   con la columna a 150 px, y encima SIEMPRE: la fila ocupa su ancho aunque
-   esté en `opacity: 0`, así que el nombre pagaba el sitio de unos botones que
-   no se veían.
-
-   Ahora se posan en la esquina, a la altura del renglón del día —que es corto
-   («LUN») y deja libre todo el canto derecho—, así que no tapan nada y el
-   nombre recupera la columna entera. Es la misma gramática de la casa: la caja
-   se enciende al alcanzarla y sus verbos aparecen donde no estorban. */
-/* ── Y DESDE EL 17 SEP, PEGADOS A LA PÍLDORA POR SU IZQUIERDA ──────────────
-   Se posaban en la esquina de la tarjeta (`top/right`). Con el cintillo puesto
-   ahí, esa esquina es justo donde vive la píldora de estado, y los cuatro
-   iconos se pintaban ENCIMA de ella: «a medias · 14/20 · 20 series» tachado por
-   una papelera. Medido con el ratón encima, no a ojo.
-
-   `right: 100%` los saca del ancho del cintillo por su canto izquierdo: caen
-   sobre el hueco que el renglón del día deja libre, no tapan nada, y —al estar
-   fuera del flujo— la píldora no se mueve un píxel cuando aparecen. Eso
-   último se comprobó midiendo la caja de la píldora antes y durante el hover:
-   misma x, mismo ancho. */
-/* ── PERO EL HUECO NO EXISTÍA, Y SE SALÍAN DE LA TARJETA (sexta vuelta) ────
-   «Los iconos no caben en el box.» Medido a 1600 con cuatro hojas: la tarjeta
-   ocupa 360→559 y la barra de iconos caía en 256→363. O sea fuera, encima de la
-   hoja de al lado.
-
-   La cuenta que lo explica: el renglón útil mide 153 px, la píldora de estado
-   dice «hecha el jueves · 20 series» y pide 166. Ya no cabe ella sola, así que
-   `right: 100%` —que la saca por el canto izquierdo del cintillo— la sacaba
-   fuera de la columna entera. El hueco libre del que hablaba la nota de arriba
-   existía cuando la píldora era corta; con el semáforo y el peso fundidos en
-   una sola (rediseño del 17 sep) dejó de existir.
-
-   La salida es la que pidió el dueño: «cuando pinchas, que desaparezca el aún
-   no o el hecho y salgan los iconos». Los dos comparten sitio —el canto derecho
-   del renglón— y se relevan, que es lo que hace que los iconos quepan SIEMPRE
-   sin que nada se mueva: la píldora conserva su caja (se va la tinta, no el
-   sitio), así que el titular de debajo no baja un píxel al acercarse. Que es la
-   otra mitad de «los títulos han de estar siempre alineados».
-
-   El relevo es EN FLUJO y no una barra posada encima, y eso es lo que resuelve
-   al tercero en discordia: la píldora del día, que es un MANDO —abre los siete
-   «cae el lunes…»— y por lo tanto no se puede tapar ni esconder. Fuera del
-   flujo, la barra caía sobre ella y dejaba «SIN D…» cortado por un icono. En
-   flujo, la retícula de la cabecera cambia de reparto al acercarse: los verbos
-   piden su ancho entero (`max-content`, nunca se encogen ni se recortan) y el
-   día cede lo que haga falta con puntos suspensivos, que es el orden de
-   prioridad correcto —un verbo a medias no se puede pulsar; un rótulo a medias
-   se sigue leyendo—. Con día puesto («LUN», 26 px) no cede nada.
-
-   Los dos miden 26 px de alto —la píldora por su relleno, los botones por
-   `--h-control-sm`—, así que el renglón mide igual con una que con otros y el
-   titular de debajo no se mueve.
-
-   En REPOSO siguen fuera del flujo: dentro, su ancho se suma al de la píldora,
-   el cintillo se sale de la tarjeta por el canto izquierdo —invisible, pero
-   colgando sobre la hoja vecina— y la cabecera crece dos píxeles. */
+   En reposo flotan en la esquina sin ocupar sitio; al aparecer entran en su
+   pista de la retícula (`acciones`) y es la izquierda la que cede. Ver
+   `.plan-col-alto`. */
 .plan-col-acciones {
-  position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  grid-area: acciones;
+  position: absolute; right: 0; top: 0;
   display: inline-flex; gap: 0;
-  opacity: 0; transition: opacity var(--fast);
-  pointer-events: none;
+  opacity: 0; pointer-events: none; transition: opacity var(--fast);
 }
-/* ── Y MIDEN 22, NO 26 (séptima vuelta) ───────────────────────────────────
-   «Los botones de edición de las hojas tienen mucho espacio en blanco y tapan
-   el día de entrenamiento.»
-
-   Las dos mitades son la misma cuenta. Cada botón llevaba la caja de un mando
-   de la casa (`--h-control-sm`, 26) alrededor de un glifo de 13: trece píxeles
-   de dibujo y trece de aire. En la barra de arriba, que es la referencia que
-   tiene al lado, el frame pone glifos de 15 en cajas de 24 — la mitad de aire.
-   A esa misma densidad, un glifo de 13 pide 22.
-
-   Cuatro botones pasan de 107 px a 88, y esos 19 son exactamente lo que le
-   faltaba al día para no recortarse: con cuatro hojas a 1600 el renglón útil
-   mide 144 y «sin día» pide 44.
-
-   El ALTO de la fila no cambia: lo fija `min-height` en `.plan-col-cintillo`,
-   que es lo que impide que el titular de debajo se mueva al acercarse.
-
-   Sin encogerse, además: con `flex-shrink` suelto, la retícula de la cabecera
-   los estrujaba a 22,75 de ancho por 26 de alto —rectángulos— en vez de
-   dejarlos cuadrados. Lo que cede es el rótulo del día, que es la prioridad
-   correcta y ya estaba escrita. */
-.plan-col-acciones > .btn-icon-compact {
-  width: 22px; height: 22px; flex-shrink: 0;
-}
+.plan-col-acciones > .btn-icon-compact { width: 22px; height: 22px; flex-shrink: 0; }
 .plan-col:hover .plan-col-acciones,
 .plan-col:focus-within .plan-col-acciones {
-  position: static; transform: none; opacity: 1; pointer-events: auto;
+  position: static; opacity: 1; pointer-events: auto;
 }
-/* La píldora deja el sitio del todo (`display`, no `opacity`): con ella todavía
-   midiendo, los verbos volverían a no caber, que es el defecto del que se
-   viene. */
-.plan-col:hover > .plan-col-alto .plan-col-estado,
-.plan-col:focus-within > .plan-col-alto .plan-col-estado { display: none; }
-/* ── Y LA PISTA DEL DÍA ES `1fr`, QUE ES DONDE ESTABA LA AVERÍA ────────────
-   «Tapan el día de entrenamiento, y con cuatro entrenamientos en una fila se
-   descolocan.»
-
-   No era de los iconos: era que las DOS pistas medían por contenido
-   (`minmax(0, auto)` y `max-content`) y `.plan-col-cab` —el titular con su
-   fila de chips— ocupa las dos. En una retícula así, lo que un elemento a
-   caballo pide sin envolver se reparte entre las pistas de medida intrínseca,
-   y aquí la única que podía crecer era la de los verbos. Medido a 1600 con
-   cuatro hojas: los chips piden 161 px en un renglón, la pista de los verbos
-   se iba a 153 —piden 107—, la cabecera entera salía 17 px por fuera de una
-   tarjeta de 144 y el día se quedaba en CERO. Eso es «se descolocan»: la
-   cabecera de la hoja por la que pasas deja de estar a plomo con su lista.
-
-   Con `1fr` la primera pista es FLEXIBLE, así que deja de ser candidata a
-   repartirse lo que pide el elemento a caballo y los chips no pueden inflar
-   nada: los verbos miden lo suyo (`max-content`, nunca se recortan) y el día se
-   queda con el hueco entero. Medido: a 1600 el día recupera sus 44 px —«sin
-   día» completo— y la caja acaba donde acaba la tarjeta.
-
-   Los chips no se tocan: siguen envolviendo a dos renglones de alto fijo, que
-   es lo que mantiene alineadas las listas de todas las hojas (sexta vuelta). Lo
-   que se corrige es que su ancho SIN envolver decidiera un reparto ajeno. */
-.plan-col:hover > .plan-col-alto,
-.plan-col:focus-within > .plan-col-alto { grid-template-columns: minmax(0, 1fr) max-content; }
-/* Y en el relevo se levanta el tope del cintillo: la pista pasa a medir por
-   contenido y un porcentaje contra ella sería la misma referencia circular que
-   dejaba al día en «D…». Aquí no hace falta ningún tope —los verbos miden lo
-   suyo y no se encogen—, así que el problema que el tope resuelve en reposo no
-   existe. */
-.plan-col:hover > .plan-col-alto > .plan-col-cintillo,
-.plan-col:focus-within > .plan-col-alto > .plan-col-cintillo { max-width: none; }
-/* Y sin día que proteger, tampoco hay tope. El rótulo vacío existe pero no se
-   ve —guarda su sitio y se calla hasta que te acercas (`is-vacio`)—, así que
-   recortar la píldora para no taparlo sería recortarla por nada: cuatro hojas
-   sin reparto a 1600 dejan 144 px de renglón y la frase pide 166, o sea «hecha
-   el j…» a cambio de respetar un hueco en blanco. Con el rótulo puesto manda la
-   regla de arriba: una frase se lee recortada, un rótulo de tres letras no. */
-.plan-col-alto:has(> .menu-acciones > .plan-col-dia.is-vacio) > .plan-col-cintillo { max-width: none; }
-/* Y el día se deja recortar, pero SOLO mientras dura el relevo: en reposo
-   conserva `width: max-content` sin tope, que es lo que evita el «SIN …» que
-   costó una captura (ver `button.plan-col-dia.is-mando`). */
-.plan-col:hover > .plan-col-alto > .menu-acciones,
-.plan-col:focus-within > .plan-col-alto > .menu-acciones { max-width: 100%; }
-/* El tope cuenta con el SANGRADO del chip: en esta vista el día pierde su
-   relleno lateral hacia afuera (`padding-inline` de 4 con `margin-inline` de
-   −4, ver más abajo), así que su caja puede medir 8 px más que el hueco sin
-   salirse de nada. Con `100%` pelado se comía esos 8 y «SIN DÍA» salía con la
-   A cortada aunque el hueco diera de sobra. */
-.plan-col:hover > .plan-col-alto button.plan-col-dia.is-mando,
-.plan-col:focus-within > .plan-col-alto button.plan-col-dia.is-mando,
-.plan-col:hover > .plan-col-alto > .plan-col-dia,
-.plan-col:focus-within > .plan-col-alto > .plan-col-dia {
-  max-width: calc(100% + var(--s2)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* Y la calle entre el día y los verbos baja a 4 mientras dura el relevo. Son
-   los cuatro píxeles que separan «SIN DÍA» entero de «SIN DÍ…» con cuatro hojas
-   a 1600: el renglón útil mide 144, los verbos 88 y el rótulo pide 52. En
-   reposo no cambia nada —ahí sobra sitio— y por eso va solo en el relevo. */
-.plan-col:hover > .plan-col-alto,
-.plan-col:focus-within > .plan-col-alto { column-gap: var(--s1); }
-/* Sin cursor no hay relevo que valga: los verbos se quedan a la vista y el
-   reparto lo hace el flujo, como ya hacía el día en esta misma cabecera. */
 @media (hover: none) {
-  .plan-col-acciones { position: static; transform: none; opacity: 1; pointer-events: auto; }
+  .plan-col-acciones { position: static; opacity: 1; pointer-events: auto; }
 }
 
 /* ── EL RÓTULO DE LAS CIFRAS ───────────────────────────────────────────────
@@ -1588,7 +1418,14 @@
      solo canto. Y las cifras bajan la voz: el nombre manda, la pauta anota. */
   /* Y con los tramos envolviendo, las líneas se alinean con el canto por el
      que se lee la columna, que aquí es el izquierdo. */
-  .plan-ej-pauta { margin-left: 0; justify-content: flex-start; }
+  /* Con `.plan-ej` delante: `.plan-ej-pauta { justify-content: flex-end }` va
+     más abajo en este fichero con el mismo peso y ganaba, así que las pautas de
+     un rango caían a la derecha del carril y no a plomo con las demás. */
+  .plan-ej .plan-ej-pauta { margin-left: 0; justify-content: flex-start; }
+  /* La pauta de varios rangos, igual: a la izquierda y sin guardarle al «＋»
+     un hueco a la derecha, que aquí no alinea nada. El «＋» va detrás. */
+  .plan-ej-pauta .plan-esq { justify-content: flex-start; padding-right: 0; }
+  .plan-ej-pauta .plan-esq-pie.is-suelto { position: static; transform: none; margin-left: 2px; }
   /* Y el rótulo se va con ellas. A la derecha era una etiqueta señalando un
      sitio vacío: las cifras estaban en el canto contrario. «Ejercicio» se cae
      —en esta anchura la columna no es una tabla de dos columnas, es una lista
@@ -1643,7 +1480,7 @@
 }
 /* La que toca. El acento no tiñe la tarjeta —eso sería colorear una superficie
    entera— sino la píldora que dice dónde vas. */
-.plan-col.is-sigue > .plan-col-alto > .plan-col-dia,
+.plan-col.is-sigue .plan-col-cuando > .plan-col-dia,
 .plan-col.is-sigue .plan-col-dia.is-mando { background: var(--accent-soft); color: var(--accent); }
 .plan-col.is-sigue .plan-col-estado.is-aun { color: var(--accent); }
 .plan-col.is-sigue .plan-col-estado.is-aun::before { background: var(--accent); border-color: var(--accent); }
@@ -1658,7 +1495,6 @@
    columna), así que un porcentaje sobre él es una referencia circular y el
    navegador la resuelve por el mínimo — «SIN DÍA» salía como «SIN …» en una
    columna de 230 px. Pagado con una captura. */
-.plan-col-alto > .menu-acciones { justify-self: start; min-width: 0; }
 button.plan-col-dia.is-mando {
   font: inherit; font-family: var(--font-display); font-size: var(--fs-2xs); font-weight: 700;
   letter-spacing: 0.04em; text-transform: uppercase;
@@ -1719,6 +1555,11 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 }
 .plan-series { width: 22px; }
 .plan-reps { width: 44px; }
+/* Las series contra el «×» y las repeticiones desde él: así el aspa cae en la
+   misma vertical en todas las filas y el aire a sus dos lados es siempre el
+   mismo. Centradas, «6-8» dejaba un hueco detrás del «×» que «10-12» no. */
+.plan-series { text-align: right; }
+.plan-reps { text-align: left; }
 /* ══ LA PAUTA EN TRAMOS: «1×12, 3×6-8» ═════════════════════════════════════
    Un tramo son series seguidas que piden lo mismo, y con uno solo esto es
    exactamente lo que había: dos casillas y su aspa. Lo que cambia es que
@@ -1740,46 +1581,26 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
    Fuera del flujo, la columna de cifras vuelve a ser una columna. */
 .plan-esq {
   position: relative; padding-right: 20px;
-  display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 0 2px;
+  display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 2px 0;
 }
-/* ── Y CON VARIOS TRAMOS SE APILAN EN COLUMNA (`is-pila`, 21 sep) ──────────
-   Iban en una caja que envolvía, y una caja que envuelve pide de ancho TODOS
-   sus tramos en fila: la columna `auto` de la pauta se quedaba con la tarjeta
-   entera y el nombre acababa en una letra por renglón. En columna, la caja
-   mide lo que el tramo más ancho y las cifras caen en la misma vertical.
-
-   Solo existe mientras se escribe: plegada, la fila enseña la pauta escrita
-   en un renglón (`.plan-esquema`). Y mientras se escribe las casillas llevan
-   su fondo, que tres cifras sueltas no parecen tres sitios donde escribir. */
-.plan-esq.is-pila {
-  display: flex; flex-direction: column; align-items: flex-end; flex-wrap: nowrap;
-  gap: 2px; padding-right: 0;
-}
-.plan-esq.is-pila .plan-series,
-.plan-esq.is-pila .plan-reps { background: var(--fill-subtle); color: var(--text); }
-.plan-esq.is-pila .plan-esq-tramo { gap: 2px; }
-/* Quitar un tramo: su «×» al final del renglón, en voz baja hasta que se le
-   acerca el ratón. Antes se quitaba poniéndolo a cero, y nadie lo sabía. */
-.plan-esq-quitar {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px; padding: 0; margin-left: 2px;
-  border: 0; border-radius: var(--r-xs); background: transparent;
-  color: var(--text-tertiary); cursor: pointer;
-  transition: color var(--fast), background-color var(--fast);
-}
-.plan-esq-quitar:hover { color: var(--text); background: var(--fill-subtle); }
-.plan-esq-quitar:focus-visible { outline: none; color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
-/* Y la «×» no está hasta que se busca: tres cruces en columna, más la
-   papelera de la fila, eran cuatro aspas para una sola fila. Sale al pasar
-   por su tramo o al tabular hasta él. */
-.plan-esq.is-pila .plan-esq-quitar { opacity: 0; transition: opacity var(--fast), color var(--fast), background-color var(--fast); }
-.plan-esq-tramo:hover .plan-esq-quitar,
-.plan-esq-tramo:focus-within .plan-esq-quitar { opacity: 1; }
-@media (hover: none) { .plan-esq.is-pila .plan-esq-quitar { opacity: 1; } }
-/* El «＋», debajo de la pila y en la vertical de las «×»: sin palabra y sin
-   «Listo» —se sale con un clic fuera—. */
-.plan-esq.is-pila .plan-esq-pie { width: auto; margin: 0; align-self: flex-end; }
-.plan-esq.is-pila .plan-esq-mas { width: 18px; }
+/* ── UNA LÍNEA, EN LECTURA Y EN EDICIÓN (23 sep) ───────────────────────────
+   La pila de casillas que se abría al tocar una pauta de varios rangos se ha
+   ido: la pauta se escribe donde se lee (`PautaEnLinea`). Lo que queda es que
+   el aire sea el mismo en toda la línea —el «×» y la «/» con 3 px a cada lado,
+   cifras tabulares— y que el último rango guarde el ancho de `.plan-reps`, que
+   es lo que hace acabar todas las filas en la misma vertical. */
+.plan-esq .plan-por { margin: 0 2px; }
+.plan-esq .plan-esq-barra { margin: 0 3px; }
+/* Si no cabe en un renglón, baja ENTRE rangos, nunca a mitad de uno: «2 ×» arriba
+   y su «6-8» abajo no es una pauta. Lectura y escritura envuelven igual —son la
+   misma pieza—, así que tocar una cifra no mueve la tarjeta. */
+.plan-esq-tramo { display: inline-flex; align-items: center; white-space: nowrap; }
+/* La cuenta de una rampa («3 × 6-8 / 8-10 / 8-12»): la misma cifra que una
+   casilla de series, pero no se escribe —la dan los rangos—. */
+.plan-esq .plan-series.is-cuenta { cursor: default; }
+.plan-esq .plan-series.is-cuenta:hover { background: transparent; color: inherit; }
+/* Donde solo se lee (el portal del cliente) no hay «＋» y no se reserva su hueco. */
+.plan-esq.is-lectura { padding-right: 0; }
 
 /* ══ LA PAUTA PLEGADA: UN RENGLÓN, Y EL MANDO QUE LA ABRE ══════════════════
    «6-8, 8-10, 8-12» son 95 px; las tres casillas que dicen lo mismo, 258. Por
@@ -1810,7 +1631,6 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
    como en la casilla: acaban en la misma vertical que las filas de un tramo.
    Por eso la pauta plegada no lleva relleno a la derecha. */
 .plan-esquema { padding-right: 0; }
-.plan-esq-ult { display: inline-block; width: 44px; text-align: center; }
 .plan-esquema:focus-visible { outline: none; background: var(--surface-sunken); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
 
 /* El pie del desglose: partir otra vez y darlo por bueno. Solo existe con la
@@ -1819,7 +1639,6 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
   display: flex; align-items: center; justify-content: flex-end; gap: var(--s2);
   width: 100%; margin-top: 2px;
 }
-.plan-esq-tramo { display: inline-flex; align-items: center; gap: 1px; white-space: nowrap; }
 /* Partir la pauta es una OFERTA: en reposo no está, sale al acercarse a la
    fila y se apaga con opacidad —nunca desmontándose— para que el tabulador
    siga llegando. La misma ley que la papelera de la fila y el día sin poner.
@@ -1928,23 +1747,12 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 /* En el alta las casillas SÍ se dibujan: la caja está abierta para escribir en
    ella, así que un campo sin fondo parecería un rótulo. En la fila es al revés
    —ahí se viene a leer y el fondo sale al tocarlo—. */
-/* Con varios tramos, la pila se lee por la izquierda como el resto de la caja,
-   y el rótulo se alinea con el primer renglón y no con el centro de la pila. */
-.plan-alta-pauta .plan-esq.is-pila { align-items: flex-start; }
-.plan-alta-fila:has(.is-pila) { align-items: start; }
-.plan-alta-fila:has(.is-pila) > .plan-alta-rotulo { padding-top: 4px; }
 .plan-alta-pauta .plan-series,
 .plan-alta-pauta .plan-reps { background: var(--surface-sunken); color: var(--text); }
 .plan-alta-nota { font-size: var(--fs-2xs); color: var(--text-tertiary); line-height: 1.35; white-space: normal; }
 /* Aquí vivía `.plan-alta`: el formulario de ejercicio metido dentro de la
    columna. Se ha ido con él a la ventana (`.escribir`, al final de este
    archivo), que es donde cabe. */
-
-.plan-difiere {
-  align-self: flex-start; padding: 0; border: 0; background: transparent;
-  font: inherit; font-size: var(--fs-2xs); color: var(--text); cursor: pointer; text-align: left;
-}
-.plan-difiere:hover { text-decoration: underline; }
 
 /* ══ EL COSTADO: dos tarjetas ══════════════════════════════════════════════
    La misma caja que `.comparativa` al lado de la hoja: así el costado del
@@ -2354,9 +2162,6 @@ a.title:hover { text-decoration: underline; }
   border-radius: 50%;
   background: transparent; border: 1px solid currentcolor;
 }
-/* El peso de la hoja, dentro de la píldora y en voz más baja que el semáforo:
-   lo que se busca al barrer la rejilla es cómo va, no cuánto pide. */
-.plan-col-estado > .plan-col-sub { font-size: inherit; font-weight: 500; opacity: 0.85; }
 .plan-col-estado.is-ok { background: var(--positive-soft); color: var(--positive); }
 .plan-col-estado.is-ok::before { background: currentcolor; }
 .plan-col-estado.is-warn { background: var(--warning-soft); color: var(--warning); }
@@ -3958,7 +3763,7 @@ a.title:hover { text-decoration: underline; }
   flex-wrap: wrap; align-content: flex-start;
   height: 40px; min-height: 40px; overflow: hidden;
 }
-.entreno.is-conjunto .plan-col-vol-g:nth-child(3) { flex-shrink: 0; overflow: visible; }
+.entreno.is-conjunto .plan-col-vol-g:nth-child(4) { flex-shrink: 0; overflow: visible; }
 
 
 
@@ -4289,6 +4094,15 @@ a.title:hover { text-decoration: underline; }
 .entreno.is-conjunto .plan-col-vol > * {
   background: var(--surface); border-color: var(--edge-control);
 }
+/* ── Y EL TOTAL, RELLENO (23 sep) ──────────────────────────────────────────
+   La misma cápsula, la misma letra y el mismo «etiqueta + cifra» que los
+   grupos; lo único suyo es el fondo sólido sutil frente al perfil de los
+   demás. El canto se queda, del color del relleno, para que mida lo mismo. */
+.plan-col-vol > .plan-col-vol-g.is-total,
+.entreno.is-conjunto .plan-col-vol > .plan-col-vol-g.is-total {
+  background: var(--fill); border-color: transparent; color: var(--text-secondary);
+}
+.plan-col-vol-g.is-total .plan-col-vol-n { color: var(--text); }
 
 /* ── 22 · LA PÍLDORA DEL DÍA PIERDE LA CÁPSULA ─────────────────────────────
    La regla 10 la dejó en tinte de acento sobre relleno. El frame no le pone
@@ -4731,3 +4545,135 @@ a.title:hover { text-decoration: underline; }
 /* El destino en tinta llena: es la ficha en la que estás y la que va a cambiar. */
 .copia-resumen-quien.is-destino { color: var(--text); }
 .copia-resumen-flecha { color: var(--text-tertiary); flex-shrink: 0; }
+
+/* ══ EL PANEL DE LA SESIÓN (23 sep, segunda vuelta) ═══════════════════════════
+   Una capa, como una hoja de iOS, la misma para el entrenador (desde «22 sept
+   ⌄») y el cliente (la fecha de la cabecera de su sesión): la sesión arriba en
+   grande, el calendario dentro, la lista si hay varias y las acciones al pie.
+   El ancho lo fija el calendario —siete días de 36 con su hueco de 2—, así
+   que abrirlo al mes solo lo estira hacia abajo. */
+.cal-sesion-ancla { position: relative; display: inline-flex; min-width: 0; }
+.popover.panel-sesion {
+  width: 290px; min-width: 0; padding: var(--s3);
+  display: flex; flex-direction: column; gap: var(--s3);
+  border-radius: var(--r-control-lg);
+}
+
+/* ── La sesión: el día en grande y cómo va ─────────────────────────────── */
+.panel-sesion-cab { display: flex; flex-direction: column; gap: 2px; padding: 2px var(--s1) 0; }
+.panel-sesion-linea { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 22px; }
+.panel-sesion-sem {
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary);
+  text-transform: capitalize;
+}
+.panel-sesion-dia {
+  margin: 0; font-size: var(--fs-lg); font-weight: 700; line-height: 1.15; letter-spacing: -0.02em;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.panel-sesion-nota { margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.panel-sesion-nota.is-motivo { padding: 0 var(--s1); }
+.panel-sesion .plan-col-estado { flex-shrink: 0; }
+
+/* ── El calendario: una rejilla de mes vista por una ventana ───────────── */
+.cal-sesion { display: flex; flex-direction: column; padding-top: var(--s2); border-top: 1px solid var(--hairline); }
+.cal-sesion-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); margin-bottom: 2px; }
+.cal-sesion-mes {
+  display: inline-flex; align-items: center; gap: var(--s1); height: 30px; padding: 0 var(--s2);
+  border: 0; border-radius: var(--r-sm); background: none; cursor: pointer;
+  font: inherit; font-size: var(--fs-sm); font-weight: 700; color: var(--text);
+  text-transform: capitalize; font-variant-numeric: tabular-nums;
+  transition: background-color var(--fast);
+}
+.cal-sesion-mes svg { color: var(--accent); transition: transform var(--normal); }
+.cal-sesion.is-mes .cal-sesion-mes svg { transform: rotate(180deg); }
+@media (hover: hover) { .cal-sesion-mes:hover { background: var(--fill-subtle); } }
+.cal-sesion-mes:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-sesion-pasar { display: inline-flex; gap: 2px; opacity: 0; visibility: hidden; transition: opacity var(--fast), visibility var(--fast); }
+.cal-sesion.is-mes .cal-sesion-pasar { opacity: 1; visibility: visible; }
+.cal-sesion-flecha {
+  display: grid; place-items: center; width: 30px; height: 30px; padding: 0;
+  border: 0; border-radius: 50%; background: none; color: var(--accent); cursor: pointer;
+  transition: background-color var(--fast);
+}
+@media (hover: hover) { .cal-sesion-flecha:hover:not(:disabled) { background: var(--fill-subtle); } }
+.cal-sesion-flecha:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-sesion-flecha:disabled { color: var(--text-tertiary); opacity: 0.45; cursor: default; }
+.cal-sesion-sems, .cal-sesion-fila { display: grid; grid-template-columns: repeat(7, 36px); gap: 2px; }
+.cal-sesion-sems > span {
+  height: 20px; display: grid; place-items: center;
+  font-size: var(--fs-3xs); font-weight: 600; color: var(--text-tertiary);
+}
+/* La ventana: una fila (36) o todas (38 cada una menos el último hueco). Crece
+   y la rejilla baja a su sitio a la vez, con el mismo muelle. */
+.cal-sesion-ventana { overflow: hidden; transition: height var(--normal); }
+.cal-sesion-rejilla { display: flex; flex-direction: column; gap: 2px; transition: transform var(--normal); }
+.cal-sesion-dia {
+  position: relative; width: 36px; height: 36px; border-radius: 50%;
+  display: grid; place-items: center; padding: 0; border: 0; background: transparent;
+  font: inherit; font-size: var(--fs-sm); font-weight: 500; font-variant-numeric: tabular-nums;
+  color: var(--text); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast), opacity var(--fast);
+}
+.cal-sesion-dia:hover:not(:disabled) { background: var(--fill-subtle); }
+.cal-sesion-dia:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-sesion-dia.is-hoy { color: var(--accent); font-weight: 700; }
+.cal-sesion-dia.is-elegido,
+.cal-sesion-dia.is-elegido:hover { background: var(--accent); color: var(--elegido-texto); font-weight: 700; }
+.cal-sesion-dia:disabled { color: var(--text-tertiary); opacity: 0.4; cursor: default; }
+/* En el mes, los días de los meses de al lado se van: su sitio es su página. */
+.cal-sesion-dia.is-otro-mes { opacity: 0; pointer-events: none; }
+.cal-sesion-dia.is-ocupado::after {
+  content: ''; position: absolute; bottom: 5px; left: 50%; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: currentcolor; opacity: 0.6;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cal-sesion-ventana, .cal-sesion-rejilla, .cal-sesion-dia, .cal-sesion-mes svg { transition: none; }
+}
+
+/* ── Las otras sesiones de la hoja, para saltar ────────────────────────── */
+.panel-sesion-lista {
+  list-style: none; margin: 0; padding: var(--s2) 0 0; border-top: 1px solid var(--hairline);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.panel-sesion-otra {
+  width: 100%; display: flex; align-items: center; gap: var(--s2); min-height: 36px; padding: 0 var(--s2);
+  border: 0; border-radius: var(--r-sm); background: none; cursor: pointer; text-align: left;
+  font: inherit; font-size: var(--fs-sm); color: var(--text);
+  transition: background-color var(--fast);
+}
+@media (hover: hover) { .panel-sesion-otra:hover { background: var(--fill-subtle); } }
+.panel-sesion-otra:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.panel-sesion-otra-dia { flex: 1; font-variant-numeric: tabular-nums; }
+.panel-sesion-otra.is-activa .panel-sesion-otra-dia { font-weight: 600; }
+.panel-sesion-check { color: var(--accent); flex-shrink: 0; visibility: hidden; }
+.panel-sesion-otra.is-activa .panel-sesion-check { visibility: visible; }
+
+/* ── Al pie: añadir en voz baja, quitar aparte y en rojo ───────────────── */
+.panel-sesion-pie {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  padding-top: var(--s2); border-top: 1px solid var(--hairline);
+}
+.panel-sesion-accion {
+  display: inline-flex; align-items: center; gap: var(--s1); height: 30px; padding: 0 var(--s2);
+  border: 0; border-radius: var(--r-sm); background: none; cursor: pointer;
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--accent);
+  transition: background-color var(--fast);
+}
+.panel-sesion-accion.is-peligro { color: var(--negative); }
+@media (hover: hover) {
+  .panel-sesion-accion:hover { background: var(--accent-soft); }
+  .panel-sesion-accion.is-peligro:hover { background: var(--negative-soft); }
+}
+.panel-sesion-accion:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* La fecha de la cabecera del cliente, cuando se puede cambiar: la misma
+   tinta que el texto que la rodea, subrayada en punteado —como un dato que se
+   toca— y en acento al pasar. */
+.fecha-sesion {
+  display: inline; padding: 0; border: 0; background: none; font: inherit; color: inherit;
+  text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1px;
+  cursor: pointer; border-radius: var(--r-xs);
+}
+.fecha-sesion { white-space: nowrap; }
+@media (hover: hover) { .fecha-sesion:hover { color: var(--accent); } }
+.fecha-sesion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

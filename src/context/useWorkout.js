@@ -42,6 +42,7 @@ import {
   moveBlockExerciseIn,
   moveBlockSessionIn,
   promoteOverrideIn,
+  marcarExcepcionVistaIn,
   putOverrideIn,
   removeBlockExerciseIn,
   removeBlockSessionFrom,
@@ -75,6 +76,7 @@ import {
   seguirALasHojas,
 } from '@/domain/blocks';
 import { soltarHojaSinEntrenar } from '@/domain/hojasFuera';
+import { conFechaDeSesion } from '@/domain/fechaDeLaSesion';
 import {
   anadirBorrador,
   borradorDe,
@@ -611,6 +613,46 @@ export const useWorkout = ({
           }),
         /* Inmediato: es un gesto explícito con una pantalla esperando. El resto
            de la sesión se guarda en tandas porque son cien tecleos. */
+        { immediate: true }
+      );
+    },
+    [applyMicrocycle, profileRole, queue]
+  );
+
+  /**
+   * EL DÍA DE UNA SESIÓN, desde el mini calendario de los dos lados.
+   *
+   * La misma escritura para el entrenador y el cliente (`conFechaDeSesion`); lo
+   * que cambia es cómo se persiste, por el mismo motivo que las series: el
+   * entrenador reescribe el programa, que es suyo, y el cliente va por
+   * `log_session_date` (0135), que valida el día y la frontera de las
+   * revisiones en el servidor y deja dicho que lo movió él.
+   *
+   * Qué días se ofrecen lo decide `domain/fechaDeLaSesion`; aquí no se repite.
+   */
+  const cambiarFechaDeSesion = useCallback(
+    (clientId, weekNumber, sessionId, fecha) => {
+      if (!clientId || !sessionId || !fecha || !Number.isFinite(weekNumber)) return;
+      const porCliente = profileRole === 'client';
+      const local = (m) => conFechaDeSesion(m, sessionId, fecha, { porCliente });
+
+      if (!porCliente) {
+        applyMicrocycle(clientId, weekNumber, local, { immediate: true });
+        return;
+      }
+
+      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
+      queue.enqueue(
+        `fecha:${clientId}:${sessionId}`,
+        { weekNumber, sessionId, fecha },
+        (data) =>
+          supabase.rpc('log_session_date', {
+            p_client: clientId,
+            p_week: data.weekNumber,
+            p_session_id: data.sessionId,
+            p_date: data.fecha,
+          }),
+        /* Inmediato: es un gesto explícito, como «Terminar». */
         { immediate: true }
       );
     },
@@ -1556,6 +1598,17 @@ export const useWorkout = ({
    */
   const ponerReferenciasDelBloque = useCallback(
     (clientId, blockId, lista) => applyWorkout(clientId, (cd) => ponerReferencias(cd, blockId, lista)),
+    [applyWorkout]
+  );
+
+  /**
+   * «Es intencionado»: da por vistas las excepciones de una hoja en esos
+   * microciclos, con la firma de lo que difiere hoy (`marcarExcepcionVistaIn`).
+   * Por `applyWorkout`, como las referencias: una clave del bloque, sin plan.
+   */
+  const marcarExcepcionVista = useCallback(
+    (clientId, blockId, dayName, weeks) =>
+      applyWorkout(clientId, (cd) => marcarExcepcionVistaIn(cd, blockId, dayName, weeks)),
     [applyWorkout]
   );
 
@@ -2595,6 +2648,8 @@ export const useWorkout = ({
     restoreDay,
     ponerMicrocicloDelBloque,
     ponerReferenciasDelBloque,
+    marcarExcepcionVista,
+    cambiarFechaDeSesion,
     startProgram,
     appendMicrocycle,
     appendMicrocycleWithDays,

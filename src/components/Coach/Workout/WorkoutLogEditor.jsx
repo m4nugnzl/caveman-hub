@@ -67,6 +67,8 @@ import { AddExerciseForm } from './AddExerciseForm';
 import { ComparativaEjercicio } from './ComparativaEjercicio';
 import { TramoDelPegado } from './TramoDelPegado';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
+import { PanelDeLaSesion } from '@/components/ui/CalendarioDeLaSesion';
+import { diasConOtraSesion, estadoDeLaSesion, limitesDeLaSesion, porQueNoSeMueve } from '@/domain/fechaDeLaSesion';
 import { Subjetivo } from '@/components/ui/Subjetivo';
 import { Destino } from '@/components/ui/Portapapeles';
 import { TIPO, copiar as copiarAlPortapapeles, piezaDeHoja, usePortapapeles } from '@/lib/portapapeles';
@@ -217,6 +219,8 @@ export const WorkoutLogEditor = () => {
     removePlanExerciseOnly,
     dropOverride,
     promoteOverride,
+    marcarExcepcionVista,
+    cambiarFechaDeSesion,
     addOverride,
     setOverrideSpan,
     cloneMicrocycle,
@@ -278,6 +282,7 @@ export const WorkoutLogEditor = () => {
   const [focoEjercicio, setFocoEjercicio] = useState(null);
   /* El panel lateral abierto: el de la semana, el del día, o ninguno. */
   const [panel, setPanel] = useState(null);
+  /* El mini calendario del día de la sesión, abierto desde «sesión del …». */
   /* El bloque que se está mandando a otros clientes, o `null`. Se guarda el
      bloque y no un booleano porque se manda el de una fila concreta de la
      lista, que no tiene por qué ser el abierto. */
@@ -2019,39 +2024,65 @@ export const WorkoutLogEditor = () => {
     no— con la cuenta exacta en su título, y debajo está la tabla, donde se ve
     casilla por casilla lo que falta. Una cabecera no cuenta lo que ya se ve.
   */
+  /*
+    ── Y ES UN PANEL, NO UN MENÚ (23 sep, segunda vuelta) ────────────────────
+    El selector decía cuándo se hizo y no dejaba cambiarlo. La primera vuelta
+    le puso «Cambiar el día», que abría OTRO popover con el calendario; el
+    dueño: «se ve pobre». Ahora es una capa (`PanelDeLaSesion`, la misma que
+    abre el cliente en su sesión): la sesión arriba en grande con su chip, el
+    calendario dentro, la lista si hay varias y al pie añadir y quitar.
+
+    El botón se queda en «22 sept ⌄»: el estado ya lo dicen el disco de la
+    pestaña de la hoja y el chip de dentro del panel, y «sesión del» sobraba
+    —es el único mando de la fila que lleva una fecha—.
+  */
+  const seriesPautadas = (nav.day?.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
+  const quitarSesion = async () => {
+    const s = daySession.session;
+    const ok = await confirm({
+      title: `¿Quitar la sesión del ${shortDate(s.date)}?`,
+      message:
+        sessionSetCount(s) > 0
+          ? `Se borran las ${sessionSetCount(s)} series apuntadas en ella. El plan de la hoja no cambia.`
+          : 'No tiene series apuntadas: no se pierde nada.',
+      confirmLabel: 'Quitar sesión',
+      tone: 'danger',
+    });
+    if (ok) removeSession(activeClient.id, nav.week, s.id);
+  };
   const mandosDeLaHoja = nav.day ? (
-    <>
-      <MenuAcciones
-        clase="tira-sesion"
-        sinFlecha={false}
-        ariaLabel={`Sesión de ${nav.day.dayName} que se está mirando`}
-        label={daySession.session?.date ? `sesión del ${shortDate(daySession.session.date)}` : 'sin sesión'}
-        items={[
-          ...daySession.sessions.map((ss) => ({
-            icon: CalendarDays,
-            label: `${ss.date ? shortDate(ss.date) : 'sin fecha'}${ss.id === daySession.activeId ? ' · abierta' : ''}`,
-            run: () => daySession.select(ss.id),
-          })),
-          daySession.sessions.length > 0 ? null : undefined,
-          {
-            icon: Plus,
-            label: 'Otra sesión de este día',
-            run: () => {
-              const id = startSession(activeClient.id, nav.week, nav.day.dayName);
-              if (id) daySession.select(id);
-            },
-          },
-          daySession.activeId && !daySession.session?.isLegacy
-            ? {
-                icon: Trash2,
-                label: 'Quitar esta sesión',
-                danger: true,
-                run: () => removeSession(activeClient.id, nav.week, daySession.activeId),
-              }
-            : undefined,
-        ]}
-      />
-    </>
+    <PanelDeLaSesion
+      claseBoton="tira-sesion"
+      etiqueta={daySession.session?.date ? shortDate(daySession.session.date) : 'Sin sesión'}
+      ariaLabel={`Sesión de ${nav.day.dayName} que se está mirando${
+        daySession.session?.date ? `: ${shortDate(daySession.session.date)}` : ''
+      }`}
+      sesion={
+        daySession.session
+          ? {
+              fecha: daySession.session.date || null,
+              estado: estadoDeLaSesion(daySession.session, seriesPautadas),
+              fechaPor: daySession.session.fechaPor,
+            }
+          : null
+      }
+      motivo={daySession.session ? porQueNoSeMueve({ session: daySession.session }) : null}
+      limites={limitesDeLaSesion(microcycles, nav.week)}
+      ocupados={diasConOtraSesion(microcycles, nav.day.dayName, daySession.activeId)}
+      onElegir={(fecha) => cambiarFechaDeSesion(activeClient.id, nav.week, daySession.activeId, fecha)}
+      sesiones={daySession.sessions.map((ss) => ({
+        id: ss.id,
+        fecha: ss.date || null,
+        estado: estadoDeLaSesion(ss, seriesPautadas),
+      }))}
+      activa={daySession.activeId}
+      onSesion={daySession.select}
+      onAnadir={() => {
+        const id = startSession(activeClient.id, nav.week, nav.day.dayName);
+        if (id) daySession.select(id);
+      }}
+      onQuitar={daySession.activeId && !daySession.session?.isLegacy ? quitarSesion : undefined}
+    />
   ) : null;
 
   /*
@@ -2867,6 +2898,9 @@ export const WorkoutLogEditor = () => {
               onMoverHoja={moverHojaDelBloque}
               onRecordarEjercicio={upsertLibraryExercise}
               onGuardarPieza={guardarPieza}
+              onExcepcionVista={
+                bloque ? (dia, semanas) => marcarExcepcionVista(activeClient.id, bloque.id, dia, semanas) : null
+              }
               onMicrociclo={ponerMicrociclo}
               onTraerFichero={(ficheros) => {
                 /* Solo se ofrece con el bloque en blanco: lo que se traiga

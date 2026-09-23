@@ -38,6 +38,10 @@ import {
   blockSessionsOf,
   buildOverride,
   describeOverride,
+  excepcionVista,
+  firmaDeLaExcepcion,
+  marcarExcepcionVistaIn,
+  queDifiere,
   hasBlockPlan,
   blockOverridesOf,
   overrideSpan,
@@ -2003,5 +2007,50 @@ describe('las piezas de cambiar un ejercicio por otro', () => {
     expect(describeBlockChange({ kind: BLOCK_CHANGE.NOMBRE, que: 'Press plano', de: 'Press banca', a: 'Press plano' })).toBe(
       'Press banca → Press plano'
     );
+  });
+});
+
+describe('dar por vista una excepción («Es intencionado»)', () => {
+  const base = () => ({
+    blocks: [
+      {
+        id: 'b1',
+        fromWeek: 1,
+        toWeek: null,
+        sessions: [{ dayName: 'Push', exercises: [ejercicio('a', 'Press banca')] }],
+        overrides: [
+          buildOverride({ dayName: 'Push', targetId: 'a', exercise: ejercicio('a', 'Press banca', 4), sobre: 'Press banca', fromWeek: 2, toWeek: 2 }),
+        ],
+      },
+    ],
+  });
+
+  it('sin excepción no hay firma ni nada que ver', () => {
+    const b = base().blocks[0];
+    expect(firmaDeLaExcepcion(b, 1, 'Push')).toBeNull();
+    expect(excepcionVista(b, 1, 'Push')).toBe(false);
+    expect(queDifiere(b, 2, 'Push')).toBe('Press banca');
+  });
+
+  it('marcada, se queda vista mientras no cambie lo que difiere', () => {
+    const p = marcarExcepcionVistaIn(base(), 'b1', 'Push', [2]);
+    expect(excepcionVista(blocksOf(p)[0], 2, 'Push')).toBe(true);
+  });
+
+  it('si cambia algo más en ese microciclo, la marca vuelve', () => {
+    const p = marcarExcepcionVistaIn(base(), 'b1', 'Push', [2]);
+    const b = blocksOf(p)[0];
+    const otra = buildOverride({ dayName: 'Push', exercise: ejercicio('c', 'Fondos'), fromWeek: 2, toWeek: 2 });
+    const cambiado = { ...b, overrides: [...b.overrides, otra] };
+    expect(excepcionVista(cambiado, 2, 'Push')).toBe(false);
+  });
+
+  it('el plan del bloque solo marca las que nadie ha visto', () => {
+    const p = { ...base(), microcycles: [1, 2, 3].map((w) => ({ weekNumber: w, days: [] })) };
+    expect(blockPlan(p, blocksOf(p)[0]).sessions[0].avisan).toEqual([2]);
+    const visto = marcarExcepcionVistaIn(p, 'b1', 'Push', [2]);
+    const hoja = blockPlan(visto, blocksOf(visto)[0]).sessions[0];
+    expect(hoja.difieren).toEqual([2]);
+    expect(hoja.avisan).toEqual([]);
   });
 });

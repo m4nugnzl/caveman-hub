@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, ClipboardPaste, Copy, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, X, Zap } from 'lucide-react';
+import { Bookmark, ClipboardPaste, Copy, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 
 import {
   blockPlan,
@@ -9,6 +9,7 @@ import {
   microcicloDelBloque,
   nombresDeLaHoja,
   pautaHeredada,
+  queDifiere,
   setsDesdeTramos,
   tramosDeSeries,
   untrainedWeeksOfDay,
@@ -97,224 +98,223 @@ import { useCambiosDelMicrociclo } from './EditorDelMicrociclo';
  */
 
 /**
- * LA PAUTA, EN CASILLAS: «4 × 6-8» o «1 × 12, 3 × 6-8».
+ * LA PAUTA, EN LÍNEA: «4 × 6-8», «3 × 6-8 / 8-10 / 8-12» o «2 × 6-8 / 1 × 8-12».
  *
- * ══ Lo que había, y por qué se cayó ════════════════════════════════════════
+ * ══ Se escribe como se lee (23 sep) ════════════════════════════════════════
  *
- * Un entrenador preguntó cómo pautar series con rangos distintos —la primera a
- * 12 y las tres siguientes a 6-8—. Se podía, pero solo abriendo la hoja entera,
- * y para saber que el nombre de la tarjeta es una puerta hay que habérselo
- * encontrado. Desde la rejilla del bloque no había forma: las dos casillas eran
- * «cuántas series» y «qué piden TODAS», así que en cuanto dejaban de pedir lo
- * mismo la segunda se rendía y escribía «varias».
+ * La pauta de varios tramos se leía en un renglón y, al tocarla, se abría en
+ * una pila de casillas —«1 × 6-8» / «1 × 8-10» / «1 × 8-12» y un «＋»—: la
+ * tarjeta saltaba de alto y el formato cambiaba bajo el dedo. El dueño: «la
+ * edición tiene que verse igual que la lectura».
  *
- * «Varias» no dice nada. Ni cuántas van a 12, ni cuántas a 6-8, ni siquiera que
- * sean dos cosas y no cinco: es el hueco donde tenía que estar el plan.
+ * Ahora es UNA pieza para las dos cosas. Cada cifra es su propia casilla sin
+ * caja —se enciende al pasar y al escribir, como las de un tramo de siempre—,
+ * así que tocar «8-10» edita ese rango donde está. Sin `onCambiar` (el portal
+ * del cliente) las mismas cifras se pintan como texto, con el mismo ancho.
  *
- * ══ La pauta son TRAMOS, y siempre lo fue ══════════════════════════════════
- *
- * Un tramo son series seguidas que piden lo mismo (`tramosDeSeries`). «4 × 6-8»
- * es un tramo y se pinta exactamente como antes —las mismas dos casillas, el
- * mismo ancho, el mismo sitio—, así que el caso corriente no pierde nada.
- *
- * ══ Y CON VARIOS, LA FILA SIGUE MIDIENDO UNA LÍNEA ═════════════════════════
- *
- * Costó tres vueltas y las tres las tumbó el dueño, que en las tres tenía
- * razón:
- *
- *   1. Las casillas de los dos tramos EN LÍNEA. «[1]×[12] , [3]×[6-8] ＋» pide
- *      176 px de una tarjeta de 312 y el nombre se quedaba en 50: «Press
- *      banca» envuelto en cuatro renglones.
- *   2. La pauta en un renglón PROPIO bajo el nombre. «Rompe mucho la estética»:
- *      seis cifras al canto derecho y una suelta a la izquierda no es una
- *      tabla, es una tabla con un remiendo.
- *   3. Los tramos APILADOS en el carril. Mejor, pero «amplía mucho esa fila»:
- *      tres tramos son tres renglones, y el ejercicio con rampa era el doble de
- *      alto que sus vecinos.
- *
- * El fallo común a las tres es querer que LAS CASILLAS quepan. No caben: una
- * casilla necesita su caja de toque y tres no entran en 150 px. Lo que sí cabe
- * —y sobra— es la pauta ESCRITA: «6-8, 8-10, 8-12» son 95 px (`esquemaDicho`,
- * que calla el «1×» porque la lista ya cuenta las series).
- *
- * Así que la fila enseña la pauta en un renglón, en su carril de siempre, y el
- * desglose se abre AL TOCARLA, en el sitio, mientras se escribe:
- *
- *     ┌──────────────────────────────────────┐    en reposo
- *     │ Sentadilla     3 × 6-8 / 8-10 / 8-12 │    una línea, como las demás
- *     └──────────────────────────────────────┘
- *     ┌──────────────────────────────────────┐    tocándola
- *     │ Sentadilla            [1] × [6-8]  × │
- *     │                       [1] × [8-10] × │
- *     │                       [1] × [8-12] × │
- *     │                                    ＋ │
- *     └──────────────────────────────────────┘
- *
- * Y se sale con un clic fuera, sin «Listo»: estuvo y sobraba, porque salir de
- * la fila ya la cerraba y un botón que hace lo que hace cualquier clic es un
- * paso más, no una ayuda.
- *
- * Sin ventana y sin capa: si el esquema se abriera flotando taparía la hoja de
- * al lado, que es justo lo que se viene a comparar aquí. La fila crece
- * mientras se escribe y vuelve a su sitio al soltarla — y crecer un momento no
- * es lo mismo que medir el doble siempre.
- *
- * ══ Cómo se parte y cómo se junta ══════════════════════════════════════════
- *
- * El «＋» añade un tramo de una serie al final, con las repeticiones del
- * anterior: partir «4 × 6-8» da «4 × 6-8, 1 × 6-8» y desde ahí se corrigen las
- * cifras, que es donde están. Con las doce series puestas —el tope de la casa—
- * la que hace falta se le quita al último tramo en vez de pasarse.
- *
- * Y se quita con su «×», a la derecha de cada tramo. Estuvo escondido en poner
- * las series a CERO, y el dueño lo encontró como lo encuentra cualquiera: «una
- * vez añades un rango ya no puedes borrarlo». Un gesto que no se ve no existe.
- *
- * ══ Y CON VARIOS, SE APILAN EN COLUMNA (21 sep) ════════════════════════════
- *
- * Los tramos iban en una caja que envolvía, y una caja que envuelve pide de
- * ancho TODOS sus tramos en fila: la columna de la pauta se lo quedaba entero
- * y el nombre acababa en una letra por renglón. Apilados (`is-pila`), la caja
- * mide lo que el tramo más ancho, las cifras caen en la misma vertical y el
- * «＋» va debajo, en la vertical de las «×».
+ * ── Los tres gestos, sin salir de la línea ─────────────────────────────────
+ *   · AÑADIR un rango: el «＋» del final (una oferta: sale al acercarse) abre
+ *     una casilla vacía al final de la línea. Con algo escrito, el rango nace
+ *     partiendo la pauta (`conOtroTramo`: el volumen no cambia); vacía, se va.
+ *   · QUITAR un rango: dejarlo vacío, o sus series a 0. Es lo que significa.
+ *   · DESGLOSAR: «2×6-8» escrito en un rango le da dos series. En una rampa
+ *     —todas a una serie— la cifra de delante es la cuenta de rangos y no se
+ *     escribe; en cuanto un rango lleva más de una, cada uno enseña la suya y
+ *     se escribe en su sitio.
  *
  * Emite el array entero (`onCambiar`) y no el campo tocado: quien lo recibe ya
- * sabe si eso es un cambio de series, de repeticiones o de esquema, y así esta
- * pieza no tiene que saberlo. Ver `ConjuntoDelBloque` y `AltaDeEjercicio`.
+ * sabe si eso es un cambio de series, de repeticiones o de esquema.
  */
-/**
- * LA PAUTA PLEGADA, CON LA MISMA VOZ QUE LAS DEMÁS FILAS.
- *
- * Era «6-8, 8-10, 8-12» (`esquemaDicho`): todo en negrita, comas incluidas, y
- * sin el «3 ×» con el que empiezan sus vecinas. En una columna de «3 × 8-10»
- * era la única fila que hablaba otro idioma. Ahora son las mismas piezas —la
- * cifra en tinta, el «×» en terciaria— y los tramos se separan con una barra
- * también en terciaria, que se lee como separador y no como dato:
- *
- *     3 × 8-10
- *     3 × 6-8 / 8-10 / 8-12        todos de una serie: las series, una vez
- *     1 × 12 / 3 × 6-8             si no, cada tramo con las suyas
- *
- * Y las últimas repeticiones van en una caja del ancho de `.plan-reps`
- * (`.plan-esq-ult`), con la cifra centrada como en la casilla: así acaban en
- * la misma vertical que las de las filas de un tramo.
- */
-const EsquemaEnLinea = ({ tramos }) => {
-  const rampa = tramos.every((t) => t.n === 1);
+const PARTIDO = /^\s*(\d{1,2})\s*[x×*]\s*(.*)$/i;
+/** «2×8-10» → { n: 2, reps: '8-10' }; «8-10» → { n: null, reps: '8-10' }. */
+const leerRango = (texto) => {
+  const m = PARTIDO.exec(texto);
+  return m ? { n: Number(m[1]), reps: m[2].trim() } : { n: null, reps: texto.trim() };
+};
+/* Con varios rangos cada casilla mide lo escrito (y su relleno), no la caja
+   de una pauta de un tramo: tres rangos no caben en una columna de 110 px con
+   casillas de 44. El último rango guarda el ancho fijo de `.plan-reps` para que
+   la pauta de todas las filas acabe en la misma vertical. */
+/* Un guion o una coma miden media cifra: contarlos enteros dejaba aire detrás. */
+const anchoDe = (texto, minimo = 2) => {
+  const t = String(texto ?? '');
+  const estrechos = (t.match(/[-.,\s]/g) || []).length;
+  return `calc(${Math.max(minimo, t.length - estrechos * 0.45).toFixed(2)}ch + 6px)`;
+};
+
+const PautaEnLinea = ({ tramos, nombre, idBase, onCambiar = null, puedePartir = false }) => {
+  const [nuevo, setNuevo] = useState(false);
+  const editable = Boolean(onCambiar);
+  const rampa = tramos.length > 1 && tramos.every((t) => t.n === 1);
+  const unTramo = tramos.length === 1;
   const ultimo = tramos.length - 1;
-  const reps = (t, i) =>
-    i === ultimo ? <span className="plan-esq-ult">{t.reps || '—'}</span> : t.reps || '—';
-  const barra = (
-    <span className="plan-esq-barra" aria-hidden="true">
-      /
-    </span>
-  );
+  const total = tramos.reduce((n, t) => n + t.n, 0);
+  /* Partir no hace nada con las doce puestas y ninguna que ceder. */
+  const cabeOtro = total < 12 || tramos.some((t) => t.n > 1);
+
+  const cambia = (i, cambio) =>
+    onCambiar(
+      tramos
+        .map((t, j) => (j === i ? { ...t, ...cambio } : t))
+        .filter((t) => t.n > 0 && (unTramo || t.reps !== ''))
+    );
+
   const por = (
     <span className="plan-por" aria-hidden="true">
       ×
     </span>
   );
-  if (rampa) {
-    return (
-      <>
-        {tramos.length}
-        {por}
-        {tramos.map((t, i) => (
-          <span key={i}>
-            {i > 0 && barra}
-            {reps(t, i)}
-          </span>
-        ))}
-      </>
-    );
-  }
-  return tramos.map((t, i) => (
-    <span key={i}>
-      {i > 0 && barra}
-      {t.n}
-      {por}
-      {reps(t, i)}
+  const barra = (
+    <span className="plan-esq-barra" aria-hidden="true">
+      /
     </span>
-  ));
-};
+  );
+  /* Enter guarda (es salir de la casilla); Escape devuelve lo que había. */
+  const teclas = (valor) => (e) => {
+    if (e.key === 'Enter') e.currentTarget.blur();
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.currentTarget.value = valor;
+      e.currentTarget.blur();
+    }
+  };
 
-const PautaEnTramos = ({ tramos, nombre, idBase, onCambiar, onOtroTramo }) => {
-  const unTramo = tramos.length <= 1;
-  const cambia = (i, campo, valor) =>
-    onCambiar(tramos.map((t, j) => (j === i ? { ...t, [campo]: valor } : t)));
+  const series = (t, i) =>
+    editable ? (
+      <input
+        className="plan-series"
+        inputMode="numeric"
+        /* La cifra en la llave: la casilla se remonta cuando el valor cambia
+           por otro camino —el «＋», o la hoja abierta al lado—. */
+        key={`${idBase}-s${i}-${t.n}`}
+        style={{ width: anchoDe(t.n, 1) }}
+        onInput={(e) => (e.currentTarget.style.width = anchoDe(e.currentTarget.value, 1))}
+        defaultValue={t.n}
+        aria-label={unTramo ? `Series de ${nombre}` : `Series del rango ${i + 1} de ${nombre}`}
+        title={unTramo ? undefined : 'Series de este rango. A 0, el rango se quita.'}
+        onKeyDown={teclas(t.n)}
+        onBlur={(e) => {
+          /* Con un tramo, mínimo 1: un ejercicio sin series no es un
+             ejercicio. Con varios, 0 quita el rango. */
+          const n = clampInt(e.target.value, unTramo ? 1 : 0, 12, t.n);
+          e.target.value = n;
+          if (n !== t.n) cambia(i, { n });
+        }}
+      />
+    ) : (
+      <span className="plan-series is-lectura" style={{ width: anchoDe(t.n, 1) }}>
+        {t.n}
+      </span>
+    );
+
+  const reps = (t, i) => {
+    const fija = i === ultimo && !nuevo;
+    if (!editable) {
+      return (
+        <span className="plan-reps is-lectura" style={fija ? undefined : { width: anchoDe(t.reps) }}>
+          {t.reps || '—'}
+        </span>
+      );
+    }
+    return (
+      <input
+        className="plan-reps"
+        key={`${idBase}-r${i}-${t.reps}-${t.n}`}
+        defaultValue={t.reps}
+        placeholder="8-10"
+        style={fija ? undefined : { width: anchoDe(t.reps) }}
+        onInput={fija ? undefined : (e) => (e.currentTarget.style.width = anchoDe(e.currentTarget.value))}
+        aria-label={unTramo ? `Repeticiones objetivo de ${nombre}` : `Repeticiones del rango ${i + 1} de ${nombre}`}
+        title={
+          unTramo
+            ? undefined
+            : `Repeticiones de este rango. «2×${t.reps || '8-10'}» le da dos series; vacío, se quita.`
+        }
+        onKeyDown={teclas(t.reps)}
+        onBlur={(e) => {
+          const { n, reps: escrito } = leerRango(e.target.value);
+          if (escrito === t.reps && (n === null || n === t.n)) return;
+          /* Vacío, con un solo tramo, no borra nada: vuelve a lo que había. */
+          if (unTramo && escrito === '') {
+            e.target.value = t.reps;
+            return;
+          }
+          cambia(i, { reps: escrito, ...(n !== null ? { n: Math.min(Math.max(n, 0), 12) } : {}) });
+        }}
+      />
+    );
+  };
 
   return (
-    /*
-      Los tramos y su «＋» van dentro de UNA caja y no sueltos en el carril de
-      la pauta, y hace falta: el carril lleva además el peso pautado delante y
-      la marca del remate detrás, los tres son `span`, y apilar los tramos sin
-      caja propia apilaría también esos dos. Con ella, lo que se reparte en
-      renglones es el esquema y nada más. Ver `.plan-esq`.
-    */
-    <span className={`plan-esq${unTramo ? '' : ' is-pila'}`}>
-      {tramos.map((t, i) => (
-        <span className="plan-esq-tramo" key={`${idBase}-t${i}`}>
-          <input
-            className="plan-series"
-            inputMode="numeric"
-            /* La cifra en la llave: la casilla se remonta cuando el valor
-               cambia por otro camino —el «＋», o la hoja abierta al lado—. */
-            key={`${idBase}-s${i}-${t.n}`}
-            defaultValue={t.n}
-            aria-label={unTramo ? `Series de ${nombre}` : `Series del tramo ${i + 1} de ${nombre}`}
-            onBlur={(e) => {
-              /* Mínimo 1: un tramo sin series no es un tramo, y para quitarlo
-                 está su «×». */
-              const n = clampInt(e.target.value, 1, 12, t.n);
-              e.target.value = n;
-              if (n !== t.n) cambia(i, 'n', n);
-            }}
-          />
-          <span className="plan-por" aria-hidden="true">
-            ×
+    <span className={`plan-esq${editable ? '' : ' is-lectura'}`}>
+      {rampa && (
+        <>
+          <span
+            className="plan-series is-lectura is-cuenta"
+            style={{ width: anchoDe(tramos.length, 1) }}
+            title={editable ? 'Una serie por rango. Escribe «2×8-10» en un rango para darle más.' : undefined}
+          >
+            {tramos.length}
           </span>
-          <input
-            className="plan-reps"
-            key={`${idBase}-r${i}-${t.reps}`}
-            defaultValue={t.reps}
-            placeholder="8-10"
-            aria-label={
-              unTramo ? `Repeticiones objetivo de ${nombre}` : `Repeticiones del tramo ${i + 1} de ${nombre}`
-            }
-            onBlur={(e) => {
-              const reps = e.target.value.trim();
-              if (reps !== t.reps) cambia(i, 'reps', reps);
-            }}
-          />
-          {!unTramo && (
-            <button
-              type="button"
-              className="plan-esq-quitar"
-              onClick={() => onCambiar(tramos.filter((_, j) => j !== i))}
-              title="Quitar tramo"
-              aria-label={`Quitar el tramo ${i + 1} de ${nombre}`}
-            >
-              <X size={12} aria-hidden="true" />
-            </button>
-          )}
+          {por}
+        </>
+      )}
+      {tramos.map((t, i) => (
+        /* La barra cierra su rango y no abre el siguiente: si la línea baja,
+           «2 × 6-8 /» se lee como «sigue», y una «/» al principio de renglón no. */
+        <span className="plan-esq-tramo" key={`${idBase}-t${i}`}>
+          {!rampa && series(t, i)}
+          {!rampa && por}
+          {reps(t, i)}
+          {(i < ultimo || nuevo) && barra}
         </span>
       ))}
+      {/* El rango que se está añadiendo: una casilla vacía al final de la
+          línea. No se escribe nada hasta que lleva algo. */}
+      {nuevo && (
+        <span className="plan-esq-tramo">
+          <input
+            className="plan-reps"
+            autoFocus
+            placeholder="8-10"
+            aria-label={`Repeticiones del rango nuevo de ${nombre}`}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') e.currentTarget.blur();
+              if (e.key === 'Escape') {
+                e.stopPropagation();
+                e.currentTarget.value = '';
+                e.currentTarget.blur();
+              }
+            }}
+            onBlur={(e) => {
+              const { n, reps: escrito } = leerRango(e.target.value);
+              setNuevo(false);
+              if (!escrito) return;
+              const partida = conOtroTramo(tramos);
+              if (partida === tramos) return;
+              const fin = partida.length - 1;
+              onCambiar(
+                partida.map((t, j) => (j === fin ? { n: n ? Math.min(n, 12) : t.n, reps: escrito } : t))
+              );
+            }}
+          />
+        </span>
+      )}
       {/*
-        ── PARTIR OTRA VEZ ───────────────────────────────────────────────────
-        Con un tramo, el «＋» se posa en el hueco que `.plan-esq` le reserva a
-        la derecha. Con varios va debajo de la pila, en la vertical de las «×».
-        Es una OFERTA y ahí sigue la ley: en reposo no está, sale al acercarse
-        y se apaga con opacidad —nunca desmontándose— para que el tabulador
-        siga llegando. Ver `ley-del-reposo`.
+        ── PARTIR OTRA VEZ ─────────────────────────────────────────────────
+        El «＋» se posa en el hueco que `.plan-esq` le reserva a la derecha: así
+        la pauta de todas las filas acaba en la misma vertical. Es una OFERTA y
+        ahí sigue la ley: en reposo no está, sale al acercarse y se apaga con
+        opacidad —nunca desmontándose— para que el tabulador siga llegando.
       */}
-      {onOtroTramo && (
-        <span className={`plan-esq-pie${unTramo ? ' is-suelto' : ''}`}>
+      {editable && puedePartir && cabeOtro && !nuevo && (
+        <span className="plan-esq-pie is-suelto">
           <button
             type="button"
             className="plan-esq-mas"
-            onClick={onOtroTramo}
-            title="Añadir tramo"
-            aria-label={`Añadir tramo a ${nombre}`}
+            onClick={() => setNuevo(true)}
+            title="Añadir un rango"
+            aria-label={`Añadir un rango a ${nombre}`}
           >
             <Plus size={13} aria-hidden="true" />
           </button>
@@ -405,7 +405,7 @@ const AltaDeEjercicio = ({ dayName, library, nota, pauta, onAdd, onRecordar, onC
   const [musculo, setMusculo] = useState(MUSCLE_GROUPS[0]);
   /*
     ══ Y LA PAUTA VUELVE AL ALTA, PERO COMO LA PAUTA Y NO COMO FORMULARIO ═════
-    Es la misma pieza que la fila del ejercicio (`PautaEnTramos`): lo que se ve
+    Es la misma pieza que la fila del ejercicio (`PautaEnLinea`): lo que se ve
     aquí es lo que va a quedar escrito ahí. Entra con la pauta del ejercicio
     anterior de la hoja (`pautaHeredada`) y se queda puesta entre uno y otro.
   */
@@ -484,12 +484,12 @@ const AltaDeEjercicio = ({ dayName, library, nota, pauta, onAdd, onRecordar, onC
       <div className="plan-alta-fila">
         <span className="plan-alta-rotulo">Pauta</span>
         <div className="plan-alta-pauta">
-          <PautaEnTramos
+          <PautaEnLinea
             tramos={tramos}
             nombre={escrito || 'el ejercicio nuevo'}
             idBase={`alta-${dayName}`}
             onCambiar={(nuevos) => setTramos(sinVacios(nuevos))}
-            onOtroTramo={() => setTramos(conOtroTramo)}
+            puedePartir
           />
         </div>
       </div>
@@ -548,7 +548,7 @@ export const ConjuntoDelBloque = ({
   /* El esquema entero de un ejercicio, cuando sus series no piden lo mismo:
      `(hoja, nombre, tramos, antes)`. Sin él, la fila sigue escribiéndose con
      los dos de arriba y una pauta de varios tramos se lee y no se toca — es lo
-     que ve el cliente en su portal. Ver `PautaEnTramos`. */
+     que ve el cliente en su portal. Ver `PautaEnLinea`. */
   onEsquema = null,
   onAnadirHoja,
   onRenombrarHoja,
@@ -565,6 +565,9 @@ export const ConjuntoDelBloque = ({
   onMoverHoja,
   onRecordarEjercicio,
   onGuardarPieza,
+  /* `(dayName, weeks)`: «Es intencionado» en la marca de las excepciones.
+     Sin él la marca solo se lee. Ver `marcarExcepcionVistaIn`. */
+  onExcepcionVista = null,
   /*
     `(nuevo) => void`: escribe la secuencia entera del microciclo. Con él, el
     rótulo del día de cada columna es el mando de su día —el menú «Cae el …»—;
@@ -588,25 +591,6 @@ export const ConjuntoDelBloque = ({
     onRenombrarVisto?.();
   }, [renombrarPrimero, onRenombrarVisto]);
   const [altaEn, setAltaEn] = useState(null);
-  /* Qué ejercicio tiene la pauta DESPLEGADA: el id del que se está escribiendo,
-     o nada. Uno cada vez —dos desgloses abiertos en dos hojas distintas serían
-     dos filas altas por una cosa que se hace de una en una— y se cierra al
-     salir de la fila, con Escape o con un clic fuera. Ver `PautaEnTramos`. */
-  const [esquemaEn, setEsquemaEn] = useState(null);
-  /* Un clic fuera de la fila abierta la cierra: es la única salida, sin
-     «Listo». En `click` y no en `pointerdown`, para que la casilla que se
-     estaba escribiendo guarde en su `blur` antes de desmontarse; y sin contar
-     el clic cuyo destino ya no está en el documento, que es el que la abrió. */
-  const filaAbiertaRef = useRef(null);
-  useEffect(() => {
-    if (esquemaEn === null) return undefined;
-    const fuera = (e) => {
-      const fila = filaAbiertaRef.current;
-      if (fila && e.target.isConnected && !fila.contains(e.target)) setEsquemaEn(null);
-    };
-    document.addEventListener('click', fuera);
-    return () => document.removeEventListener('click', fuera);
-  }, [esquemaEn]);
   /*
     El arrastre: qué viaja —una hoja entera o un ejercicio dentro de la suya—
     y sobre qué está. El mismo `draggable` de la hoja de series: el asa
@@ -1062,6 +1046,16 @@ export const ConjuntoDelBloque = ({
                     no negocia con nadie.
                   */}
                   <div className="plan-col-alto">
+                  {/*
+                    ══ UNA FILA, SIEMPRE (23 sep) ═════════════════════════════
+                    El día y cómo va a la izquierda, los verbos a la derecha. En
+                    columna estrecha (4-5 hojas) esto se partía en tres renglones
+                    —día / verbos / nombre— y los verbos quedaban flotando entre
+                    el día y el titular. Ahora lo que cede es la izquierda: la
+                    píldora de estado se recorta con puntos, nunca bajan los
+                    verbos.
+                  */}
+                  <div className="plan-col-cuando">
                   {esActual && onMicrociclo && microciclo ? (
                     <MenuAcciones
                       /* Sin día que decir, el rótulo guarda su sitio pero se
@@ -1098,6 +1092,18 @@ export const ConjuntoDelBloque = ({
                   ) : (
                     <span className="plan-col-dia">{cuandoCae(hoja.dayName) || dia || ' '}</span>
                   )}
+                  {/* Cómo va, pegado al día: las dos cosas dicen cuándo. El
+                      total de series ya no va aquí: tiene su sitio en la fila
+                      del volumen, que es donde se mira cuánto pesa la hoja. */}
+                  {estadoHoja && (
+                    <span
+                      className={`plan-col-estado is-${estadoHoja.tono}`}
+                      title={estadoHoja.title || estadoHoja.texto}
+                    >
+                      {estadoHoja.texto}
+                    </span>
+                  )}
+                  </div>
                   {/*
                     ══ LOS BOTONES DE LA HOJA ═══════════════════════════════
                     «Las hojas dentro de bloque tampoco tienen botones,
@@ -1127,22 +1133,6 @@ export const ConjuntoDelBloque = ({
                     esta pantalla arrastra desde el principio. Y «Abrir la
                     hoja» tampoco: el nombre ES la puerta.
                   */}
-                  {/*
-                    ══ EL CINTILLO: CÓMO VA LA HOJA, Y LOS VERBOS ═════════════
-                    La esquina derecha de la cabecera, enfrente del día. Lleva
-                    dos cosas y en este orden:
-
-                      · los VERBOS, que siguen apareciendo al acercarse.
-                      · CÓMO VA, que se lee siempre.
-
-                    Los verbos van a la IZQUIERDA de la píldora a propósito: el
-                    cintillo está anclado al canto derecho, así que lo que crece
-                    crece hacia dentro y la píldora no se mueve un píxel cuando
-                    aparecen los cuatro botones. Esta casa ya aprendió que un
-                    dato que se aparta del cursor es un dato que no se puede
-                    apuntar (ver `.plan-ej-quitar`).
-                  */}
-                  <div className="plan-col-cintillo">
                   {/* Nada de esto se pinta si no llega su manejador — ver «lo
                       que se puede hacer sale de lo que llega», arriba. Sin
                       ninguno, el carril entero se va: un `span` vacío de 26 px
@@ -1213,28 +1203,6 @@ export const ConjuntoDelBloque = ({
                     )}
                   </span>
                   )}
-                  {/*
-                    ══ CÓMO VA LA HOJA, EN UNA SOLA PÍLDORA ═══════════════════
-                    Eran dos piezas en el renglón de debajo del nombre: el
-                    semáforo («a medias · 14/20») y el peso de la hoja («20
-                    series»). En el frame son UNA píldora, y tiene sentido que lo
-                    sean: las dos contestan la misma pregunta —cuánto pide esta
-                    hoja y cuánto lleva—, y separadas obligaban a leer dos veces.
-
-                    La píldora se pinta SIEMPRE, con semáforo o sin él: sin
-                    bloque en curso no hay estado que dar pero el peso de la hoja
-                    sigue siendo un dato de la hoja. Sin ella la cabecera mediría
-                    distinto en un bloque cerrado que en uno abierto, que es
-                    exactamente el desnivel que costó dos vueltas quitar.
-                  */}
-                  <span
-                    className={`plan-col-estado${estadoHoja ? ` is-${estadoHoja.tono}` : ''}`}
-                    title={`${estadoHoja ? `${estadoHoja.title || estadoHoja.texto} · ` : ''}${hoja.series} series`}
-                  >
-                    {estadoHoja && <span className="plan-col-estado-que">{estadoHoja.texto}</span>}
-                    <span className="plan-col-sub">{estadoHoja ? '· ' : ''}{hoja.series} series</span>
-                  </span>
-                  </div>
                   <header className="plan-col-cab">
                     {esActual && onMoverHoja && plan.sessions.length > 1 && (
                       <button
@@ -1312,14 +1280,27 @@ export const ConjuntoDelBloque = ({
                         mantiene la fila 1 de todas las columnas a la misma
                         altura (la misma ley que `.plan-col-dia`).
                       */}
+                      {/*
+                        ══ EL TOTAL DE LA HOJA, EL PRIMER CHIP (23 sep) ═══════
+                        «18 series» vivía dentro de la píldora de estado y en
+                        columna estrecha se escondía. La primera vuelta lo puso
+                        suelto al canto derecho, con otra letra, y se leía como
+                        un texto pegado. Ahora es un chip más, con el mismo
+                        orden que los otros —«Total 18» como «Cuádriceps 7»—,
+                        el primero, y distinto solo por el relleno. Va delante
+                        del «+N» y no se encoge: nunca queda absorbido.
+                      */}
                       <span
                         className="plan-col-vol"
                         title={
                           volumenDeLaHoja(hoja).length > 0
-                            ? `Series pautadas: ${volumenDeLaHoja(hoja).map(([m, n]) => `${m} ${n}`).join(' · ')}`
-                            : undefined
+                            ? `${hoja.series} series pautadas: ${volumenDeLaHoja(hoja).map(([m, n]) => `${m} ${n}`).join(' · ')}`
+                            : `${hoja.series} series pautadas`
                         }
                       >
+                        <span className="plan-col-vol-g is-total">
+                          Total <span className="plan-col-vol-n">{hoja.series}</span>
+                        </span>
                         {volumenDeLaHoja(hoja)
                           .slice(0, 3)
                           .map(([m, n]) => (
@@ -1335,14 +1316,53 @@ export const ConjuntoDelBloque = ({
                             semáforo a propósito —una excepción es una decisión
                             del entrenador, no un fallo— y con su asterisco, que
                             es lo que la distingue de un grupo muscular. */}
-                        {conPlanPropio && hoja.difieren.length > 0 && (
-                          <span
-                            className="plan-col-excepcion"
-                            title={`Con una excepción en ${hoja.difieren.map(etiqueta).join(', ')}`}
-                          >
-                            ✱ {hoja.difieren.map(etiqueta).join(' · ')}
-                          </span>
-                        )}
+                        {/*
+                          ══ Y SE PUEDE DAR POR VISTA (23 sep) ═══════════════
+                          Solo marca los microciclos que nadie ha dado por
+                          vistos (`avisan`). Pulsarla dice qué difiere en cada
+                          uno —y lleva a él— y ofrece «Es intencionado», que la
+                          quita hasta que cambie algo más ahí. Sin manejadores
+                          (el portal del cliente) es la marca y su globo.
+                        */}
+                        {conPlanPropio && (hoja.avisan || []).length > 0 && (() => {
+                          const detalle = hoja.avisan
+                            .map((w) => `${etiqueta(w)}: ${bloque ? queDifiere(bloque, w, hoja.dayName) : 'difiere del bloque'}`)
+                            .join(' · ');
+                          const marca = `✱ ${hoja.avisan.map(etiqueta).join(' · ')}`;
+                          if (!onIrSemana && !onExcepcionVista) {
+                            return (
+                              <span className="plan-col-excepcion" title={detalle}>
+                                {marca}
+                              </span>
+                            );
+                          }
+                          return (
+                            <MenuAcciones
+                              clase="plan-col-excepcion is-mando"
+                              label={marca}
+                              sinFlecha
+                              alineado="izquierda"
+                              descriptivo
+                              titulo={detalle}
+                              ariaLabel={`Excepciones de ${hoja.dayName}: ${detalle}`}
+                              items={[
+                                ...hoja.avisan.map((w) => ({
+                                  label: `Ver ${etiqueta(w)}`,
+                                  sub: bloque ? queDifiere(bloque, w, hoja.dayName) : null,
+                                  run: onIrSemana ? () => onIrSemana(w) : undefined,
+                                })).filter((it) => it.run),
+                                onExcepcionVista ? null : undefined,
+                                onExcepcionVista
+                                  ? {
+                                      label: 'Es intencionado',
+                                      sub: 'Quita la marca hasta que cambie algo más',
+                                      run: () => onExcepcionVista(hoja.dayName, hoja.avisan),
+                                    }
+                                  : undefined,
+                              ]}
+                            />
+                          );
+                        })()}
                       </span>
                     </div>
                   </header>
@@ -1387,10 +1407,6 @@ export const ConjuntoDelBloque = ({
                          y las casillas escribirían una pauta distinta de la que
                          enseñan. Entonces se lee y no se toca. */
                       const editable = Boolean(onSeries && onReps && (onEsquema || tramos.length === 1));
-                      /* Con un tramo, las casillas SON la fila y no hay nada
-                         que desplegar. Con varios, la pauta se lee en un
-                         renglón y las casillas salen al tocarla. */
-                      const desplegada = editable && (tramos.length === 1 || esquemaEn === ex.id);
                       const real = ultimaDeSemana ? resumenDeEntrada(ultimaDeSemana, ex.name) : null;
                       const fantasma = !real && pasada ? resumenDeEntrada(pasada, ex.name) : null;
                       const hecho = real ? (real.series >= ex.series ? 'ok' : 'warn') : null;
@@ -1400,37 +1416,9 @@ export const ConjuntoDelBloque = ({
                           ? `${ex.name} · la vez pasada: ${resumenTexto(fantasma)}`
                           : ex.name;
                       return (
-                        /*
-                          La fila con el desglose ABIERTO (`esquemaEn`) es la
-                          única que mide más de un renglón, y solo mientras se
-                          escribe en ella. La pila la dibuja `PautaEnTramos`.
-
-                          Se cierra al salir: `onBlur` burbujea en React, así
-                          que basta con mirar si el foco se ha ido fuera de la
-                          fila (`relatedTarget`). Moverse entre sus propias
-                          casillas no la cierra, y un clic en otra parte de la
-                          pantalla sí. Escape también, que es lo que se pulsa
-                          sin pensarlo. Y el clic fuera sin foco dentro —se abre
-                          pulsando la pauta, y ese botón se desmonta— lo atiende
-                          `filaAbiertaRef`.
-                        */
                         <li
                           className={`plan-ej${marcas(piezaEj)}`}
                           key={ex.id}
-                          {...(esquemaEn === ex.id
-                            ? {
-                                ref: filaAbiertaRef,
-                                onBlur: (e) => {
-                                  if (!e.currentTarget.contains(e.relatedTarget)) setEsquemaEn(null);
-                                },
-                                onKeyDown: (e) => {
-                                  if (e.key === 'Escape') {
-                                    e.stopPropagation();
-                                    setEsquemaEn(null);
-                                  }
-                                },
-                              }
-                            : {})}
                           {...(cerrada ? {} : receptor(piezaEj))}
                         >
                           {!cerrada && onMoverEjercicio && hoja.exercises.length > 1 && (
@@ -1554,8 +1542,8 @@ export const ConjuntoDelBloque = ({
                               «4 × 6-8» es UN tramo y se pinta como se pintaba:
                               dos casillas en su carril. Con varios, la fila
                               sigue midiendo un renglón —la pauta escrita, «6-8,
-                              8-10, 8-12»— y las casillas salen al tocarla. Ver
-                              `PautaEnTramos` para por qué costó tres vueltas.
+                              8-10, 8-12»— y cada cifra se escribe en su sitio. Ver
+                              `PautaEnLinea`.
 
                               Escribir un solo tramo sigue siendo el verbo de
                               siempre —`onSeries` cuando cambia la cifra y
@@ -1564,74 +1552,35 @@ export const ConjuntoDelBloque = ({
                               o más no hay otra forma de decirlo que el esquema
                               entero, y para eso está `onEsquema`.
                             */}
-                            {desplegada ? (
-                              <PautaEnTramos
-                                tramos={tramos}
-                                nombre={ex.name}
-                                idBase={`p-${ex.id}`}
-                                onCambiar={(nuevos) => {
-                                  const antes = esquemaDicho(tramos);
-                                  if (tramos.length === 1 && nuevos.length === 1) {
-                                    if (nuevos[0].n !== tramos[0].n) {
-                                      onSeries(hoja.dayName, ex.name, nuevos[0].n, tramos[0].n);
-                                      return;
-                                    }
-                                    if (nuevos[0].reps !== tramos[0].reps) {
-                                      onReps(hoja.dayName, ex.name, nuevos[0].reps);
-                                      return;
-                                    }
-                                  }
-                                  onEsquema?.(hoja.dayName, ex.name, nuevos, antes);
-                                }}
-                                onOtroTramo={
-                                  onEsquema
-                                    ? () => {
-                                        onEsquema(
-                                          hoja.dayName,
-                                          ex.name,
-                                          conOtroTramo(tramos),
-                                          esquemaDicho(tramos)
-                                        );
-                                        /* Partir deja la pauta con dos tramos,
-                                           y los dos hay que escribirlos: el
-                                           desglose se queda abierto. */
-                                        setEsquemaEn(ex.id);
+                            <PautaEnLinea
+                              tramos={tramos}
+                              nombre={ex.name}
+                              idBase={`p-${ex.id}`}
+                              puedePartir={Boolean(onEsquema)}
+                              onCambiar={
+                                editable
+                                  ? (nuevos) => {
+                                      const antes = esquemaDicho(tramos);
+                                      if (tramos.length === 1 && nuevos.length === 1) {
+                                        if (nuevos[0].n !== tramos[0].n && nuevos[0].reps === tramos[0].reps) {
+                                          onSeries(hoja.dayName, ex.name, nuevos[0].n, tramos[0].n);
+                                          return;
+                                        }
+                                        if (nuevos[0].n === tramos[0].n && nuevos[0].reps !== tramos[0].reps) {
+                                          onReps(hoja.dayName, ex.name, nuevos[0].reps);
+                                          return;
+                                        }
                                       }
-                                    : null
-                                }
-                              />
-                            ) : editable ? (
-                              /* Plegada: la pauta entera en un renglón, y es el
-                                 mando que la abre. Misma caja que una casilla
-                                 —se dibuja al tocarla— porque es lo mismo que
-                                 una casilla: el sitio donde se escribe esto. */
-                              <button
-                                type="button"
-                                className="plan-esquema"
-                                onClick={() => setEsquemaEn(ex.id)}
-                                title={`Pauta de ${ex.name}: ${tramos
-                                  .map((t) => `${t.n} × ${t.reps || '—'}`)
-                                  .join(', ')}. Pulsa para cambiarla.`}
-                                aria-label={`Cambiar la pauta de ${ex.name}`}
-                              >
-                                <EsquemaEnLinea tramos={tramos} />
-                              </button>
-                            ) : tramos.length > 1 ? (
-                              /* Y en el portal del cliente se lee entero, no
-                                 «varias»: su rutina dice que la primera va a
-                                 doce porque su rutina va a doce. */
-                              <span className="plan-esquema is-lectura">
-                                <EsquemaEnLinea tramos={tramos} />
-                              </span>
-                            ) : (
-                              <>
-                                <span className="plan-series is-lectura">{ex.series}</span>
-                                <span className="plan-por" aria-hidden="true">
-                                  ×
-                                </span>
-                                <span className="plan-reps is-lectura">{ex.targetReps || '—'}</span>
-                              </>
-                            )}
+                                      if (onEsquema) onEsquema(hoja.dayName, ex.name, nuevos, antes);
+                                      else if (nuevos.length === 1) {
+                                        /* «4x6-8» escrito de una vez en una hoja sin esquema. */
+                                        onSeries(hoja.dayName, ex.name, nuevos[0].n, tramos[0].n);
+                                        onReps(hoja.dayName, ex.name, nuevos[0].reps);
+                                      }
+                                    }
+                                  : null
+                              }
+                            />
                             {/*
                               El remate, si esa hoja lo pauta: una marca, no la
                               frase. Que un ejercicio acabe en bajada es parte
@@ -1692,9 +1641,7 @@ export const ConjuntoDelBloque = ({
                   {/* El pie es el carril de «+ ejercicio» y de los avisos de la
                       hoja. Sin ninguno de los dos no se pinta: un pie vacío son
                       13 px de relleno y un filete debajo de la última fila. */}
-                  {(cerrada ||
-                    onAnadirEjercicio ||
-                    (onIrSemana && hoja.difieren.length > 0)) && (
+                  {(cerrada || onAnadirEjercicio) && (
                   <div className="plan-col-pie">
                     {cerrada ? (
                       /* Sin sitio donde escribir: todas sus repeticiones están
@@ -1730,16 +1677,6 @@ export const ConjuntoDelBloque = ({
                       </button>
                     ) : null}
 
-                    {onIrSemana && hoja.difieren.length > 0 && (
-                      <button
-                        type="button"
-                        className="plan-difiere"
-                        onClick={() => onIrSemana(hoja.difieren[0])}
-                        title="Cambia respecto al resto del bloque"
-                      >
-                        {hoja.difieren.map(etiqueta).join(', ')} {hoja.difieren.length === 1 ? 'va distinta' : 'van distintas'}
-                      </button>
-                    )}
                   </div>
                   )}
                 </section>

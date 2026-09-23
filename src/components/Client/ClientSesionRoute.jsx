@@ -26,9 +26,11 @@ import {
   sessionsOf,
 } from '@/domain/sessions';
 import { drillsForDay, restLabel, unitInitial, unitLabel } from '@/domain/training';
-import { todayISO, weekdayName } from '@/lib/dates';
+import { shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
+import { useReviewRows } from '@/components/review/useReviewRows';
+import { diasConOtraSesion, estadoDeLaSesion, limitesDeLaSesion, porQueNoSeMueve } from '@/domain/fechaDeLaSesion';
 import { EmptyState } from '@/components/ui/primitives';
 import { CierreDeLaSesion } from './CierreDeLaSesion';
 import { pautaDe, sesionDeHoy } from './hoy';
@@ -80,6 +82,8 @@ export const ClientSesionRoute = () => {
     logExerciseNote,
     updateSessionMeta,
     closeSession,
+    cambiarFechaDeSesion,
+    isCoach,
     saveStatus,
     retrySave,
     seriesNoGuardadas,
@@ -101,6 +105,9 @@ export const ClientSesionRoute = () => {
     pararDescanso,
   } = useSesionEnCurso();
   const fichaDe = useFichaDe();
+  /* Sus entregas: la semana que su entrenador ya revisó no deja cambiar el día
+     de sus sesiones (`porQueNoSeMueve`, la frontera de las revisiones). */
+  const { checkIns: entregas } = useReviewRows(activeClient?.id, { conEnlaces: false });
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   const [ficha, setFicha] = useState(null);
   /* ¿Se está mirando el cierre? Llegar a él no cierra nada: ver `CierreDeLaSesion`. */
@@ -491,9 +498,38 @@ export const ClientSesionRoute = () => {
   };
 
   const fecha = daySession.session?.date || todayISO();
+  /*
+    ── EL DÍA DE LA SESIÓN SE TOCA (23 sep) ────────────────────────────────
+    Si entrenó el martes y lo apuntó el miércoles, la sesión decía miércoles y
+    solo su entrenador podía corregirlo. Ahora la fecha de la cabecera abre el
+    panel de la sesión, el mismo del entrenador sin sus acciones y con las
+    mismas reglas (`domain/fechaDeLaSesion`). Mientras la sesión no existe —ninguna
+    serie apuntada— no hay día que mover, y con la semana ya revisada tampoco:
+    la fecha se lee y su globo dice por qué.
+  */
+  const dia = {
+    texto: weekdayName(fecha, { conFecha: true }).replace(',', ''),
+    /* En la cabecera del teléfono no caben las cuatro palabras. */
+    corto: `${weekdayName(fecha).slice(0, 3)} ${shortDate(fecha)}`,
+    fecha,
+    limites: limitesDeLaSesion(micros, donde.weekNumber),
+    ocupados: diasConOtraSesion(micros, day.dayName, daySession.activeId),
+    estado: daySession.session ? estadoDeLaSesion(daySession.session, series) : null,
+    motivo: daySession.session
+      ? porQueNoSeMueve({
+          session: daySession.session,
+          esCliente: !isCoach,
+          entregas,
+          preferences: activeClient.preferences,
+          startDate: activeClient.startDate,
+        })
+      : 'La sesión empieza con la primera serie que apuntes.',
+    onElegir: (nueva) => cambiarFechaDeSesion(activeClient.id, donde.weekNumber, daySession.activeId, nueva),
+  };
   const cabecera = {
     nombre: day.dayName,
-    fecha: `${weekdayName(fecha, { conFecha: true }).replace(',', '')} · ${ejercicios.length} ejercicios`,
+    dia,
+    detalle: `${ejercicios.length} ejercicios`,
     rotulo: Number.isFinite(donde.weekNumber) ? `${unitLabel(program?.cycleType)} ${donde.weekNumber}` : null,
     hechas,
     series,

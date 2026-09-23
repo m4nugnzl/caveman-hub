@@ -6,6 +6,7 @@ import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
 import { Descanso } from './Descanso';
+import { FechaTocable } from '@/components/ui/CalendarioDeLaSesion';
 
 /**
  * «EN SESIÓN» EN EL TELÉFONO — el modo entreno de `docs/la-sesion-manda.md`.
@@ -172,6 +173,12 @@ export const PantallaSesion = ({ datos }) => {
             <span className="tel-ses-rot">En sesión · {cabecera.nombre}</span>
             <span className="tel-ses-cuenta">
               {cabecera.hechas}/{cabecera.series} series
+              {cabecera.dia ? (
+                <>
+                  {' · '}
+                  <FechaTocable dia={{ ...cabecera.dia, texto: cabecera.dia.corto || cabecera.dia.texto }} />
+                </>
+              ) : null}
             </span>
           </span>
           {descanso && !descansoVisible ? (

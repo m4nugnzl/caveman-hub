@@ -540,13 +540,16 @@ export const planExerciseView = (ex) => ({
  * que no se repite en ningún microciclo — que es exactamente el caso de la
  * que se está componiendo.
  */
-export const planSessionView = (session, { vacias = [], difieren = [] } = {}) => ({
+export const planSessionView = (session, { vacias = [], difieren = [], avisan = difieren } = {}) => ({
   dayName: session.dayName,
   series: (session.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0),
   volumen: dayPlannedVolume(session),
   exercises: (session.exercises || []).map(planExerciseView),
   vacias,
   difieren,
+  /* Las de `difieren` que nadie ha dado por vistas (`excepcionVista`): son
+     las que la tarjeta marca. */
+  avisan,
 });
 
 /** Qué ejercicios y cuántas series tiene un día: dos días con la misma firma
@@ -581,12 +584,13 @@ export const blockPlan = (program, block) => {
   */
   if (hasBlockPlan(block)) {
     const conExcepcion = (dayName) => weeks.filter((w) => overridesAt(block, w, dayName).length > 0);
+    const sinVer = (dayName) => conExcepcion(dayName).filter((w) => !excepcionVista(block, w, dayName));
 
     return {
       reference: null,
       weeks,
       sessions: blockSessionsOf(block).map((hoja) =>
-        planSessionView(hoja, { difieren: conExcepcion(hoja.dayName) })
+        planSessionView(hoja, { difieren: conExcepcion(hoja.dayName), avisan: sinVer(hoja.dayName) })
       ),
     };
   }
@@ -1853,6 +1857,73 @@ export const describeOverride = (override) => {
   if (override.sobre && override.sobre !== nombre) return `${nombre} en lugar de ${override.sobre}`;
   return nombre;
 };
+
+/*
+ * ══ «ES INTENCIONADO»: EL AVISO DE UNA EXCEPCIÓN, DADO POR VISTO (23 sep) ═══
+ *
+ * La tarjeta de una hoja marca con «✱ M2» los microciclos donde se aparta del
+ * bloque. Es verdad, pero no tiene por qué quedarse para siempre: el dueño
+ * quiere poder decir «ya lo sé, es a propósito» y que la marca se vaya.
+ *
+ * Lo que se guarda NO es un «sí» para siempre sino la FIRMA de lo que difería
+ * cuando se dio por visto: `block.excepcionesVistas[hoja][microciclo] = firma`.
+ * Si después se cambia algo más en ese microciclo, la firma ya no coincide y la
+ * marca vuelve a salir sola — es otra diferencia, y esa nadie la ha visto.
+ *
+ * Vive en el bloque (el programa, en la base) y no en el navegador: el mismo
+ * entrenador lo ve igual desde el teléfono y desde el PC.
+ */
+
+/** Un resumen corto y estable de un texto (djb2). No es criptografía: basta
+    con que dos contenidos distintos casi nunca den lo mismo. */
+const firmaCorta = (texto) => {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i += 1) h = ((h << 5) + h + texto.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+};
+
+/**
+ * La firma de lo que difiere en esa hoja y ese microciclo: las excepciones
+ * vigentes con lo que ponen (el ejercicio entero, series incluidas), sin su id
+ * ni su hora, que no cambian lo que se ve. `null` si no difiere en nada.
+ */
+export const firmaDeLaExcepcion = (block, weekNumber, dayName) => {
+  const vigentes = overridesAt(block, weekNumber, dayName);
+  if (vigentes.length === 0) return null;
+  return firmaCorta(
+    JSON.stringify(
+      vigentes.map((o) => [o.targetId ?? null, o.exercise ?? null, o.sobre ?? null, o.index ?? null])
+    )
+  );
+};
+
+/** ¿Está dado por visto, y sigue siendo lo mismo que se vio? */
+export const excepcionVista = (block, weekNumber, dayName) => {
+  const firma = firmaDeLaExcepcion(block, weekNumber, dayName);
+  return firma !== null && block?.excepcionesVistas?.[dayName]?.[weekNumber] === firma;
+};
+
+/** Qué difiere, en una línea: «Press inclinado en lugar de Press banca · − Fondos». */
+export const queDifiere = (block, weekNumber, dayName) =>
+  overridesAt(block, weekNumber, dayName).map(describeOverride).join(' · ');
+
+/**
+ * Da por vistas las excepciones de esa hoja en esos microciclos, con la firma
+ * de hoy. Las que ya no difieren en nada se limpian de paso.
+ */
+export const marcarExcepcionVistaIn = (program, blockId, dayName, weeks = []) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) => {
+    if (b.id !== blockId) return b;
+    const deLaHoja = { ...(b.excepcionesVistas?.[dayName] || {}) };
+    for (const w of weeks) {
+      const firma = firmaDeLaExcepcion(b, w, dayName);
+      if (firma === null) delete deLaHoja[w];
+      else deLaHoja[w] = firma;
+    }
+    return { ...b, excepcionesVistas: { ...(b.excepcionesVistas || {}), [dayName]: deLaHoja } };
+  }),
+});
 
 /**
  * LOS MICROCICLOS CON SU PLAN YA PUESTO: el adaptador de la convivencia.

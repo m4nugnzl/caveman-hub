@@ -450,30 +450,6 @@
   .micro-dia.is-recien { transition: none; animation: none; }
 }
 
-/* ══ EL DÍA Y CÓMO VA, EN UNA COLUMNA ESTRECHA ════════════════════════════════
-   La cabecera de cada hoja pone en un renglón el día («D1 · D7») y la píldora
-   de estado («hecha el domingo · 20 series»). Con cuatro hojas a 1440 la
-   columna mide 159 y el renglón útil unos 113: la píldora pide 132 sola, y
-   salía «hecha el dom…» o «aún no · 2…», y el día de una hoja que cae dos
-   veces no cabía al lado.
-
-   En columna estrecha van en DOS renglones, y la píldora dice solo cómo va; las
-   series siguen en su `title`. Todas las columnas de la rejilla miden lo mismo,
-   así que cambian todas a la vez y los titulares siguen a plomo.
-
-   Vive aquí y no en `piezas.css` (que va después y pisa lo que pesa igual): por
-   eso cuelga de `.plan-rejilla`, que sube un escalón la especificidad. */
-@container (max-width: 300px) {
-  .plan-rejilla .plan-col-alto,
-  .plan-rejilla .plan-col:hover > .plan-col-alto,
-  .plan-rejilla .plan-col:focus-within > .plan-col-alto {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: 'dia' 'cintillo' 'nombre';
-  }
-  .plan-rejilla .plan-col-alto > .plan-col-cintillo { justify-self: start; }
-  .plan-rejilla .plan-col-estado-que + .plan-col-sub { display: none; }
-}
-
 /* ══ EL CATÁLOGO DEL COMPOSITOR NO FLOTA EN UNA COLUMNA ═══════════════════════
    `.biblioteca` es `sticky` para quedarse quieta al lado de la mesa mientras
    crece. Por debajo de 1024 el banco es UNA columna y ya no hay «al lado»: el

@@ -505,7 +505,11 @@ describe('AppProvider', () => {
     // Y 315 con LAS REVISIONES PASADAS (0134): `filaDeRevision` crea la fila de
     // una semana sin entregarla —el cierre de quien no entregó— y
     // `reabrirRevision` le abre al cliente una pasada hasta una fecha.
-    expect(Object.keys(visto.app).length).toBe(315);
+    //
+    // Y 317 con dos del 23 sep: `marcarExcepcionVista` («Es intencionado» en la
+    // marca de una excepción) y `cambiarFechaDeSesion`, el mini calendario del
+    // día de una sesión que comparten entrenador y cliente (0135).
+    expect(Object.keys(visto.app).length).toBe(317);
   });
 
   /*

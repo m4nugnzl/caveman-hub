@@ -4,6 +4,7 @@ import { mmss } from '@/context/SesionEnCurso';
 import { miles, shortDate } from '@/lib/dates';
 import { objetivoDeSerie, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
 import { Boton } from './Piezas';
+import { FechaTocable } from '@/components/ui/CalendarioDeLaSesion';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { ComparativaEjercicio } from '@/components/Coach/Workout/ComparativaEjercicio';
 import { ComoLoLlevo } from '@/components/Coach/Workout/ComoLoLlevo';
@@ -84,7 +85,9 @@ export const PantallaSesion = ({ datos }) => {
           <div>
             <h2 className="pc-puesto-tit">{cabecera.nombre}</h2>
             <div className="pc-puesto-fecha">
-              {[cabecera.rotulo, cabecera.fecha].filter(Boolean).join(' · ')}
+              {cabecera.rotulo ? `${cabecera.rotulo} · ` : ''}
+              <FechaTocable dia={cabecera.dia} />
+              {cabecera.detalle ? ` · ${cabecera.detalle}` : ''}
             </div>
           </div>
           <div className="pc-puesto-dcha">
