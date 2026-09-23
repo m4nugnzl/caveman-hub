@@ -77,7 +77,7 @@
      que decía lo mismo y hacía otra cosa —bajar 24 px desvaneciéndose—; desde
      que la hoja se puede arrastrar, soltarla a noventa píxeles y ver que la
      salida arranca desde los veinticuatro es un salto hacia arriba. */
-  .modal-backdrop[data-state='closing'] > .modal { animation: hoja-baja var(--fast) var(--ease) both; }
+  .modal-backdrop[data-state='closing'] > .modal { animation: hoja-baja var(--salida) both; }
   /* Y aquí la ventana ES una hoja, así que tiene asa. Ver «LA AGARRADERA». */
   .modal > .modal-grip { display: block; }
 

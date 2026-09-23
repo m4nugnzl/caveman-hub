@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { competicionDe } from '@/domain/calendar';
 import { optionToPhaseDraft } from '@/domain/fork';
-import { mapPhaseFromDb, mapPhaseToDb } from '@/lib/mappers';
+import { conReplanteo, sinReplanteo } from '@/domain/roadmap';
+import { HECHO_KINDS } from '@/domain/semanasDelPlan';
+import { mapEventFromDb, mapNutritionFromDb, mapPhaseFromDb, mapPhaseToDb } from '@/lib/mappers';
 
 /*
   ══ El roadmap, fuera de AppContext ══════════════════════════════════════════
@@ -71,6 +74,36 @@ export const useRoadmap = ({ session, activeClientId }) => {
   const [phases, setPhases] = useState([]);
 
   /*
+    LAS ANCLAS del cliente abierto: los eventos del calendario a los que apunta
+    su plan (`client_events.ancla`, migración 0122).
+
+    Viven aquí y no en el calendario porque las leen las mismas pantallas que
+    leen las fases —Sus fases, la franja del Resumen, el Inicio del cliente— y
+    el calendario solo se carga cuando se abre. Son una o dos filas por cliente
+    sobre un índice parcial; traerse el calendario entero para esto sería el
+    mapa en memoria que la nota de arriba ya descarta.
+  */
+  const [anchors, setAnchors] = useState([]);
+
+  /*
+    LOS HECHOS del plan del cliente abierto: competiciones, vacaciones, refeeds
+    y diet breaks (`HECHO_KINDS`, 0123). Los dibuja el roadmap en su franja y
+    los apunta su libro. Son pocos por cliente; el calendario entero no hace
+    falta, por la misma razón que las anclas.
+  */
+  const [hechos, setHechos] = useState([]);
+
+  /*
+    LA PAUTA FECHADA del cliente abierto (`nutrition_plan_versions`, 0124): una
+    fila por día en que cambió alguna cifra de la dieta, ya traducida a la forma
+    de la dieta (`{ dia, nutrition }`). La leen el roadmap, la Revisión y el
+    Resumen a través de `nutritionTrack`, que es su única fuente de la dieta por
+    semana. Sin la migración la consulta falla y la lista se queda vacía: la
+    escalera sale de las revisiones, como antes.
+  */
+  const [dietVersions, setDietVersions] = useState([]);
+
+  /*
     Las fases se recargan al cambiar de cliente.
 
     `cancelado` es lo que evita el fallo clásico de este patrón: al pasar rápido de
@@ -82,18 +115,34 @@ export const useRoadmap = ({ session, activeClientId }) => {
   useEffect(() => {
     if (!activeClientId) {
       setPhases([]);
+      setAnchors([]);
+      setHechos([]);
+      setDietVersions([]);
       return undefined;
     }
 
     let cancelado = false;
     setPhases([]);
+    setAnchors([]);
+    setHechos([]);
+    setDietVersions([]);
 
     (async () => {
-      const { data, error } = await supabase
-        .from('client_phases')
-        .select('*')
-        .eq('client_id', activeClientId)
-        .order('starts_on');
+      const [fases, anclas, suyos, versiones] = await Promise.all([
+        supabase.from('client_phases').select('*').eq('client_id', activeClientId).order('starts_on'),
+        supabase.from('client_events').select('*').eq('client_id', activeClientId).eq('ancla', true).order('date'),
+        supabase
+          .from('client_events')
+          .select('*')
+          .eq('client_id', activeClientId)
+          .in('kind', HECHO_KINDS)
+          .order('date'),
+        supabase
+          .from('nutrition_plan_versions')
+          .select('dia, pauta')
+          .eq('client_id', activeClientId)
+          .order('dia'),
+      ]);
 
       if (cancelado) return;
       /*
@@ -101,8 +150,18 @@ export const useRoadmap = ({ session, activeClientId }) => {
         roadmap vacío deja la aplicación exactamente como estaba antes de que
         existiera esta función, y `effectiveGoal` cae solo al objetivo declarado.
         Un `loadError` aquí rompería la ficha entera por una función opcional.
+
+        Lo mismo con las anclas sin la 0122: la columna no existe, la consulta
+        falla, y el plan se queda sin destino — que es como estaba.
       */
-      setPhases(error ? [] : (data || []).map(mapPhaseFromDb));
+      setPhases(fases.error ? [] : (fases.data || []).map(mapPhaseFromDb));
+      setAnchors(anclas.error ? [] : (anclas.data || []).map(mapEventFromDb));
+      setHechos(suyos.error ? [] : (suyos.data || []).map(mapEventFromDb));
+      setDietVersions(
+        versiones.error
+          ? []
+          : (versiones.data || []).map((v) => ({ dia: v.dia, nutrition: mapNutritionFromDb(v.pauta || {}) }))
+      );
     })();
 
     return () => {
@@ -164,7 +223,9 @@ export const useRoadmap = ({ session, activeClientId }) => {
     un cruce» y no «actualizar una fase con un jsonb».
   */
   const setPhaseFork = useCallback(
-    (phaseId, options) => updatePhase(phaseId, { nextOptions: options ?? null }),
+    /* La pregunta viaja con los caminos (0125): se escriben y se borran juntos. */
+    (phaseId, options, pregunta = '') =>
+      updatePhase(phaseId, { nextOptions: options ?? null, nextQuestion: options ? pregunta : '' }),
     [updatePhase]
   );
 
@@ -203,5 +264,141 @@ export const useRoadmap = ({ session, activeClientId }) => {
     [addPhase, setPhaseFork]
   );
 
-  return { phases, addPhase, updatePhase, removePhase, setPhaseFork, chooseFork };
+  /**
+   * Fijar el ancla: crear el evento al que apunta el plan, marcar uno que ya
+   * existía, o cambiarle la fecha, el nombre o la competición.
+   *
+   * Con `id` es un evento que ya existe —de las anclas o del calendario—; sin
+   * él se crea. Siempre compartido (`privada: false`): la base no admite un
+   * ancla privada (`client_events_ancla_compartida`), porque el cliente lee su
+   * plan entero y uno que termina en nada no es un plan.
+   */
+  const saveAnchor = useCallback(
+    async (clientId, { id = null, date, kind, title, competicion = null }) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+
+      const campos = {
+        date,
+        kind,
+        title: String(title || '').trim(),
+        ancla: true,
+        privada: false,
+        competicion: kind === 'race' ? competicionDe(competicion) : null,
+      };
+
+      const { data, error } = id
+        ? await supabase.from('client_events').update(campos).eq('id', id).select().single()
+        : await supabase
+            .from('client_events')
+            .insert({ client_id: clientId, created_by: userId, ...campos })
+            .select()
+            .single();
+
+      if (error) {
+        return {
+          ok: false,
+          error:
+            error.code === PG.RLS
+              ? 'No se ha podido guardar el destino. Solo quien lleva a este cliente puede fijarlo.'
+              : error.message || 'No se ha podido guardar el destino.',
+        };
+      }
+
+      const ancla = mapEventFromDb(data);
+      if (clientId === activeClientId) {
+        setAnchors((prev) =>
+          [...prev.filter((a) => a.id !== ancla.id), ancla].sort((a, b) => String(a.date).localeCompare(String(b.date)))
+        );
+      }
+      return { ok: true, anchor: ancla };
+    },
+    [activeClientId, session]
+  );
+
+  /**
+   * Quitar el ancla: el plan deja de apuntar ahí. El EVENTO se queda —la
+   * competición sigue en el calendario—; lo que se retira es la marca. Borrar
+   * la carrera por dejar de medir el plan contra ella sería perder un dato que
+   * nadie ha pedido perder.
+   */
+  const removeAnchor = useCallback(async (eventId) => {
+    const { error } = await supabase.from('client_events').update({ ancla: false }).eq('id', eventId);
+    if (error) return { ok: false, error: error.message };
+    setAnchors((prev) => prev.filter((a) => a.id !== eventId));
+    return { ok: true };
+  }, []);
+
+  /**
+   * Mover las fases que aún no han empezado `dias` días (`shift_future_phases`,
+   * migración 0122). SOLO se llama desde un gesto explícito del entrenador —la
+   * casilla del diálogo al mover el ancla—; nada en la aplicación lo dispara
+   * solo.
+   *
+   * Todo o nada: la función corre en una transacción y, si alguna fase choca
+   * con otra, no se mueve ninguna. Por eso, al acabar, se recargan TODAS las
+   * fases en vez de parchear las que creemos que se movieron.
+   */
+  const shiftFuturePhases = useCallback(
+    async (clientId, dias, hasta = null) => {
+      const { error } = await supabase.rpc('shift_future_phases', {
+        p_client: clientId,
+        p_days: dias,
+        p_hasta: hasta,
+      });
+      if (error) {
+        return {
+          ok: false,
+          error:
+            error.code === PG.EXCLUSION
+              ? 'Las fases no se han movido: alguna se pisaría con la fase en curso o con las del tramo siguiente. Ajústalas a mano.'
+              : error.message || 'No se han podido mover las fases.',
+        };
+      }
+
+      if (clientId === activeClientId) {
+        const { data } = await supabase
+          .from('client_phases')
+          .select('*')
+          .eq('client_id', clientId)
+          .order('starts_on');
+        if (data) setPhases(data.map(mapPhaseFromDb));
+      }
+      return { ok: true };
+    },
+    [activeClientId]
+  );
+
+  /**
+   * Igualar una semana: su media pasa a ser la base de la expectativa y se sigue
+   * al ritmo que se elija (`client_phases.replanteos`, 0123). SOLO desde el gesto
+   * «Igualar aquí» del detalle de una semana: nada en la aplicación iguala solo.
+   */
+  const igualar = useCallback(
+    (fase, replanteo) => updatePhase(fase.id, { replanteos: conReplanteo(fase, replanteo) }),
+    [updatePhase]
+  );
+
+  /** Quitar un replanteo hecho por error: la expectativa vuelve a la de antes. */
+  const quitarReplanteo = useCallback(
+    (fase, semana) => updatePhase(fase.id, { replanteos: sinReplanteo(fase, semana) }),
+    [updatePhase]
+  );
+
+  return {
+    phases,
+    anchors,
+    hechos,
+    dietVersions,
+    igualar,
+    quitarReplanteo,
+    addPhase,
+    updatePhase,
+    removePhase,
+    setPhaseFork,
+    chooseFork,
+    saveAnchor,
+    removeAnchor,
+    shiftFuturePhases,
+  };
 };

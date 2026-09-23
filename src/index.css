@@ -43,6 +43,8 @@
 @import './styles/chasis.css';
 @import './styles/portada.css';
 @import './styles/trabajo.css';
+/* El roadmap —la línea y el libro— y el destino del plan (0122, R2). */
+@import './styles/eje.css';
 @import './styles/ajustes.css';
 @import './styles/jornada.css';
 @import './styles/responsive.css';
@@ -74,6 +76,15 @@
 @import './styles/aprende.css';
 /* «Tus semanas», el rastro del cliente al pie de su Revisión. */
 @import './styles/semanas.css';
+/* La portada de Revisiones: las semanas del entrenador, en tiras por fase. */
+@import './styles/revisiones-semanas.css';
+/* El Resumen a lo panel de producto (19 sep): va después de revision.css para
+   ganarle sin pelear por especificidad, y antes del portal por lo mismo. */
+@import './styles/resumen.css';
+/* El ritmo del microciclo, en la barra, y su editor (F2c). */
+@import './styles/microciclo.css';
+/* Los bloques en borrador, en la lista de bloques (0133). */
+@import './styles/borradores.css';
 /*
   ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
 
@@ -89,3 +100,9 @@
 @import './styles/portal-pc.css';
 @import './styles/portal-telefono.css';
 @import './styles/piezas.css';
+/* El lienzo único del cliente (19 sep): la última, porque corrige a revision.css
+   y a piezas.css. Ver su cabecera. */
+@import './styles/lienzo.css';
+/* El medidor (21 sep): una barra para toda la aplicación. Detrás de todo
+   porque sus clases son nuevas y las de cada pantalla solo ponen el marco. */
+@import './styles/medidor.css';

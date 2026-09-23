@@ -31,7 +31,7 @@
 /* ── La hoja y sus cajas ──────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
   .shell-main:has(.cobros),
-  .shell-main:has(.agenda) { background: var(--surface-sunken); }
+  .shell-main:has(.agenda) { background: var(--hoja); } /* el lienzo de la aplicación (19 sep) */
 }
 
 .cobros-cuerpo,

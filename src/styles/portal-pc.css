@@ -1021,6 +1021,7 @@ body:has(.pc-portal) .app-header { display: none; }
 }
 .pc-puesto-s { font-size: 13px; font-weight: 600; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .pc-puesto-fila.pc-hecha .pc-puesto-s { color: var(--positive); }
+.pc-puesto-fila.pc-no-guardada .pc-puesto-s { color: var(--negative); }
 .pc-puesto-obj { font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .pc-puesto-dato {
   height: 38px;

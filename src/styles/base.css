@@ -355,7 +355,7 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
    trabajo de esa tinta, y hace el anillo visible sobre cualquier superficie de
    los dos temas (≥3:1 sobre lienzo y tarjeta en ambos). El acento de tiza no
    podía: sobre un botón primario —tiza sobre tiza— desaparecía. */
-:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+:focus-visible { outline: var(--foco); outline-offset: var(--foco-sep); border-radius: var(--r-xs); }
 
 /* ==========================================================================
    Movimiento reducido
@@ -456,10 +456,10 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
 .chart-area { animation: area-aparece var(--slow) 0.55s backwards; }
 @keyframes area-aparece { from { opacity: 0; } }
 
-.subjetivo-relleno, .meter-fill, .plan-bar-fill, .macro-bar {
+.meter-fill, .plan-bar-fill, .macro-bar {
   transform-origin: 0 50%;
   animation: relleno-crece 0.7s var(--ease) 0.15s backwards;
 }
 @keyframes relleno-crece { from { transform: scaleX(0); } }
-.subjetivo-relleno, .meter-fill, .plan-bar-fill { transition: width 0.4s var(--ease); }
+.meter-fill, .plan-bar-fill { transition: width 0.4s var(--ease); }
 .macro-bar > * { transition: width 0.4s var(--ease); }

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import {
   alimentosDeLinea,
   asPlan,
+  conKcalCalculadas,
   dietSummary,
   foodNames,
   iconoDeComida,
@@ -427,7 +428,77 @@ describe('mergeDietReadings', () => {
   });
 });
 
+/* ══ Un objetivo por tipo de día ═══════════════════════════════════════════
+   La pestaña de macros de quien distingue días trae DOS objetivos, y se leía el
+   primero y ya: el día de descanso no llegaba y nada lo decía. */
+
+describe('los macros de entreno y de descanso en la misma hoja', () => {
+  it('uno debajo del otro: «Día ON» y «Día OFF»', () => {
+    const lectura = leer('dieta-macros-on-off.tsv');
+    expect(lectura.format).toBe('macros');
+    expect(lectura.targetsByVariant).toEqual([
+      { variant: 'training', label: 'DIA ON', targets: { kcals: 3600, protein: 195, carbs: 525, fats: 80 } },
+      { variant: 'rest', label: 'DIA OFF', targets: { kcals: 3400, protein: 175, carbs: 495, fats: 80 } },
+    ]);
+  });
+
+  it('uno al lado del otro, con la frase «gramos por kg» pegada a cada cifra', () => {
+    const lectura = leer('dieta-entreno-descanso-a-dos-columnas.tsv');
+    const [entreno, descanso] = lectura.targetsByVariant;
+    /* «Esto supone 4,81 gramos de proteína por kg» no es la proteína del día. */
+    expect(entreno.targets).toEqual({ kcals: 2417, protein: 137.4, carbs: 351, fats: 51.6 });
+    expect(descanso.targets).toEqual({ kcals: 2320, protein: 134, carbs: 330.8, fats: 51.2 });
+  });
+
+  it('sin menú, cada objetivo es una variante sin comidas', () => {
+    const plan = mergeDietReadings([{ name: 'MACROS', reading: leer('dieta-macros-on-off.tsv') }]);
+    expect(plan.format).toBe('macros');
+    expect(plan.variants.map((v) => [v.variant, v.targets.kcals, v.meals.length])).toEqual([
+      ['training', 3600, 0],
+      ['rest', 3400, 0],
+    ]);
+  });
+
+  it('dos pestañas de solo macros se distinguen por el nombre', () => {
+    const plan = mergeDietReadings([
+      { name: 'Macros OFF', reading: parseDietSheet('Kcal\t2400\nProteína\t160\nHidratos\t250\nGrasas\t70') },
+      { name: 'Macros ON', reading: parseDietSheet('Kcal\t2700\nProteína\t160\nHidratos\t320\nGrasas\t70') },
+    ]);
+    expect(plan.variants.map((v) => [v.variant, v.targets.kcals])).toEqual([
+      ['training', 2700],
+      ['rest', 2400],
+    ]);
+  });
+
+  it('el menú que no trae cifras toma las de su día', () => {
+    const plan = mergeDietReadings([
+      { name: 'Día High', reading: leer('dieta-high.tsv') },
+      { name: 'Macros', reading: leer('dieta-macros-on-off.tsv') },
+    ]);
+    const high = plan.variants.find((v) => v.variant === 'training');
+    expect(high.targets).toBeTruthy();
+  });
+});
+
+describe('conKcalCalculadas', () => {
+  it('con los tres macros y sin kilocalorías, las calcula', () => {
+    expect(conKcalCalculadas({ kcals: null, protein: 150, carbs: 300, fats: 70 }).kcals).toBe(2430);
+    expect(conKcalCalculadas({ kcals: 0, protein: 150, carbs: 300, fats: 70 }).kcals).toBe(2430);
+  });
+
+  it('las que dice la hoja no se tocan, y sin los tres macros no se inventan', () => {
+    expect(conKcalCalculadas({ kcals: 2500, protein: 150, carbs: 300, fats: 70 }).kcals).toBe(2500);
+    expect(conKcalCalculadas({ kcals: null, protein: 150, carbs: null, fats: 70 }).kcals).toBeNull();
+  });
+});
+
 describe('varianteDeTexto', () => {
+  it('«Día ON» y «Día OFF» son entreno y descanso; un «on» suelto no', () => {
+    expect(varianteDeTexto('MACRONUTRIENTES OBJETIVO DIA ON').variant).toBe('training');
+    expect(varianteDeTexto('Día OFF').variant).toBe('rest');
+    expect(varianteDeTexto('Go on').variant).toBeNull();
+  });
+
   it('reconoce la etiqueta y no la palabra suelta dentro de una frase', () => {
     expect(varianteDeTexto('Día High').variant).toBe('training');
     expect(varianteDeTexto('Día Low').variant).toBe('rest');

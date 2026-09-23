@@ -188,7 +188,7 @@
    al lado de otra en un ancho fijo, y el interletraje del rótulo troquelado las
    haría chocar en cuanto el gráfico tenga doce semanas. La versalita basta para
    emparentarlo con el resto. */
-.chart-axis text { fill: var(--text-tertiary); font-size: var(--fs-3xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.chart-axis text { fill: var(--text-tertiary); font-size: var(--fs-3xs); font-weight: 600; letter-spacing: var(--tracking-versal); text-transform: uppercase; }
 .chart-line { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* Lo que NO se ha medido se dibuja discontinuo: un 1RM estimado es una cuenta
    sobre la serie tope, no una serie anotada. Sin `pathLength` —lo pone

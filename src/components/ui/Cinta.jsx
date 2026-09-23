@@ -1,6 +1,5 @@
 import { useMarcaDeslizante } from '@/components/ui/carril';
 import { Nube } from '@/components/ui/EstadoDeRed';
-import { Pliegue } from '@/components/ui/Pliegue';
 
 /**
  * LA CINTA: la cabecera con la que arranca toda pantalla de lista del panel.
@@ -63,9 +62,10 @@ export const Cinta = ({ titulo, tramos = [], tramo, onTramo, accion = null }) =>
     <header className="cartera-cab cinta-pagina">
       <div className="cartera-cab-in">
         <div className="cartera-cab-linea">
-          {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver
-              `ui/Pliegue`. */}
-          <Pliegue />
+          {/* Aquí estuvo el mando del ancho. Vive ahora en la fila de la marca
+              de la barra lateral, montado una sola vez para toda la
+              aplicación: es el mando de la barra, no de esta cinta, y aquí le
+              cobraba a cada pantalla una calle de sangrado. Ver `ui/Pliegue`. */}
           <h1 className="cartera-cab-titulo">{titulo}</h1>
           {/* La nube va con el título, como en las otras dos cintas. Ver
               `ui/EstadoDeRed`. */}

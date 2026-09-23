@@ -57,6 +57,7 @@ import { PastePlanDialog } from './Import/PastePlanDialog';
 import { CopyToClientPanel } from './Workout/CopyToClientPanel';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 import { useReviewRows } from '@/components/review/useReviewRows';
+import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
 
 /**
  * Dieta: una mesa y un costado, como Entreno.
@@ -661,16 +662,12 @@ export const NutritionModule = () => {
     />
   );
 
-  /* El panel se pinta arriba —es donde tiene que verse— y el menú que lo abre
-     puede estar al pie de doce comidas: sin llevar la pantalla hasta él, se
-     abriría fuera de cuadro y el gesto parecería no haber hecho nada. */
-  const abrirCopia = () => {
-    setCopiaAbierta(true);
-    window.setTimeout(
-      () => document.getElementById('traer-dieta')?.scrollIntoView({ behavior: 'smooth', block: 'center' }),
-      50
-    );
-  };
+  /* Aquí había un `scrollIntoView`: el panel se pintaba dentro de la página,
+     arriba del todo, y el menú que lo abre puede estar al pie de doce comidas,
+     así que había que llevar la pantalla hasta él o el gesto parecía no haber
+     hecho nada. Desde que es una VENTANA (ver `CopyToClientPanel`) se abre
+     encima de donde estés y no hay a dónde ir. */
+  const abrirCopia = () => setCopiaAbierta(true);
 
   /* El protocolo del cliente, del que cuelga si SU app enseña equivalencias.
      El entrenador las ve siempre al montar; esto decide lo que ve el cliente. */
@@ -749,9 +746,12 @@ export const NutritionModule = () => {
     y una sola forma de pedirla.
   */
   const { rows: revisiones } = useReviewRows(activeClient?.id, { conEnlaces: false });
+  /* Y la pauta fechada (0124), la tercera fuente: ver `nutritionTrack`. */
+  const versiones = usePautaFechada();
   const registrosDeLaDieta = useMemo(
-    () => dietLog({ history: anthropometry[activeClient.id]?.history || [], reviews: revisiones }),
-    [anthropometry, activeClient.id, revisiones]
+    () =>
+      dietLog({ history: anthropometry[activeClient.id]?.history || [], reviews: revisiones, versions: versiones }),
+    [anthropometry, activeClient.id, revisiones, versiones]
   );
 
   /* El peso contra el que se leen los g/kg: la media móvil de tres pesajes, la
@@ -1139,7 +1139,7 @@ export const NutritionModule = () => {
       <ConditionsNote area="nutrition" />
 
       {/* De quién se trae la dieta. En el mismo sitio que en Entreno: arriba. */}
-      {panelDeCopia && <div id="traer-dieta">{panelDeCopia}</div>}
+      {panelDeCopia}
 
       {pegarAbierto && (
         <PastePlanDialog

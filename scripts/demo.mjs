@@ -54,7 +54,12 @@ if (URL_APP && new URL(URL_TEST).host === new URL(URL_APP).host) {
   process.exit(1);
 }
 
-const admin = createClient(URL_TEST, SERVICE, { auth: { persistSession: false } });
+/* `x-sin-versiones`: sembrar una dieta no es cambiarla. Sin la cabecera, cada
+   cliente de la demo estrenaría una versión de su pauta fechada hoy (0124). */
+const admin = createClient(URL_TEST, SERVICE, {
+  auth: { persistSession: false },
+  global: { headers: { 'x-sin-versiones': '1' } },
+});
 const ok = (r, que) => {
   if (r.error) throw new Error(`${que}: ${r.error.message}`);
   return r.data;

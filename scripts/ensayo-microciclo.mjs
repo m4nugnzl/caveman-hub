@@ -8,10 +8,10 @@
  * secuencia que hasta ahora se derivaba del reparto y del patrón del cliente.
  * Antes de conectarlo se ENSAYA sobre copias de seguridad y se comprueba,
  * programa a programa, que lo guardado se lee igual que lo derivado: los
- * microciclos y sus fechas, la fecha del siguiente, las casillas de la dieta,
- * la semana del cliente y las cifras del bloque. Y que la primera escritura no
- * cambia `weekly_split`, que desde F2b es copia del bloque abierto
- * (`conRepartoDelAbierto`).
+ * microciclos y sus fechas, la fecha del siguiente, el tramo de cada bloque,
+ * las casillas de la dieta, la semana del cliente y las cifras del bloque. Y
+ * que la primera escritura no cambia `weekly_split`, que desde F2b es copia del
+ * bloque abierto (`conRepartoDelAbierto`).
  * Ver `docs/estudio-microciclo-secuencia.md`.
  *
  * Este script NO escribe en ninguna base de datos.
@@ -41,6 +41,7 @@ import {
   microcicloDelBloque,
   seguirALasHojas,
   semanaDelCliente,
+  tramoDelBloque,
 } from '../src/domain/blocks.js';
 import { cadenaDe, duracionDe, nextCycleDate, vecesDeCadaHoja } from '../src/domain/training.js';
 import { mapWorkoutFromDb } from '../src/lib/mappers.js';
@@ -133,6 +134,9 @@ for (const fuente of fuentes) {
     for (const [i, b] of bloquesAntes.entries()) {
       const d = bloquesDespues[i];
       mira(`duración ${b.name}`, duracionDe(microcicloDelBloque(antes, b, cliente)), duracionDe(microcicloDelBloque(despues, d, cliente)));
+      /* Sin `bloque`, que es el propio bloque y ahora lleva `microciclo`. */
+      const fechasDelTramo = (t) => (t ? { desde: t.desde, hasta: t.hasta, previstoHasta: t.previstoHasta, estimado: t.estimado } : t);
+      mira(`tramo ${b.name}`, fechasDelTramo(tramoDelBloque(antes, b, quien)), fechasDelTramo(tramoDelBloque(despues, d, quien)));
       mira(`cifras ${b.name}`, blockSummary(antes, b, cliente), blockSummary(despues, d, cliente));
     }
     for (const m of antes.microcycles) {

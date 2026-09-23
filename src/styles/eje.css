@@ -1,0 +1,309 @@
+/* ==========================================================================
+   EL ROADMAP: LA LÍNEA (la espina), EL PLAN Y EL DESTINO
+   (`roadmap/AnclaDelPlan`)
+   --------------------------------------------------------------------------
+   La espina la dibuja el roadmap del cliente; en Revisiones manda la portada
+   de semanas (`review/PortadaDeSemanas`, §5.5 del 22 sep) y el plan se edita
+   en su ventana. Habla el idioma de las ventanas
+   de Progresión e Historial, que son la referencia: la caja hundida de cifras (`.progresion-cifras`), la
+   curva con su rotulación en versalita (`.chart-*`), la cabecera de bloque
+   (`.historial-*`) y la mesa con sus pastillas (`.progresion-mesa`). Aquí solo
+   va lo que el roadmap añade. Ver `docs/roadmap-replanteo.md` y la enmienda
+   R2 de `producto.md` §5.5.
+
+   ── El color es solo dato ─────────────────────────────────────────────────
+   Las fases y los caminos llevan el de su dirección (`GOAL_DIRECTIONS`), que
+   llega por `--c`; el peso real, su tinta de dato (`metricColor('weight')`);
+   las competiciones, la de su tipo. Los hechos, los hilos y la escalera van en
+   tinta. El hueco y el exceso van rayados en tinta, nunca en rojo: no son un
+   error ni un veredicto, son cómo está el plan (*La ley del color*). El desvío
+   es un número con su signo.
+
+   ── Las únicas verticales ─────────────────────────────────────────────────
+   Hoy, el destino y los hilos de cambio de pauta. Sin rejilla vertical.
+   ========================================================================== */
+
+.roadmap-punto {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* La leyenda, centrada bajo la curva y con muestras de 16 px, como la de
+   Progresión: con 11 no se ve cuál es la punteada. */
+.roadmap-leyenda {
+  justify-content: center;
+  gap: var(--s5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roadmap-leyenda > li { display: inline-flex; align-items: center; gap: 6px; }
+.roadmap-leyenda .chart-swatch { width: 16px; height: 2px; border-radius: 0; }
+.roadmap-leyenda .chart-swatch.is-fase { background: var(--text-secondary); }
+.roadmap-leyenda .chart-swatch.is-punteada { height: 0; background: none; border-top: 2px dashed var(--text-tertiary); }
+.roadmap-leyenda .chart-swatch.is-kcal { background: var(--text-tertiary); }
+
+.linea-plan {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  user-select: none;
+}
+
+/* La rotulación de la curva de Progresión: sans, cifras tabulares. */
+.linea-plan text { font-family: var(--font); font-variant-numeric: tabular-nums; }
+
+/* Los ejes, como `.chart-axis text`: versalita pequeña en terciario. */
+.lp-eje {
+  fill: var(--text-tertiary);
+  font-size: var(--fs-3xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-versal);
+  text-transform: uppercase;
+}
+
+.lp-t { font-size: 11px; fill: var(--text-tertiary); }
+.lp-n { font-size: 11px; fill: var(--text-tertiary); }
+.lp-num { font-weight: 700; }
+.lp-t-fase { font-size: 11.5px; font-weight: 600; }
+.lp-carril { font-size: var(--fs-3xs); font-weight: 600; letter-spacing: var(--tracking-versal); text-transform: uppercase; fill: var(--text-tertiary); }
+.lp-t-tinta { fill: var(--text); }
+.lp-t-tinta2 { fill: var(--text-secondary); }
+.lp-t-fuerte { fill: var(--text); font-weight: 700; }
+.lp-t-suave { fill: var(--text-secondary); font-weight: 500; }
+.lp-t-hoy { fill: var(--accent); font-weight: 600; }
+.lp-t-destino { fill: var(--destino, var(--text)); font-weight: 600; }
+.lp-t-competicion { font-weight: 500; }
+
+/* La reja de Progresión: horizontal, punteada y en filete. */
+.lp-rejilla { stroke: var(--hairline); stroke-width: 1; stroke-dasharray: 2 5; }
+.lp-raya { stroke: var(--text-tertiary); stroke-opacity: 0.55; stroke-width: 1.2; }
+
+.lp-fase { fill: var(--c, var(--text-tertiary)); fill-opacity: 0.14; stroke: var(--c, var(--text-tertiary)); stroke-opacity: 0.35; }
+.lp-fase.is-abierta { stroke-dasharray: 3 2; }
+.lp-fase-hecha { fill: var(--c, var(--text-tertiary)); fill-opacity: 0.85; }
+.lp-camino-tira { fill: var(--c, var(--text-tertiary)); fill-opacity: 0.14; stroke: var(--c, var(--text-tertiary)); stroke-opacity: 0.45; stroke-dasharray: 2 2; }
+
+.lp-esperado { stroke-width: 1.5; stroke-linecap: round; fill: none; }
+.lp-esperado.is-futuro { stroke-opacity: 0.45; }
+/* Lo que no se ha medido va discontinuo, con el trazo del 1RM de Progresión. */
+.lp-fantasma { stroke-width: 1.5; stroke-dasharray: 5 4; stroke-opacity: 0.55; fill: none; }
+.lp-camino { stroke-width: 1.5; stroke-dasharray: 5 4; stroke-opacity: 0.75; fill: none; }
+
+/* El peso real (pesajes, media y saltos) lo dibuja `roadmap/TrazoDelPeso`
+   con la tinta compartida `.progreso-*` de `resumen.css`: es el mismo trazo
+   que las tiras de Revisiones y que la gráfica del Resumen. */
+.lp-igualado { fill: none; stroke: var(--text); stroke-width: 1.4; }
+
+.lp-hilo { stroke: var(--text); stroke-opacity: 0.3; stroke-width: 1; stroke-dasharray: 1 2.5; }
+
+.lp-hecho { fill: var(--text); fill-opacity: 0.55; }
+.lp-hecho.is-futuro { fill-opacity: 0.25; }
+.lp-competicion { stroke: var(--surface); stroke-width: 1.5; }
+
+.lp-refeed { fill: var(--text); fill-opacity: 0.1; }
+.lp-kcal { fill: none; stroke: var(--text-tertiary); stroke-width: 1.5; stroke-linejoin: round; }
+.lp-marca { fill: var(--text-secondary); }
+
+.lp-hoy { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.lp-destino { stroke: var(--destino, var(--text)); stroke-width: 1.5; }
+
+.lp-golpe { fill: transparent; cursor: pointer; }
+.lp-golpe:hover { fill: var(--accent-soft); }
+/* Donde no se elige semana (la línea del cliente), no se ofrece el gesto. */
+.lp-golpe.is-quieto { cursor: default; }
+.lp-golpe.is-quieto:hover { fill: transparent; }
+/* La banda de las fases abre el plan. */
+.lp-golpe-plan { fill: transparent; cursor: pointer; }
+.lp-golpe-plan:hover { fill: var(--accent-soft); }
+/* Las semanas contestadas, en tinta; la que espera respuesta, en azul. */
+.lp-marca-hecha { fill: var(--text-tertiary); fill-opacity: 0.6; }
+.lp-marca-pendiente { fill: var(--accent); }
+
+/* ── La espina de la revisión (`review/TimelineSpine`) ─────────────────── */
+
+.espina-mandos { display: flex; align-items: center; gap: var(--s3); }
+
+/* Se arrastra de lado; el dedo sigue pudiendo bajar la página. */
+.espina-linea { min-width: 0; touch-action: pan-y; }
+
+/* ALTO FIJO: la línea se dibuja a su ancho medido (con tope) y no se escala.
+   Estirada con `width: 100%` se aplanaría en una pantalla ancha. */
+.espina .linea-plan { width: auto; max-width: 100%; }
+
+.espina .roadmap-leyenda { margin-top: var(--s2); }
+
+.lp-elegida { fill: var(--accent-wash); }
+.lp-senalada { fill: var(--accent-soft); }
+
+/* ── La temporada (`roadmap/VistaDeTemporada`) ─────────────────────────────
+   La misma línea que la espina, a tamaño de ventana y con su globo encima. El
+   lienzo es el marco del globo: se posiciona en píxeles del dibujo, así que
+   los dos tienen que empezar en el mismo sitio. */
+
+.temporada-mandos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.temporada-ayuda { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.temporada-zoom { display: flex; align-items: center; gap: var(--s2); }
+.temporada-rotulo {
+  font-size: var(--fs-3xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-versal);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.temporada-lienzo { position: relative; min-width: 0; }
+.temporada-lienzo .linea-plan { width: auto; max-width: 100%; }
+
+/* «esperado» va un escalón por debajo de «real»: se lee contra él. */
+.historial-cifras dd.is-suave { color: var(--text-secondary); }
+
+.semana-campo { width: 7.5em; }
+
+/* ── El plan (`roadmap/PlanDelRoadmap`): el final arriba, el camino debajo ── */
+
+.plan-roadmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  min-width: 0;
+}
+
+.plan-roadmap-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+}
+
+/* El destino y el peso objetivo, lado a lado. */
+.plan-roadmap-lado {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: var(--s4);
+  min-width: 0;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--hairline);
+}
+
+@media (max-width: 639.98px) {
+  .plan-roadmap-lado { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* La pregunta del cruce, encima de sus respuestas. */
+.rmap-pregunta {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.rmap-pregunta-falta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s2) var(--s3);
+  padding: var(--s3);
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--r-md);
+}
+
+.rmap-pregunta-falta > .field { flex: 1 1 260px; }
+
+/* La flecha de la respuesta al camino: se lee «Sí, con margen → Transición». */
+.rmap-road-flecha { color: var(--text-tertiary); margin-block: -4px; }
+
+/* ── El destino ─────────────────────────────────────────────────────────── */
+
+.destino { display: flex; flex-direction: column; gap: var(--s2); }
+
+.destino-fila {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+  padding: var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
+
+.destino-icono { color: var(--destino, var(--text-secondary)); margin-top: 3px; flex-shrink: 0; }
+
+.destino-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.destino-nombre { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.destino-fecha { font-weight: 500; color: var(--text-secondary); }
+.destino-sub { font-size: var(--fs-xs); color: var(--text-secondary); }
+
+.destino-acciones { display: flex; gap: var(--s1); flex-shrink: 0; }
+
+.destino-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+@media (max-width: 639.98px) {
+  .destino-campos { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── «Igualar aquí», en la barra de cierre (`roadmap/IgualarAqui`) ─────── */
+
+/* Más alto que el detalle de cambios: lleva la línea con el antes y el
+   después, y sin ella no se decide. */
+.cierre-detalle.is-igualar { max-height: 72vh; max-height: 72svh; }
+
+/* Debajo del recuento y no a su lado: a su lado, en un portátil, el
+   compositor se quedaba en una palabra por renglón. */
+.cierre-cambios:has(.cierre-igualada) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.cierre-igualada {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--fs-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.igualar { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.igualar-que { margin: 0; max-width: 72ch; font-size: var(--fs-xs); color: var(--text-secondary); }
+.igualar-campos { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s3); }
+
+.igualar-previa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  min-width: 0;
+  margin: 0;
+  padding: var(--s3);
+  border: 1px solid var(--edge-card);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.igualar-pie { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.igualar-botones { display: flex; justify-content: flex-end; gap: var(--s2); }
+
+/* ── La tarjeta del roadmap en el Resumen (`dashboard/TarjetaRoadmap`) ─── */
+
+.tarjeta-roadmap .palanca-v { min-width: 0; }
+.tarjeta-roadmap-fase { display: inline-flex; align-items: center; gap: var(--s2); min-width: 0; }

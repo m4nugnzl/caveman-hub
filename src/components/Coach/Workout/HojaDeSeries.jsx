@@ -4,7 +4,8 @@ import { ArrowDown, ArrowUp, ClipboardPaste, Copy, GripVertical, Link2, Quote, T
 import { restLabel, supersetLabels } from '@/domain/training';
 import { useArrastreOrden } from '@/lib/useArrastreOrden';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { TablaDeSeries, camposDeLaHoja } from './TablaDeSeries';
+import { CambiarEjercicio } from './CambiarEjercicio';
+import { AnadirObjetivo, TablaDeSeries, abrirAMano, camposDeLaHoja, esPautable } from './TablaDeSeries';
 
 /**
  * La hoja de series: el día como TABLA, no como fichas.
@@ -77,6 +78,11 @@ export const HojaDeSeries = ({
   onAddSet,
   onRemoveSet,
   onNoteChange,
+  /* `(exId, nuevo)`: pulsar el nombre cambia el ejercicio por otro.
+     Sin él —el teléfono, donde se registra y no se programa— solo se lee. */
+  onRename = null,
+  /* La biblioteca, para elegir por qué ejercicio se cambia. */
+  library = [],
   showRir = false,
   showNotes = false,
   focusedId = null,
@@ -101,6 +107,10 @@ export const HojaDeSeries = ({
   /* El remate de UNA serie: `(exerciseId, indiceDeLaSerie, tecnica | null)`.
      Sin él la hoja enseña los remates pautados y no deja tocarlos. */
   onTecnica = null,
+  /* Quitar la columna de un objetivo —`targetKg`, `targetRir`— de la hoja
+     entera: el reverso de «+ kg». Recibe la clave; vaciar las series y avisar
+     con su «Deshacer» es de quien llama. Sin él, el rótulo no lleva «×». */
+  onRetirarObjetivo = null,
   /* Copiar el ejercicio al portapapeles, con sus series y sus objetivos. Es lo
      que Efort llama «copy sets between exercises» y aquí es lo mismo un escalón
      más arriba: se copia el ejercicio entero y se pega donde haga falta, en
@@ -164,7 +174,21 @@ export const HojaDeSeries = ({
   /* Qué objetivos pauta esta hoja —y por tanto qué columnas tiene su tabla—,
      con «+ kg» y «+ rir» para los que faltan. La regla entera, y por qué es del
      CONTENIDO y no del protocolo, está en `camposDeLaHoja`. */
-  const { campos, porPautar, columnas } = camposDeLaHoja(exercises, { showRir, aMano });
+  /* `aMano` va POR EJERCICIO: «+ kg» abre el peso en el suyo, no en toda la hoja. */
+  const { delEjercicio, faltanEn, retirables } = camposDeLaHoja(exercises, { showRir, aMano });
+  /* Quitar una columna: lo escrito lo vacía quien llama —es plan, y sabe
+     dónde vive—; aquí solo se cierra lo que se hubiera abierto a mano, que si
+     no la columna seguiría puesta y vacía. */
+  const retirar = (key) => {
+    setAMano((v) => abrirAMano(v, null, key, false));
+    onRetirarObjetivo(key);
+  };
+  /* Escribir un kilo o un RIR lo deja abierto en su ejercicio: borrar la única
+     cifra no puede llevarse la casilla con el cursor dentro. */
+  const escribirSerie = (exId, i, key, v, ...resto) => {
+    if (esPautable(key) && !aMano[exId]?.[key]) setAMano((m) => abrirAMano(m, [exId], key));
+    onSetChange(exId, i, key, v, ...resto);
+  };
   /* A1/A2, derivado de la posición. La superserie se decide al escribir el
      bloque; aquí —el plan de un microciclo— se lee. */
   const marcasSS = supersetLabels(exercises);
@@ -220,8 +244,9 @@ export const HojaDeSeries = ({
                     onMove(index, index + 1);
                   }
                 }}
-                aria-label={`Reordenar ${ex.name}. Alt y flechas para moverlo.`}
-                title="Arrastra para moverlo de sitio (o Alt + ↑/↓)"
+                aria-label={`Mover ${ex.name}`}
+                aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                title="Mover"
               >
                 <GripVertical size={15} />
               </button>
@@ -238,7 +263,16 @@ export const HojaDeSeries = ({
               */}
               <span className="hoja-ej-titulo">
                 <span className="hoja-ej-nombre">
-                  {ex.name}
+                  {onRename ? (
+                    <CambiarEjercicio
+                      ejercicio={ex}
+                      vecinos={exercises}
+                      library={library}
+                      onCambiar={(nombre, opciones) => onRename(ex.id, nombre, opciones)}
+                    />
+                  ) : (
+                    ex.name
+                  )}
                   {/* Dentro del nombre y en línea: lo que dice es de ese
                       nombre, y así sigue al texto cuando envuelve a dos
                       renglones. En acento porque se pulsa —abre el vídeo en
@@ -312,9 +346,8 @@ export const HojaDeSeries = ({
                   />
                   {/*
                     ── Y EL VERBO QUE ABRE LOS KILOS ─────────────────────────
-                    Solo mientras la hoja no pauta ninguno: en cuanto hay un
-                    peso escrito la columna se sostiene sola y esta chapa
-                    sobraría. Vive en el renglón del ejercicio, al lado del
+                    Solo mientras ESTE ejercicio no pauta ninguno. Pregunta si
+                    es para él o para toda la hoja (`AnadirObjetivo`). Vive en el renglón del ejercicio, al lado del
                     descanso, porque es de la misma familia —lo que este
                     ejercicio pide aparte de sus repeticiones— y porque es
                     donde estás cuando decides pautarlo.
@@ -323,16 +356,14 @@ export const HojaDeSeries = ({
                     falta: canto punteado —«esto es un hueco que puedes
                     llenar»— y en voz baja hasta que te acercas al ejercicio.
                   */}
-                  {porPautar.map((c) => (
-                    <button
+                  {delEjercicio(ex).porPautar.map((c) => (
+                    <AnadirObjetivo
                       key={c.key}
-                      type="button"
-                      className="hoja-chapa"
-                      title={`Pautar ${c.label === 'kg' ? 'el peso' : 'el RIR'} de cada serie en esta hoja`}
-                      onClick={() => setAMano((v) => ({ ...v, [c.key]: true }))}
-                    >
-                      + {c.label}
-                    </button>
+                      campo={c}
+                      ex={ex}
+                      faltan={faltanEn(c.key)}
+                      onAbrir={(ids) => setAMano((v) => abrirAMano(v, ids, c.key))}
+                    />
                   ))}
                 </span>
               ) : (
@@ -398,7 +429,7 @@ export const HojaDeSeries = ({
                 })()}
               <span className="hoja-ej-acciones">
                 {showNotes && !conNota && (
-                  <button type="button" className="btn btn-icon btn-icon-compact" title="Añadir una nota" aria-label={`Añadir una nota a ${ex.name}`} onClick={() => setNotaAbierta(ex.id)}>
+                  <button type="button" className="btn btn-icon btn-icon-compact" title="Nota" aria-label={`Nota de ${ex.name}`} onClick={() => setNotaAbierta(ex.id)}>
                     <Quote size={13} />
                   </button>
                 )}
@@ -419,8 +450,8 @@ export const HojaDeSeries = ({
                   <button
                     type="button"
                     className="btn btn-icon btn-icon-compact"
-                    title={`Copiar «${ex.name}» al portapapeles, con sus series`}
-                    aria-label={`Copiar «${ex.name}» al portapapeles`}
+                    title="Copiar"
+                    aria-label={`Copiar ${ex.name}`}
                     onClick={() => onCopiar(ex)}
                   >
                     <Copy size={13} />
@@ -432,8 +463,8 @@ export const HojaDeSeries = ({
                   <button
                     type="button"
                     className="btn btn-icon btn-icon-compact"
-                    title={`Poner en «${ex.name}» las series de «${pautaEnMano.carga?.name || pautaEnMano.titulo}»`}
-                    aria-label={`Poner en ${ex.name} las series de ${pautaEnMano.carga?.name || pautaEnMano.titulo}`}
+                    title={`Pegar las series de «${pautaEnMano.carga?.name || pautaEnMano.titulo}»`}
+                    aria-label={`Pegar en ${ex.name} las series de ${pautaEnMano.carga?.name || pautaEnMano.titulo}`}
                     onClick={() => onPegarPauta(ex)}
                   >
                     <ClipboardPaste size={13} />
@@ -483,9 +514,11 @@ export const HojaDeSeries = ({
 
             <TablaDeSeries
               ex={ex}
-              campos={campos}
-              columnas={columnas}
-              onSetChange={onSetChange}
+              campos={delEjercicio(ex).campos}
+              columnas={delEjercicio(ex).columnas}
+              retirables={retirables}
+              onRetirar={onRetirarObjetivo ? retirar : null}
+              onSetChange={escribirSerie}
               onAddSet={onAddSet}
               onRemoveSet={onRemoveSet}
               onTecnica={onTecnica}
@@ -521,7 +554,7 @@ export const HojaDeSeries = ({
                   className="textarea"
                   rows={2}
                   autoFocus={notaAbierta === ex.id && nota.length === 0}
-                  placeholder="La verá junto al ejercicio. Ej: el codo pegado al cuerpo."
+                  placeholder="Nota para tu cliente"
                   value={nota}
                   onChange={(e) => onNoteChange(ex.id, e.target.value)}
                   onBlur={() => !nota.trim() && setNotaAbierta(null)}

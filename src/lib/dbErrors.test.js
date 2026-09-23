@@ -107,6 +107,12 @@ describe('traduceStorageError', () => {
     expect(traduceStorageError({ message: 'mime type video/webm is not supported' })).toBeNull();
     expect(traduceStorageError(null)).toBeNull();
   });
+
+  /* La subida sin respuesta llegaba al cliente como «Failed to fetch», en inglés. */
+  it('el fallo de red se dice en castellano', () => {
+    expect(traduceStorageError({ message: 'Failed to fetch' })).toMatch(/no llegó a enviarse/i);
+    expect(traduceStorageError({ message: 'Load failed' })).toMatch(/no llegó a enviarse/i);
+  });
 });
 
 /**

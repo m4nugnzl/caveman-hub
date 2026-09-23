@@ -1,11 +1,5 @@
 import { isModuleOn, modulesFor, toggleModule } from '@/domain/protocol';
-import { clampInt } from '@/lib/num';
-import { Field, SegmentedControl, Switch } from '@/components/ui/primitives';
-
-const CYCLE_OPTIONS = [
-  { id: 'weekly', label: 'Semanal', hint: 'Atada a lunes–domingo' },
-  { id: 'rotating', label: 'Rotativa', tone: 'tone-cyan', hint: 'Ciclo que se repite sin fin' },
-];
+import { Field, Switch } from '@/components/ui/primitives';
 
 /**
  * Los ajustes del programa: lo que se decide UNA VEZ por cliente.
@@ -40,13 +34,10 @@ const CYCLE_OPTIONS = [
  * de la configuración.
  */
 export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, pie, children }) => {
-  const cycleType = client.cycleType || 'weekly';
-  const pattern = client.cyclePattern || { train: 2, rest: 1 };
-
   return (
     <div className="col gap-4">
       <div className="col gap-3">
-        <span className="section-label">Cómo se estructura</span>
+        <span className="section-label">Cuándo empieza</span>
 
         <div className="row-end wrap">
           {/*
@@ -76,64 +67,11 @@ export const CycleSettings = ({ client, onChange, protocol, onProtocolChange, pi
               />
             )}
           </Field>
-
-          <Field label="Tipo de estructura">
-            <SegmentedControl
-              value={cycleType}
-              onChange={(value) => onChange({ cycleType: value })}
-              options={CYCLE_OPTIONS}
-              label="Tipo de estructura"
-            />
-          </Field>
         </div>
 
-        {cycleType === 'rotating' && (
-          <div className="row wrap gap-4">
-            <Field label="Días de entreno" className="shrink-0">
-              {(props) => (
-                <input
-                  {...props}
-                  type="text"
-                  inputMode="numeric"
-                  className="input input-center"
-                  style={{ width: 84 }}
-                  value={pattern.train}
-                  onChange={(e) =>
-                    onChange({
-                      cyclePattern: { ...pattern, train: clampInt(e.target.value, 1, 14, 1) },
-                    })
-                  }
-                />
-              )}
-            </Field>
-            <Field label="Días de descanso" className="shrink-0">
-              {(props) => (
-                <input
-                  {...props}
-                  type="text"
-                  inputMode="numeric"
-                  className="input input-center"
-                  style={{ width: 84 }}
-                  value={pattern.rest}
-                  onChange={(e) =>
-                    onChange({
-                      cyclePattern: { ...pattern, rest: clampInt(e.target.value, 0, 14, 0) },
-                    })
-                  }
-                />
-              )}
-            </Field>
-          </div>
-        )}
-
-        {/* La explicación del carril, debajo y en voz baja: cambia con lo que
-            esté puesto, igual que en los ajustes de la dieta. */}
-        <p className="t-xs t-tertiary">
-          {cycleType === 'weekly'
-            ? 'Sus semanas van de lunes a domingo, y cada día del microciclo cae en un día de la semana.'
-            : 'Su ciclo se repite sin fin, sin atarse al calendario: los días se numeran dentro del ciclo.'}
-        </p>
-
+        {/* El tipo del microciclo y sus tandas ya no están aquí: son de cada
+            bloque y se cambian en el ritmo del microciclo, en la barra de
+            arriba (`RitmoDelMicrociclo`). Aquí queda lo que es del cliente. */}
         {children}
       </div>
 

@@ -338,3 +338,109 @@ describe('dietLog', () => {
     expect(dietLog()).toEqual([]);
   });
 });
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA TERCERA FUENTE: las versiones fechadas de la pauta (0124)
+   --------------------------------------------------------------------------
+   Con versiones, un cambio está en la semana en que se hizo y con su día. Sin
+   ellas, sale de las revisiones y, si entre dos revisiones pasó más de una
+   semana, lleva `aprox` con los dos lunes entre los que pudo pasar.
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('nutritionTrack con versiones', () => {
+  const semanas = (n) => Array.from({ length: n }, (_, i) => ({ weekStart: lunes(i + 1) }));
+  const revision = (semana, kcals, extra = {}) => ({ weekStart: lunes(semana), snapshot: { kcals, ...extra } });
+  const dia = (semana, d) =>
+    new Date(Date.parse(`${lunes(semana)}T00:00:00Z`) + d * 86400000).toISOString().slice(0, 10);
+
+  it('la versión manda y el cambio cae en su semana, con su día', () => {
+    const t = nutritionTrack({
+      rows: semanas(6),
+      reviews: [revision(1, 2600), revision(5, 2450)],
+      versions: [{ dia: dia(3, 2), snapshot: { kcals: 2450 } }],
+    });
+
+    expect(t.map((f) => f.kcals)).toEqual([2600, 2600, 2450, 2450, 2450, 2450]);
+    expect(t[2].cambios).toEqual([{ k: 'kcals', de: 2600, a: 2450 }]);
+    expect(t[2].cambioEl).toBe(dia(3, 2));
+    expect(t[2].aprox).toBeNull();
+    expect(t[2].fuente).toBe('version');
+    /* La revisión de la semana 5 ya no pinta un segundo escalón. */
+    expect(t[4].cambios).toEqual([]);
+  });
+
+  it('sin versiones, un cambio entre revisiones espaciadas lleva ≈ con los dos lunes', () => {
+    const t = nutritionTrack({
+      rows: semanas(6),
+      reviews: [revision(1, 2600), revision(2, 2600), revision(4, 2450)],
+    });
+
+    expect(t[3].cambios).toEqual([{ k: 'kcals', de: 2600, a: 2450 }]);
+    expect(t[3].aprox).toEqual({ desde: lunes(2), hasta: lunes(4) });
+    expect(t[3].cambioEl).toBeNull();
+  });
+
+  it('con revisiones semanales no marca ≈', () => {
+    const t = nutritionTrack({ rows: semanas(4), reviews: [revision(1, 2600), revision(2, 2600), revision(3, 2450)] });
+
+    expect(t[2].cambios).toHaveLength(1);
+    expect(t[2].aprox).toBeNull();
+  });
+
+  it('pasos y cardio también son cambios de pauta', () => {
+    const t = nutritionTrack({
+      rows: semanas(3),
+      reviews: [revision(1, 2300, { steps: 9000 }), revision(2, 2300, { steps: 11000 }), revision(3, 2300, { steps: 11000, cardio: '2 × 20′' })],
+    });
+
+    expect(t[1].cambios).toEqual([{ k: 'steps', de: 9000, a: 11000 }]);
+    expect(t[2].cambios).toEqual([{ k: 'cardio', de: null, a: '2 × 20′' }]);
+    /* `changed` sigue siendo solo de kcal: lo leen la Revisión y el Resumen. */
+    expect(t.map((f) => f.changed)).toEqual([false, false, false]);
+  });
+
+  it('el plan en memoria cuenta como la versión de hoy si va por delante', () => {
+    const t = nutritionTrack({
+      rows: semanas(4),
+      reviews: [revision(1, 2600)],
+      versions: [{ dia: dia(2, 0), snapshot: { kcals: 2450 } }],
+      plan: { kcals: 2300 },
+      hoy: dia(4, 1),
+    });
+
+    expect(t.map((f) => f.kcals)).toEqual([2600, 2450, 2450, 2300]);
+    expect(t[3].cambioEl).toBe(dia(4, 1));
+  });
+
+  it('cortando en hoy, las semanas futuras no llevan pauta; sin cortar, sí', () => {
+    const base = { rows: semanas(4), reviews: [revision(1, 2600)], plan: { kcals: 2600 }, hoy: dia(2, 3) };
+
+    expect(nutritionTrack({ ...base, cortarEnHoy: true }).map((f) => f.kcals)).toEqual([2600, 2600, null, null]);
+    expect(nutritionTrack(base).map((f) => f.kcals)).toEqual([2600, 2600, 2600, 2600]);
+  });
+});
+
+describe('dietLog con versiones', () => {
+  it('desde la primera versión, las revisiones no entran y el escalón va en su día', () => {
+    const filas = dietLog({
+      history: [],
+      reviews: [
+        { weekStart: '2026-09-07', snapshot: { kcals: 2600 } },
+        /* Cerrada el viernes con la pauta del miércoles: fechada en SU lunes, el 12. */
+        { weekStart: '2026-10-12', snapshot: { kcals: 2450 } },
+      ],
+      versions: [{ dia: '2026-10-14', snapshot: { kcals: 2450 } }],
+    });
+
+    expect(filas.map((f) => f.date)).toEqual(['2026-09-07', '2026-10-14']);
+    expect(kcalSteps(filas)[0].date).toBe('2026-10-14');
+  });
+
+  it('una versión y un pesaje del mismo día: la versión va detrás', () => {
+    const filas = dietLog({
+      history: [{ date: '2026-10-14', weight: 75, nutrition: { kcals: 2600 } }],
+      versions: [{ dia: '2026-10-14', snapshot: { kcals: 2450 } }],
+    });
+
+    expect(filas.map((f) => f.nutrition.kcals)).toEqual([2600, 2450]);
+  });
+});

@@ -229,3 +229,26 @@ describe('CierreDeLaSesion', () => {
     expect(html).not.toContain('Tu cuaderno');
   });
 });
+
+describe('PantallaSesion — lo que el servidor no guardó', () => {
+  const noGuardada = {
+    ejercicios: [
+      ejercicio('e1', 'Press banca', [serie({ kg: '80', reps: '8', hecha: true, noGuardada: true }), serie()]),
+    ],
+  };
+
+  it('la serie rechazada se ve con lo anotado y dice que no está guardada', () => {
+    const html = pinta(noGuardada);
+    expect(html).toContain('aria-label="No guardada. Corregir la serie 1: 80 kg · 8"');
+    expect(html).toContain('>No guardada<');
+  });
+
+  it('el pie cuenta las no guardadas y dice por qué', () => {
+    const html = pinta({
+      ...noGuardada,
+      guardado: { status: 'error', noGuardadas: 2, motivo: 'plan', onRetry: nada },
+    });
+    expect(html).toContain('2 series no se guardaron: tu entrenador cambió la hoja mientras entrenabas');
+    expect(html).toContain('Reintentar');
+  });
+});

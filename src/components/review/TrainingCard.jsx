@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { tonelaje as escribeTonelaje } from '@/domain/lenteDeEntreno';
 import { exerciseTrend, nextPrescription } from '@/domain/week';
 import { useApp } from '@/context/AppContext';
 import { shortDate } from '@/lib/dates';
@@ -9,6 +10,7 @@ import { Fold } from '@/components/ui/primitives';
 import { Tarjeta } from '@/components/dashboard/Tarjeta';
 import { ExerciseRow } from '@/components/review/ExerciseRow';
 import { ExerciseSheet } from '@/components/review/ExerciseSheet';
+import { lineasNoGuardadas, useSeriesNoGuardadas } from '@/components/review/useSeriesNoGuardadas';
 
 /**
  * EL ENTRENO DE LA SEMANA: una recta por ejercicio, y el registro a un toque.
@@ -62,9 +64,10 @@ const reparto = (ejercicios) => {
     .join(' · ');
 };
 
-export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesiones, client }) => {
+export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesiones, tonelaje = 0, client }) => {
   const [abierto, setAbierto] = useState(null);
   const { addExerciseSetSlot, removeExerciseSetSlot, updateExerciseTarget } = useApp();
+  const noGuardadas = lineasNoGuardadas(useSeriesNoGuardadas(client?.id), semana);
 
   /*
     ══ DÓNDE se escribe un ajuste, y por qué no es aquí mismo ═════════════════
@@ -116,6 +119,17 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
     return mapa;
   }, [porDia, microcycles, semana]);
 
+  /* Los que llevan microciclos sin mejorar su mejor serie, de más a menos.
+     La racha la cuenta `exerciseTrend`, que ya está calculado arriba: aquí no
+     se vuelve a recorrer el registro. */
+  const parados = useMemo(
+    () =>
+      [...tendencias.values()]
+        .filter((t) => t && t.stalled > 0)
+        .sort((a, b) => b.stalled - a.stalled),
+    [tendencias]
+  );
+
   return (
     /* El subtítulo dice lo que hay, no cómo se usa. Decía además «desliza por la
        recta para comparar; pulsa el nombre para ver el registro entero», que es
@@ -142,8 +156,42 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
       {sesiones && (
         <p className={`tarjeta-meta${sesiones.done < sesiones.planned ? ' is-warn' : ''}`}>
           {sesiones.done} de {sesiones.planned} sesiones esta semana
+          {tonelaje > 0 && <> · {escribeTonelaje(tonelaje)} levantados</>}
         </p>
       )}
+
+      {/*
+        LOS QUE NO HAN SUPERADO SU MARCA, por su nombre. Es la misma cuenta que
+        la comparativa del ejercicio (`exerciseTrend().stalled`) y la misma que
+        la lente de Entreno lee en la portada.
+
+        ── Por qué va en tinta apagada y sin chapa ───────────────────────────
+        Porque es un DATO y no un aviso. Un ejercicio lleva tres microciclos sin
+        subir por muchas razones legítimas —una descarga, un cambio de rango,
+        una semana de viaje— y pintarlo de ámbar sería la aplicación diciendo
+        que algo va mal. Quién decide eso es el entrenador; esto solo se lo
+        pone delante para que no tenga que abrir ocho fichas para encontrarlo.
+      */}
+      {parados.length > 0 && (
+        <p className="tarjeta-meta">
+          Sin superar su marca:{' '}
+          {parados.map((p, i) => (
+            <span key={p.name}>
+              {i > 0 ? ' · ' : ''}
+              {p.name} <small>({p.stalled})</small>
+            </span>
+          ))}
+        </p>
+      )}
+
+      {/* Las series que su teléfono no pudo guardar esta semana: cambiaste la
+          hoja con su sesión abierta. Siguen en su teléfono, marcadas; al pasar
+          por encima se leen, por si quieres apuntarlas. Ver la 0132. */}
+      {noGuardadas.map((l) => (
+        <p key={l.texto} className="tarjeta-meta is-warn" title={l.detalle}>
+          {l.texto}
+        </p>
+      ))}
 
       {dias.length === 0 ? (
         <p className="t-sm t-tertiary">Esta semana no tiene días montados.</p>
@@ -200,6 +248,10 @@ export const TrainingCard = ({ dias = [], porDia, semana, microcycles = [], sesi
                   Number.isFinite(dia.plannedSets)
                     ? `${dia.loggedSets ?? 0} de ${dia.plannedSets} series`
                     : null,
+                  /* Cuánto movió ese día. Es la cifra que faltaba para que la
+                     línea plegada contestara sola: series dice cuánto trabajo
+                     hizo, tonelaje dice cuánto pesaba. */
+                  hecho && dia.tonnage > 0 ? escribeTonelaje(dia.tonnage) : null,
                   patron,
                 ]
                   .filter(Boolean)

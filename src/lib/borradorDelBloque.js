@@ -17,10 +17,14 @@
  * En `localStorage`, y a propósito, por las dos razones de siempre en esta
  * casa:
  *
- *  · No es del servidor porque no es un dato del cliente todavía. Un bloque sin
- *    abrir no existe para nadie más que para quien lo está escribiendo, y
- *    subirlo obligaría a inventar un estado «borrador» en la rutina que después
- *    habría que limpiar.
+ *  · No es del servidor porque esto NO es el bloque en borrador: es el bloque
+ *    siguiente a medio escribir, la red de la pestaña que se va. El bloque en
+ *    borrador sí vive en el servidor desde la 0133 —`workout_data.draft_blocks`,
+ *    ver `domain/borradores`— y tiene sus propios verbos: rellenarlo y
+ *    empezarlo. Componiendo uno de ellos (`?borrador=`), esta red no se usa:
+ *    lo que se escribe se guarda en él.
+ *  · Y el que nace sin borrador tampoco sube: un bloque sin abrir ni previsto
+ *    no existe para nadie más que para quien lo está escribiendo.
  *  · No es `sessionStorage` porque el caso que hay que cubrir es precisamente
  *    el de la pestaña que se va: se cierra, se recarga, se recupera sola.
  *

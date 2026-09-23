@@ -62,7 +62,7 @@
  * que la pantalla se abra.
  */
 
-import { CLIENT_SECTIONS, COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS, rutasDe } from '@/routes';
+import { CLIENT_SECTIONS, COACH_CLIENT, RESET_PATH, SETTINGS_SECTIONS, rutasDe, sinLunes } from '@/routes';
 
 import { currentActor } from './actor';
 import { onIssue } from './diagnostics';
@@ -223,7 +223,13 @@ const RAIZ = new Set([
  */
 export const rutaDe = (pathname = '') => {
   const deCliente = /^\/c\/[^/]+\/(.+?)\/?$/.exec(pathname)?.[1];
-  if (deCliente) return SEC_CLIENTE.has(deCliente) ? `/c/:id/${deCliente}` : '/c/:id/otra';
+  if (deCliente) {
+    /* La semana de Revisiones lleva su lunes: se guarda como `:lunes`, igual
+       que el cliente se guarda como `:id`. */
+    const seccion = sinLunes(deCliente);
+    if (!SEC_CLIENTE.has(seccion)) return '/c/:id/otra';
+    return `/c/:id/${seccion}${seccion === deCliente ? '' : '/:lunes'}`;
+  }
 
   const delPortal = /^\/mi\/(.+?)\/?$/.exec(pathname)?.[1];
   if (delPortal) return SEC_PORTAL.has(delPortal) ? `/mi/${delPortal}` : '/mi/otra';

@@ -11,6 +11,7 @@ import {
   emptyWorkoutData,
   findMicrocycle,
   firstCycleDate,
+  microcicloParaLasHojas,
   microcycleIds,
   nextWeekNumber,
   reidExercises,
@@ -28,6 +29,7 @@ import {
   removePlanExerciseOnlyIn,
   updatePlanDayIn,
   updatePlanExerciseIn,
+  updatePlanExercisesIn,
   wherePlanExercise,
   blockSessionOf,
   blocksOf,
@@ -35,6 +37,8 @@ import {
   addBlockExerciseIn,
   setBlockExercisesIn,
   addBlockSessionIn,
+  blockSessionsOf,
+  duplicateBlockSessionIn,
   moveBlockExerciseIn,
   moveBlockSessionIn,
   promoteOverrideIn,
@@ -43,8 +47,12 @@ import {
   removeBlockSessionFrom,
   removeOverrideIn,
   renameBlockSessionIn,
+  renameBlockExerciseIn,
+  renamePlanExerciseIn,
+  BLOCK_CHANGE,
   restoreBlockExerciseIn,
   setBlockExerciseSetsIn,
+  setBlockExerciseSchemeIn,
   setBlockExerciseTargetIn,
   setBlockSessionsIn,
   updateBlockExerciseIn,
@@ -61,13 +69,25 @@ import {
   proyectarPlanEnDias,
   resolvedMicrocycles,
   fechaDelCicloSiguiente,
-  conCicloDelCliente,
   conRepartoDelAbierto,
   materializarMicrociclos,
-  ponerDiaSemanal,
+  ponerMicrociclo,
   seguirALasHojas,
 } from '@/domain/blocks';
+import { soltarHojaSinEntrenar } from '@/domain/hojasFuera';
+import {
+  anadirBorrador,
+  borradorDe,
+  cambiarBorrador,
+  datosParaEmpezar,
+  devolverBorrador,
+  quitarBorrador,
+  sePuedeEmpezar,
+  sinBorrador,
+} from '@/domain/borradores';
+import { ponerReferencias } from '@/domain/lenteDeEntreno';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
+import { freeSheetName } from '@/domain/pieces';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
 import { apuntarFoto, conLoRegistradoDeAhora, mismoPlan } from '@/domain/deshacer';
 
@@ -361,7 +381,10 @@ export const useWorkout = ({
       if (!targetId || !sessions.some((s) => s.id === targetId)) {
         const day = (micro.days || []).find((d) => d.dayName === dayName);
         if (!day) return null;
-        const created = buildSessionFromPlan(day, date);
+        /* Con el id que trae, si trae uno: es el de una serie que el servidor no
+           guardó y que la pantalla sigue enseñando (`domain/seriesSinConfirmar`).
+           Otro id partiría la misma sesión en dos. */
+        const created = { ...buildSessionFromPlan(day, date), ...(targetId ? { id: targetId } : {}) };
         targetId = created.id;
         sessions = [...sessions, created];
       }
@@ -1019,46 +1042,6 @@ export const useWorkout = ({
     [clientsRef]
   );
 
-  /**
-   * «Cae el …»: un día del reparto. Con el semanal guardado se escribe en la
-   * secuencia del bloque abierto, y `weekly_split` la copia al pasar por
-   * `applyWorkout`. En un rotativo el reparto no rige y se guarda como antes.
-   */
-  const updateWeeklySplit = useCallback(
-    (clientId, day, value) =>
-      applyWorkout(
-        clientId,
-        (cd) => {
-          const { program } = conSecuencias(clientId, cd);
-          return (
-            ponerDiaSemanal(program, day, value) || { ...program, weeklySplit: { ...program.weeklySplit, [day]: value } }
-          );
-        },
-        { immediate: false }
-      ),
-    [applyWorkout, conSecuencias]
-  );
-
-  /**
-   * El tipo o el patrón de la ficha, cambiados en `CycleSettings`: el bloque
-   * abierto pasa a leerse con la ficha nueva (`conCicloDelCliente`). Se llama
-   * ANTES de guardar la ficha, para que los bloques sin secuencia la guarden con
-   * la de antes. Sin historial: ⌘Z no deshace la ficha, y deshacer solo el
-   * bloque los dejaría en desacuerdo.
-   */
-  const cambiarCicloDelBloque = useCallback(
-    (clientId, campos) =>
-      applyWorkout(
-        clientId,
-        (cd) => {
-          if ((cd.microcycles || []).length === 0) return cd;
-          const { program, client } = conSecuencias(clientId, cd);
-          return client ? conCicloDelCliente(program, { ...client, ...campos }) : cd;
-        },
-        { immediate: false, sinHistorial: true }
-      ),
-    [applyWorkout, conSecuencias]
-  );
 
   /**
    * Con qué fecha nace el ciclo que va después de `previous`.
@@ -1379,9 +1362,25 @@ export const useWorkout = ({
           las hojas nuevas (rotativo). Ver `seguirALasHojas`.
         */
         weeklySplit = null,
+        /*
+          ── Y SU MICROCICLO, SI LLEGA ─────────────────────────────────────────
+          La secuencia que se ha compuesto en la tira del Compositor, o la del
+          bloque copiado. Se guarda en el bloque que nace, con los días de una
+          hoja que no viaja pasados a descanso. Sin ella, el bloque nuevo la
+          deriva como siempre (`seguirALasHojas`).
+        */
+        microciclo = null,
+        /*
+          ── Y EL ID, SI EMPIEZA UN BORRADOR ──────────────────────────────────
+          «Empezar ahora» (`empezarBorrador`): el bloque que nace conserva el id
+          del borrador y el borrador sale de `draftBlocks` en la MISMA
+          escritura. Ver `domain/borradores`.
+        */
+        id = null,
       } = {}
     ) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
+      const suMicrociclo = microcicloParaLasHojas(microciclo, sessions);
 
       /*
         ── Sin programa no hay bloque que cerrar, pero SÍ plan que poner ──────
@@ -1412,6 +1411,7 @@ export const useWorkout = ({
                   ? b
                   : {
                       ...b,
+                      ...(suMicrociclo ? { microciclo: suMicrociclo } : {}),
                       ...Object.fromEntries(
                         Object.entries(blockTraits({ plannedWeeks, intent, note })).filter(
                           ([, v]) => v !== null
@@ -1433,9 +1433,9 @@ export const useWorkout = ({
       const last = current.microcycles[current.microcycles.length - 1];
 
       applyPlan(clientId, (cd) => {
-        const { program, block } = openNextBlock(cd, { name });
+        const { program, block } = openNextBlock(cd, { name, id });
         return {
-          ...program,
+          ...(id ? sinBorrador(program, id) : program),
           /* Después de `openNextBlock`, que ya ha congelado el reparto del
              bloque que se cierra dentro de él: lo que se escriba aquí es del
              que se abre. */
@@ -1446,6 +1446,7 @@ export const useWorkout = ({
               : {
                   ...b,
                   sessions,
+                  ...(suMicrociclo ? { microciclo: suMicrociclo } : {}),
                   ...(Array.isArray(mobilityDrills) ? { mobilityDrills } : {}),
                   /* Las características, saneadas por el dominio y sin
                      guardar las vacías: ver `blockTraits`. */
@@ -1485,9 +1486,138 @@ export const useWorkout = ({
     [applyPlan]
   );
 
-  const removeBlockSheet = useCallback(
-    (clientId, blockId, dayName) => applyPlan(clientId, (cd) => removeBlockSessionFrom(cd, blockId, dayName)),
+  /**
+   * «Copia de "Pull A"»: la hoja entera como hoja nueva, en UNA escritura —la
+   * hoja con sus ejercicios y su línea en la bitácora—, y por tanto un solo
+   * guardado y un solo ⌘Z. Ver `duplicateBlockSessionIn`.
+   *
+   * El nombre libre se busca DENTRO de la escritura, sobre el programa ya
+   * migrado: fuera, en un bloque que todavía tiene el plan en sus microciclos,
+   * la lista de hojas sale vacía y el nombre elegido chocaría con la original
+   * (es la trampa que documenta `nombresDeHojaDelBloque` en la pantalla).
+   *
+   * Devuelve el nombre de la copia, o `null` si no había qué copiar.
+   */
+  const duplicateBlockSheet = useCallback(
+    (clientId, blockId, dayName) => {
+      let nombre = null;
+      applyPlan(clientId, (cd) => {
+        const bloque = blocksOf(cd).find((b) => b.id === blockId);
+        const libre = freeSheetName(dayName, blockSessionsOf(bloque).map((h) => h.dayName));
+        const next = duplicateBlockSessionIn(cd, blockId, dayName, libre);
+        if (next === cd) return cd;
+        nombre = libre;
+        return logBlockChangeIn(next, blockId, {
+          id: newId('bl'),
+          at: new Date().toISOString(),
+          alcance: 'bloque',
+          semanas: [],
+          hoja: libre,
+          kind: BLOCK_CHANGE.HOJA_MAS,
+          que: libre,
+        });
+      });
+      return nombre;
+    },
     [applyPlan]
+  );
+
+  /* Quitar una hoja la saca también de los microciclos del bloque donde no se
+     entrenó, en el mismo paso: si no, quedaría como hoja fuera del plan. Es el
+     único gesto que la suelta —ver `proyectarPlanEnDias`—. */
+  const removeBlockSheet = useCallback(
+    (clientId, blockId, dayName) =>
+      applyPlan(clientId, (cd) =>
+        soltarHojaSinEntrenar(removeBlockSessionFrom(cd, blockId, dayName), blockId, dayName)
+      ),
+    [applyPlan]
+  );
+
+  /**
+   * LA TIRA DEL MICROCICLO: la secuencia de un bloque, escrita entera. Cada
+   * gesto de `EditorDelMicrociclo` es una llamada, y por tanto un paso de ⌘Z.
+   * Pasa por `applyPlan` para que los bloques que aún la derivan la guarden
+   * antes, y por `applyWorkout`, que copia `weekly_split` del abierto.
+   */
+  const ponerMicrocicloDelBloque = useCallback(
+    (clientId, blockId, microciclo) => applyPlan(clientId, (cd) => ponerMicrociclo(cd, blockId, microciclo)),
+    [applyPlan]
+  );
+
+  /**
+   * LOS EJERCICIOS DE REFERENCIA de un bloque: los que el entrenador quiere
+   * seguir en la lente de Entreno de Revisiones.
+   *
+   * Va por `applyWorkout` y no por `applyPlan`, como los borradores: no toca
+   * el plan de nadie ni hojas, ni series, ni secuencia, solo una clave del
+   * bloque. Con `applyPlan` cada vez que alguien marcara un ejercicio se
+   * dispararía `seguirALasHojas` sobre el programa entero, que es mucho motor
+   * para guardar tres nombres.
+   */
+  const ponerReferenciasDelBloque = useCallback(
+    (clientId, blockId, lista) => applyWorkout(clientId, (cd) => ponerReferencias(cd, blockId, lista)),
+    [applyWorkout]
+  );
+
+  /*
+    ══ LOS BLOQUES EN BORRADOR ══════════════════════════════════════════════
+    Van por `applyWorkout` y no por `applyPlan`: no tocan el plan de ningún
+    bloque, solo `draftBlocks`. Cada gesto es un paso de ⌘Z (`mismoPlan` los
+    compara). Ver `domain/borradores`.
+  */
+  /** Uno nuevo, al final. Devuelve el borrador, o `null` si no tiene duración. */
+  const anadirBorradorDelBloque = useCallback(
+    (clientId, datos) => {
+      let nuevo = null;
+      applyWorkout(clientId, (cd) => {
+        const { program, borrador } = anadirBorrador(cd, datos);
+        nuevo = borrador;
+        return program;
+      });
+      return nuevo;
+    },
+    [applyWorkout]
+  );
+
+  /** Rellenarlo o cambiarle las características. No lo empieza. */
+  const cambiarBorradorDelBloque = useCallback(
+    (clientId, id, cambios) => applyWorkout(clientId, (cd) => cambiarBorrador(cd, id, cambios)),
+    [applyWorkout]
+  );
+
+  /** Lo quita y devuelve `{ quitado, posicion }` para el Deshacer del aviso. */
+  const quitarBorradorDelBloque = useCallback(
+    (clientId, id) => {
+      let fuera = { quitado: null, posicion: -1 };
+      applyWorkout(clientId, (cd) => {
+        const { program, ...resto } = quitarBorrador(cd, id);
+        fuera = resto;
+        return program;
+      });
+      return fuera;
+    },
+    [applyWorkout]
+  );
+
+  const devolverBorradorDelBloque = useCallback(
+    (clientId, borrador, posicion) => applyWorkout(clientId, (cd) => devolverBorrador(cd, borrador, posicion)),
+    [applyWorkout]
+  );
+
+  /**
+   * «Empezar ahora»: cierra el abierto y abre este, con su id, sus hojas y su
+   * microciclo, en una escritura (`startBlockWithPlan` con `id`). Solo el
+   * primero: es el que va detrás del abierto. Devuelve la semana que abre, o
+   * `null` si no se podía empezar.
+   */
+  const empezarBorradorDelBloque = useCallback(
+    (clientId, id) => {
+      const programa = workoutRef.current[clientId];
+      const borrador = borradorDe(programa, id);
+      if (!borrador || !sePuedeEmpezar(programa, id)) return null;
+      return startBlockWithPlan(clientId, datosParaEmpezar(borrador));
+    },
+    [startBlockWithPlan, workoutRef]
   );
 
   const renameBlockSheet = useCallback(
@@ -1534,6 +1664,24 @@ export const useWorkout = ({
       blocksOf(cd).find((b) => b.id === blockId),
       dayName
     )?.exercises || [];
+
+  /* La línea «Press banca → Press inclinado» de la bitácora. Solo si cambia el
+     NOMBRE: un cambio de músculo solo no es lo que el diario cuenta. */
+  const conElApunteDelNombre = (cd, blockId, dayName, de, nuevo) => {
+    const a = String(nuevo).trim();
+    if (a === de) return cd;
+    return logBlockChangeIn(cd, blockId, {
+      id: newId('bl'),
+      at: new Date().toISOString(),
+      alcance: 'bloque',
+      semanas: [],
+      hoja: dayName,
+      kind: BLOCK_CHANGE.NOMBRE,
+      que: a,
+      de,
+      a,
+    });
+  };
 
   /** Quita un ejercicio del plan y devuelve cuál era y dónde estaba, para
       poder deshacerlo. `null` si no estaba. */
@@ -1583,6 +1731,57 @@ export const useWorkout = ({
     [applyPlan]
   );
 
+  /**
+   * Cambia un ejercicio por OTRO en su sitio, con su estructura: series,
+   * rangos, RIR, remates, nota y superserie. Es otro ejercicio, así que estrena
+   * id y su progreso empieza de cero; las excepciones de esa hoja pasan a él.
+   * Ver `renameBlockExerciseIn`.
+   *
+   * La línea de la bitácora va en la MISMA escritura: apuntarla aparte serían
+   * dos pasos en la pila, y ⌘Z se gastaría la primera vez en borrar el apunte.
+   *
+   * Devuelve el id con el que queda —el nuevo, o el mismo si solo cambiaron las
+   * mayúsculas— o `null` si no ha escrito nada. El nombre ya viene validado por
+   * la pantalla (`porQueNoSeRenombra`); el dominio lo vuelve a comprobar.
+   */
+  const renameBlockExercise = useCallback(
+    (clientId, blockId, dayName, name, nuevo, { muscle = null } = {}) => {
+      let queda = null;
+      const id = newId('ex');
+      applyPlan(clientId, (cd) => {
+        const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
+        if (!suyo) return cd;
+        const next = renameBlockExerciseIn(cd, blockId, dayName, suyo.id, nuevo, { muscle, id });
+        if (next === cd) return cd;
+        queda = enLaHoja(next, blockId, dayName).some((ex) => ex.id === id) ? id : suyo.id;
+        return conElApunteDelNombre(next, blockId, dayName, name, nuevo);
+      });
+      return queda;
+    },
+    [applyPlan]
+  );
+
+  /* Y desde la hoja de un microciclo, por id como el resto de lo que se toca
+     ahí: se escribe donde el ejercicio vive. Si vive en el bloque, se apunta
+     igual que desde la rejilla; una excepción es de sus semanas y no cambia el
+     plan del bloque. Devuelve lo mismo que la de arriba. */
+  const renamePlanExercise = useCallback(
+    (clientId, weekNumber, dayName, exerciseId, nuevo, { muscle = null } = {}) => {
+      let queda = null;
+      const id = newId('ex');
+      applyPlan(clientId, (cd) => {
+        const { donde, bloque } = wherePlanExercise(cd, weekNumber, dayName, exerciseId);
+        const antes = (planOfDay(cd, weekNumber, dayName)?.exercises || []).find((ex) => ex.id === exerciseId);
+        const next = renamePlanExerciseIn(cd, weekNumber, dayName, exerciseId, nuevo, { muscle, id });
+        if (next === cd || !antes) return next;
+        queda = (planOfDay(next, weekNumber, dayName)?.exercises || []).some((ex) => ex.id === id) ? id : exerciseId;
+        return donde === 'bloque' ? conElApunteDelNombre(next, bloque.id, dayName, antes.name, nuevo) : next;
+      });
+      return queda;
+    },
+    [applyPlan]
+  );
+
   /* `immediate: false` en los dos que se teclean: subir series de tres en tres
      o escribir «8-10» letra a letra no son tres guardados. */
   const setBlockExerciseSets = useCallback(
@@ -1605,6 +1804,21 @@ export const useWorkout = ({
         (cd) => {
           const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
           return suyo ? setBlockExerciseTargetIn(cd, blockId, dayName, suyo.id, targetReps) : cd;
+        },
+        { immediate: false }
+      ),
+    [applyPlan]
+  );
+
+  /* El esquema entero: «1 × 12, 3 × 6-8». También `immediate: false` — se
+     escribe tecleando en las mismas casillas que los dos de arriba. */
+  const setBlockExerciseScheme = useCallback(
+    (clientId, blockId, dayName, name, tramos) =>
+      applyPlan(
+        clientId,
+        (cd) => {
+          const suyo = enLaHoja(cd, blockId, dayName).find((ex) => ex.name === name);
+          return suyo ? setBlockExerciseSchemeIn(cd, blockId, dayName, suyo.id, tramos) : cd;
         },
         { immediate: false }
       ),
@@ -1638,6 +1852,14 @@ export const useWorkout = ({
   const updatePlanExercise = useCallback(
     (clientId, weekNumber, dayName, exerciseId, fn, options) =>
       applyPlan(clientId, (cd) => updatePlanExerciseIn(cd, weekNumber, dayName, exerciseId, fn), options),
+    [applyPlan]
+  );
+
+  /* Varios ejercicios de la hoja en UNA escritura: un gesto de la hoja entera
+     es un paso del guardado y un «Deshacer». Ver `updatePlanExercisesIn`. */
+  const updatePlanExercises = useCallback(
+    (clientId, weekNumber, dayName, exerciseIds, fn, options) =>
+      applyPlan(clientId, (cd) => updatePlanExercisesIn(cd, weekNumber, dayName, exerciseIds, fn), options),
     [applyPlan]
   );
 
@@ -1935,13 +2157,21 @@ export const useWorkout = ({
     [applyWorkout, fechaSiguienteCiclo, startProgram, workoutRef]
   );
 
-  /** Duplica una semana con todos sus ejercicios y series. */
+  /**
+   * Copia una semana con sus ejercicios, series y pautas, y VACÍA lo registrado.
+   *
+   * Traía también los kilos, las reps y el RIR hechos. El dueño (21 sep): «la
+   * copia del microciclo se hace vacía, para que el cliente rellene». Una semana
+   * copiada es la siguiente que va a entrenar, y con los números heredados la
+   * analítica la contaría como hecha — es el motivo de `blankDays`, que ya usaba
+   * `continueProgram`.
+   */
   const cloneMicrocycle = useCallback(
     (clientId, weekNumber) => {
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       const source = findMicrocycle(current.microcycles, weekNumber);
       if (!source) return null;
-      return appendMicrocycleWithDays(clientId, source.days || []);
+      return appendMicrocycleWithDays(clientId, blankDays(source.days || []));
     },
     [appendMicrocycleWithDays, workoutRef]
   );
@@ -1983,10 +2213,11 @@ export const useWorkout = ({
    * dos salidas pierden datos, y la segunda los pierde sin avisar.
    *
    * ── Por qué se distingue de `cloneMicrocycle` ──────────────────────────────
-   * `cloneMicrocycle` trae los kilos de la semana copiada, que es lo que el
-   * entrenador quiere al duplicar. Aquí sería un desastre: los números aparecerían
-   * rellenos sin haber entrenado y la analítica los contaría como reales. Por eso
-   * `blankDays` y no `cloneDays`.
+   * Los dos vacían lo registrado con `blankDays` (desde el 21 sep también
+   * `cloneMicrocycle`): los números aparecerían rellenos sin haber entrenado y
+   * la analítica los contaría como reales. Lo que los distingue es de dónde
+   * parten —la última semana resuelta aquí, la que se elija allí— y quién
+   * escribe: aquí puede ser el cliente, por `continue_program`.
    *
    * ── Sobre el permiso ───────────────────────────────────────────────────────
    * El cliente NO tiene UPDATE sobre `workout_data` desde la 0014 —lo tuvo, y ese
@@ -2181,6 +2412,9 @@ export const useWorkout = ({
             weeklySplit: deepClone(source.weeklySplit || {}),
             mobilityDrills: deepClone(source.mobilityDrills || []),
             blocks: deepClone(source.blocks || []),
+            /* Los borradores viajan con el programa (22 sep). Sin la clave en el
+               origen —columna sin leer— no se toca la del destino. */
+            ...(Array.isArray(source.draftBlocks) ? { draftBlocks: deepClone(source.draftBlocks) } : {}),
             notes: source.notes || '',
             microcycles: [...source.microcycles]
               .sort((a, b) => a.weekNumber - b.weekNumber)
@@ -2359,8 +2593,8 @@ export const useWorkout = ({
     moveDay,
     removeDay,
     restoreDay,
-    updateWeeklySplit,
-    cambiarCicloDelBloque,
+    ponerMicrocicloDelBloque,
+    ponerReferenciasDelBloque,
     startProgram,
     appendMicrocycle,
     appendMicrocycleWithDays,
@@ -2371,10 +2605,18 @@ export const useWorkout = ({
     logBlockChange,
     migratePlanToBlock,
     startBlockWithPlan,
+    anadirBorradorDelBloque,
+    cambiarBorradorDelBloque,
+    quitarBorradorDelBloque,
+    devolverBorradorDelBloque,
+    empezarBorradorDelBloque,
     setBlockPlan,
     addBlockSheet,
+    duplicateBlockSheet,
     removeBlockSheet,
     renameBlockSheet,
+    renameBlockExercise,
+    renamePlanExercise,
     moveBlockSheet,
     addBlockExercise,
     setBlockSheetExercises,
@@ -2382,9 +2624,11 @@ export const useWorkout = ({
     restoreBlockExercise,
     moveBlockExercise,
     setBlockExerciseSets,
+    setBlockExerciseScheme,
     setBlockExerciseTarget,
     setBlockExerciseGrammar,
     updatePlanExercise,
+    updatePlanExercises,
     removePlanExercise,
     overridePlanExercise,
     removePlanExerciseOnly,

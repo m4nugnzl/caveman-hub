@@ -10,32 +10,35 @@ import { clientProtocol, isServiceOn, weighInsTarget } from '@/domain/protocol';
 import { goalFromDirection } from '@/domain/goals';
 import { effectiveGoal, roadmapState } from '@/domain/roadmap';
 import { weeklyReading, weightTrend } from '@/domain/reading';
-import { todayISO } from '@/lib/dates';
-import { clientPath } from '@/routes';
+import { todayISO, weekStart } from '@/lib/dates';
+import { clientPath, semanaPath } from '@/routes';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { lazyRoute } from '@/lib/lazyRoute';
 
 import { TarjetaArranque } from './TarjetaArranque';
+import { FranjaCifras } from './FranjaCifras';
 import { TarjetaProgreso } from './TarjetaProgreso';
 import { TarjetaTonelaje } from './TarjetaTonelaje';
 import { TarjetaVolumen } from './TarjetaVolumen';
 import { TarjetaPlan } from './TarjetaPlan';
 import { TarjetaSensaciones } from './TarjetaSensaciones';
 import { TarjetaHilo } from './TarjetaHilo';
+import { TarjetaRoadmap } from './TarjetaRoadmap';
 
 /*
   ══ Las ventanas, diferidas ═══════════════════════════════════════════════
 
-  Las tres —el roadmap, el cuerpo a fondo y el entreno a fondo— se abren un
-  día y se consultan muchos. Van con `lazyRoute` —el mismo cargador de las
+  Las dos —el cuerpo a fondo y el entreno a fondo— se abren un día y se
+  consultan muchos, igual que el plan del roadmap (`roadmap/PlanDelRoadmap`),
+  que se abre desde su tarjeta. Van con `lazyRoute` —el mismo cargador de las
   rutas, con su reintento contra el despliegue que cambia los hashes— y con
   su propia frontera de `Suspense`, y se montan solo abiertas: cerradas no
   calculan nada.
 */
-const FasesPopup = lazyRoute(() => import('./FasesPopup').then((m) => ({ default: m.FasesPopup })));
 const PanelCuerpo = lazyRoute(() => import('./PanelCuerpo').then((m) => ({ default: m.PanelCuerpo })));
 const PanelEntreno = lazyRoute(() => import('./PanelEntreno').then((m) => ({ default: m.PanelEntreno })));
+const PlanDelRoadmap = lazyRoute(() => import('@/components/roadmap/PlanDelRoadmap').then((m) => ({ default: m.PlanDelRoadmap })));
 
 /**
  * RESUMEN — lo que pasa a la izquierda, lo que le has puesto a la derecha.
@@ -85,7 +88,8 @@ const PanelEntreno = lazyRoute(() => import('./PanelEntreno').then((m) => ({ def
  * plan lo mira sin enlaces para tocarlo.
  */
 export const Dashboard = ({ audience = 'coach' }) => {
-  const { activeClient, workoutData, anthropometry, nutrition, phases, progressPhotos, updateClientPreferences } = useApp();
+  const { activeClient, workoutData, anthropometry, nutrition, phases, progressPhotos, updateClientPreferences } =
+    useApp();
   const isClient = audience === 'client';
   /*
     ══ Lo que su entrenador le oculta A ÉL ════════════════════════════════════
@@ -247,10 +251,14 @@ export const Dashboard = ({ audience = 'coach' }) => {
   /* Donde el coach anota un pesaje: la revisión, con su alta de registros.
      Solo coach — el vacío del portal habla del check-in, no de esta puerta. */
   const aPesaje = isClient ? null : clientPath(activeClient.id, 'revision');
+  /* El roadmap se LEE en Revisiones: su tarjeta lleva a la semana de hoy, por
+     su lunes. Se EDITA en la ventana del plan. El cliente lo lee en su
+     revisión, encima de «Tus semanas» (`TuRoadmap`). */
+  const aRevisionesRoadmap = isClient ? '/mi/evolucion/semanas' : semanaPath(activeClient.id, weekStart(todayISO()));
+  const abrirPlan = isClient ? null : () => setVentana('plan');
 
   const ventanas = (
     <Suspense fallback={null}>
-      {ventana === 'fases' && <FasesPopup open onClose={() => setVentana(null)} audience={audience} />}
       {ventana === 'cuerpo' && (
         <PanelCuerpo
           open
@@ -267,6 +275,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
           pregunta={preguntaVentana}
         />
       )}
+      {ventana === 'plan' && <PlanDelRoadmap onClose={() => setVentana(null)} />}
       {ventana === 'entreno' && (
         <PanelEntreno
           open
@@ -318,7 +327,7 @@ export const Dashboard = ({ audience = 'coach' }) => {
             program={program}
             conEntreno={conEntreno}
             conDieta={conDieta}
-            onAbrirFases={() => abrirVentana('fases')}
+            onPlan={abrirPlan}
           />
         </div>
         {ventanas}
@@ -339,6 +348,21 @@ export const Dashboard = ({ audience = 'coach' }) => {
     */
     <>
     <div className={`resumen-pagina${isClient ? ' is-portal' : ''}`}>
+      {/* LA FRANJA DE CIFRAS abre la pantalla (19 sep): lo que ha cambiado
+          desde el primer día, en mini-tarjetas a lo ancho de las dos
+          columnas. Vivía al pie de «El progreso». Ver `FranjaCifras`. */}
+      <FranjaCifras
+        serie={serie}
+        history={history}
+        microcycles={microcycles}
+        program={program}
+        startDate={activeClient.startDate}
+        hoy={hoy}
+        checkIn={checkIn}
+        pesoWow={pesoWow}
+        goal={goal}
+        isClient={isClient}
+      />
       <div className="resumen">
         {/*
           Aquí vivió `es-hoja` un día (movimiento 02 del estudio del 5 sep):
@@ -363,13 +387,11 @@ export const Dashboard = ({ audience = 'coach' }) => {
             banda={banda}
             onBanda={setBanda}
             hayPasos={hayPasos}
-            pesoWow={pesoWow}
-            checkIn={checkIn}
             trend={trend}
             veredicto={direccion}
             goal={goal}
             canEditGoal={!isClient}
-            /* El peso objetivo se fija en la ventana de fases, que es donde se
+            /* El peso objetivo se fija en el Plan del roadmap, que es donde se
                decide el proceso: la tarjeta lee, no configura. */
             onSetGoal={(direction) =>
               updateClientPreferences(
@@ -385,11 +407,8 @@ export const Dashboard = ({ audience = 'coach' }) => {
             fases={fases}
             hoy={hoy}
             history={history}
-            microcycles={microcycles}
-            startDate={activeClient.startDate}
             isClient={isClient}
             onAbrir={() => abrirVentana('cuerpo')}
-            onAbrirFases={() => abrirVentana('fases')}
             aFotos={aFotos}
             aPesaje={aPesaje}
           />
@@ -443,6 +462,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
             que él contesta y lo que ha hecho—, y cada una se lee por separado.
             Con las cajas, además, las dos columnas vuelven a hablar igual. */}
         <aside className="resumen-lado">
+          {/* El roadmap: la fase, el peso contra lo esperado y lo que viene.
+              Lleva a Revisiones, donde vive su línea. */}
+          <TarjetaRoadmap aRevisiones={aRevisionesRoadmap} onPlan={abrirPlan} isClient={isClient} />
           <TarjetaPlan
             goal={goal}
             pesoActual={pesoActual}
@@ -453,9 +475,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
             conEntreno={conEntreno}
             aDieta={aDieta}
             aEntreno={aEntreno}
-            /* El objetivo no vive en otra pantalla: se decide en las fases, y
-               esa ventana es la misma que abre «Cómo va». */
-            onAbrirFases={() => abrirVentana('fases')}
             isClient={isClient}
           />
           {/* Cada fila del subjetivo es una puerta a la ventana donde ya vive

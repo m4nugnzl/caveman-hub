@@ -49,7 +49,17 @@ export const METRIC_COLORS = {
      misma serie y en el resumen aparecen una al lado de la otra. */
   rate: 'var(--data-blue)',
   fat: 'var(--data-rose)',
-  waist: 'var(--data-orange)',
+  /* ── La cintura se junta con el % graso (20 sep) ────────────────────────
+     Era `--data-orange`, y esa tinta ya no existe: estaba a 8° de matiz del
+     naranja del AVISO, o sea que una serie de cintura y una advertencia se
+     pintaban del mismo color (ver `docs/lenguaje-visual.md` §7.3).
+
+     Comparte el rojo del % graso y no otro de los cinco libres porque es la
+     misma familia y así lo dice la regla de arriba: las dos miden LA FORMA del
+     cuerpo, no su masa, y cuando se comparan es precisamente porque cuentan la
+     misma historia —la cintura baja y el % graso con ella—. Es el mismo
+     argumento que empareja el peso con el ritmo dos líneas más arriba. */
+  waist: 'var(--data-rose)',
 
   /* ── El entrenamiento ── */
   tonnage: 'var(--data-violet)',
@@ -57,7 +67,16 @@ export const METRIC_COLORS = {
      en la misma fila del resumen y en el mismo eje de la analítica: dos series
      del mismo color en un gráfico son una sola serie mal dibujada. */
   sets: 'var(--data-teal)',
-  adherence: 'var(--data-lime)',
+  /* ── Y la adherencia se junta con las series (20 sep) ───────────────────
+     Era `--data-lime`, que se va con el naranja: de las nueve tintas era la
+     que menos distinguía —verde contra el verde del BIEN— y la que menos
+     trabajo hacía.
+
+     Teal, con las series efectivas, porque las dos dicen lo mismo desde dos
+     lados: cuánto del trabajo previsto se ha hecho de verdad. Ojo, ésta es la
+     adherencia al ENTRENAMIENTO; la de la dieta vive en `protocol.js` y va en
+     el ámbar de la comida, que es otra pregunta y otra familia. */
+  adherence: 'var(--data-teal)',
   /* La carga de la serie tope de un ejercicio, que es la serie que dibuja su
      progresión en la revisión. Comparte el violeta del tonelaje porque es lo
      mismo medido de otra forma —los kilos del entrenamiento— y nunca salen las

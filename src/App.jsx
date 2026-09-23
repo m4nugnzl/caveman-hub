@@ -42,6 +42,9 @@ import { ReviewLayout } from '@/components/review/ReviewLayout';
 const ClientFile = lazyRoute(() => import('@/components/Coach/ClientFile').then((m) => ({ default: m.ClientFile })));
 const ProtocoloDelCliente = lazyRoute(() => import('@/components/Coach/ProtocoloDelCliente').then((m) => ({ default: m.ProtocoloDelCliente })));
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
+const PortadaDeSemanas = lazyRoute(() =>
+  import('@/components/review/PortadaDeSemanas').then((m) => ({ default: m.PortadaDeSemanas }))
+);
 const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
 /*
@@ -466,9 +469,20 @@ export default function App() {
                 </span>
               }
             >
-              Otra persona —u otra pestaña tuya— ha cambiado estos datos mientras editabas. Tus
-              cambios <strong>no se han guardado</strong>, para no borrar los suyos. Recarga para ver
-              su versión, o impón la tuya sabiendo que se pierde la de ellos.
+              {conflict.motivo === 'version' ? (
+                <>
+                  Tenías cambios del programa sin guardar de antes de actualizar la aplicación, y el
+                  programa ha cambiado —o puede haber cambiado— desde entonces. Tus cambios{' '}
+                  <strong>no se han guardado</strong> todavía. Quédate con el que hay ahora, o impón el
+                  tuyo sabiendo que se pierde lo de después.
+                </>
+              ) : (
+                <>
+                  Otra persona —u otra pestaña tuya— ha cambiado estos datos mientras editabas. Tus
+                  cambios <strong>no se han guardado</strong>, para no borrar los suyos. Recarga para ver
+                  su versión, o impón la tuya sabiendo que se pierde la de ellos.
+                </>
+              )}
             </Notice>
           </div>
         )}
@@ -572,7 +586,11 @@ export default function App() {
                       una pregunta de meses; la semana contesta «¿qué le digo?»,
                       que es la de cada lunes. */}
                   <Route index element={<Navigate to="resumen" replace />} />
-                  <Route path="semana" element={<WeekReview />} />
+                  {/* Revisiones: primero las semanas, después la revisión. La
+                      portada es el mapa de sus semanas; cada semana tiene su
+                      dirección, por su lunes (22 sep 2026). */}
+                  <Route path="semana" element={<PortadaDeSemanas />} />
+                  <Route path="semana/:lunes" element={<WeekReview />} />
                   {/* El resumen ES el análisis: una sola pantalla, y lo que
                       antes era la segunda —los diez gráficos con su barra de
                       cuatro pestañas— se abre ahora en ventanas desde el título

@@ -3,11 +3,14 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 import { serviceWorkerPlugin } from './scripts/sw.mjs';
+import { versionPlugin } from './scripts/version.mjs';
 
 export default defineConfig({
   // El worker se genera aquí y no vive en `public/` porque necesita la lista
   // de archivos con hash de ESTE build. El porqué entero, en `scripts/sw.mjs`.
-  plugins: [react(), serviceWorkerPlugin()],
+  // Y la versión del build, para que una pestaña vieja sepa que hay otra: ver
+  // `scripts/version.mjs`.
+  plugins: [react(), serviceWorkerPlugin(), versionPlugin()],
   resolve: {
     // Evita las cadenas de '../../..' que había por todo el proyecto.
     alias: {

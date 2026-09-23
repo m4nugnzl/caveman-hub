@@ -27,12 +27,13 @@ import { Aire, Boton, Cabecera, Fila, Lista, Tramo } from './Piezas';
  * sigue en azul; lo que falta lo dicen los círculos vacíos.
  */
 export const PantallaRevision = ({ datos }) => {
-  const { titulo, periodo, pasos, entrega, respuesta, atrasadas } = datos;
+  const { titulo, periodo, pasos, entrega, respuesta, atrasadas, atras = null, pasada = false } = datos;
   const hechos = pasos.filter((p) => p.hecho).length;
 
   return (
     <>
-      <Cabecera titulo={titulo} sub={periodo} grande />
+      {/* Una semana pasada se abre desde «Semanas anteriores» y vuelve allí. */}
+      <Cabecera titulo={titulo} sub={periodo} grande={!atras} atras={atras ? { to: atras, etiqueta: 'Semanas anteriores' } : null} />
 
       {pasos.length > 0 ? (
         <div className="tel-entrega-estado">
@@ -94,16 +95,18 @@ export const PantallaRevision = ({ datos }) => {
         </Tramo>
       ) : null}
 
-      <Tramo>
-        <Lista>
-          <Fila
-            titulo="Semanas anteriores"
-            sub={atrasadas > 0 ? `${atrasadas} sin entregar` : 'tus medidas y lo que entregaste'}
-            to="/mi/evolucion/semanas"
-          />
-          <Fila titulo="Tus fotos" sub="todas, por semana" to="/mi/evolucion/fotos" />
-        </Lista>
-      </Tramo>
+      {pasada ? null : (
+        <Tramo>
+          <Lista>
+            <Fila
+              titulo="Semanas anteriores"
+              sub={atrasadas > 0 ? `${atrasadas} por completar` : 'tus medidas y lo que entregaste'}
+              to="/mi/evolucion/semanas"
+            />
+            <Fila titulo="Tus fotos" sub="todas, por semana" to="/mi/evolucion/fotos" />
+          </Lista>
+        </Tramo>
+      )}
 
       <Aire />
     </>

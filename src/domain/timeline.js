@@ -34,6 +34,7 @@
  * que lo que dicen la rutina, las fotos y el resto de la pantalla.
  */
 
+import { addDays, daysBetween, weekStart } from '@/lib/dates';
 import { toNum } from '@/lib/num';
 import { weekStartOfProgramWeek } from './photos';
 
@@ -236,27 +237,97 @@ export const timelineSummary = (rows = [], week = null) => {
  * revisiones no hay dato porque no hubo cambio: se arrastra el anterior, que es
  * literalmente lo que estuvo en vigor.
  *
- * @param rows   las filas de `reviewTimeline`, que ponen el eje de semanas.
- * @param reviews `reviewHistory` — de donde salen las fotos del plan.
- * @param plan   el plan de HOY (`planSnapshot` del cliente), para las semanas
- *   posteriores a la última revisión cerrada: lo que tiene puesto ahora mismo
- *   sigue en vigor aunque todavía no lo hayas guardado en ninguna revisión.
+ * ══ Tres fuentes, en este orden ════════════════════════════════════════════
+ *
+ *   1. **La versión fechada** (`nutrition_plan_versions`, 0124): la pauta del
+ *      día en que cambió. Exacta. Existe desde que se aplicó la migración.
+ *   2. **La foto de la revisión**: la pauta al cerrar cada revisión. Un cambio
+ *      hecho entre dos revisiones cae en la semana de la segunda; si entre las
+ *      dos pasó más de una semana, el cambio lleva `aprox` con las dos fechas
+ *      entre las que pudo hacerse.
+ *   3. **El plan de HOY**, para las semanas posteriores a la última revisión
+ *      cuando no hay versiones: lo que tiene puesto ahora mismo sigue en vigor
+ *      aunque todavía no lo hayas guardado en ninguna revisión. Con versiones,
+ *      el plan de hoy solo cuenta como la versión de hoy: la del estado en
+ *      memoria, que puede ir por delante de las versiones cargadas.
+ *
+ * Es la ÚNICA fuente de la dieta por semana: la leen la Revisión, el Resumen y
+ * el roadmap.
+ *
+ * @param rows     filas con `weekStart` (lunes): las de `reviewTimeline` o las
+ *   semanas naturales del roadmap. Se devuelven en el mismo orden.
+ * @param reviews  `reviewHistory` — de donde salen las fotos del plan.
+ * @param plan     el plan de HOY (`planSnapshot` del cliente).
+ * @param versions `[{ dia, snapshot }]`, la pauta fechada con la forma de la
+ *   foto (ver `fotoDeVersion` en `reviews.js`).
+ * @param hoy      el día de hoy: la fecha del plan en memoria cuando va por
+ *   delante de las versiones cargadas.
+ * @param cortarEnHoy las semanas posteriores a la de hoy no llevan pauta: el
+ *   plan de hoy no se proyecta al futuro. Lo pide el roadmap; la Revisión y el
+ *   Resumen no lo pasan y no cambian.
  */
-export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) => {
+export const nutritionTrack = ({
+  rows = [],
+  reviews = [],
+  plan = null,
+  versions = [],
+  hoy = null,
+  cortarEnHoy = false,
+} = {}) => {
   /* Las fotos por su semana, de la más vieja a la más nueva. `reviewHistory`
      las devuelve al revés porque el histórico se lee desde hoy. */
   const fotos = [...reviews]
     .filter((r) => r?.weekStart && r.snapshot)
     .sort((a, b) => String(a.weekStart).localeCompare(String(b.weekStart)));
+  const ultimaFoto = fotos.length > 0 ? String(fotos[fotos.length - 1].weekStart) : '';
+  const lunesDeHoy = hoy ? weekStart(hoy) : null;
 
-  let vigente = null;
+  const versiones = [...(versions || [])]
+    .filter((v) => v?.dia && v.snapshot)
+    .sort((a, b) => String(a.dia).localeCompare(String(b.dia)));
+  /* El plan en memoria, como la versión de hoy, si dice otra cosa que la
+     última cargada: un cambio de esta sesión todavía no está en la lista. */
+  if (versiones.length > 0 && plan && hoy) {
+    const ultima = versiones[versiones.length - 1];
+    if (!mismaPauta(ultima.snapshot, plan) && String(ultima.dia) <= String(hoy)) {
+      versiones.push({ dia: hoy, snapshot: plan });
+    }
+  }
+
   let ultima = null;
+  let previa = null;
 
-  const salida = rows.map((fila) => {
-    /* La última foto tomada en esta semana o antes. */
-    for (const foto of fotos) {
-      if (String(foto.weekStart) <= String(fila.weekStart)) vigente = foto.snapshot;
-      else break;
+  return rows.map((fila) => {
+    const lunes = String(fila.weekStart || '');
+    const domingo = addDays(lunes, 6) || lunes;
+    const futura = Boolean(cortarEnHoy && lunesDeHoy && lunes > lunesDeHoy);
+
+    let vigente = null;
+    let fuente = null;
+    let cambioEl = null;
+    let aprox = null;
+
+    if (!futura) {
+      const version = ultimaHasta(versiones, (v) => String(v.dia) <= domingo);
+      const foto = ultimaHasta(fotos, (f) => String(f.weekStart) <= lunes);
+      if (version) {
+        vigente = version.snapshot;
+        fuente = 'version';
+        if (String(version.dia) >= lunes) cambioEl = String(version.dia);
+      } else if (plan && lunes > ultimaFoto && versiones.length === 0) {
+        vigente = plan;
+        fuente = 'plan';
+        /* Cambió en algún momento entre la última revisión y hoy. */
+        const hasta = lunesDeHoy || lunes;
+        if (ultimaFoto && (daysBetween(ultimaFoto, hasta) ?? 0) > 7) aprox = { desde: ultimaFoto, hasta };
+      } else if (foto) {
+        vigente = foto.snapshot;
+        fuente = 'revision';
+        const anterior = ultimaHasta(fotos, (f) => String(f.weekStart) < String(foto.weekStart));
+        if (anterior && (daysBetween(anterior.weekStart, foto.weekStart) ?? 0) > 7) {
+          aprox = { desde: String(anterior.weekStart), hasta: String(foto.weekStart) };
+        }
+      }
     }
 
     const kcals = toNum(vigente?.kcals);
@@ -264,6 +335,11 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
        Es lo que se marca en el dibujo, porque es lo que TÚ hiciste. */
     const changed = kcals !== null && ultima !== null && kcals !== ultima;
     if (kcals !== null) ultima = kcals;
+
+    /* Qué cambió de la pauta: kcal, pasos o cardio. Es lo que pinta un hilo en
+       el roadmap y una cifra en negro en su libro. */
+    const cambios = vigente && previa ? cambiosDePauta(previa, vigente) : [];
+    if (vigente) previa = vigente;
 
     return {
       week: fila.week,
@@ -281,44 +357,41 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
       de: vigente?.de ?? null,
       reparto: vigente?.reparto ?? null,
       changed,
+      cambios,
+      fuente,
+      /* El día exacto del cambio, si lo dice una versión. */
+      cambioEl: cambios.length > 0 ? cambioEl : null,
+      /* O entre qué dos lunes pudo hacerse, si solo lo dicen las revisiones. */
+      aprox: cambios.length > 0 ? aprox : null,
     };
   });
-
-  /*
-    Y las semanas posteriores a la última revisión llevan el plan de HOY. Sin
-    esto, la escalera se queda plana en el último cambio guardado y la semana que
-    estás revisando —la de ahora— sale con las calorías de hace un mes.
-  */
-  if (plan) {
-    const desde = fotos.length > 0 ? String(fotos[fotos.length - 1].weekStart) : '';
-    let previa = toNum(plan.kcals);
-    for (let i = salida.length - 1; i >= 0; i -= 1) {
-      if (String(salida[i].weekStart) <= desde) break;
-      const kcals = toNum(plan.kcals);
-      salida[i] = {
-        ...salida[i],
-        kcals,
-        protein: toNum(plan.protein),
-        carbs: toNum(plan.carbs),
-        fats: toNum(plan.fats),
-        steps: toNum(plan.steps),
-        cardio: plan.cardio ?? null,
-        de: plan.de ?? null,
-        reparto: plan.reparto ?? null,
-        /* El escalón se marca en la PRIMERA de esas semanas, no en todas. */
-        changed: false,
-      };
-      previa = kcals;
-    }
-    /* Y ahí, si de verdad cambió respecto de la última foto guardada. */
-    const primeraNueva = salida.findIndex((f) => String(f.weekStart) > desde);
-    if (primeraNueva > 0 && previa !== null && salida[primeraNueva - 1].kcals !== previa) {
-      salida[primeraNueva] = { ...salida[primeraNueva], changed: true };
-    }
-  }
-
-  return salida;
 };
+
+/** El último elemento de una lista ordenada que cumple la condición. */
+const ultimaHasta = (lista, cumple) => {
+  let out = null;
+  for (const x of lista) {
+    if (cumple(x)) out = x;
+    else break;
+  }
+  return out;
+};
+
+/** Las cifras de la pauta que se comparan: las del libro del roadmap. */
+const CIFRAS_DE_PAUTA = [
+  ['kcals', (p) => toNum(p?.kcals)],
+  ['steps', (p) => toNum(p?.steps)],
+  ['cardio', (p) => String(p?.cardio ?? '').trim() || null],
+];
+
+/* Estrenar una cifra y quitarla también son cambios: la misma regla que
+   `snapshotChanges` en `reviews.js`. */
+const cambiosDePauta = (antes, ahora) =>
+  CIFRAS_DE_PAUTA.map(([k, lee]) => ({ k, de: lee(antes), a: lee(ahora) })).filter((c) => c.de !== c.a);
+
+const mismaPauta = (a, b) =>
+  CIFRAS_DE_PAUTA.every(([, lee]) => lee(a) === lee(b)) &&
+  ['protein', 'carbs', 'fats'].every((k) => toNum(a?.[k]) === toNum(b?.[k]));
 
 /**
  * EL REGISTRO FECHADO DE LA DIETA, de las DOS fuentes que lo escriben.
@@ -364,17 +437,44 @@ export const nutritionTrack = ({ rows = [], reviews = [], plan = null } = {}) =>
  * un escalón que falta. El objetivo de hoy ya está escrito arriba, en su
  * tarjeta.
  *
+ * ── Y la tercera: las versiones fechadas (0124) ────────────────────────────
+ * Con versiones, cada cambio está en el día en que se hizo. Las fotos de
+ * revisión de esas semanas sobran, y además estorban: una revisión cerrada el
+ * viernes guarda la pauta nueva con la fecha de su LUNES, y pondría el escalón
+ * dos días antes de que ocurriera. Por eso, desde la semana de la primera
+ * versión, las revisiones no entran. Si la versión y un pesaje caen el mismo
+ * día, la versión va detrás: es la pauta con la que acabó el día.
+ *
  * @param history  `anthropometry.history` — los pesajes, con su foto si la hay.
  * @param reviews  `reviewHistory` — las revisiones cerradas, con su `snapshot`.
+ * @param versions `[{ dia, snapshot }]`, ver `nutritionTrack`.
  * @returns Registros `{ date, weight, nutrition }` de más viejo a más nuevo.
  */
-export const dietLog = ({ history = [], reviews = [] } = {}) => {
+export const dietLog = ({ history = [], reviews = [], versions = [] } = {}) => {
   const conFoto = new Set(
     (history || []).filter((h) => h?.date && h.nutrition).map((h) => String(h.date))
   );
 
+  const fechadas = (versions || []).filter((v) => v?.dia && v.snapshot);
+  const desdeVersiones = fechadas.length
+    ? weekStart(fechadas.map((v) => String(v.dia)).sort()[0])
+    : null;
+
+  const deVersiones = fechadas.map((v) => ({
+    date: String(v.dia),
+    weight: null,
+    version: true,
+    nutrition: {
+      kcals: toNum(v.snapshot.kcals),
+      protein: toNum(v.snapshot.protein),
+      carbs: toNum(v.snapshot.carbs),
+      fats: toNum(v.snapshot.fats),
+    },
+  }));
+
   const deRevisiones = (reviews || [])
     .filter((r) => r?.weekStart && r.snapshot && !conFoto.has(String(r.weekStart)))
+    .filter((r) => !desdeVersiones || String(r.weekStart) < desdeVersiones)
     .map((r) => ({
       /* Sin `id`: no es un registro de antropometría y nadie tiene que poder
          borrarlo desde aquí. La revisión de la que sale se borra en su pantalla. */
@@ -388,7 +488,7 @@ export const dietLog = ({ history = [], reviews = [] } = {}) => {
       },
     }));
 
-  return [...(history || []), ...deRevisiones]
+  return [...(history || []), ...deRevisiones, ...deVersiones]
     .filter((r) => r && r.date)
-    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || Number(Boolean(a.version)) - Number(Boolean(b.version)));
 };

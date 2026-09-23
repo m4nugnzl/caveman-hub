@@ -75,6 +75,10 @@ export const mismoPlan = (a, b) => {
   if (!a || !b) return false;
 
   if (!igual(a.blocks || [], b.blocks || [])) return false;
+  /* Los borradores son plan: quitar uno o cambiarle la duración se deshace.
+     Casi siempre no hay ninguno y la clave ni existe: por eso se comparan
+     antes por referencia, para no serializar `[]` contra `[]` en cada tecla. */
+  if (a.draftBlocks !== b.draftBlocks && !igual(a.draftBlocks || [], b.draftBlocks || [])) return false;
   if (!igual(a.weeklySplit || {}, b.weeklySplit || {})) return false;
   if (!igual(a.mobilityDrills || [], b.mobilityDrills || [])) return false;
   if ((a.notes || '') !== (b.notes || '')) return false;

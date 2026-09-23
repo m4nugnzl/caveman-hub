@@ -94,9 +94,19 @@ const VARIANTES_Y_AMBAS = [...VARIANTES, { id: 'both', label: 'Las dos' }];
  * pauta— y se importaba sin objetivo, que es lo que hace pensar que la
  * importación no funciona. Si no hay cifras, no se nombran.
  */
+const NOMBRE_DEL_DIA = { training: 'entreno', rest: 'descanso' };
+
 export const resumenDeCabecera = (lectura) =>
   [
-    lectura?.targets ? macrosVisibles(lectura.targets) : null,
+    /* Con un objetivo por día se dicen los dos: enseñar solo el primero era
+       justo el fallo de antes, visto desde fuera. */
+    lectura?.targetsByVariant?.length
+      ? lectura.targetsByVariant
+          .map((t) => `${NOMBRE_DEL_DIA[t.variant] || t.label}: ${macrosVisibles(t.targets)}`)
+          .join(' / ')
+      : lectura?.targets
+        ? macrosVisibles(lectura.targets)
+        : null,
     lectura?.steps ? 'pasos' : null,
     lectura?.cardio ? 'cardio' : null,
     lectura?.notes?.length
@@ -245,7 +255,9 @@ export const DietPreview = ({
         <div className="col gap-4" key={variante.id}>
           <div className="row between wrap gap-3">
             <span className="t-sm t-secondary">
-              <strong>{variante.label}</strong> · {cuenta.meals} comidas · {cuenta.foods} alimentos
+              <strong>{variante.label}</strong>
+              {/* Una variante de solo objetivo no tiene comidas que contar. */}
+              {cuenta.meals > 0 ? ` · ${cuenta.meals} comidas · ${cuenta.foods} alimentos` : ''}
               {variante.targets ? ` · ${macrosVisibles(variante.targets)}` : ''}
             </span>
 
@@ -383,16 +395,22 @@ export const alimentosNuevos = (valores, resolver) =>
  * identificador (`toMealDrafts`), y compartirlos entre las dos dietas haría que
  * editar la cena del día de entreno cambiara también la del de descanso.
  */
-export const aPlanDeDieta = (variants, resolver, cabecera) => ({
-  targets: cabecera?.targets || null,
-  steps: cabecera?.steps || '',
-  cardio: cabecera?.cardio || '',
-  notes: cabecera?.notes || [],
-  variants: variants.flatMap((variante) =>
-    (variante.variant === 'both' ? ['training', 'rest'] : [variante.variant]).map((destino) => ({
-      variant: destino,
-      targets: variante.targets,
-      meals: toMealDrafts(variante.meals, resolver),
-    }))
-  ),
-});
+export const aPlanDeDieta = (variants, resolver, cabecera) => {
+  /* Sin menú en ninguna —una pestaña de macros de entreno y descanso—, las
+     variantes traen solo su objetivo y `meals: null` dice «no toques las
+     comidas»: una lista vacía las borraría, y la hoja no ha dicho eso. */
+  const conMenu = variants.some((v) => v.meals.length > 0);
+  return {
+    targets: cabecera?.targets || null,
+    steps: cabecera?.steps || '',
+    cardio: cabecera?.cardio || '',
+    notes: cabecera?.notes || [],
+    variants: variants.flatMap((variante) =>
+      (variante.variant === 'both' ? ['training', 'rest'] : [variante.variant]).map((destino) => ({
+        variant: destino,
+        targets: variante.targets,
+        meals: conMenu ? toMealDrafts(variante.meals, resolver) : null,
+      }))
+    ),
+  };
+};

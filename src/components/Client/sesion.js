@@ -230,3 +230,16 @@ export const contraQueTeMides = (historial, cuantas = 4) => {
 
   return { columnas, filas, tonelajes, cambio };
 };
+
+/**
+ * QUÉ NO SE GUARDÓ, en cristiano, para el pie de la sesión (teléfono y PC).
+ *
+ * Con series rechazadas se cuentan y se dice por qué si se sabe: casi siempre
+ * es que su entrenador ha cambiado la hoja con la sesión abierta
+ * (`motivo: 'plan'`, ver `saveStatus`). Cuáles son lo dice la marca de cada fila.
+ */
+export const textoDelFallo = ({ noGuardadas = 0, motivo = null } = {}) => {
+  if (noGuardadas <= 0) return 'No se guardó';
+  const cuantas = noGuardadas === 1 ? '1 serie no se guardó' : `${noGuardadas} series no se guardaron`;
+  return motivo === 'plan' ? `${cuantas}: tu entrenador cambió la hoja mientras entrenabas` : cuantas;
+};

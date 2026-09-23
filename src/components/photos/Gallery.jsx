@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
 
+import { Cortinilla } from './Cortinilla';
 import { Thumb } from './Thumb';
 
 /**
@@ -49,8 +50,10 @@ import { Thumb } from './Thumb';
  *
  * @param items    En el orden en que se ven en la rejilla. El orden de la
  *   pantalla ES el del visor: pasar a «la siguiente» tiene que llevar a la que
- *   estaba al lado. Cada elemento es una foto —`{ id, url, caption }`— o un PAR
- *   —`{ id, caption, pair: [{ url, pie }, { url, pie }] }`—, ver abajo.
+ *   estaba al lado. Cada elemento es una foto —`{ id, url, caption }`—, un PAR
+ *   —`{ id, caption, pair: [{ url, pie }, { url, pie }] }`—, ver abajo, o una
+ *   CORTINILLA —`{ id, caption, cortinilla: { antes, ahora } }`—: el mismo par
+ *   sobre un solo encuadre, con una línea que se arrastra (`Cortinilla`).
  * @param index    Cuál se está mirando.
  * @param onIndex  Moverse. Lo lleva quien abre, porque es quien conoce la lista.
  * @param controls Lo que se puede decidir sin cerrar: los chips de «comparar
@@ -92,6 +95,9 @@ export const Gallery = ({
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape') onClose();
+      /* Con el foco en un deslizador —la línea de la cortinilla—, las flechas
+         son suyas: mueven la línea, no cambian de foto. */
+      else if (e.target?.closest?.('[role="slider"]')) return;
       else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
         e.preventDefault();
         mover(e.key === 'ArrowRight' ? 1 : -1);
@@ -198,7 +204,9 @@ export const Gallery = ({
           Y se pide GRANDE (1400 px) porque el visor existe justo para eso; la
           miniatura de la rejilla mide 320 y aquí se vería reventada.
         */}
-        {par ? (
+        {actual.cortinilla ? (
+          <Cortinilla key={actual.id} antes={actual.cortinilla.antes} ahora={actual.cortinilla.ahora} />
+        ) : par ? (
           <div className="visor-par">
             {par.map((foto) => (
               <figure className="visor-mitad" key={foto.url}>

@@ -2,15 +2,10 @@ import { Fragment } from 'react';
 import { Plus, X } from 'lucide-react';
 
 import { isSetLogged } from '@/domain/sessions';
-import {
-  nombreDeSubserie,
-  subseriesDe,
-  tecnicaDeLaSerie,
-  tecnicaFrase,
-  tecnicaSpec,
-} from '@/domain/training';
-import { toNum } from '@/lib/num';
-import { RemateDeLaSerie } from './RemateDeLaSerie';
+import { nombreDeSubserie, subseriesDe, tecnicaDeLaSerie } from '@/domain/training';
+import { isBlank, toNum } from '@/lib/num';
+import { MenuAcciones } from '@/components/ui/MenuAcciones';
+import { LineaDelRemate, RemateDeLaSerie } from './RemateDeLaSerie';
 
 /**
  * LA TABLA DE SERIES DE UN EJERCICIO: una fila por serie, y una sola en todo
@@ -52,10 +47,19 @@ const minimoDe = (targetReps) => toNum(String(targetReps ?? '').split(/[-–]/)[
    `camposDeLaHoja`); el protocolo del cliente puede además dejar el RIR puesto
    de entrada aunque esté vacío. Las repeticiones no llevan ninguna de las dos:
    son el objetivo que define una serie. */
+/* `lo` es cómo se nombra el objetivo en una frase: «Quitado el peso de…». */
+/*
+  ── EL RIR ES OPCIONAL SERIE A SERIE, COMO EL PESO ──────────────────────────
+  Llevaba de pista un «2» en cada casilla vacía. Con la columna abierta, eso
+  pintaba «2» en TODAS las series aunque no se hubiera escrito ninguno, y
+  pautarlo en una sola —la última, la de aproximación— se leía como pautarlo
+  en todas: «te lo mete a todas». Vacío es «sin pautar» y se dibuja como el
+  peso vacío, un renglón.
+*/
 export const CAMPOS_PIDES = [
-  { key: 'targetKg', label: 'kg', mode: 'decimal', pista: '', opcional: true, pautable: true },
+  { key: 'targetKg', label: 'kg', lo: 'el peso', mode: 'decimal', pista: '', opcional: true, pautable: true },
   { key: 'targetReps', label: 'reps', mode: 'text', pista: '8-10' },
-  { key: 'targetRir', label: 'rir', mode: 'numeric', pista: '2', pautable: true },
+  { key: 'targetRir', label: 'rir', lo: 'el RIR', mode: 'numeric', pista: '', opcional: true, pautable: true },
 ];
 /*
   ── Y LA RAYA VUELVE ────────────────────────────────────────────────────────
@@ -138,37 +142,163 @@ const Celda = ({ value, placeholder = '', mode = 'numeric', tone = '', label, on
  * `showRir` no desaparece: el protocolo sigue pudiendo dejar el RIR puesto de
  * entrada para quien programa así siempre. Lo que ya no hace es IMPEDIRLO.
  *
- * La decisión se toma sobre la HOJA y no sobre el ejercicio: es una tabla, y
- * dos ejercicios seguidos con distinto número de columnas no se comparan.
+ * La COLUMNA se decide sobre la HOJA: es una tabla, y dos ejercicios seguidos
+ * con distinto número de columnas no se comparan. Qué ejercicio la usa, no
+ * (ver abajo).
  *
- * @returns `{ campos, porPautar, columnas }` — `porPautar` son los que faltan,
- *   para ofrecerlos («+ kg», «+ rir»), y `columnas` las clases de la retícula.
+ * ── Y se quita igual que se pone ──────────────────────────────────────────
+ * `retirables` son las columnas puestas que un «×» en su rótulo puede quitar:
+ * vaciar ese objetivo en todas las series devuelve la hoja a «+ kg». El RIR
+ * que pone el protocolo no está entre ellas: vaciado, la columna seguiría ahí,
+ * y un «×» que no quita lo que señala es peor que no tenerlo.
+ *
+ * @returns `{ campos, delEjercicio, faltanEn, retirables, columnas }` —
+ *   `delEjercicio(ex)` dice qué lleva un ejercicio y qué le falta (su «+ kg»);
+ *   `faltanEn(key)`, a quién más se le puede dar; `retirables`, las claves de
+ *   los que se pueden quitar; `columnas`, las clases de la retícula.
+ */
+/*
+ * ── Y SE ABRE POR EJERCICIO (21 sep) ──────────────────────────────────────
+ * «Cuando le doy a +kg me lo mete a todos los ejercicios de la hoja.» La
+ * COLUMNA sigue siendo de la hoja —es lo que hace que las cifras caigan en
+ * vertical—, pero quién la USA es cada ejercicio: `aMano` va por ejercicio
+ * (`{ [ex.id]: { targetKg: true } }`) y `delEjercicio(ex)` dice qué objetivos
+ * lleva ese. En Entreno cada ejercicio es su propia caja y se dibuja SOLO con
+ * sus columnas («si lo añades en uno, el resto se expande; no debería»). En
+ * el compositor, con un rótulo para toda la hoja, el que no la lleva deja el
+ * hueco vacío, sin casilla.
  */
 export const camposDeLaHoja = (exercises = [], { showRir = false, aMano = {} } = {}) => {
-  const pautado = (key) =>
-    exercises.some((ex) => (ex.sets || []).some((s) => String(s?.[key] ?? '').trim() !== ''));
-  const conCampo = (c) =>
-    !c.pautable || (c.key === 'targetRir' && showRir) || pautado(c.key) || Boolean(aMano[c.key]);
-  const campos = CAMPOS_PIDES.filter(conCampo);
-  const conKg = campos.some((c) => c.key === 'targetKg');
-  const conRir = campos.some((c) => c.key === 'targetRir');
+  const pautadoEn = (ex, key) => (ex.sets || []).some((s) => String(s?.[key] ?? '').trim() !== '');
+  const impuesto = (c) => c.key === 'targetRir' && showRir;
+  const usa = (ex, c) => !c.pautable || impuesto(c) || pautadoEn(ex, c.key) || Boolean(aMano[ex.id]?.[c.key]);
+  const campos = CAMPOS_PIDES.filter((c) => exercises.some((ex) => usa(ex, c)));
+  const reticula = (lista) =>
+    `${lista.some((c) => c.key === 'targetRir') ? 'is-rir' : 'is-sin-rir'}${lista.some((c) => c.key === 'targetKg') ? '' : ' is-sin-kg'}`;
   return {
     campos,
-    porPautar: CAMPOS_PIDES.filter((c) => c.pautable && !conCampo(c)),
-    columnas: `${conRir ? 'is-rir' : 'is-sin-rir'}${conKg ? '' : ' is-sin-kg'}`,
+    /** `{ activos, porPautar, campos, columnas }` de un ejercicio: qué casillas
+        lleva, qué le falta y su propia retícula. En Entreno cada ejercicio es su
+        caja y se dibuja con SUS columnas: el kg de uno no ensancha a los demás. */
+    delEjercicio: (ex) => {
+      const suyos = CAMPOS_PIDES.filter((c) => usa(ex, c));
+      return {
+        activos: suyos.map((c) => c.key),
+        porPautar: CAMPOS_PIDES.filter((c) => c.pautable && !usa(ex, c)),
+        campos: suyos,
+        columnas: reticula(suyos),
+      };
+    },
+    /** Los ids de los ejercicios que todavía no llevan ese objetivo. */
+    faltanEn: (key) => {
+      const c = CAMPOS_PIDES.find((x) => x.key === key);
+      return c ? exercises.filter((ex) => !usa(ex, c)).map((ex) => ex.id) : [];
+    },
+    retirables: campos.filter((c) => c.pautable && !impuesto(c)).map((c) => c.key),
+    columnas: reticula(campos),
   };
 };
 
+/* `aMano` con un objetivo abierto (o cerrado) en unos ejercicios: en los de
+   `ids`, o en todos los que ya tiene apuntados si `ids` es null. */
+export const abrirAMano = (aMano, ids, key, valor = true) => {
+  const lista = ids ?? Object.keys(aMano);
+  return lista.reduce((v, id) => ({ ...v, [id]: { ...v[id], [key]: valor } }), aMano);
+};
+
+/**
+ * «+ KG»: A ESTE EJERCICIO O A TODOS, SE DECIDE AL AÑADIRLO.
+ *
+ * «Me gustaría tener la posibilidad de decidir si es a todo o solo a ese
+ * ejercicio cuando se añada.» Primero abría la columna en toda la hoja; luego
+ * solo en el suyo. Las dos son lo que se quiere según el día, así que el mismo
+ * verbo pregunta, con dos opciones y nada más. Si no hay nadie más a quien
+ * dárselo —el ejercicio está solo, o los demás ya lo llevan— no hay nada que
+ * decidir y abre directamente.
+ *
+ * @param faltan los ids de los ejercicios que no lo llevan (este incluido).
+ * @param onAbrir `(ids)` abre el objetivo en esos ejercicios.
+ */
+export const AnadirObjetivo = ({ campo, ex, faltan, onAbrir, clase = 'hoja-chapa' }) => {
+  const otros = faltan.filter((id) => id !== ex.id).length;
+  if (otros === 0) {
+    return (
+      <button type="button" className={clase} title={`Pautar ${campo.label}`} onClick={() => onAbrir([ex.id])}>
+        + {campo.label}
+      </button>
+    );
+  }
+  return (
+    <MenuAcciones
+      label={`+ ${campo.label}`}
+      clase={clase}
+      sinFlecha
+      alineado="izquierda"
+      ariaLabel={`Pautar ${campo.label}`}
+      titulo={`Pautar ${campo.label}`}
+      items={[
+        { label: 'Solo en este ejercicio', run: () => onAbrir([ex.id]) },
+        { label: 'En todos los de la hoja', run: () => onAbrir(faltan) },
+      ]}
+    />
+  );
+};
+
+/* Escribir un objetivo pautable lo deja abierto en ese ejercicio: borrar la
+   única cifra no puede hacer desaparecer la casilla mientras se escribe. */
+export const esPautable = (key) => CAMPOS_PIDES.some((c) => c.key === key && c.pautable);
+
+/**
+ * El aviso de haber quitado una columna: «Quitado el peso de 6 ejercicios.»
+ * `null` si no había nada escrito —la columna estaba abierta a mano y vacía—,
+ * que entonces no hay nada que contar ni que deshacer.
+ */
+export const avisoDeRetirar = (key, ejercicios) => {
+  if (!ejercicios) return null;
+  const campo = CAMPOS_PIDES.find((c) => c.key === key);
+  return `Quitado ${campo?.lo || campo?.label || key} de ${ejercicios} ${ejercicios === 1 ? 'ejercicio' : 'ejercicios'}.`;
+};
+
+/**
+ * EL «×» DEL RÓTULO: el reverso exacto de «+ kg».
+ *
+ * Vive dentro del rótulo de su columna porque es de la columna —no de una
+ * serie ni de un ejercicio— y sale al acercarse, como los verbos de la hoja; en
+ * táctil está siempre. Sin confirmación: lo que quita vuelve con el «Deshacer»
+ * del aviso. Lo usan las dos hojas —Entreno y el compositor— para que retirar
+ * se aprenda una vez.
+ */
+export const QuitarColumna = ({ campo, onQuitar }) => (
+  <button
+    type="button"
+    className="hoja-rot-x"
+    title={`Quitar ${campo.label}`}
+    aria-label={`Quitar la columna de ${campo.label} de la hoja`}
+    onClick={(e) => {
+      /* La hoja de Entreno enciende el ejercicio al pulsar dentro: quitar una
+         columna no es elegir ejercicio. */
+      e.stopPropagation();
+      onQuitar(campo.key);
+    }}
+  >
+    <X size={13} aria-hidden="true" />
+  </button>
+);
+
 /**
  * @param ex        el ejercicio, con sus `sets`.
- * @param campos    los objetivos que esta hoja pauta (ver `camposDeLaHoja`).
- * @param columnas  las clases de la retícula, de la misma lectura.
+ * @param campos    los objetivos que este ejercicio pauta (`delEjercicio(ex).campos`).
+ * @param columnas  las clases de su retícula, de la misma lectura.
+ * @param retirables las columnas que su rótulo puede quitar, y `onRetirar(key)`
+ *   lo que pasa al pulsar su «×». Sin manejador no hay «×».
  * @param soloPlan  sin la mitad de lo hecho ni las tandas del remate.
  */
 export const TablaDeSeries = ({
   ex,
   campos,
   columnas,
+  retirables = [],
+  onRetirar = null,
   soloPlan = false,
   onSetChange,
   onAddSet,
@@ -199,6 +329,7 @@ export const TablaDeSeries = ({
         {campos.map((c) => (
           <span key={c.key} className={`hoja-rot is-pide${c.key === 'targetReps' ? ' is-reps' : ''}`}>
             {c.label}
+            {onRetirar && retirables.includes(c.key) && <QuitarColumna campo={c} onQuitar={onRetirar} />}
           </span>
         ))}
         {!soloPlan && (
@@ -237,12 +368,13 @@ export const TablaDeSeries = ({
                   placeholder={c.pista}
                   mode={c.mode}
                   /*
-                    El peso es el único objetivo OPCIONAL —vacío significa
+                    El peso y el RIR son objetivos OPCIONALES —vacío significa
                     «a criterio del cliente», que es lo normal— así que
                     vacío se dibuja como un renglón y no como una casilla.
                     Con caja, una hoja donde nadie pauta pesos son cuatro
                     cajas grises vacías por ejercicio, que es la avería que
-                    esta hoja ya arregló una vez en la mitad derecha.
+                    esta hoja ya arregló una vez en la mitad derecha. Y es lo
+                    que deja pautar una sola serie: las demás se leen vacías.
                   */
                   /*
                     ── Y LAS REPETICIONES SON LA PASTILLA ───────────────────
@@ -353,18 +485,26 @@ export const TablaDeSeries = ({
 
               Tipografía de la hoja y no chapas de color: en esta tabla el
               color ya significa «repeticiones por debajo del objetivo».
+
+              ── Y es UNA pieza: la bandeja y el raíl ───────────────────────
+              «Falta darle algo de gracia a las series de alta intensidad, se
+              ve muy plano.» Eran cuatro renglones sueltos con rayas. Ahora la
+              serie, su línea y sus tandas van sobre la misma bandeja, y un
+              raíl baja del número de la serie hasta la última tanda. El punto
+              de cada tanda dice algo cierto: hueco, sin apuntar; lleno, ya
+              apuntada. Ver `.hoja-fila.is-sub` en `revision.css`.
             */}
-            {remate && (
-              <p className="hoja-remate" title={tecnicaSpec(remate.id)?.ayuda}>
-                <span className="hoja-remate-corchete" aria-hidden="true" />
-                {tecnicaFrase(remate)}
-              </p>
-            )}
+            {remate && <LineaDelRemate tecnica={remate} />}
             {Array.from({ length: subs }, (_, j) => {
               const extra = set.extras?.[j] || {};
               const nombre = nombreDeSubserie(remate, j);
+              const apuntada = SUBCAMPOS.some((c) => !isBlank(extra[c.key]));
               return (
-                <div className="hoja-fila is-sub" role="row" key={`sub-${j}`}>
+                <div
+                  className={`hoja-fila is-sub${apuntada ? ' is-apuntada' : ''}${j === subs - 1 ? ' is-fin' : ''}`}
+                  role="row"
+                  key={`sub-${j}`}
+                >
                   <span className="hoja-num" aria-hidden="true" />
                   <span className="hoja-sub-nombre">{nombre}</span>
                   <span className="hoja-costura" aria-hidden="true" />

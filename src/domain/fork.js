@@ -66,6 +66,9 @@ import { PHASE_WEEKS_RANGE, endFromWeeks, sortPhases } from './roadmap';
  */
 export const FORK_RANGE = { min: 2, max: 3 };
 
+/** El largo de la pregunta del cruce, el mismo que exige la base (0125). */
+export const PREGUNTA_MAX = 200;
+
 /** ¿Tiene esta fase un cruce planteado? */
 export const hasFork = (phase) =>
   Array.isArray(phase?.nextOptions) && phase.nextOptions.length > 0;
@@ -103,6 +106,9 @@ export const forkState = (phases, date = todayISO()) => {
   return {
     phase,
     options: phase.nextOptions,
+    /* La pregunta que decide (0125). Vacía en los cruces de antes: entonces
+       las ramas se leen por su frase, y Plan la pide. */
+    pregunta: String(phase.nextQuestion || '').trim(),
     decidesOn,
     daysLeft,
     // El día que acaba la fase todavía cuenta como suyo —los extremos entran—,
@@ -161,7 +167,7 @@ export const validateOptions = (options) => {
 
   for (const option of options) {
     if (!String(option?.when || '').trim()) {
-      return 'A cada camino le falta su «si»: cuándo se coge ese y no el otro.';
+      return 'A cada camino le falta su respuesta: cuándo se coge ese y no el otro.';
     }
     if (!String(option?.title || '').trim()) {
       return 'Ponle un nombre a cada camino.';
@@ -182,7 +188,7 @@ export const validateOptions = (options) => {
   */
   const frases = options.map((o) => String(o.when).trim().toLowerCase());
   if (new Set(frases).size !== frases.length) {
-    return 'Dos caminos con la misma condición no son una decisión. Cambia uno de los dos «si».';
+    return 'Dos caminos con la misma respuesta no son una decisión. Cambia una de las dos.';
   }
 
   return null;
@@ -194,7 +200,7 @@ export const validateOptions = (options) => {
  * Las dos reglas de colocación dependen de las demás fases, así que no caben en
  * un CHECK de fila y se comprueban aquí.
  */
-export const validateFork = (phases, phaseId, options) => {
+export const validateFork = (phases, phaseId, options, pregunta = null) => {
   const sorted = sortPhases(phases);
   const phase = sorted.find((p) => p?.id === phaseId);
   if (!phase) return 'Esa fase ya no está.';
@@ -204,6 +210,14 @@ export const validateFork = (phases, phaseId, options) => {
   }
   if (sorted[sorted.length - 1]?.id !== phaseId) {
     return 'Ya hay otra fase detrás de esta, así que el camino está decidido. El cruce va al final del plan.';
+  }
+
+  /* La pregunta (0125) solo se exige a quien la pasa: el editor de Plan. Los
+     cruces de antes de la 0125 siguen siendo válidos sin ella. */
+  if (pregunta !== null) {
+    const texto = String(pregunta).trim();
+    if (!texto) return 'Escribe la pregunta que decide el cruce: sus caminos son las respuestas.';
+    if (texto.length > PREGUNTA_MAX) return `La pregunta es de una frase: ${PREGUNTA_MAX} letras como mucho.`;
   }
 
   return validateOptions(options);

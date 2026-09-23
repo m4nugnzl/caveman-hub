@@ -43,7 +43,7 @@
   /* El mismo gesto que `.popover`: es la misma pieza con otro traje. */
   animation: pop 0.16s var(--ease);
 }
-.account-menu[data-state='closing'] { animation: pop-sale var(--fast) both; }
+.account-menu[data-state='closing'] { animation: pop-sale var(--salida) both; }
 
 .account-head { padding: var(--s2) var(--s3) var(--s3); }
 .account-head > .name {
@@ -756,18 +756,8 @@ a.chip.active { background: var(--accent); color: var(--accent-on); }
 }
 .plan-bar-fill.is-full { background: var(--negative); }
 
-/* ── La misma barra contando una FASE, que no es una carga ─────────────────
-   El medidor de arriba dice «cuánto me queda de lo que he comprado», y su tinta
-   plena está ganada: es la cifra que decide si cambias de plan. La fase no
-   decide nada, solo sitúa —por dónde va el tramo—, y con el mismo relleno
-   pintaba una franja de tinta negra a lo ancho de la tarjeta que manda, que era
-   el elemento más pesado del Resumen para lo menos accionable que hay en él.
-
-   Más fina y con la lumbre: si la brasa como tinta dice «aquí estás», aquí dice
-   «por aquí vas». La usan el pie de «Cómo va» y el roadmap, que son la misma
-   fase contada en dos sitios. */
-.plan-bar.is-fase { height: 4px; background: var(--fill-subtle); }
-.plan-bar.is-fase > .plan-bar-fill { background: var(--text-secondary); }
+/* La fase ya no usa esta barra: la dibuja el medidor de la casa en su variante
+   de progreso (`ui/Medidor`, 21 sep). Esta se queda para las cargas del plan. */
 
 /* ══ EL MOVIMIENTO DE ESTA PANTALLA ══════════════════════════════════════════
    Dos, y las dos por el mismo motivo: el movimiento cuenta algo que el estado

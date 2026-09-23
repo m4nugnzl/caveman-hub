@@ -88,6 +88,10 @@ const TABLES = [
   'workout_data',
   'anthropometry',
   'nutrition_plans',
+  /* Las versiones fechadas de la pauta (0124). Solo las escribe un disparador y
+     no hay forma de volver a generarlas: son el día en que se cambió cada cifra,
+     y ese día no queda en ningún otro sitio. */
+  'nutrition_plan_versions',
   'progress_photos',
   'check_ins',
   'client_events',
@@ -102,6 +106,10 @@ const TABLES = [
     contestar dos veces lo mismo.
   */
   'client_actions',
+  /* Las series que su teléfono no pudo guardar (0132): el valor que anotó y
+     que no está en ningún otro sitio del servidor. Sin esta fila, restaurar
+     borra el aviso al entrenador y el número con él. */
+  'series_no_guardadas',
   /* Lesiones, patologías y alergias (0077). Son datos de salud, así que si esta
      tabla se quedara fuera, una restauración devolvería a los clientes sin lo
      único de su ficha que condiciona lo que se les prescribe — y sin ruido: la
@@ -221,6 +229,9 @@ export const EXCLUIDAS = {
   opcional es una copia que no se hace.
 */
 export { TABLES };
+/* Para la prueba de ida y vuelta de las versiones de la dieta: copia con ESTE
+   código, no con una copia suya. */
+export { dumpTable };
 
 const BUCKET = 'client-media';
 

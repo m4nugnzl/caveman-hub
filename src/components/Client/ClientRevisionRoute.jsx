@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import {
   reverseChronological,
+  semanaDelRegistro,
   ultimaMedidaDe,
   weeklyCheckIn,
   weeklyWeightAverages,
@@ -18,7 +19,8 @@ import {
   requiresBlock,
   weighInsTarget,
 } from '@/domain/protocol';
-import { shortDate, weekdayName } from '@/lib/dates';
+import { puedeTocarLaSemana, revisionesPasadas } from '@/domain/revisionesPasadas';
+import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { traduceDbError } from '@/lib/dbErrors';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { ReviewWizard } from '@/components/anthropometry/ReviewWizard';
@@ -120,8 +122,12 @@ export const ClientRevisionRoute = () => {
     Sale de `useSemanaDeEntrega` porque las fotos y el cuestionario del
     teléfono tienen que guardar contra ESTE MISMO lunes.
   */
-  const { periodo, semana, semanasDelPeriodo, deEste, yaEntregada, cerrada, semanaFoto } =
+  const { periodo, semana, semanasDelPeriodo, deEste, yaEntregada, cerrada, semanaFoto, revision, recargar, consulta } =
     useSemanaDeEntrega();
+  /* Una revisión PASADA que se está completando (`?semana=`). Todo lo de abajo
+     trabaja igual contra ella; lo que cambia es lo que se dice y adónde se
+     vuelve. Ver `useSemanaDeEntrega`. */
+  const pasada = Boolean(revision);
 
   /* La entrega directa del teléfono: su estado mientras viaja, y lo que falló. */
   const [entregando, setEntregando] = useState(false);
@@ -202,6 +208,35 @@ export const ClientRevisionRoute = () => {
   );
 
   if (!activeClient) return null;
+
+  const hoy = todayISO();
+  /*
+    ¿Puede tocar este día? Lo que la base (0134) rechazaría no se ofrece: un
+    rechazo deja todo su historial sin guardar hasta que recargue. El día se
+    juzga por la semana para la que CUENTA su registro, si ya lo tiene —un
+    pesaje de hoy apuntado desde la ventana de gracia es de la revisión de
+    antes, y si ésa ya está revisada, ya no se corrige—.
+  */
+  const puedeElDia = (fecha) => {
+    const log = history.find((h) => h.date === fecha);
+    return puedeTocarLaSemana({
+      fecha: log ? semanaDelRegistro(log) : fecha,
+      entregas: historial,
+      preferences: activeClient.preferences,
+      startDate: activeClient.startDate,
+      hoy,
+    });
+  };
+  /* Las que todavía se pueden completar y no se mandaron: es la cuenta del
+     renglón «Semanas anteriores». */
+  const porCompletar = revisionesPasadas({
+    entregas: historial,
+    preferences: activeClient.preferences,
+    startDate: activeClient.startDate,
+    hoy,
+  }).filter((r) => r.completable && r.estado === 'sin entregar').length;
+  /* Cómo se dice el plazo de una pasada: «puedes hasta el 11 oct». */
+  const plazoPasada = revision?.hasta ? `puedes hasta el ${shortDate(revision.hasta)}` : null;
 
   /*
     Los pesajes DEL PERIODO QUE SE ENTREGA, no los de la semana de hoy. Miraba
@@ -285,7 +320,7 @@ export const ClientRevisionRoute = () => {
   /* Cuántas semanas se quedaron sin entregar. Es la cuenta que el renglón del
      pie enseña, y sale del historial: una fila de `check_ins` sin `submittedAt`
      es una semana que se abrió y no se cerró. */
-  const atrasadas = historial.filter((c) => !c.submittedAt && c.weekStart < semana).length;
+  const atrasadas = porCompletar;
 
   const datos = {
     periodo: [
@@ -301,16 +336,37 @@ export const ClientRevisionRoute = () => {
         que hacer es entregar la semana, y eso es lo que va escrito en grande.
         Entregada, el titular dice lo que pasó y no lo que falta.
       */
-      titular: cerrada ? 'Tu semana, revisada' : yaEntregada ? 'Semana entregada' : 'Entrega tu semana',
+      titular: pasada
+        ? cerrada
+          ? `Semana del ${shortDate(semana)}`
+          : yaEntregada
+            ? 'Semana entregada'
+            : `Completa tu semana del ${shortDate(semana)}`
+        : cerrada
+          ? 'Tu semana, revisada'
+          : yaEntregada
+            ? 'Semana entregada'
+            : 'Entrega tu semana',
       /* Revisada no queda nada que hacer contra ella: el rótulo deja de
          reclamar y el verbo desaparece (ver «Revisada, ahí sí se acaba»). */
       rotulo: cerrada
-        ? 'Tu entrega'
+        ? pasada
+          ? revision.motivo || 'Tu entrega'
+          : 'Tu entrega'
         : siguientePaso
           ? `Te ${siguientePaso.id === 'fotos' ? 'faltan' : 'falta'} ${siguientePaso.titulo.toLowerCase()}`
           : 'Lo tienes todo',
-      verbo: cerrada ? null : yaEntregada ? 'Volver a entregar' : 'Entregar mi semana',
+      verbo: cerrada ? null : yaEntregada ? 'Volver a entregar' : pasada ? 'Entregar esta semana' : 'Entregar mi semana',
       cerrada,
+      /* La pasada que se está completando: lo que el monitor dice encima. */
+      pasada: pasada
+        ? {
+            semana: shortDate(semana),
+            plazo: plazoPasada,
+            hasta: revision.hasta ? shortDate(revision.hasta) : null,
+            motivo: revision.motivo,
+          }
+        : null,
       /*
         El monitor monta `PasosDeLaEntrega`, que escribe su propio verbo y su
         propio pie a partir de estos dos: entregada, el botón baja de tono y la
@@ -344,6 +400,10 @@ export const ClientRevisionRoute = () => {
             ultimo: history.length > 0 ? reverseChronological(history)[0] : null,
             foto: fotoDelPlan,
             onApuntar: apuntarPeso,
+            /* Una pasada enseña SUS días y ninguno más: lo que se apunte aquí
+               no puede caer en la semana de hoy. */
+            soloDelPeriodo: pasada ? semanasDelPeriodo : 0,
+            puedeElDia,
           }
         : null,
     /*
@@ -366,14 +426,17 @@ export const ClientRevisionRoute = () => {
           puntos: weeklyWeightAverages(history).map((p) => p.value),
         },
     atrasadas,
-    respuesta: ultimaRespuesta
-      ? {
-          texto: ultimaRespuesta.coachNotes,
-          cuando: ultimaRespuesta.reviewedAt
-            ? `Revisión del ${shortDate(ultimaRespuesta.reviewedAt)}`
-            : null,
-        }
-      : null,
+    /* En una pasada, lo que te dijo la vez pasada es de otra semana: se queda
+       fuera para que la pantalla hable solo de la que se completa. */
+    respuesta:
+      ultimaRespuesta && !pasada
+        ? {
+            texto: ultimaRespuesta.coachNotes,
+            cuando: ultimaRespuesta.reviewedAt
+              ? `Revisión del ${shortDate(ultimaRespuesta.reviewedAt)}`
+              : null,
+          }
+        : null,
   };
 
   /*
@@ -392,7 +455,9 @@ export const ClientRevisionRoute = () => {
 
     Va aparte de `datos` porque el monitor monta otra pieza con otra forma.
   */
-  const plazo = periodo?.tarde
+  const plazo = pasada
+    ? plazoPasada
+    : periodo?.tarde
     ? `todavía puedes mandar la del ${shortDate(periodo.dueOn)}`
     : periodo?.dueOn
       ? `entrégala el ${weekdayName(periodo.dueOn)}`
@@ -432,12 +497,15 @@ export const ClientRevisionRoute = () => {
     const res = await submitCheckIn(activeClient.id, { weekStart: semana, weight: resumen.average });
     setEntregando(false);
     if (res && res.ok === false) setErrorEntrega(`No se ha podido entregar: ${traduceDbError(res.error)}`);
+    /* Una pasada no vive en `checkIns` del contexto: se relee su fila. */
+    else if (pasada) recargar();
   };
 
+  /* Con la semana en la dirección: cada paso de una pasada guarda contra ella. */
   const RUTA_DEL_PASO = {
-    peso: '/mi/evolucion/peso',
-    fotos: '/mi/evolucion/fotos-de-la-semana',
-    cuestionario: '/mi/evolucion/cuestionario',
+    peso: `/mi/evolucion/peso${consulta}`,
+    fotos: `/mi/evolucion/fotos-de-la-semana${consulta}`,
+    cuestionario: `/mi/evolucion/cuestionario${consulta}`,
   };
   /* Los nombres del dibujo (`328:111`). El monitor sigue con los suyos
      («Tu peso», «Cómo lo has llevado»): es otra pantalla y otro frame. */
@@ -449,16 +517,31 @@ export const ClientRevisionRoute = () => {
   };
 
   const datosTelefono = {
-    titulo: 'Revisión semanal',
-    periodo: [semanaFoto ? `Semana ${semanaFoto}` : null, cerrada ? 'revisada' : yaEntregada ? 'entregada' : plazo]
+    titulo: pasada ? `Semana del ${shortDate(semana)}` : 'Revisión semanal',
+    periodo: [
+      semanaFoto ? `Semana ${semanaFoto}` : null,
+      pasada && cerrada
+        ? revision.motivo?.toLowerCase()
+        : cerrada
+          ? 'revisada'
+          : yaEntregada
+            ? pasada && plazo
+              ? `entregada · ${plazo}`
+              : 'entregada'
+            : plazo,
+    ]
       .filter(Boolean)
       .join(' · '),
+    /* Una pasada se abre desde «Semanas anteriores», y ahí se vuelve. */
+    atras: pasada ? '/mi/evolucion/semanas' : null,
+    pasada,
     pasos: pasos.map((p) => ({
       id: p.id,
       titulo: TITULO_DEL_PASO[p.id] || p.titulo,
       sub: p.estado || null,
       hecho: p.hecho,
-      to: RUTA_DEL_PASO[p.id] || null,
+      /* Una pasada cerrada se lee: sus pasos no llevan a ninguna parte. */
+      to: pasada && cerrada ? null : RUTA_DEL_PASO[p.id] || null,
       /* Las medidas: su asistente, y solo mientras la semana no esté revisada. */
       onAbrir: cerrada ? undefined : () => setAsistente(p.id),
     })),
@@ -467,18 +550,27 @@ export const ClientRevisionRoute = () => {
       ocupado: entregando,
       onEntregar: entregarDesdeElTelefono,
       error: errorEntrega,
-      pie: cerrada
-        ? 'Tu entrenador ya la ha revisado.'
-        : yaEntregada
-          ? 'Tu entrenador ya la tiene. Si cambias algo, vuelve a entregarla y le llega corregida.'
-          : 'No hace falta que sea el día exacto, y llegar tarde no te salta la revisión.',
+      pie: pasada
+        ? cerrada
+          ? revision.motivo === 'Fuera de plazo'
+            ? 'Ya no se puede completar. Si la necesitas, pídele a tu entrenador que te la abra.'
+            : 'Tu entrenador ya la ha revisado. Si hay algo que corregir, díselo a él.'
+          : yaEntregada
+            ? 'Tu entrenador ya la tiene. Si cambias algo, vuelve a entregarla y le llega corregida.'
+            : 'Lo que apuntes aquí cuenta para esta semana y no toca la de hoy. Tu entrenador verá que la entregaste tarde.'
+        : cerrada
+          ? 'Tu entrenador ya la ha revisado.'
+          : yaEntregada
+            ? 'Tu entrenador ya la tiene. Si cambias algo, vuelve a entregarla y le llega corregida.'
+            : 'No hace falta que sea el día exacto, y llegar tarde no te salta la revisión.',
     },
-    respuesta: ultimaRespuesta
-      ? {
-          titulo: ultimaRespuesta.reviewedAt ? `Revisión del ${shortDate(ultimaRespuesta.reviewedAt)}` : 'Tu última revisión',
-          texto: ultimaRespuesta.coachNotes,
-        }
-      : null,
+    respuesta:
+      ultimaRespuesta && !pasada
+        ? {
+            titulo: ultimaRespuesta.reviewedAt ? `Revisión del ${shortDate(ultimaRespuesta.reviewedAt)}` : 'Tu última revisión',
+            texto: ultimaRespuesta.coachNotes,
+          }
+        : null,
     atrasadas,
   };
 
@@ -503,8 +595,23 @@ export const ClientRevisionRoute = () => {
           onUploadPhoto={uploadProgressPhoto}
           /* En el teléfono el asistente solo toma medidas y NO entrega: la
              entrega es el botón de la lista (ver «EL TELÉFONO», arriba). */
-          onSubmitWeek={enEscritorio ? (datos) => submitCheckIn(activeClient.id, datos) : null}
+          onSubmitWeek={
+            enEscritorio
+              ? async (datos) => {
+                  const res = await submitCheckIn(activeClient.id, datos);
+                  if (res?.ok && pasada) recargar();
+                  return res;
+                }
+              : null
+          }
           soloMedidas={!enEscritorio}
+          /* Una pasada acota la fecha a sus días y no confirma ningún peso:
+             sus pesajes ya están apuntados día a día. Ver `ReviewWizard`. */
+          fechas={
+            pasada
+              ? { desde: semana, hasta: [addDays(semana, semanasDelPeriodo * 7 - 1), hoy].sort()[0] }
+              : null
+          }
           respuestasIniciales={deEste?.answers ?? null}
           weekStart={semana}
           weeks={semanasDelPeriodo}

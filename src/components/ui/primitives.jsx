@@ -806,6 +806,9 @@ export const SegmentedControl = ({ value, onChange, options, tone = '', label, a
         type="button"
         className={`segmented-item ${opt.tone || tone}`}
         aria-pressed={value === opt.id}
+        /* Una opción que existe y todavía no se puede elegir (la lente
+           Entreno de Revisiones): se ve dónde va a estar, no se pulsa. */
+        disabled={opt.disabled || undefined}
         onClick={() => onChange(opt.id)}
         title={opt.hint}
       >
@@ -920,9 +923,17 @@ export const WeekPicker = ({
  * @param {(nombre: string) => void} onRename  Solo se llama si cambia y no queda vacío.
  * @param {() => void} onDone   Cerrar la edición (Escape, Enter o salir del foco).
  * @param {string} [variante]   Clase de contexto: `is-comida` o `is-dia`.
+ * @param {boolean} [seleccionado]  Entra con el nombre entero seleccionado, para
+ *   escribir el nuevo encima sin borrar: «Pull A 2» → «Pull B».
  */
-export const RenombrarEnSitio = ({ value, onRename, onDone, variante = '', label, min = 6 }) => {
+export const RenombrarEnSitio = ({ value, onRename, onDone, variante = '', label, min = 6, seleccionado = false }) => {
   const [texto, setTexto] = useState(value);
+  const campoRef = useRef(null);
+  useEffect(() => {
+    if (seleccionado) campoRef.current?.select();
+    // Solo al entrar: seleccionar a cada tecla borraría lo que se escribe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Enter dispara el submit y, al desmontarse el formulario, también el blur:
   // sin este cerrojo el renombrado se pediría dos veces.
   const [cerrado, setCerrado] = useState(false);
@@ -944,6 +955,7 @@ export const RenombrarEnSitio = ({ value, onRename, onDone, variante = '', label
       }}
     >
       <input
+        ref={campoRef}
         autoFocus
         className="renombrar-input"
         style={{ width: `${Math.max(min, texto.length + 2)}ch` }}

@@ -146,7 +146,7 @@ describe('validateOptions', () => {
   it.each([
     [[caminos[0]], /dos caminos/i],
     [[...caminos, ...caminos], /decisión/i],
-    [[{ ...caminos[0], when: '  ' }, caminos[1]], /«si»/i],
+    [[{ ...caminos[0], when: '  ' }, caminos[1]], /respuesta/i],
     [[{ ...caminos[0], title: '' }, caminos[1]], /nombre/i],
     [[{ ...caminos[0], direction: 'engordar' }, caminos[1]], /definición/i],
     [[{ ...caminos[0], weeks: 0 }, caminos[1]], /semanas/i],
@@ -160,7 +160,7 @@ describe('validateOptions', () => {
      meses después y delante del cliente. */
   it('rechaza dos caminos con la misma condición', () => {
     const repetido = [caminos[0], { ...caminos[1], when: 'SI EL PUNTO HA BAJADO LO SUFICIENTE ' }];
-    expect(validateOptions(repetido)).toMatch(/misma condición/i);
+    expect(validateOptions(repetido)).toMatch(/misma respuesta/i);
   });
 
   it('un cruce correcto no devuelve nada', () => {
@@ -197,6 +197,14 @@ describe('validateFork — dónde puede ir', () => {
 
   it('y comprueba también los caminos', () => {
     expect(validateFork(plan, 'b', [caminos[0]])).toMatch(/dos caminos/i);
+  });
+
+  /* El editor de Plan pasa la pregunta (0125) y la exige; quien no la pasa
+     —los cruces de antes— sigue valiendo sin ella. */
+  it('pide la pregunta a quien la pasa', () => {
+    expect(validateFork(plan, 'b', caminos, '  ')).toMatch(/pregunta/i);
+    expect(validateFork(plan, 'b', caminos, 'x'.repeat(201))).toMatch(/200/);
+    expect(validateFork(plan, 'b', caminos, '¿Llega con margen?')).toBeNull();
   });
 });
 
@@ -289,7 +297,7 @@ describe('borradores para el formulario', () => {
   it('el par por defecto son dos caminos a los que solo les falta el «si»', () => {
     const draft = forkDraft();
     expect(draft).toHaveLength(2);
-    expect(validateOptions(draft)).toMatch(/«si»/i);
+    expect(validateOptions(draft)).toMatch(/respuesta/i);
     const escrito = draft.map((o, i) => ({ ...o, when: `condición ${i}` }));
     expect(validateOptions(escrito)).toBeNull();
   });

@@ -38,7 +38,7 @@ describe('pendingStore', () => {
     const store = pendingStore('u1');
     store.save('workout:c1', { a: 1 });
 
-    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { a: 1 } }]);
+    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { a: 1 }, build: null }]);
 
     store.clear('workout:c1');
     expect(store.list()).toEqual([]);
@@ -49,7 +49,7 @@ describe('pendingStore', () => {
     store.save('workout:c1', { v: 1 });
     store.save('workout:c1', { v: 2 });
 
-    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { v: 2 } }]);
+    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { v: 2 }, build: null }]);
   });
 
   /* Dos entrenadores en el mismo ordenador: lo pendiente de uno no puede
@@ -110,7 +110,7 @@ describe('la cola apunta lo pendiente y lo suelta al confirmar', () => {
     });
 
     await new Promise((r) => setTimeout(r, 0));
-    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { a: 1 } }]);
+    expect(store.list()).toEqual([{ key: 'workout:c1', payload: { a: 1 }, build: null }]);
   });
 
   it('una excepción de red tampoco lo borra', async () => {
@@ -191,5 +191,34 @@ describe('la cola apunta lo pendiente y lo suelta al confirmar', () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(sender).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('la versión que apuntó cada nota', () => {
+  it('cada nota lleva el build de quien la escribió', () => {
+    pendingStore('u1', '20260922120000').save('workout:c1', { a: 1 });
+    expect(pendingStore('u1', 'otro').list()).toEqual([{ key: 'workout:c1', payload: { a: 1 }, build: '20260922120000' }]);
+  });
+
+  it('una nota de antes de la etiqueta se lee entera, con build null', () => {
+    localStorage.setItem('caveman-pending:u1', JSON.stringify(['set:c1:s1']));
+    localStorage.setItem('caveman-pending:u1:set:c1:s1', JSON.stringify({ value: 8 }));
+    expect(pendingStore('u1', 'x').list()).toEqual([{ key: 'set:c1:s1', payload: { value: 8 }, build: null }]);
+  });
+});
+
+describe('la versión sobre la que se hizo un cambio', () => {
+  it('va al lado del payload y vuelve al leer', () => {
+    const store = pendingStore('u1', '20260922120000');
+    store.save('workout:c1', { blocks: [] }, { base: '2026-09-22T10:00:00+00:00' });
+    expect(store.list()).toEqual([
+      { key: 'workout:c1', payload: { blocks: [] }, build: '20260922120000', base: '2026-09-22T10:00:00+00:00' },
+    ]);
+  });
+
+  it('sin ella se lee como desconocida', () => {
+    const store = pendingStore('u1', 'b1');
+    store.save('workout:c1', { blocks: [] });
+    expect(store.list()[0].base).toBeUndefined();
   });
 });

@@ -1,0 +1,151 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EL MEDIDOR — un valor sobre su tope (21 sep, problema 9)
+   --------------------------------------------------------------------------
+   Una pieza para las cuatro barras que había (ver `ui/Medidor.jsx`). Sustituye
+   a `.subjetivo-*`, `.grupos-barra` y `.plan-bar.is-fase`.
+
+   ══ EL TAMAÑO ES EL DE PRODUCCIÓN, Y ES EL MISMO PARA TODAS ═════════════════
+   Se probaron dos acabados más ricos —pista de 8 px hundida con brillo, cifra
+   a 18— y una muesca para el MRV. El dueño los rechazó los dos con la pantalla
+   delante: «prefiero cómo estaba en producción» y, de las escalas, «los veo
+   muy grandes». Así que la medida es la de las barras de volumen de producción
+   (`.grupos-*` del 20 sep) y vale para TODAS: nombre a 14/500 en tinta, cifra
+   a 14/700, el pie a 12 en terciaria, barra plana de 6 px. Lo que sí queda de
+   la unificación es que es una sola pieza, y la entrada de abajo.
+
+   El color es del dato: pasarse de un tope se dice en la cifra.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --nivel-alto: 6px;
+  /* Lo que el relleno sobra por la izquierda, escondido por el carril. El
+     muelle pasa un pelo del destino y vuelve; sin esta sobra, en ese pelo el
+     relleno se despegaba del arranque de la pista. */
+  --nivel-sobra: 16px;
+}
+
+.niveles { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+
+/* ── La fila: etiqueta y cifra en un renglón, la pista a lo ancho debajo ── */
+.nivel {
+  --nivel-tinta: var(--text-secondary);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: 'k v' 'b b';
+  align-items: baseline;
+  gap: var(--s1) var(--s2);
+  min-width: 0;
+}
+.nivel-k {
+  grid-area: k;
+  font-size: var(--fs-sm); font-weight: 500;
+  color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.nivel-v {
+  grid-area: v;
+  font-family: var(--font-display);
+  font-size: var(--fs-sm); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+}
+.nivel-v > small {
+  font-family: var(--font);
+  font-size: var(--fs-xs); font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+/* ── El juicio: el relleno en el semáforo, la cifra en su tinta de texto ── */
+.nivel.is-bien { --nivel-tinta: var(--semaforo-bien); }
+.nivel.is-medio { --nivel-tinta: var(--semaforo-medio); }
+.nivel.is-mal { --nivel-tinta: var(--semaforo-mal); }
+.nivel.is-bien .nivel-v { color: var(--positive); }
+.nivel.is-medio .nivel-v { color: var(--warning); }
+.nivel.is-mal .nivel-v,
+.nivel.is-alerta .nivel-v { color: var(--negative); }
+
+/* ── La pista: plana, como en producción ─────────────────────────────────── */
+.nivel-pista { grid-area: b; position: relative; display: block; height: var(--nivel-alto); }
+.nivel-carril {
+  position: absolute; inset: 0;
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  overflow: hidden;
+}
+.nivel-relleno {
+  position: absolute; top: 0; bottom: 0;
+  left: calc(-1 * var(--nivel-sobra));
+  /* El ancho llega en línea como porcentaje; aquí se le suma la sobra. */
+  padding-right: var(--nivel-sobra);
+  box-sizing: content-box;
+  border-radius: var(--r-pill);
+  background: var(--nivel-tinta);
+}
+/* Con dos tramos (esta hoja dentro del bloque): el total en claro detrás. */
+.nivel-relleno.is-fondo { opacity: 0.35; }
+
+/* ── La escala en casillas ───────────────────────────────────────────────── */
+.nivel-pista.is-casillas { display: flex; gap: 3px; }
+.nivel-pista.is-casillas > i {
+  position: relative; flex: 1 1 0; min-width: 0;
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  overflow: hidden;
+}
+.nivel-pista.is-casillas > i.is-lleno::after {
+  content: ''; position: absolute; inset: 0;
+  border-radius: inherit;
+  background: var(--nivel-tinta);
+  transform-origin: 0 50%;
+}
+
+/* ── La entrada: crece una vez, al llegar a la vista ─────────────────────────
+   Antes de `is-dentro` el relleno está fuera del carril; al entrar, vuelve con
+   el muelle. La transición vive SOLO en el estado de dentro, así que lo que
+   cambie después —un valor nuevo, otro ancho— se pinta en su sitio sin volver
+   a animarse. Cascada: 40 ms por fila y, en casillas, 28 ms por casilla. */
+.niveles:not(.is-dentro) .nivel-relleno { transform: translateX(-100%); }
+.niveles:not(.is-dentro) .nivel-pista.is-casillas > i.is-lleno::after { transform: scaleX(0); }
+.niveles.is-dentro .nivel-relleno {
+  transition: transform 0.6s var(--muelle);
+  transition-delay: calc(var(--i, 0) * 40ms + 80ms);
+}
+.niveles.is-dentro .nivel-pista.is-casillas > i.is-lleno::after {
+  transition: transform 0.32s var(--muelle);
+  transition-delay: calc(var(--i, 0) * 40ms + var(--k, 0) * 28ms + 80ms);
+}
+
+/* ── La fila con puerta: se enciende la fila, nunca la barra ────────────────
+   Ley de los gestos: la caja se enciende al pasar; el color es del dato. El
+   margen negativo deja aire al tinte sin mover la columna. */
+.nivel.is-puerta {
+  font: inherit; text-align: inherit; color: inherit;
+  width: calc(100% + 2 * var(--s2));
+  background: none; border: 0; cursor: pointer;
+  margin-inline: calc(var(--s2) * -1);
+  padding: var(--s1) var(--s2) var(--s2);
+  border-radius: var(--r-sm);
+  transition: background-color var(--micro);
+}
+.nivel.is-puerta:hover { background: var(--fill-subtle); }
+.nivel.is-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ══ LOS SITIOS ═════════════════════════════════════════════════════════════
+   Solo lo que cada pantalla necesita distinto, que es el marco, nunca la
+   barra: la barra es la misma en todas. */
+
+/* El Resumen: cada fila de «Cómo lo lleva» es una micro-tarjeta (19 sep). */
+.resumen-pagina .lo-lleva .niveles { gap: var(--s2); }
+.resumen-pagina .lo-lleva .nivel,
+.resumen-pagina .lo-lleva .nivel.is-puerta {
+  width: 100%; margin: 0;
+  padding: var(--s2) var(--s3) var(--s3);
+  border: 1px solid var(--edge-fino);
+  border-radius: var(--r-control-md);
+  background: var(--surface);
+}
+.resumen-pagina .lo-lleva .nivel.is-puerta:hover { border-color: var(--hairline-strong); }
+
+/* El volumen del Resumen, al lado del monigote: la lista estira lo que le deje. */
+.grupos-par > .niveles { flex: 1 1 auto; }

@@ -264,24 +264,30 @@ const ENTRENADOR = [
     serie: 'entrenador',
     titulo: 'Marca sus fases',
     resumen: 'Hacia dónde va: definición, mantenimiento o volumen, con fechas y ritmo.',
+    /* Las fases se editan en la ventana del plan, que se abre desde la
+       tarjeta del roadmap del Resumen o desde la banda de la espina (R2). */
     empieza: '/c/:cliente/resumen',
     conCliente: true,
     pasos: [
       {
-        senal: { css: 'button.progreso-cifra', texto: 'Fase' },
+        /* «Marca sus fases» sin plan; el lápiz de la tarjeta cuando ya tiene. */
+        senal: [
+          { css: '.tarjeta-roadmap .palanca', texto: 'Marca sus fases' },
+          { css: '.tarjeta-roadmap .cab-icono' },
+        ],
         avanza: 'clic',
-        hecho: { css: '.modal-title', texto: 'Sus fases' },
-        titulo: 'Abre sus fases',
-        texto: 'Están en su Resumen. Sus pesajes se leen contra la fase en la que está.',
+        hecho: { css: '.plan-roadmap' },
+        titulo: 'Abre su plan',
+        texto: 'Desde la tarjeta del roadmap de su Resumen. Sus pesajes se leen contra la fase en la que está.',
       },
       {
         /* «Nueva fase» con el carril vacío; «Añadir fase» cuando ya tiene. */
         senal: [
-          { css: '.modal button', texto: 'Nueva fase' },
-          { css: '.modal button', texto: 'Añadir fase' },
+          { css: '.plan-roadmap button', texto: 'Nueva fase' },
+          { css: '.plan-roadmap button', texto: 'Añadir fase' },
         ],
         avanza: 'clic',
-        hecho: { css: '.modal button', texto: 'Guardar fase' },
+        hecho: { css: '.plan-roadmap button', texto: 'Guardar fase' },
         titulo: 'Añade una fase',
         texto: 'Pulsa «Nueva fase».',
       },
@@ -314,7 +320,7 @@ const ENTRENADOR = [
         avanza: 'clic',
         /* Guardada, el formulario se cierra y vuelve «Añadir fase». Si falla,
            el formulario se queda con su error y la guía espera. */
-        hecho: { css: '.modal button', texto: 'Añadir fase' },
+        hecho: { css: '.plan-roadmap button', texto: 'Añadir fase' },
         titulo: 'Guarda la fase',
         texto: 'Aparece en su línea de tiempo. Puedes encadenar las siguientes.',
       },

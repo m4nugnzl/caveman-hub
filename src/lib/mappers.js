@@ -195,6 +195,9 @@ export const mapCheckInFromDb = (row) => ({
     objeto vacío se leería como «se le preguntó y no contestó», que es otra cosa.
   */
   answers: row.answers || null,
+  /* Hasta cuándo su entrenador le ha abierto esta revisión pasada (0134). `null`
+     sin reapertura, que es lo normal: entonces manda el margen de cuatro semanas. */
+  abiertaHasta: row.abierta_hasta || null,
 });
 
 export const mapEventFromDb = (row) => ({
@@ -211,6 +214,17 @@ export const mapEventFromDb = (row) => ({
      en pantalla. Sin la migración no viene la columna: `false`, que es como se
      comportaba todo antes de que existiera. */
   privada: row.privada === true,
+  /* El plan apunta aquí (0122). Sin la migración no viene la columna: `false`,
+     que es un calendario sin anclas — exactamente lo de antes. */
+  ancla: row.ancla === true,
+  /* Los datos de la competición, en crudo: los sanea `competicionDe`
+     (`domain/calendar.js`), que es quien sabe su forma. */
+  competicion: row.competicion ?? null,
+  /* Lo que dura y las kcal de una intervención (0123). El último día, incluido,
+     como `ends_on` en las fases; nulo es un día. Sin la migración no vienen:
+     un evento de un día y sin kcal, que es lo de antes. */
+  hasta: row.hasta ?? null,
+  kcal: row.kcal === null || row.kcal === undefined ? null : Number(row.kcal),
 });
 
 // ── Fases del roadmap (migración 0028) ─────────────────────────────────────
@@ -243,6 +257,12 @@ export const mapPhaseFromDb = (row) => ({
     que no sabe mirar. Ver `domain/fork.js`.
   */
   nextOptions: Array.isArray(row.next_options) ? row.next_options : null,
+  /* La pregunta que decide el cruce (0125). Vacía, o sin la migración, `''`:
+     la pantalla de Plan la pide y las ramas se leen por su frase. */
+  nextQuestion: typeof row.next_question === 'string' ? row.next_question : '',
+  /* Los replanteos de la fase (0123), en crudo: los sanea `replanteosDe`
+     (`domain/roadmap.js`), que es quien sabe su forma. `null` si no hay. */
+  replanteos: Array.isArray(row.replanteos) ? row.replanteos : null,
 });
 
 // ── Condicionantes (migración 0077) ────────────────────────────────────────
@@ -353,6 +373,8 @@ const PHASE_COLUMNS = {
   endsOn: 'ends_on',
   note: 'note',
   nextOptions: 'next_options',
+  nextQuestion: 'next_question',
+  replanteos: 'replanteos',
 };
 
 /**
@@ -380,7 +402,10 @@ export const mapPhaseToDb = (fields) => {
 
     if (column === 'ends_on') out[column] = value === '' ? null : value;
     else if (column === 'note') out[column] = value ?? '';
-    else if (column === 'next_options') {
+    /* Vacía es `null`: la base no admite una pregunta de cero letras ni una
+       pregunta sin caminos (0125). */
+    else if (column === 'next_question') out[column] = String(value ?? '').trim() || null;
+    else if (column === 'next_options' || column === 'replanteos') {
       out[column] = Array.isArray(value) && value.length > 0 ? value : null;
     } else out[column] = value;
   }
@@ -399,6 +424,9 @@ export const mapWorkoutFromDb = (row) => ({
   notes: row.notes || '',
   microcycles: row.microcycles || [],
   blocks: row.blocks || [],
+  /* Solo si la fila la trae (0133): sin la columna, el programa no lleva la
+     clave y `mapWorkoutToDb` no la manda. Ver `domain/borradores`. */
+  ...(Array.isArray(row.draft_blocks) ? { draftBlocks: row.draft_blocks } : {}),
 });
 
 export const mapWorkoutToDb = (clientId, data) => ({
@@ -410,6 +438,9 @@ export const mapWorkoutToDb = (clientId, data) => ({
   /* Solo si hay bloques: así el código puede desplegarse antes que la migración
      0086 —quien nunca abra un bloque nunca envía la columna—. */
   ...(data.blocks?.length ? { blocks: data.blocks } : {}),
+  /* Los borradores, si el programa los leyó o los tiene: una lista vacía SÍ se
+     manda, porque es quitar el último. Sin la clave no se toca la columna. */
+  ...(Array.isArray(data.draftBlocks) ? { draft_blocks: data.draftBlocks } : {}),
   updated_at: new Date().toISOString(),
 });
 
@@ -688,23 +719,24 @@ export const foodMicrosToDb = (food) => {
 // ── Fotos de progreso ──────────────────────────────────────────────────────
 
 /**
- * ── Fotos de progreso: qué columnas hay REALMENTE ──────────────────────────
- * `progress_photos` tiene solo `id, client_id, photo_url, tag, created_at`.
- * No existen `angle`, `weight`, `notes` ni `date`, que es lo que este código
- * asumía (de ahí el error «column progress_photos.date does not exist», que
- * tumbaba la carga de TODAS las fotos).
+ * ── Fotos de progreso: de dónde se lee cada cosa ───────────────────────────
+ * La base es `id, client_id, photo_url, tag, created_at` (`0000`). La `0001`
+ * añadió además `angle`, `weight`, `notes` y `taken_on`, y está aplicada en
+ * local y en producción (comprobado el 22 sep 2026), pero la aplicación NO las
+ * usa: las rellenó una vez a partir de `tag` y desde entonces nadie las escribe,
+ * así que en las fotos nuevas están vacías. No existe `date` (de ahí el error
+ * «column progress_photos.date does not exist», que tumbaba la carga de TODAS
+ * las fotos).
  *
- * Reparto de la información sobre lo que hay:
+ * Lo que la aplicación lee y escribe:
  *   · semana  → en la RUTA del archivo en Storage (`…/week-12/…`), que además
  *               crea carpetas por semana de verdad en el bucket.
  *   · fecha   → `created_at`.
- *   · ángulo, peso y notas → un objeto JSON compacto en `tag`.
+ *   · ángulo, peso, notas y lado declarado → un objeto JSON compacto en `tag`.
  *
- * `tag` es una columna de texto libre sin uso previo. Meter JSON en ella es un
- * compromiso consciente: evita una migración y queda contenido en este archivo,
- * a cambio de no poder filtrar por ángulo o peso desde SQL (algo que la
- * aplicación hace en cliente de todas formas). Si algún día se normaliza, la
- * migración está preparada en `supabase/migrations/`.
+ * `tag` es la única fuente de verdad. Leer `angle` o `weight` de sus columnas
+ * da datos viejos o nulos; si algún día se pasan a columnas de verdad, hay que
+ * volver a copiar `tag` en ellas (incluido `lado`) y escribir en las dos.
  *
  * Las filas antiguas cuyo `tag` sea texto plano se interpretan como el ángulo.
  */
@@ -721,9 +753,16 @@ const parseTag = (tag) => {
   return { angle: raw };
 };
 
-const buildTag = ({ angle, weight, notes }) => {
+/*
+  `lado` es el lado DECLARADO de una lateral antigua (22 sep 2026): el ángulo
+  sigue siendo `lateral` —es lo que se subió— y el lado es lo que el entrenador
+  vio en la foto. Por eso va aparte y no pisa `angle`: quitarlo deja la foto
+  exactamente como estaba. Ver `ladoDeLaFoto` en `domain/photos`.
+*/
+const buildTag = ({ angle, weight, notes, lado }) => {
   const payload = {};
   if (angle) payload.angle = angle;
+  if (lado === 'izquierdo' || lado === 'derecho') payload.lado = lado;
   if (weight !== null && weight !== undefined) payload.weight = weight;
   if (notes) payload.notes = notes;
   return Object.keys(payload).length > 0 ? JSON.stringify(payload) : null;
@@ -744,16 +783,22 @@ export const mapPhotoFromDb = (row, clientName) => {
     url: remote ? stored : null,
     week: fromPath.week,
     angle: meta.angle || fromPath.angle || 'frontal',
+    /* El ángulo con el que se SUBIÓ, que es el de la ruta: una lateral antigua
+       sigue siéndolo aunque luego se le cambie el ángulo a mano. */
+    origen: fromPath.angle,
+    lado: meta.lado === 'izquierdo' || meta.lado === 'derecho' ? meta.lado : null,
     weight: meta.weight ?? null,
     notes: meta.notes || '',
     date: (row.created_at || '').slice(0, 10) || null,
+    /* La hora entera: el entrenador ve si una foto se subió después de su semana. */
+    creadaEl: row.created_at || null,
   };
 };
 
-export const mapPhotoToDb = ({ clientId, path, angle, weight, notes }) => ({
+export const mapPhotoToDb = ({ clientId, path, angle, weight, notes, lado }) => ({
   client_id: clientId,
   photo_url: path,
-  tag: buildTag({ angle, weight, notes }),
+  tag: buildTag({ angle, weight, notes, lado }),
 });
 // ── Plan del equipo ────────────────────────────────────────────────────────
 

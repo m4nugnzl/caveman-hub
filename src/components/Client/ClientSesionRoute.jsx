@@ -5,6 +5,8 @@ import { Dumbbell } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
 import { blockOfWeek, resolvedMicrocycles, structureOfBlock, weekLabel } from '@/domain/blocks';
+import { conSeriesSinConfirmar } from '@/domain/seriesSinConfirmar';
+import { esDelCliente } from '@/lib/seriesNoGuardadas';
 import {
   activeQuestions,
   asksFeedback,
@@ -21,6 +23,7 @@ import {
   sesionAMedias,
   sessionSetCount,
   sessionTonnage,
+  sessionsOf,
 } from '@/domain/sessions';
 import { drillsForDay, restLabel, unitInitial, unitLabel } from '@/domain/training';
 import { todayISO, weekdayName } from '@/lib/dates';
@@ -79,9 +82,11 @@ export const ClientSesionRoute = () => {
     closeSession,
     saveStatus,
     retrySave,
+    seriesNoGuardadas,
   } = useApp();
   const navigate = useNavigate();
   const {
+    viva,
     destino,
     tomarDestino,
     marcar,
@@ -112,7 +117,20 @@ export const ClientSesionRoute = () => {
   */
   const [activo, setActivo] = useState(null);
 
-  const crudo = workoutData?.[activeClient?.id];
+  /*
+    Con las series que el servidor NO guardó puestas encima: tras recargar solo
+    están en el navegador, y la pantalla no puede enseñar la serie vacía como si
+    nunca se hubiera hecho. Ver `lib/seriesNoGuardadas`.
+  */
+  const delServidor = workoutData?.[activeClient?.id];
+  const noGuardadasDelCliente = useMemo(
+    () => (seriesNoGuardadas || []).filter((e) => activeClient && esDelCliente(e, activeClient.id)),
+    [seriesNoGuardadas, activeClient]
+  );
+  const crudo = useMemo(
+    () => conSeriesSinConfirmar(delServidor, noGuardadasDelCliente.map((e) => e.payload)),
+    [delServidor, noGuardadasDelCliente]
+  );
   const program = useMemo(
     () => (crudo ? { ...crudo, microcycles: resolvedMicrocycles(crudo) } : crudo),
     [crudo]
@@ -144,6 +162,22 @@ export const ClientSesionRoute = () => {
   const micro = micros.find((m) => m.weekNumber === donde?.weekNumber) || null;
   const day = micro?.days?.find((d) => d.dayName === donde?.dayName) || null;
   const daySession = useDaySession(micro, day);
+
+  /*
+    SU HOJA CAMBIÓ DE NOMBRE CON LA SESIÓN ABIERTA. `donde` se fija al entrar y
+    no se recalcula (ver arriba), así que al volver a pedir el programa —y el
+    entrenador había renombrado la hoja— el día dejaba de existir y la pantalla
+    decía «Hoy no te toca entreno» a mitad de sesión. La sesión sí sigue: el
+    renombrado se la lleva (`renameBlockSessionIn`). Se sigue a la sesión.
+  */
+  const sesionViva = viva?.sessionId || null;
+  useEffect(() => {
+    if (!donde || !micro || day || !sesionViva) return;
+    const s = sessionsOf(micro).find((x) => x.id === sesionViva);
+    if (s && s.dayName !== donde.dayName && (micro.days || []).some((d) => d.dayName === s.dayName)) {
+      setDonde({ weekNumber: donde.weekNumber, dayName: s.dayName });
+    }
+  }, [donde, micro, day, sesionViva]);
   const antes = useMemo(() => previousSetsBefore(micros, donde?.weekNumber), [micros, donde?.weekNumber]);
   /* El listón de cada ejercicio ANTES de esta semana: contra eso se decide qué
      es récord. Con el de esta misma sesión dentro, nada lo sería nunca. */
@@ -185,6 +219,45 @@ export const ClientSesionRoute = () => {
   }, [daySession.activeId, donde, hechas, series, firmaDeTramos, activeClient?.id, marcar]);
 
   if (!activeClient) return null;
+
+  /*
+    SU HOJA YA NO ESTÁ. El entrenador la quitó con la sesión abierta: al volver
+    a pedir el programa (lo pide el propio rechazo de la serie) el día deja de
+    existir. Decía «Hoy no te toca entreno», con lo anotado solo en la franja de
+    «no se han guardado». Ahora dice qué ha pasado y cuántas series se quedaron
+    fuera; esas ya las apunta el recolocador y le llegan al entrenador.
+  */
+  if (donde && micro && !day) {
+    /* Renombrada, y la sesión la sigue (el efecto de arriba): un instante. */
+    const sigue = sessionsOf(micro).find((x) => x.id === sesionViva);
+    if (sigue && (micro.days || []).some((d) => d.dayName === sigue.dayName)) return null;
+    const fuera = new Set(
+      noGuardadasDelCliente
+        .map((e) => e.payload)
+        .filter((p) => p?.weekNumber === donde.weekNumber && p?.dayName === donde.dayName)
+        .map((p) => `${p.exercise?.id}:${p.setIndex}`)
+    ).size;
+    return (
+      <div className="pc-hoja">
+        <EmptyState
+          icon={Dumbbell}
+          title={`«${donde.dayName}» ya no está en tu rutina`}
+          message={
+            fuera > 0
+              ? `Tu entrenador ha cambiado tu rutina mientras entrenabas. ${
+                  fuera === 1 ? 'La serie que anotaste no se ha guardado' : `Las ${fuera} series que anotaste no se han guardado`
+                }, y tu entrenador lo verá.`
+              : 'Tu entrenador ha cambiado tu rutina. Elige otra sesión.'
+          }
+          action={
+            <Link className="btn btn-primary" to="/mi/rutina">
+              Ver mi rutina
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
 
   if (!day || daySession.exercises.length === 0) {
     return (
@@ -336,6 +409,18 @@ export const ClientSesionRoute = () => {
   */
   const puedeAnotar = Boolean(daySession.activeId && !daySession.session?.isLegacy);
 
+  /* Las series de ESTA sesión que el servidor no guardó, por ejercicio y serie.
+     Una sin sesión todavía (era la primera) se reconoce por su día. */
+  const noGuardadas = new Set(
+    noGuardadasDelCliente
+      .map((e) => e.payload)
+      .filter((p) =>
+        p?.weekNumber === donde.weekNumber &&
+        (daySession.activeId ? p.sessionId === daySession.activeId : p.dayName === day.dayName)
+      )
+      .map((p) => `${p.exercise?.id}:${p.setIndex}`)
+  );
+
   const ejercicios = daySession.exercises.map((ex) => {
     /* El objetivo del ejercicio solo si todas sus series piden lo mismo: una
        pirámide 12/10/8 resumida en una cifra mentiría. Entonces lo dice cada
@@ -363,6 +448,8 @@ export const ClientSesionRoute = () => {
           reps: String(set.reps ?? ''),
           rir: String(set.rir ?? ''),
           hecha: isSetLogged(set),
+          /* El servidor la rechazó: se ve lo anotado, pero no está guardado. */
+          noGuardada: noGuardadas.has(`${ex.id}:${i}`),
           /* Lo que te piden en ESTA serie, y lo que hiciste la vez anterior en
              ella: dos referencias distintas, y ninguna tapa a la otra. */
           pideKg: Number(set.targetKg) > 0 ? String(set.targetKg) : null,

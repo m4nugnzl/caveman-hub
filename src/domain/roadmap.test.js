@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  conReplanteo,
   coversDate,
   effectiveGoal,
+  esperadoEn,
+  esperadoOriginalEn,
+  expectativaDeFase,
   nextPhaseAfter,
   nextPhaseDraft,
   overlapping,
@@ -11,7 +15,10 @@ import {
   phaseProgress,
   phaseProjection,
   phaseWeeks,
+  replanteosDe,
   roadmapState,
+  sinReplanteo,
+  validarReplanteo,
   validatePhase,
 } from './roadmap';
 
@@ -366,5 +373,121 @@ describe('la proyección de una fase', () => {
     expect(p.proyectado).toBeCloseTo(75.4, 1);
     expect(p.objetivo).toBeNull();
     expect(p.desvio).toBeNull();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EL REPLANTEO (0123, docs/roadmap-replanteo.md)
+   --------------------------------------------------------------------------
+   La prueba que protege a los consumidores es la primera: sin replanteos,
+   `phaseProjection` devuelve EXACTAMENTE lo de antes. `TarjetaProgreso` y la
+   lectura semanal no se enteran de que esto existe hasta que alguien iguala.
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('el replanteo', () => {
+  const fase = { id: 'def', title: 'Definición', direction: 'cut', ratePct: 0.6, startsOn: '2026-07-06', endsOn: '2026-09-27' };
+  const goal = { direction: 'cut', ratePct: 0.6, note: '' };
+  const history = [
+    { date: '2026-07-04', weight: 80.8 },
+    { date: '2026-08-01', weight: 79 },
+    { date: '2026-08-28', weight: 77.3 },
+  ];
+
+  it('sin replanteos, la proyección es la de siempre y solo crece', () => {
+    const p = phaseProjection({ phase: fase, history, perWeek: -0.45, goal, date: '2026-08-28' });
+
+    /* La cuenta de antes, escrita a mano: base del arranque, ritmo × semanas. */
+    const desde = 80.8;
+    const objetivo = Math.round((desde - 0.006 * desde * 12) * 10) / 10;
+    const proyectado = Math.round((77.3 - 0.45 * (30 / 7)) * 10) / 10;
+    expect(p).toEqual({
+      desde,
+      hoy: 77.3,
+      proyectado,
+      objetivo,
+      desvio: Math.round((proyectado - objetivo) * 10) / 10,
+      semanas: 12,
+      restantes: 5,
+      objetivoOriginal: objetivo,
+      desvioOriginal: Math.round((proyectado - objetivo) * 10) / 10,
+      base: desde,
+      replanteo: null,
+    });
+  });
+
+  it('la expectativa original parte del arranque y la igualada del jueves de su semana', () => {
+    const conUno = { ...fase, replanteos: [{ semana: '2026-08-03', pesoBase: 79.2, ratePct: 0.4 }] };
+    const exp = expectativaDeFase(conUno, history);
+
+    expect(exp.tramos).toHaveLength(2);
+    expect(exp.original).toMatchObject({ desde: '2026-07-06', ancla: '2026-07-06', base: 80.8, ratePct: 0.6 });
+    expect(exp.tramos[1]).toMatchObject({ desde: '2026-08-03', ancla: '2026-08-06', base: 79.2, ratePct: 0.4 });
+    /* Media contra media: en el jueves de la semana igualada, el esperado es
+       la base exacta — la desviación de esa semana sale cero. */
+    expect(esperadoEn(exp, '2026-08-06')).toBeCloseTo(79.2, 6);
+    /* Antes del replanteo manda el original, y no hay fantasma. */
+    /* El ritmo en kg sale de `targetRateKg`, redondeado a 10 g: −0,48. */
+    expect(esperadoEn(exp, '2026-07-13')).toBeCloseTo(80.8 - 0.48, 6);
+    expect(esperadoOriginalEn(exp, '2026-07-30')).toBeNull();
+    /* Después, el fantasma sigue siendo la recta original. */
+    expect(esperadoOriginalEn(exp, '2026-08-13')).toBeCloseTo(80.8 - (0.48 * 38) / 7, 6);
+  });
+
+  it('con replanteo, el objetivo es el vigente y el original se queda al lado', () => {
+    const conUno = { ...fase, replanteos: [{ semana: '2026-08-03', pesoBase: 79.2, ratePct: 0.6 }] };
+    const p = phaseProjection({ phase: conUno, history, perWeek: -0.45, goal, date: '2026-08-28' });
+
+    expect(p.objetivoOriginal).toBeCloseTo(75, 1);
+    /* 79,2 − 0,6 % de 79,2 por las 53 días / 7 que van del jueves 6 ago al 28 sep */
+    expect(p.objetivo).toBeCloseTo(79.2 - (0.48 * 53) / 7, 1);
+    expect(p.desvio).toBeCloseTo(p.proyectado - p.objetivo, 1);
+    expect(p.replanteo.semana).toBe('2026-08-03');
+    expect(p.base).toBe(79.2);
+  });
+
+  it('uno por semana, y fuera de la fase no cuenta pero no se borra', () => {
+    const f = {
+      ...fase,
+      replanteos: [
+        { semana: '2026-08-03', pesoBase: 79.2, ratePct: 0.6 },
+        { semana: '2026-08-03', pesoBase: 79.0, ratePct: 0.5 },
+        { semana: '2026-10-05', pesoBase: 75, ratePct: 0.5 }, // la fase acabó el 27 sep
+        { semana: '2026-08-05', pesoBase: 79, ratePct: 0.5 }, // no es lunes
+      ],
+    };
+
+    expect(replanteosDe(f)).toEqual([
+      { semana: '2026-08-03', pesoBase: 79, ratePct: 0.5, nota: '', creadoEl: null },
+    ]);
+    /* Si la fase se alarga, el de octubre vuelve. */
+    expect(replanteosDe({ ...f, endsOn: '2026-10-25' }).map((r) => r.semana)).toEqual(['2026-08-03', '2026-10-05']);
+  });
+
+  it('igualar dos veces la misma semana la sustituye; quitar la última deja null', () => {
+    const una = conReplanteo(fase, { semana: '2026-08-03', pesoBase: 79.2, ratePct: 0.6 }, 't1');
+    const otra = conReplanteo({ ...fase, replanteos: una }, { semana: '2026-08-03', pesoBase: 79.1, ratePct: 0.5 }, 't2');
+
+    expect(otra).toEqual([{ semana: '2026-08-03', pesoBase: 79.1, ratePct: 0.5, nota: '', creadoEl: 't2' }]);
+    expect(sinReplanteo({ ...fase, replanteos: otra }, '2026-08-03')).toBeNull();
+  });
+
+  it('no se iguala una semana futura, fuera de la fase o sin lunes', () => {
+    const hoy = '2026-08-28';
+    expect(validarReplanteo(fase, { semana: '2026-08-24', pesoBase: 77.5, ratePct: 0.6 }, hoy)).toBeNull();
+    expect(validarReplanteo(fase, { semana: '2026-08-31', pesoBase: 77.5, ratePct: 0.6 }, hoy)).toMatch(/no ha empezado/);
+    expect(validarReplanteo(fase, { semana: '2026-06-29', pesoBase: 77.5, ratePct: 0.6 }, hoy)).toMatch(/fuera|dentro/);
+    expect(validarReplanteo(fase, { semana: '2026-08-26', pesoBase: 77.5, ratePct: 0.6 }, hoy)).toMatch(/lunes/);
+    expect(validarReplanteo(fase, { semana: '2026-08-24', pesoBase: 'x', ratePct: 0.6 }, hoy)).toMatch(/peso/);
+  });
+
+  /* Decisión 2a: el veredicto semanal juzga contra el ritmo en vigor. */
+  it('phaseGoal con fecha usa el ritmo del último replanteo hasta ese día', () => {
+    const f = { ...fase, replanteos: [{ semana: '2026-08-03', pesoBase: 79.2, ratePct: 0.4 }] };
+
+    expect(phaseGoal(f).ratePct).toBe(0.6);
+    expect(phaseGoal(f, '2026-07-20').ratePct).toBe(0.6);
+    expect(phaseGoal(f, '2026-08-10').ratePct).toBe(0.4);
+    expect(effectiveGoal({ preferences: {} }, [f], '2026-08-10').ratePct).toBe(0.4);
+    /* Sin replanteos, igual que siempre. */
+    expect(phaseGoal(fase, '2026-08-10').ratePct).toBe(0.6);
   });
 });

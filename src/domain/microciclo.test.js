@@ -12,12 +12,15 @@ import {
   microcicloDelBloque,
   semanaDelCliente,
   structureOfBlock,
+  tramoDelBloque,
 } from './blocks';
 import {
   cadenaDe,
+  cadenaLiteral,
   casillasDe,
   cycleSlots,
   cycleSpanDays,
+  diaEnCursoDe,
   duracionDe,
   entrenosDe,
   generarSecuencia,
@@ -120,6 +123,13 @@ const casillasDeAntes = (client, program) => {
   });
 };
 
+const hastaDeAntes = (client, program, block) => {
+  const semanas = program.microcycles.filter(
+    (m) => m.weekNumber >= block.fromWeek && (block.toWeek == null || m.weekNumber <= block.toWeek)
+  );
+  const ultimo = semanas[semanas.length - 1];
+  return addDays(ultimo.date, cycleSpanDays(client.cycleType, client.cyclePattern, ultimo.days) - 1);
+};
 
 /* ══ Equivalencia ══════════════════════════════════════════════════════════ */
 
@@ -154,6 +164,13 @@ describe.each(CASOS)('$nombre: nada visible cambia', ({ cliente, programa }) => 
     }
   });
 
+  it.each(lecturas)('desde y hasta de cada bloque (%s)', (_, p) => {
+    for (const b of blocksOf(programa)) {
+      const tramo = tramoDelBloque(p, b, cliente);
+      expect(tramo.desde).toBe(programa.microcycles.find((m) => m.weekNumber === b.fromWeek).date);
+      expect(tramo.hasta).toBe(hastaDeAntes(cliente, programa, b));
+    }
+  });
 
   it('materializar no toca los microciclos: ni fechas ni analítica pueden moverse', () => {
     expect(materializado.microcycles).toBe(programa.microcycles);
@@ -291,10 +308,14 @@ describe('generarSecuencia', () => {
     }
   });
 
-  it('2-1 con 6 hojas: nueve días, y su cadena se relee como tres tandas', () => {
+  it('2-1 con 6 hojas: nueve días, y su cadena se relee corta', () => {
     const dias = generarSecuencia('2-1', SEIS);
     expect(dias).toHaveLength(9);
-    expect(cadenaDe(dias)).toBe('2-1 2-1 2-1');
+    /* Tres tandas iguales se escriben «2-1»: la tanda ya significa que se
+       repite. La literal sigue disponible para quien compare secuencias. */
+    expect(cadenaDe(dias)).toBe('2-1');
+    expect(cadenaLiteral(dias)).toBe('2-1 2-1 2-1');
+    expect(generarSecuencia(cadenaDe(dias), SEIS)).toEqual(dias);
     expect(entrenosDe({ tipo: 'rotativo', dias })).toBe(6);
   });
 
@@ -364,6 +385,19 @@ describe('leerCadena, cadenaDe y normalizaMicrociclo', () => {
     expect(normalizaMicrociclo(null)).toBeNull();
     expect(normalizaMicrociclo({ tipo: 'quincenal', dias: [{ hoja: 'A' }] })).toBeNull();
     expect(normalizaMicrociclo({ tipo: 'rotativo', dias: [] })).toBeNull();
+  });
+
+  it('el día en curso se cuenta desde que empezó la vuelta, y fuera de ella no hay ninguno', () => {
+    const vuelta = { tipo: 'rotativo', dias: generarSecuencia('2-1', ['A', 'B']) };
+    expect(duracionDe(vuelta)).toBe(3);
+    expect(diaEnCursoDe(vuelta, '2026-09-21', '2026-09-21')).toBe(0);
+    expect(diaEnCursoDe(vuelta, '2026-09-21', '2026-09-23')).toBe(2);
+    /* El día siguiente ya es la vuelta de después: aquí no se marca nada. */
+    expect(diaEnCursoDe(vuelta, '2026-09-21', '2026-09-24')).toBeNull();
+    expect(diaEnCursoDe(vuelta, '2026-09-21', '2026-09-20')).toBeNull();
+    /* Sin fecha de la que partir —o sin microciclo— tampoco. */
+    expect(diaEnCursoDe(vuelta, null, '2026-09-21')).toBeNull();
+    expect(diaEnCursoDe(null, '2026-09-21', '2026-09-21')).toBeNull();
   });
 
   it('las casillas del rotativo son posiciones, las del semanal días', () => {

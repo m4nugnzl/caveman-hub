@@ -1,0 +1,283 @@
+/* ══ REVISIONES: LA PORTADA DE SEMANAS (22 sep 2026) ══════════════════════════
+   Cada fase es una tira con la cabecera de Historial (`.historial-bloque`), la
+   gráfica con los trazos del Resumen (`.progreso-*`) y sus casillas debajo,
+   columna a columna. Ver `review/PortadaDeSemanas.jsx`.
+
+   ── Plana, como el resto de la casa ─────────────────────────────────────────
+   Ni sombras ni relieve: los bocetos «posaban» la revisada con sombra y
+   «hundían» la de sin check-in, y el dueño lo rechazó («no me gustan las boxes
+   con ese acabado 3d»). La forma se dice con tinte y canto, como el
+   microciclo en curso de Historial:
+
+     revisada    tinte de relleno y tic
+     pendiente   la ÚNICA rellena, de azul: te toca (la ley del color)
+     en curso    canto azul, sin relleno
+     sin check   canto discontinuo
+     futura      canto punteado y tinta terciaria, con el esperado
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.semanas-toca { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.semanas-toca > a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.semanas-toca > a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.semanas-toca > a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.tarjeta-semanas .tarjeta-cab { flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.tarjeta-semanas .segmented-item:disabled { opacity: 0.45; cursor: default; }
+.tarjeta-semanas .segmented-item:disabled:hover { color: inherit; }
+
+.tira-fases { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+.tira-fase.is-actual { border-top-color: var(--accent); }
+.tira-fase .historial-nombre.is-quieto { cursor: default; }
+.tira-pliegue { transition: transform var(--fast); }
+.tira-fase .historial-nombre[aria-expanded='true'] .tira-pliegue { transform: rotate(90deg); }
+.tira-fase.is-futura .historial-nombre { color: var(--text-secondary); }
+.tira-cab-derecha { display: flex; align-items: center; gap: var(--s4); flex-shrink: 0; }
+.tira-minima { display: block; flex-shrink: 0; }
+.tira-minima .progreso-trazo { stroke-width: 1.5; }
+
+.tira { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.tira + .tira { margin-top: var(--s3); }
+.tira-svg { display: block; max-width: 100%; overflow: visible; }
+.tira-senal { fill: var(--fill); }
+.tira-hecho { fill: var(--text-tertiary); fill-opacity: 0.06; }
+.tira-hecho-t { fill: var(--text-tertiary); font-size: 10px; font-weight: 500; }
+.tira-toque { fill: transparent; cursor: pointer; }
+
+/* ── La casilla ─────────────────────────────────────────────────────────── */
+.tira-casillas { display: grid; }
+.casilla {
+  display: flex; flex-direction: column; gap: 1px; min-width: 0;
+  margin: 0 2px; padding: 6px 7px 7px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  color: var(--text); text-decoration: none;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  transition: background-color var(--fast), border-color var(--fast);
+}
+.casilla-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 2px; }
+.casilla-n { font-family: var(--font-display); font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); }
+.casilla-marca { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.casilla-marca.is-hoy { color: var(--accent); font-weight: 600; }
+.casilla-fecha { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.casilla-kg { font-size: var(--fs-sm); font-weight: 700; }
+.casilla-kg > small { font-size: var(--fs-2xs); font-weight: 500; color: var(--text-tertiary); }
+.casilla-kg.is-esperado { font-weight: 500; color: var(--text-tertiary); }
+.casilla-kcal { font-size: var(--fs-2xs); color: var(--text-tertiary); }
+
+.casilla.is-revisada { background: var(--fill); }
+.casilla.is-pendiente { background: var(--accent); }
+.casilla.is-pendiente,
+.casilla.is-pendiente .casilla-n,
+.casilla.is-pendiente .casilla-marca,
+.casilla.is-pendiente .casilla-fecha,
+.casilla.is-pendiente .casilla-kcal,
+.casilla.is-pendiente .casilla-kg > small { color: var(--accent-on); }
+.casilla.is-pendiente .casilla-fecha,
+.casilla.is-pendiente .casilla-kcal,
+.casilla.is-pendiente .casilla-kg > small { opacity: 0.8; }
+.casilla.is-curso { border-color: var(--accent); }
+.casilla.is-curso .casilla-n { color: var(--accent); }
+.casilla.is-sin { border-color: var(--hairline-strong); border-style: dashed; }
+.casilla.is-sin .casilla-kg { color: var(--text-secondary); font-weight: 600; }
+.casilla.is-futura { border-color: var(--hairline-strong); border-style: dotted; }
+.casilla.is-futura .casilla-n { color: var(--text-tertiary); }
+
+.casilla:hover, .casilla.is-senalada { border-color: var(--hairline-strong); }
+.casilla.is-revisada:hover, .casilla.is-revisada.is-senalada { background: var(--fill-strong, var(--fill)); }
+.casilla.is-pendiente:hover, .casilla.is-pendiente.is-senalada { background: var(--accent-hover); border-color: transparent; }
+.casilla.is-curso:hover, .casilla.is-curso.is-senalada { border-color: var(--accent); background: var(--accent-soft); }
+.casilla:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Las dos semanas de un periodo quincenal van pegadas: una entrega, una pieza. */
+.casilla.is-pega-d { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.casilla.is-pega-i { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+
+/* La compacta: sin fecha (sale al pasar) y sin unidad (la dice la cabecera). */
+.casilla.is-compacta { padding: 5px 5px 6px; }
+.casilla.is-compacta .casilla-marca.is-hoy { display: none; }
+
+@media (max-width: 639.98px) {
+  .tira-cab-derecha { width: 100%; }
+  .tira-minima { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casilla, .tira-pliegue { transition: none; }
+}
+
+/* ── LA LENTE DE ENTRENO ─────────────────────────────────────────────────
+   Las mismas tiras contando otra cosa: agrupadas por BLOQUE, con columnas de
+   tonelaje sobre las casillas y la fase de fondo en banda fina. Un solo color
+   para todas las semanas hechas —la altura ya dice cuánto— y la hilera de
+   puntos solo donde faltó algún entreno. Ver `review/PortadaDeEntreno.jsx`.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.entreno-fase { fill: var(--c, var(--text-tertiary)); fill-opacity: 0.35; }
+.entreno-fase-t { fill: var(--text-tertiary); font-size: 9.5px; font-weight: 600; letter-spacing: 0.02em; }
+.entreno-tope { stroke: var(--hairline); stroke-width: 1; stroke-dasharray: 3 3; }
+.entreno-tope-t { fill: var(--text-tertiary); font-size: 9.5px; }
+.entreno-suelo { stroke: var(--hairline-strong); stroke-width: 1; }
+.entreno-columna { fill-opacity: 0.55; }
+.entreno-columna.is-hoy { fill-opacity: 0.85; }
+
+/* La hilera va en su propio renglón, alineada a las columnas como las casillas. */
+.entreno-hileras { display: grid; min-height: 9px; }
+.entreno-hilera { display: flex; align-items: center; justify-content: center; gap: 2px; min-height: 9px; }
+.entreno-hilera.is-muestra { display: inline-flex; margin-right: var(--s2); }
+.entreno-punto { width: 4px; height: 4px; border-radius: 50%; background: var(--text-tertiary); opacity: 0.35; }
+.entreno-punto.is-hecho { opacity: 1; }
+
+/* Un bloque en borrador: contorno y nada más. No hay nada que contar todavía. */
+.casilla.is-contorno {
+  min-height: 46px; margin: 0 2px;
+  border: 1px dashed var(--hairline-strong); border-radius: var(--r-sm);
+}
+.tira-bloque.is-borrador .historial-nombre { color: var(--text-secondary); }
+
+/* ── Los ejercicios de referencia ───────────────────────────────────────── */
+.entreno-refs { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); min-width: 0; }
+.entreno-refs-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); flex-wrap: wrap; }
+.entreno-refs-rotulo {
+  font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.entreno-refs-rotulo > small { font-weight: 500; letter-spacing: 0; text-transform: none; }
+.entreno-elige { display: flex; flex-wrap: wrap; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.entreno-ref { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.entreno-ref + .entreno-ref { margin-top: var(--s2); }
+.entreno-ref-say { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding-left: 40px; }
+.entreno-ref-n { font-size: var(--fs-sm); color: var(--text-secondary); min-width: 0; }
+.entreno-ref-svg { display: block; max-width: 100%; overflow: visible; }
+.entreno-ref-svg .progreso-trazo { stroke-width: 1.5; }
+.entreno-ref-cifra {
+  flex: 0 0 auto; font-size: var(--fs-xs); font-weight: 600;
+  color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* ── La semana por días ─────────────────────────────────────────────────── */
+.semana-dias { min-width: 0; }
+.semana-dias-svg { display: block; overflow: visible; }
+.semana-dias-linea { stroke-width: 1.25; stroke-opacity: 0.7; stroke-linejoin: round; }
+.semana-dias-media { stroke-width: 1.5; stroke-opacity: 0.85; }
+.semana-dias-previa { stroke: var(--text-tertiary); stroke-width: 1; stroke-opacity: 0.5; }
+.semana-dias-previa-punto { fill: var(--surface); stroke: var(--text-tertiary); stroke-width: 1.25; stroke-opacity: 0.7; }
+.semana-dias-previa-media { stroke: var(--text-tertiary); stroke-width: 1; stroke-opacity: 0.35; }
+.semana-dias-cifra { fill: var(--text-secondary); font-size: 9.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.semana-dias-rotulo { font-size: 9.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.semana-dias-rotulo.is-previa { fill: var(--text-tertiary); }
+.semana-dias-dia text { fill: var(--text-tertiary); font-size: 9.5px; font-weight: 500; }
+.semana-dias-dia text.is-fecha { font-size: 9px; opacity: 0.8; }
+
+/* ── Las tres cifras de la semana: media, esperado y desvío ─────────────── */
+.semana-cifras { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s6); margin: 0; }
+.semana-cifras > div { display: flex; flex-direction: column; gap: 1px; }
+.semana-cifras dt { order: 2; font-size: var(--fs-2xs); color: var(--text-tertiary); }
+.semana-cifras dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.semana-cifras dd > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
+.semana-linea { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* ── Cómo se ve: los cuatro ángulos de dos semanas (review/ComparaFotos) ───
+   Una cabecera con las dos semanas y debajo cuatro parejas Antes | Ahora, 3:4
+   recortadas, con la semana y el peso dentro de la foto. Sin marco: la foto es
+   la pieza, y lo que la rodea está para no verse. */
+.fotos { display: flex; flex-direction: column; gap: var(--s4); }
+.fotos-cabecera { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s4); }
+.fotos-semanas { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1) var(--s2); font-variant-numeric: tabular-nums; }
+.fotos-elegir { position: relative; }
+/* La semana se pulsa como una casilla de la portada: el mismo canto y el mismo
+   relleno al pasar, y encendida mientras su selector está abierto. */
+.fotos-semana {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 4px 9px; border: 1px solid var(--hairline); border-radius: var(--r-sm);
+  background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+  transition: background-color var(--fast), border-color var(--fast);
+}
+.fotos-semana > b { font-family: var(--font-display); font-weight: 700; }
+.fotos-semana > span { color: var(--text-secondary); }
+.fotos-semana:hover { border-color: var(--hairline-strong); background: var(--fill-subtle); }
+.fotos-semana[aria-expanded='true'] { border-color: var(--accent); background: var(--accent-soft); }
+.fotos-semana:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fotos-flecha { color: var(--text-tertiary); }
+.fotos-delta { font-size: var(--fs-sm); color: var(--text-secondary); }
+.fotos-delta > b { color: var(--text); font-weight: 700; }
+
+.fotos-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4) var(--s5); }
+.fotos-celda { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; margin: 0; }
+.fotos-angulo { display: flex; justify-content: space-between; gap: var(--s2); font-size: var(--fs-xs); font-weight: 600; color: var(--text-secondary); }
+.fotos-n { display: none; font-weight: 500; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.fotos-par {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px;
+  padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; font: inherit; color: inherit;
+}
+button.fotos-par { cursor: zoom-in; }
+button.fotos-par:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.fotos-par.is-sola { grid-template-columns: minmax(0, 1fr); max-width: calc(50% - 2px); }
+.fotos-foto {
+  position: relative; display: block; aspect-ratio: 3 / 4; max-width: 100%; overflow: hidden;
+  border-radius: var(--r-sm); background: var(--fill-subtle);
+}
+.fotos-foto > img { display: block; width: 100%; height: 100%; object-fit: cover; transition: filter var(--fast); }
+button.fotos-par:hover .fotos-foto > img { filter: brightness(1.05); }
+/* El pie va dentro, abajo, sobre un degradado que solo oscurece lo que tapa. */
+.fotos-pie {
+  position: absolute; inset: auto 0 0 0; padding: 24px 8px 6px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+  color: #fff; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: left;
+}
+.fotos-pie > b { font-weight: 700; }
+/* El hueco honesto: el mismo sitio, con su semana, y dice qué falta. */
+.fotos-foto.is-hueco { display: grid; place-items: center; background: transparent; border: 1px dashed var(--hairline-strong); }
+.fotos-hueco { padding: 0 var(--s2); font-size: var(--fs-xs); color: var(--text-tertiary); text-align: center; }
+.fotos-foto.is-hueco .fotos-pie { background: none; color: var(--text-tertiary); }
+.fotos-foto.is-hueco .fotos-pie > b { color: var(--text-secondary); }
+
+.fotos-lado { display: flex; align-items: center; flex-wrap: wrap; gap: var(--s1) var(--s2); margin: 0; font-size: var(--fs-xs); color: var(--text-secondary); }
+.fotos-estudio { align-self: flex-start; }
+
+/* El selector de semana: los atajos arriba y las casillas por fase. */
+.fotos-capa { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s3); width: max-content; max-width: min(440px, calc(100vw - 16px)); }
+.fotos-atajos { display: flex; flex-wrap: wrap; gap: var(--s1); padding-bottom: var(--s3); border-bottom: 1px solid var(--hairline); }
+.fotos-atajos .chip:disabled { opacity: 0.45; cursor: default; }
+.fotos-atajos .chip[aria-pressed='true'] .t-tertiary { color: inherit; opacity: 0.8; }
+.fotos-capa-fase { display: flex; flex-direction: column; gap: var(--s1); }
+.fotos-capa-titulo { font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary); }
+.fotos-casillas { display: flex; flex-wrap: wrap; gap: 4px; }
+.fotos-casillas .casilla {
+  margin: 0; min-width: 52px; border-color: var(--hairline);
+  background: transparent; font: inherit; text-align: left; cursor: pointer;
+}
+.fotos-casillas .casilla.is-elegida { background: var(--accent); border-color: transparent; }
+.fotos-casillas .casilla.is-elegida .casilla-n,
+.fotos-casillas .casilla.is-elegida .casilla-kg { color: var(--accent-on); }
+.fotos-casillas .casilla:disabled { opacity: 0.4; cursor: default; }
+.fotos-casillas .casilla:not(:disabled):not(.is-elegida):hover { border-color: var(--hairline-strong); background: var(--fill-subtle); }
+
+/* En el teléfono, una pareja por pantalla y se desliza de ángulo en ángulo. */
+@media (max-width: 639.98px) {
+  .fotos-rejilla {
+    display: flex; gap: var(--s3); overflow-x: auto; overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+  }
+  .fotos-rejilla::-webkit-scrollbar { display: none; }
+  .fotos-celda { flex: 0 0 100%; scroll-snap-align: start; }
+  .fotos-n { display: inline; }
+}
+
+/* ── Lo planificado de una semana futura, en filas ──────────────────────── */
+.semana-filas { display: flex; flex-direction: column; margin: 0; }
+.semana-filas > div {
+  display: flex; justify-content: space-between; gap: var(--s3);
+  padding: var(--s2) 0; border-top: 1px solid var(--hairline); font-size: var(--fs-sm);
+}
+.semana-filas > div:first-child { border-top: 0; }
+.semana-filas dt { color: var(--text-secondary); }
+.semana-filas dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.semana-filas dd.is-suave { font-weight: 500; color: var(--text-tertiary); }
+
+/* ── La entrega fuera de hora (review/EntregaFueraDePlazo) ──────────────────
+   Cómo llegó, lo que llegó después y reabrirla. En gris y sin veredicto: es un
+   dato para leer la semana, no una falta. */
+.entrega-tarde { display: flex; flex-direction: column; gap: var(--s3); }
+.entrega-tarde-parte { display: flex; flex-direction: column; gap: var(--s2); }
+.entrega-tarde-rotulo { margin: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); }
+.entrega-tarde-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s3); }
+.semana-linea.is-error { color: var(--negative); }

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 import { metricColor } from '@/domain/metrics';
 import { localeNumber } from '@/lib/dates';
 import { GroupHead, Panel } from '@/components/ui/primitives';
@@ -5,6 +7,7 @@ import { Sparkline } from '@/components/ui/charts';
 import { PasosDeLaEntrega } from './PasosDeLaEntrega';
 import { PesoDeHoy } from './PesoDeHoy';
 import { TusSemanas } from './TusSemanas';
+import { TuRoadmap } from './TuRoadmap';
 
 /**
  * «ENTREGA TU SEMANA» EN EL MONITOR — tres cosas que hacer y una que mirar.
@@ -80,6 +83,27 @@ export const RevisionEnMonitor = ({ datos }) => {
       <div className="entrega-pagina">
         <div className="entrega">
           <div className="entrega-mesa">
+            {/* 0. UNA SEMANA PASADA que se completa: cuál es, hasta cuándo, y
+                   la vuelta a la de hoy. Sin esto, la pantalla es idéntica a la
+                   de siempre y nada dice que lo que se apunta va a otra semana. */}
+            {entrega.pasada ? (
+              <GroupHead
+                title={`Tu semana del ${entrega.pasada.semana}`}
+                sub={
+                  entrega.cerrada
+                    ? entrega.pasada.motivo
+                    : [entrega.pasada.hasta ? `Puedes completarla hasta el ${entrega.pasada.hasta}` : null, 'lo que apuntes aquí cuenta para esa semana']
+                        .filter(Boolean)
+                        .join(' · ')
+                }
+                action={
+                  <Link className="cab-accion" to="/mi/evolucion">
+                    Volver a esta semana
+                  </Link>
+                }
+              />
+            ) : null}
+
             {/* 1. APUNTAR, y lo primero. Con el peso oculto no existe:
                    `datos.peso` llega a null desde la ruta. */}
             {peso ? <PesoDeHoy {...peso} conMedia={false} /> : null}
@@ -92,6 +116,7 @@ export const RevisionEnMonitor = ({ datos }) => {
               yaEntregada={entrega.yaEntregada}
               entregadaEl={entrega.entregadaEl}
               cerrada={entrega.cerrada}
+              pasada={entrega.pasada}
             />
 
             {/* 3. Lo que te contestó. Es un texto suyo, así que va en su
@@ -107,7 +132,9 @@ export const RevisionEnMonitor = ({ datos }) => {
               </div>
             ) : null}
 
-            {/* 4. Mirar atrás, cuando ya está hecho lo de arriba. */}
+            {/* 4. Mirar atrás, cuando ya está hecho lo de arriba: su plan en el
+                   tiempo y, debajo, semana a semana. */}
+            {entrega.pasada ? null : <TuRoadmap />}
             <TusSemanas />
           </div>
 

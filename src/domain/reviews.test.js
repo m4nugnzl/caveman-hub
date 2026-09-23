@@ -826,6 +826,17 @@ describe('reviewableWeeks', () => {
   const lunesR = (n) =>
     new Date(Date.parse(`${ALTA_R}T00:00:00Z`) + (n - 1) * 7 * 86400000).toISOString().slice(0, 10);
 
+  it('incluye las semanas en las que se pesó o entregó, sin rutina montada', () => {
+    expect(
+      reviewableWeeks({
+        programmed: [1, 2],
+        startDate: ALTA_R,
+        /* Un pesaje el jueves de la 5, la entrega de esa misma semana y la de la 7. */
+        active: ['2026-04-02', lunesR(5), lunesR(7), null],
+      })
+    ).toEqual([1, 2, 5, 7]);
+  });
+
   it('incluye la semana que pide la pasada aunque no tenga rutina montada', () => {
     expect(
       reviewableWeeks({

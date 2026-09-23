@@ -66,6 +66,12 @@ const DaySheet = ({
   onToggle,
   onRemove,
   onClose,
+  /* Los eventos que quien mira no puede tocar: al cliente, el destino del plan
+     (0122). La base ya se lo rechaza; aquí se deja de ofrecer. */
+  bloqueado = () => false,
+  /* Los tipos que quien mira puede apuntar: al cliente no se le ofrecen los
+     del entrenador (refeed y diet break, 0123), que la base le rechazaría. */
+  soloLosSuyos = false,
 }) => {
   const [kind, setKind] = useState('appointment');
   const [title, setTitle] = useState('');
@@ -134,24 +140,31 @@ const DaySheet = ({
                   >
                     {event.title}
                   </span>
-                  <span className="sub">{kindMeta(event.kind).label}</span>
+                  <span className="sub">
+                    {kindMeta(event.kind).label}
+                    {event.ancla ? ' · destino del plan' : ''}
+                  </span>
                 </span>
-                <button
-                  type="button"
-                  className="chip"
-                  aria-pressed={event.done}
-                  onClick={() => onToggle(event)}
-                >
-                  {event.done ? 'Hecho' : 'Marcar hecho'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-icon btn-icon-danger"
-                  onClick={() => onRemove(event)}
-                  aria-label={`Borrar ${event.title}`}
-                >
-                  <Trash2 size={15} />
-                </button>
+                {!bloqueado(event) && (
+                  <>
+                    <button
+                      type="button"
+                      className="chip"
+                      aria-pressed={event.done}
+                      onClick={() => onToggle(event)}
+                    >
+                      {event.done ? 'Hecho' : 'Marcar hecho'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-icon btn-icon-danger"
+                      onClick={() => onRemove(event)}
+                      aria-label={`Borrar ${event.title}`}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -164,7 +177,7 @@ const DaySheet = ({
         {canWrite && (
           <form className="col gap-3" onSubmit={submit}>
             <div className="rail-wrap" role="group" aria-label="Tipo de evento">
-              {EVENT_KINDS.filter((k) => k.id !== 'checkin').map((k) => (
+              {EVENT_KINDS.filter((k) => k.id !== 'checkin' && !(soloLosSuyos && k.soloEntrenador)).map((k) => (
                 <button
                   key={k.id}
                   type="button"
@@ -713,26 +726,31 @@ export const CalendarPanel = ({ audience = 'client' }) => {
                       {event.title}
                     </span>
                     <span className="sub">
-                      {kindMeta(event.kind).label} · {shortDate(event.date)}
+                      {kindMeta(event.kind).label}
+                      {event.ancla ? ' · destino del plan' : ''} · {shortDate(event.date)}
                     </span>
                   </span>
 
-                  <button
-                    type="button"
-                    className="chip"
-                    aria-pressed={event.done}
-                    onClick={() => act(setEventDone(event.id, !event.done))}
-                  >
-                    {event.done ? 'Hecho' : 'Marcar hecho'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-icon btn-icon-danger"
-                    onClick={() => act(removeClientEvent(event.id))}
-                    aria-label={`Borrar ${event.title}`}
-                  >
-                    <Trash2 size={15} />
-                  </button>
+                  {!(isClient && event.ancla) && (
+                    <>
+                      <button
+                        type="button"
+                        className="chip"
+                        aria-pressed={event.done}
+                        onClick={() => act(setEventDone(event.id, !event.done))}
+                      >
+                        {event.done ? 'Hecho' : 'Marcar hecho'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-icon btn-icon-danger"
+                        onClick={() => act(removeClientEvent(event.id))}
+                        aria-label={`Borrar ${event.title}`}
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))}
           </div>
@@ -752,6 +770,8 @@ export const CalendarPanel = ({ audience = 'client' }) => {
           onMove={moverRevision}
           onToggle={(event) => act(setEventDone(event.id, !event.done))}
           onRemove={(event) => act(removeClientEvent(event.id))}
+          bloqueado={(event) => isClient && (event.ancla || kindMeta(event.kind).soloEntrenador)}
+          soloLosSuyos={isClient}
           onClose={() => setOpenDay(null)}
         />
       )}

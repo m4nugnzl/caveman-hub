@@ -3,10 +3,10 @@ import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import { parseRoutineSheet } from '@/domain/routineSheet';
-import { asPlan, parseDietSheet } from '@/domain/dietSheet';
+import { asPlan, mergeDietReadings, parseDietSheet } from '@/domain/dietSheet';
 import { matchFoodNames, pendingMatches } from '@/domain/foodMatch';
 import { foodNames } from '@/domain/dietSheet';
-import { RoutinePreview, toEditableDays } from './RoutinePreview';
+import { RoutinePreview, aBorrador, aplicarCambio, toEditableDays } from './RoutinePreview';
 import { DietPreview, FoodMatchList, aPlanDeDieta, resolverCon, toEditableDiet } from './DietPreview';
 import { SheetPicker } from './PastePlanDialog';
 import { ACCEPT, porQueNoSeLee } from './useSheetSource';
@@ -403,5 +403,48 @@ describe('porQueNoSeLee', () => {
     expect(ACCEPT).toContain('.xls,');
     expect(ACCEPT).toContain('.doc,');
     expect(ACCEPT).toContain('.docx,');
+  });
+});
+
+describe('series que no son todas iguales, en la revisión', () => {
+  const [pull] = leer('rutina-top-set-back-off.tsv');
+  const remo = pull.exercises.find((e) => e.name.startsWith('Remo en T'));
+
+  it('el objetivo se enseña con cuántas series pide cada cosa', () => {
+    expect(pintar([pull])).toContain('value="2×7-9 · 10-12"');
+  });
+
+  it('lo que se escribe con esa forma cambia serie a serie, y manda sobre las series', () => {
+    const editado = aplicarCambio(remo, { objetivo: '1×6-8 · 3×8-10' });
+    expect(editado.sets).toBe(4);
+    expect(editado.targets).toEqual(['6-8', '8-10', '8-10', '8-10']);
+  });
+
+  it('un valor solo sigue valiendo para todas', () => {
+    expect(aplicarCambio(remo, { objetivo: '8-12' }).targets).toEqual(['8-12', '8-12', '8-12']);
+  });
+
+  it('se guarda lo revisado, serie a serie', () => {
+    const [dia] = aBorrador([{ ...pull, exercises: [remo] }]);
+    expect(dia.exercises[0].sets.map((s) => s.targetReps)).toEqual(['7-9', '7-9', '10-12']);
+  });
+});
+
+describe('una pestaña de macros de entreno y descanso', () => {
+  const dieta = mergeDietReadings([{ name: 'MACROS', reading: parseDietSheet(hoja('dieta-macros-on-off.tsv')) }]);
+
+  it('la lista de pestañas dice que trae los dos días', () => {
+    const html = renderToString(
+      <SheetPicker hojas={[{ name: 'MACROS', rutina: { days: [] }, dieta }]} elegidas={[0]} onToggle={() => {}} />
+    );
+    expect(html).toContain('los macros de entreno y de descanso');
+  });
+
+  it('se guardan los dos objetivos y NO se tocan las comidas que ya tenga', () => {
+    const guardado = aPlanDeDieta(toEditableDiet(dieta), resolverCon({}), dieta);
+    expect(guardado.variants.map((v) => [v.variant, v.targets.kcals, v.meals])).toEqual([
+      ['training', 3600, null],
+      ['rest', 3400, null],
+    ]);
   });
 });

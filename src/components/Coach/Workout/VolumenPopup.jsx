@@ -60,7 +60,6 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
       size="lg"
       icono={BarChart2}
       title={`Volumen · ${bloque.name}`}
-      sub={`Distribución semanal por grupo muscular y hoja de entrenamiento`}
       onClose={onClose}
     >
       {grupos.length === 0 ? (

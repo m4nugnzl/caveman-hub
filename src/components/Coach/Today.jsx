@@ -38,7 +38,7 @@ import {
   weekdayIndex,
 } from '@/domain/calendar';
 import { answersSummary, clientProtocol } from '@/domain/protocol';
-import { clientPath } from '@/routes';
+import { clientPath, semanaPath } from '@/routes';
 import { addDays, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Avatar } from '@/components/ui/Avatar';
 import { BotonAccion, EmptyState, Notice, useAccionDeBoton } from '@/components/ui/primitives';
@@ -223,6 +223,10 @@ const Aplazar = ({ row, onAplazar, onCerrar }) => {
 };
 
 const ColaRevisar = ({ lista, onOpen, onCerrar, onAplazar }) => {
+  /* «Revisar» aterriza en la semana que espera, por su lunes (`row.review.weekStart`). */
+  const navegar = useNavigate();
+  const onOpenSemana = (row) =>
+    row.review?.weekStart ? navegar(semanaPath(row.client.id, row.review.weekStart)) : onOpen(row.client.id, 'semana');
   const [escribiendo, setEscribiendo] = useState(null);
   const [aplazando, setAplazando] = useState(null);
   /* Solo hay UNA respuesta abierta a la vez, así que un estado basta para su
@@ -241,7 +245,7 @@ const ColaRevisar = ({ lista, onOpen, onCerrar, onAplazar }) => {
             row={row}
             sub={resumenDe(row)}
             badge={ESTADO_REVISION[row.review_state]}
-            onOpen={() => onOpen(id, 'semana')}
+            onOpen={() => onOpenSemana(row)}
           >
             {puedeCerrar && (
               <>
@@ -289,7 +293,7 @@ const ColaRevisar = ({ lista, onOpen, onCerrar, onAplazar }) => {
                 <CalendarClock size={13} /> Aplazar
               </button>
             )}
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpen(id, 'semana')}>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => onOpenSemana(row)}>
               Revisar
             </button>
             {escribiendo === id && (

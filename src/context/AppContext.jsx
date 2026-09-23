@@ -6,6 +6,9 @@ import { borrarInstantanea, guardarInstantanea, leerInstantanea } from '@/lib/in
 import { createSaveQueue } from '@/lib/saveQueue';
 import { olvidarSesion, recordarSesion, sesionDeRespaldo } from '@/lib/sesionOffline';
 import { pendingStore } from '@/lib/pendingSaves';
+import { almacenNoGuardadas, contarFallos, crearRecolocador, esDelCliente, esRechazoDelPlan } from '@/lib/seriesNoGuardadas';
+import { conSeriesSinConfirmar } from '@/domain/seriesSinConfirmar';
+import { BUILD, firmaDeEscritura, hayVersionNueva, vigilarVersion } from '@/lib/version';
 import { useMirroredState } from '@/lib/useMirroredState';
 import { recordIssue } from '@/lib/diagnostics';
 import { flushEvents, forgetActor, identify } from '@/lib/analytics';
@@ -49,6 +52,7 @@ import {
   mapWorkoutToDb,
 } from '@/lib/mappers';
 import { adoptMicrocycle, emptyWorkoutData } from '@/domain/training';
+import { conRepartoDelAbierto } from '@/domain/blocks';
 import { emptyNutrition } from '@/domain/nutrition';
 import {
   buildIntakePath,
@@ -82,6 +86,18 @@ const QUEUE_OF_TABLE = {
 
 /** Destinos válidos de un guardado recuperado. Ver el efecto de recuperación. */
 const DOMINIOS = ['workout', 'anthro', 'nutrition', 'client', 'preferences'];
+
+/** Lo que dice un guardado del programa que se para porque hay otra versión. Ver `lib/version`. */
+const VERSION_VIEJA =
+  'Hay una versión nueva de la aplicación. Tus cambios del programa se guardarán al recargar.';
+
+/**
+ * La versión que se da por leída cuando no se sabe sobre cuál se hizo un cambio
+ * (una nota de antes de que las notas la llevaran). No coincide con ninguna, así
+ * que escribir con ella siempre acaba en el aviso de conflicto: se pregunta en
+ * vez de pisar. Ver el reenvío de lo pendiente.
+ */
+const SIN_BASE = '1970-01-01T00:00:00+00:00';
 
 const EMPTY_SAVE_STATE = { status: 'idle', error: null };
 
@@ -118,6 +134,12 @@ const ESPERA_DE_SESION = 2500;
 const ESPERA_DE_CARGA = 3500;
 
 /**
+ * Cuánto vale el programa del CLIENTE antes de volver a pedirlo al volver a la
+ * aplicación. Ver `refrescarPrograma`.
+ */
+const PROGRAMA_VALE_MS = 5 * 60 * 1000;
+
+/**
  * Las claves de cola que son «la rutina de este cliente» sin ser `workout:<id>`.
  *
  * El cliente no escribe el bloque: escribe una serie (`set:`) o pide la semana
@@ -137,6 +159,30 @@ export const AppProvider = ({ children }) => {
     error que se pueda ignorar, y por eso vive aparte de `loadError`.
   */
   const [conflict, setConflict] = useState(null);
+
+  /*
+    ══ Las series que el servidor RECHAZÓ, y que no pueden desaparecer ═════════
+
+    La cola borra de su nota lo que el servidor rechaza para siempre —reenviarlo
+    en cada arranque no lo haría válido—. Una serie así (su hoja se renombró o se
+    quitó con el teléfono abierto desde antes) vivía entonces solo en la memoria
+    de la pestaña. Ahora se apunta aparte y se enseña como no guardada. Ver
+    `lib/seriesNoGuardadas`.
+  */
+  const noGuardadasRef = useRef(null);
+  const [seriesNoGuardadas, setSeriesNoGuardadas] = useState([]);
+  /* Lo que hay que hacer con un rechazo, en un ref: la cola se construye en el
+     primer render y lo que necesita (`persistSet`, el programa) viene después. */
+  const alRechazarRef = useRef(null);
+
+  /*
+    Los programas que se están volviendo a aplicar tras actualizar la aplicación
+    (ver el reenvío de lo pendiente). Si chocan con otra escritura, el aviso de
+    conflicto lo dice con sus palabras: no es que alguien escriba a la vez, es
+    que el cambio es de antes de recargar.
+  */
+  const reaplicadosRef = useRef(new Set());
+  const contarPendientesRef = useRef(null);
 
   /*
     ══ Se está mirando una COPIA ══════════════════════════════════════════════
@@ -278,8 +324,19 @@ export const AppProvider = ({ children }) => {
         repetido de la aplicación era mentira. Ver `lib/conexion`.
       */
       isOnline: hayRed,
+      onRechazo: (key, payload, error) => alRechazarRef.current?.(key, payload, error),
       store: {
-        save: (key, payload) => storeRef.current?.save(key, payload),
+        /* El programa lleva al lado la versión del servidor sobre la que se
+           hizo: al volver a mandarlo tras recargar es lo que dice si alguien
+           ha escrito encima desde entonces. */
+        save: (key, payload) =>
+          storeRef.current?.save(
+            key,
+            payload,
+            key.startsWith('workout:')
+              ? { base: versionsRef.current?.workout_data?.[key.slice('workout:'.length)] ?? null }
+              : null
+          ),
         clear: (key) => storeRef.current?.clear(key),
       },
       onStatus: (key, next) => {
@@ -292,6 +349,20 @@ export const AppProvider = ({ children }) => {
           —`workout:<cliente>`— y el mensaje lo segundo.
         */
         if (next.status === 'error') recordIssue('guardado', next.error, { key });
+        /* Una serie que estaba entre las no guardadas y por fin ha entrado. Si
+           ya se le había contado al entrenador, se le borra la línea: decir «no
+           se guardó» de algo guardado es peor que no decir nada. */
+        if (next.status === 'saved' && key.startsWith('set:') && noGuardadasRef.current) {
+          const estaba = noGuardadasRef.current.list().find((e) => e.key === key);
+          if (estaba) {
+            setSeriesNoGuardadas(noGuardadasRef.current.quitar(key));
+            if (estaba.avisado) {
+              Promise.resolve(
+                supabase.rpc('report_unsaved_set', { p_client: key.split(':')[1], p_clave: key, p_datos: null })
+              ).catch(() => {});
+            }
+          }
+        }
 
         setSaveState((prev) =>
           prev[key]?.status === next.status && prev[key]?.error === next.error
@@ -327,11 +398,21 @@ export const AppProvider = ({ children }) => {
       const own = saveState[`${domain}:${clientId}`];
       if (domain !== 'workout') return own || EMPTY_SAVE_STATE;
 
+      /* Las no guardadas cuentan aunque la cola ya no las tenga —tras recargar,
+         por ejemplo—: siguen sin estar en el servidor. */
+      const suyas = seriesNoGuardadas.filter((e) => esDelCliente(e, clientId));
+      const noGuardadas = suyas.length;
+      /* Por qué, si es uno solo y se sabe: lo dice el pie de la sesión. */
+      const motivo = noGuardadas > 0 && suyas.every((e) => esRechazoDelPlan(e.error)) ? 'plan' : null;
+
       const parts = Object.entries(saveState).filter(([key]) => esClaveDeRutina(key, clientId));
-      if (parts.length === 0) return own || EMPTY_SAVE_STATE;
+      if (parts.length === 0) {
+        return noGuardadas > 0 ? { status: 'error', error: null, noGuardadas, motivo } : own || EMPTY_SAVE_STATE;
+      }
 
       const failed = parts.find(([, s]) => s.status === 'error');
-      if (failed) return failed[1];
+      if (failed) return { ...failed[1], noGuardadas, motivo };
+      if (noGuardadas > 0) return { status: 'error', error: null, noGuardadas, motivo };
       /*
         'pending' va DELANTE de 'saving' y de 'saved', y esta línea es lo que
         impide que el modo sin conexión reintroduzca el fallo silencioso que toda
@@ -344,8 +425,12 @@ export const AppProvider = ({ children }) => {
       if (own?.status === 'error' || own?.status === 'saving' || own?.status === 'pending') return own;
       return { status: 'saved', error: null };
     },
-    [saveState]
+    [saveState, seriesNoGuardadas]
   );
+
+  /* Volver a mandar las no guardadas. Un ref por el orden de los ganchos: quien
+     sabe mandar una serie (`persistSet`) se define más abajo. */
+  const reintentarNoGuardadasRef = useRef(null);
 
   const retrySave = useCallback(
     (domain, clientId) => {
@@ -356,6 +441,7 @@ export const AppProvider = ({ children }) => {
         for (const key of Object.keys(saveState)) {
           if (esClaveDeRutina(key, clientId) && saveState[key]?.status === 'error') queue.retry(key);
         }
+        reintentarNoGuardadasRef.current?.(clientId);
       }
     },
     [queue, saveState]
@@ -375,14 +461,20 @@ export const AppProvider = ({ children }) => {
    * tuyo está guardado», que es mentira; esto es lo que la tapa.
    */
   const fallosAlGuardar = useMemo(
-    () => Object.values(saveState).filter((s) => s.status === 'error').length,
-    [saveState]
+    () =>
+      contarFallos([
+        ...Object.keys(saveState).filter((key) => saveState[key].status === 'error'),
+        /* Y las series rechazadas que ya no están en la cola (tras recargar). */
+        ...seriesNoGuardadas.map((e) => e.key),
+      ]),
+    [saveState, seriesNoGuardadas]
   );
 
   const reintentarLoFallido = useCallback(() => {
     for (const [key, s] of Object.entries(saveState)) {
       if (s.status === 'error') queue.retry(key);
     }
+    reintentarNoGuardadasRef.current?.(null);
   }, [queue, saveState]);
 
   /*
@@ -405,6 +497,10 @@ export const AppProvider = ({ children }) => {
     () => Object.values(saveState).filter((s) => s.status === 'pending').length,
     [saveState]
   );
+
+  /* ¿Se ha publicado otra versión? Al volver a la pestaña y cada cuarto de hora.
+     Ver `lib/version`. */
+  useEffect(() => vigilarVersion(), []);
 
   // Un cierre de pestaña con debounce pendiente perdía el último cambio.
   useEffect(() => {
@@ -498,8 +594,12 @@ export const AppProvider = ({ children }) => {
    * conflicto de verdad—, no en cada guardado.
    */
   const upsertClientRow = useCallback(
-    async (table, clientId, row) => {
+    async (table, clientId, fila) => {
       const seen = versionsRef.current[table]?.[clientId];
+      /* Cada escritura del programa firma con su build y algo que no se repite:
+         el trigger de la 0131 rechaza un cambio del plan con la firma de antes,
+         que es lo que manda una versión que no conoce la columna. */
+      const row = table === 'workout_data' ? { ...fila, escrito_por: firmaDeEscritura() } : fila;
 
       let query = supabase.from(table).update(row).eq('client_id', clientId);
       if (seen) query = query.eq('updated_at', seen);
@@ -509,6 +609,7 @@ export const AppProvider = ({ children }) => {
 
       if (updated.data && updated.data.length > 0) {
         rememberVersion(table, clientId, updated.data[0].updated_at);
+        if (table === 'workout_data') reaplicadosRef.current.delete(clientId);
         return updated;
       }
 
@@ -556,7 +657,13 @@ export const AppProvider = ({ children }) => {
           explicarlo y ofrecer salida. Lo que NO se hace es escribir igualmente:
           eso es exactamente el borrado silencioso que esto viene a impedir.
         */
-        setConflict({ table, clientId, at: current.data.updated_at });
+        setConflict({
+          table,
+          clientId,
+          at: current.data.updated_at,
+          /* Un cambio de antes de actualizar la aplicación, no de ahora. */
+          motivo: table === 'workout_data' && reaplicadosRef.current.has(clientId) ? 'version' : null,
+        });
         return {
           error: {
             message:
@@ -592,11 +699,19 @@ export const AppProvider = ({ children }) => {
   const resolveConflict = useCallback(
     (mode) => {
       if (!conflict) return;
+      const { table, clientId } = conflict;
       if (mode === 'reload') {
+        /*
+          «Quedarme con lo suyo» es tirar lo mío, y lo mío sigue en la nota del
+          navegador: sin borrarla, el arranque siguiente lo reenviaba —sin la
+          versión leída, o sea sin guardia— y lo escribía ENCIMA de lo que
+          acababas de elegir conservar.
+        */
+        storeRef.current?.clear(`${QUEUE_OF_TABLE[table]}:${clientId}`);
+        reaplicadosRef.current.delete(clientId);
         window.location.reload();
         return;
       }
-      const { table, clientId } = conflict;
       if (versionsRef.current[table]) delete versionsRef.current[table][clientId];
       setConflict(null);
       queue.retry(`${QUEUE_OF_TABLE[table]}:${clientId}`);
@@ -665,12 +780,28 @@ export const AppProvider = ({ children }) => {
     reviewCheckIn,
     unreviewCheckIn,
     updateCheckInNotes,
+    filaDeRevision,
+    reabrirRevision,
   } = useCheckIns({ stampNow });
 
   const persist = useCallback(
     (domain, clientId, payload, { immediate = false } = {}) => {
       const senders = {
-        workout: (data) => upsertClientRow('workout_data', clientId, mapWorkoutToDb(clientId, data)),
+        /* Con otra versión publicada, el programa no sale: lo reescribiría
+           entero con las reglas de esta. Se mira al ENVIAR y no al encolar,
+           para parar también lo que ya esperaba en la cola. Ver `lib/version`. */
+        workout: (data) => {
+          if (!hayVersionNueva()) return upsertClientRow('workout_data', clientId, mapWorkoutToDb(clientId, data));
+          /* No sale, pero NO se pierde: se queda en la nota del navegador con
+             la versión leída ahora, y la versión nueva lo vuelve a aplicar al
+             arrancar (ver el reenvío de lo pendiente). La nota se reescribe
+             aquí porque la de `enqueue` pudo apuntarse con un guardado en vuelo,
+             o sea con la versión de antes de ese guardado. */
+          storeRef.current?.save(`workout:${clientId}`, data, {
+            base: versionsRef.current?.workout_data?.[clientId] ?? null,
+          });
+          return Promise.resolve({ error: { message: VERSION_VIEJA } });
+        },
         anthro: (data) => upsertClientRow('anthropometry', clientId, mapAnthroToDb(clientId, data)),
         nutrition: (data) =>
           upsertClientRow('nutrition_plans', clientId, mapNutritionToDb(clientId, data)),
@@ -874,6 +1005,8 @@ export const AppProvider = ({ children }) => {
    * pantalla y lo que hay guardado que arregla la 0085, por el otro extremo.
    */
   const recuperadoRef = useRef(false);
+  /** Programas de otra versión que esperan a que su cliente esté cargado. */
+  const porReaplicarRef = useRef([]);
 
   useEffect(() => {
     const userId = session?.user?.id;
@@ -881,16 +1014,49 @@ export const AppProvider = ({ children }) => {
       // Al cerrar sesión se suelta el almacén: lo que escriba el siguiente no
       // puede acabar bajo la clave del anterior.
       storeRef.current = null;
+      noGuardadasRef.current = null;
+      setSeriesNoGuardadas([]);
       recuperadoRef.current = false;
       return;
     }
     if (recuperadoRef.current) return;
 
     recuperadoRef.current = true;
-    storeRef.current = pendingStore(userId);
+    storeRef.current = pendingStore(userId, BUILD);
+    /* Las rechazadas NO se reenvían aquí: se rechazarían igual. Se enseñan. */
+    noGuardadasRef.current = almacenNoGuardadas(userId);
+    setSeriesNoGuardadas(noGuardadasRef.current.list());
+    /* Y las que no se le llegaron a contar al entrenador (sin red, o antes de
+       la 0132), se le cuentan ahora. */
+    contarPendientesRef.current?.();
 
-    for (const { key, payload } of storeRef.current.list()) {
+    for (const { key, payload, build, base } of storeRef.current.list()) {
       const partes = key.split(':');
+      /*
+        El programa entero solo se reenvía TAL CUAL si lo apuntó esta misma
+        versión. Uno de otra —o sin etiqueta, de antes de que la hubiera— está
+        montado con las reglas de entonces: mandarlo desde aquí lo escribiría
+        encima de lo de ahora con esas reglas.
+
+        Pero tampoco se tira: es lo que el entrenador escribió después del aviso
+        de «Hay una versión nueva», o justo antes de recargar. Se aparta y se
+        vuelve a aplicar cuando el programa esté cargado (efecto de más abajo,
+        tras `ensureProgram`).
+
+        Las series, las notas y la semana nueva sí se reenvían siempre: van campo
+        a campo por funciones de la base que validan lo que reciben, y perderlas
+        es perder lo que alguien entrenó.
+      */
+      if (partes[0] === 'workout' && partes[1] && build !== BUILD) {
+        porReaplicarRef.current.push({ clientId: partes[1], payload, base: base ?? null });
+        continue;
+      }
+      /* Y el de esta versión sale con guardia: la versión sobre la que se hizo.
+         Sin ella, en el arranque todavía no hay ninguna leída y el reenvío
+         escribía sin mirar si alguien había escrito encima. */
+      if (partes[0] === 'workout' && partes[1] && base && !versionsRef.current.workout_data?.[partes[1]]) {
+        rememberVersion('workout_data', partes[1], base);
+      }
       if (partes[0] === 'set' && partes[1]) {
         persistSet(key, partes[1], payload);
       } else if (partes[0] === 'notaej' && partes[1]) {
@@ -901,12 +1067,79 @@ export const AppProvider = ({ children }) => {
         persist(partes[0], partes[1], payload, { immediate: true });
       }
     }
-  }, [session, persist, persistSet, persistExerciseNote, persistContinue]);
+  }, [session, persist, persistSet, persistExerciseNote, persistContinue, rememberVersion]);
+
+  /*
+    Un rechazo definitivo de una SERIE se apunta entre las no guardadas y, si lo
+    causó un cambio del plan, se recoloca (`crearRecolocador`). Lo demás (una
+    nota, la semana nueva) sigue como estaba: su error a la vista y su reintento
+    mientras viva la pestaña.
+
+    El recolocador se monta en cada llamada porque el almacén cambia con quien
+    entra; las piezas son las de ahora.
+  */
+  const recolocador = () =>
+    noGuardadasRef.current
+      ? crearRecolocador({
+          almacen: noGuardadasRef.current,
+          /* El programa al día. Una ráfaga de series rechazadas lo pide una vez:
+             `refrescarPrograma` comparte la petición en vuelo, y lo leído hace
+             menos de diez segundos vale. */
+          programaAlDia: async (clientId) => {
+            const reciente = Date.now() - (leidoEnRef.current.get(clientId) || 0) < 10 * 1000;
+            return (reciente ? null : await refrescarPrograma(clientId)) || workoutRef.current[clientId] || null;
+          },
+          reenviar: persistSet,
+          avisar: setSeriesNoGuardadas,
+          /* Al entrenador, por la función de la 0132. Sin ella aplicada falla
+             y la serie se queda sin `avisado`: se vuelve a intentar al arrancar. */
+          contar: (key, datos) =>
+            Promise.resolve(
+              supabase.rpc('report_unsaved_set', { p_client: key.split(':')[1], p_clave: key, p_datos: datos })
+            ),
+        })
+      : null;
+
+  contarPendientesRef.current = () => recolocador()?.contarPendientes();
+
+  alRechazarRef.current = (key, payload, error) => {
+    recolocador()?.alRechazar(key, payload, error);
+  };
+
+  /* Reintentar a mano, de un cliente o de todos (`null`). Las que la cola ya
+     tiene las reintenta `queue.retry`; esto les busca sitio otra vez. */
+  reintentarNoGuardadasRef.current = (clientId) => {
+    const r = recolocador();
+    for (const e of noGuardadasRef.current?.list() || []) {
+      const [, cliente] = e.key.split(':');
+      if (clientId && cliente !== clientId) continue;
+      r?.reintentar(e.key, e.payload);
+    }
+  };
+
+  /**
+   * Las series de un cliente que su teléfono no pudo guardar y le contó al
+   * entrenador (`report_unsaved_set`, 0132). Sin la migración la tabla no existe:
+   * eso es «ninguna», no un error que enseñar.
+   */
+  const leerSeriesNoGuardadas = useCallback(async (clientId) => {
+    if (!clientId) return [];
+    const { data, error } = await supabase
+      .from('series_no_guardadas')
+      .select('semana, hoja, ejercicio, serie, campo, valor, fecha, rechazada_en')
+      .eq('client_id', clientId)
+      .order('rechazada_en', { ascending: false })
+      .limit(200);
+    return error ? [] : data || [];
+  }, []);
 
   // ── Carga inicial ────────────────────────────────────────────────────────
 
   /** Descarta respuestas de una carga anterior si el usuario cambia rápido. */
   const loadTokenRef = useRef(0);
+
+  /** Cuándo se leyó del servidor el programa de cada cliente. Ver `refrescarPrograma`. */
+  const leidoEnRef = useRef(new Map());
 
   /*
     ¿La última carga trajo lo esencial? Un ref y no estado porque quien lo
@@ -942,6 +1175,7 @@ export const AppProvider = ({ children }) => {
     uploadProgressPhoto,
     deleteProgressPhoto,
     updateProgressPhoto,
+    declararLadoAntiguo,
     refreshPhotoUrls,
   } = useProgressPhotos({ clientsRef, isCoachRef });
 
@@ -1190,6 +1424,7 @@ export const AppProvider = ({ children }) => {
           versionsRef.current[table][row.client_id] = row.updated_at;
         }
       }
+      for (const row of wd.data || []) leidoEnRef.current.set(row.client_id, Date.now());
 
       setWorkoutData(
         Object.fromEntries((wd.data || []).map((r) => [r.client_id, mapWorkoutFromDb(r)]))
@@ -1983,7 +2218,22 @@ export const AppProvider = ({ children }) => {
 
   /* El primer dominio extraído del proveedor: estado, carga y acciones viven
      en su gancho. La convención está escrita en `useRoadmap.js`. */
-  const { phases, addPhase, updatePhase, removePhase, setPhaseFork, chooseFork } = useRoadmap({
+  const {
+    phases,
+    anchors,
+    hechos,
+    dietVersions,
+    igualar,
+    quitarReplanteo,
+    addPhase,
+    updatePhase,
+    removePhase,
+    setPhaseFork,
+    chooseFork,
+    saveAnchor,
+    removeAnchor,
+    shiftFuturePhases,
+  } = useRoadmap({
     session,
     activeClientId,
   });
@@ -2024,6 +2274,88 @@ export const AppProvider = ({ children }) => {
     session,
     clientId: profileRole === 'client' ? null : activeClientId,
   });
+
+  /**
+   * VUELVE A PEDIR EL PROGRAMA de un cliente, con lo que aún no ha llegado encima.
+   *
+   * ══ Por qué ═══════════════════════════════════════════════════════════════
+   *
+   * El teléfono cargaba el programa una vez y no lo volvía a pedir: ni tiempo
+   * real ni recarga al volver a la aplicación. Una PWA abierta desde por la
+   * mañana seguía mandando series a hojas que el entrenador había renombrado o
+   * quitado a mediodía, y el servidor las rechazaba todas. Es la causa de casi
+   * todos los rechazos de `log_session_set`; lo pide el cliente al volver a
+   * primer plano (efecto de más abajo) y el recolocador tras un rechazo.
+   *
+   * ── Lo que no se puede pisar ─────────────────────────────────────────────
+   * Las series en la cola se ponen encima (`conSeriesSinConfirmar`): el
+   * servidor todavía no las tiene y la persona las acaba de ver escritas. Lo
+   * demás que el cliente escribe —una nota, el cierre, la semana nueva— no se
+   * sabe poner encima, así que con algo de eso esperando no se pide nada: ya se
+   * pedirá la próxima vez.
+   *
+   * Devuelve el programa nuevo, o `null` si no se pidió o no llegó.
+   */
+  const refrescosRef = useRef(new Map());
+
+  const refrescarPrograma = useCallback(
+    (clientId) => {
+      if (!clientId) return Promise.resolve(null);
+      const enCurso = refrescosRef.current.get(clientId);
+      if (enCurso) return enCurso;
+
+      const esperaAlgoQueNoEsSerie = () =>
+        queue
+          .pendientes()
+          .some((p) => p.key.split(':')[1] === clientId && !p.key.startsWith(`set:${clientId}:`));
+      if (esperaAlgoQueNoEsSerie()) return Promise.resolve(null);
+
+      const peticion = (async () => {
+        const { data, error } = await supabase
+          .from('workout_data')
+          .select('*')
+          .eq('client_id', clientId)
+          .maybeSingle();
+        if (error || !data) return null;
+        // Mientras llegaba se ha escrito algo que no se sabe poner encima.
+        if (esperaAlgoQueNoEsSerie()) return null;
+
+        rememberVersion('workout_data', clientId, data.updated_at);
+        leidoEnRef.current.set(clientId, Date.now());
+        const nuevo = conSeriesSinConfirmar(
+          mapWorkoutFromDb(data),
+          queue.pendientes(`set:${clientId}:`).map((p) => p.payload)
+        );
+        setWorkoutData({ ...workoutRef.current, [clientId]: nuevo });
+        return nuevo;
+      })()
+        .catch(() => null)
+        .finally(() => refrescosRef.current.delete(clientId));
+
+      refrescosRef.current.set(clientId, peticion);
+      return peticion;
+    },
+    [queue, rememberVersion, setWorkoutData, workoutRef]
+  );
+
+  /*
+    Al volver a la aplicación, si hace más de cinco minutos. Solo el CLIENTE: el
+    entrenador está editando el programa y lo que llegara pisaría lo que tiene
+    delante (sus escrituras ya las protege la versión de `upsertClientRow`).
+  */
+  useEffect(() => {
+    if (profileRole !== 'client') return undefined;
+    const alVolver = () => {
+      if (document.visibilityState !== 'visible' || !hayRed()) return;
+      for (const clientId of Object.keys(workoutRef.current)) {
+        if (Date.now() - (leidoEnRef.current.get(clientId) || 0) > PROGRAMA_VALE_MS) {
+          refrescarPrograma(clientId);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => document.removeEventListener('visibilitychange', alVolver);
+  }, [profileRole, refrescarPrograma, workoutRef]);
 
   // ── Mutaciones de rutina ─────────────────────────────────────────────────
 
@@ -2087,6 +2419,7 @@ export const AppProvider = ({ children }) => {
 
         // La versión leída, para que la primera escritura no vaya sin guardia.
         if (data) rememberVersion('workout_data', clientId, data.updated_at);
+        leidoEnRef.current.set(clientId, Date.now());
 
         const mapped = data ? mapWorkoutFromDb(data) : emptyWorkoutData();
         setWorkoutData({ ...workoutRef.current, [clientId]: mapped });
@@ -2101,6 +2434,57 @@ export const AppProvider = ({ children }) => {
     },
     [rememberVersion, setWorkoutData, workoutRef]
   );
+
+  /*
+    ══ LO QUE SE ESCRIBIÓ CON LA VERSIÓN DE ANTES, aplicado con la de ahora ══════
+
+    Llega del reenvío de lo pendiente: un programa que la versión anterior no
+    llegó a guardar —el entrenador siguió editando después del aviso de «Hay una
+    versión nueva», o recargó con un guardado en camino—. Antes se descartaba al
+    arrancar y se perdía.
+
+    Se espera a que la carga termine: aplicarlo antes y que luego llegara el
+    programa del servidor lo taparía en pantalla con el de antes del cambio, y
+    el siguiente gesto del entrenador se haría sobre ese. Con el programa ya
+    cargado:
+
+      · Se pasa por los mapeadores y por `conRepartoDelAbierto`, que son las
+        reglas de ESTA versión al leer y al escribir.
+      · Se escribe con la guardia de la versión sobre la que se hizo (`base`). Si
+        nadie ha escrito desde entonces, entra sin más. Si alguien sí, sale el
+        aviso de conflicto de siempre —con su texto para este caso— y se decide
+        ahí: quedarse con lo que hay o imponer lo suyo. Sin `base` conocida (una
+        nota de antes de que la llevaran) se pregunta siempre (`SIN_BASE`).
+  */
+  useEffect(() => {
+    if (loading || !session?.user?.id || porReaplicarRef.current.length === 0) return;
+    const lista = porReaplicarRef.current.splice(0);
+    (async () => {
+      for (const { clientId, payload, base } of lista) {
+        const cargado = await ensureProgram(clientId);
+        if (!cargado) {
+          // No se pudo leer: la nota sigue ahí y se intenta en el próximo arranque.
+          continue;
+        }
+        reaplicadosRef.current.add(clientId);
+        versionsRef.current.workout_data = {
+          ...(versionsRef.current.workout_data || {}),
+          [clientId]: base || SIN_BASE,
+        };
+        /* Una nota de una versión que no conocía los borradores (0133) no los
+           trae: se quedan los que se acaban de leer, o el programa en memoria
+           se quedaría sin ellos y el siguiente borrador pisaría los de la base. */
+        const reaplicado = mapWorkoutFromDb(mapWorkoutToDb(clientId, payload));
+        const programa = conRepartoDelAbierto(
+          'draftBlocks' in reaplicado || !Array.isArray(cargado.draftBlocks)
+            ? reaplicado
+            : { ...reaplicado, draftBlocks: cargado.draftBlocks }
+        );
+        setWorkoutData({ ...workoutRef.current, [clientId]: programa });
+        persist('workout', clientId, programa, { immediate: true });
+      }
+    })();
+  }, [loading, session, ensureProgram, persist, setWorkoutData, workoutRef]);
 
   /**
    * Lo mismo para la DIETA: el plan de un cliente, traído si no está en memoria.
@@ -2229,8 +2613,13 @@ export const AppProvider = ({ children }) => {
     moveDay,
     removeDay,
     restoreDay,
-    updateWeeklySplit,
-    cambiarCicloDelBloque,
+    ponerMicrocicloDelBloque,
+    ponerReferenciasDelBloque,
+    anadirBorradorDelBloque,
+    cambiarBorradorDelBloque,
+    quitarBorradorDelBloque,
+    devolverBorradorDelBloque,
+    empezarBorradorDelBloque,
     startProgram,
     appendMicrocycle,
     appendMicrocycleWithDays,
@@ -2243,8 +2632,11 @@ export const AppProvider = ({ children }) => {
     startBlockWithPlan,
     setBlockPlan,
     addBlockSheet,
+    duplicateBlockSheet,
     removeBlockSheet,
     renameBlockSheet,
+    renameBlockExercise,
+    renamePlanExercise,
     moveBlockSheet,
     addBlockExercise,
     setBlockSheetExercises,
@@ -2253,8 +2645,10 @@ export const AppProvider = ({ children }) => {
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
+    setBlockExerciseScheme,
     setBlockExerciseGrammar,
     updatePlanExercise,
+    updatePlanExercises,
     removePlanExercise,
     overridePlanExercise,
     removePlanExerciseOnly,
@@ -2645,6 +3039,11 @@ export const AppProvider = ({ children }) => {
       checkIns,
       checkInsActivos,
       phases,
+      /* Los eventos a los que apunta su plan (0122). Ver `useRoadmap`. */
+      anchors,
+      /* Los hechos del plan y la pauta fechada (0123, 0124). Ver `useRoadmap`. */
+      hechos,
+      dietVersions,
       conditions,
       equipment,
       equipmentCounts,
@@ -2660,15 +3059,17 @@ export const AppProvider = ({ children }) => {
          `lib/instantanea`. */
       enEspera,
       fallosAlGuardar,
+      /* Las series que el servidor rechazó, con su payload. Ver `lib/seriesNoGuardadas`. */
+      seriesNoGuardadas,
       copiaLocal,
     }),
     [
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, pasosDelPlan, training, legacyPending, anthropometry, nutrition, progressPhotos,
       exerciseLibrary, foodLibrary, cajon, hayCajon, sheetOf, gruposEquiv, catalogFoods, catalogExercises, checkIns, checkInsActivos,
-      phases, conditions, equipment, equipmentCounts, envioRows, enviosReady,
+      phases, anchors, hechos, dietVersions, conditions, equipment, equipmentCounts, envioRows, enviosReady,
       automatizaciones, automatizacionesReady, corridas,
-      saveStatus, enEspera, fallosAlGuardar, copiaLocal,
+      saveStatus, enEspera, fallosAlGuardar, copiaLocal, seriesNoGuardadas,
     ]
   );
 
@@ -2710,6 +3111,9 @@ export const AppProvider = ({ children }) => {
     /* El reintento global de la franja, para cuando el fallo no es de la
        pantalla que se está mirando. Ver `fallosAlGuardar`. */
     reintentarLoFallido,
+    /* Las series que el teléfono de un cliente no pudo guardar (0132). Las lee
+       su Revisión: ver `review/useSeriesNoGuardadas`. */
+    leerSeriesNoGuardadas,
 
     // Rutina
     /* Deshacer y rehacer el PLAN de la rutina. Ver el bloque «DESHACER Y
@@ -2737,8 +3141,13 @@ export const AppProvider = ({ children }) => {
     moveDay,
     removeDay,
     restoreDay,
-    updateWeeklySplit,
-    cambiarCicloDelBloque,
+    ponerMicrocicloDelBloque,
+    ponerReferenciasDelBloque,
+    anadirBorradorDelBloque,
+    cambiarBorradorDelBloque,
+    quitarBorradorDelBloque,
+    devolverBorradorDelBloque,
+    empezarBorradorDelBloque,
     startSession,
     logSessionSet,
     updateSession,
@@ -2760,8 +3169,11 @@ export const AppProvider = ({ children }) => {
     startBlockWithPlan,
     setBlockPlan,
     addBlockSheet,
+    duplicateBlockSheet,
     removeBlockSheet,
     renameBlockSheet,
+    renameBlockExercise,
+    renamePlanExercise,
     moveBlockSheet,
     addBlockExercise,
     setBlockSheetExercises,
@@ -2770,8 +3182,10 @@ export const AppProvider = ({ children }) => {
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseTarget,
+    setBlockExerciseScheme,
     setBlockExerciseGrammar,
     updatePlanExercise,
+    updatePlanExercises,
     removePlanExercise,
     overridePlanExercise,
     removePlanExerciseOnly,
@@ -2859,6 +3273,7 @@ export const AppProvider = ({ children }) => {
     uploadProgressPhoto,
     deleteProgressPhoto,
     updateProgressPhoto,
+    declararLadoAntiguo,
     refreshPhotoUrls,
     ensurePhotoUrls,
 
@@ -2954,6 +3369,8 @@ export const AppProvider = ({ children }) => {
     reviewCheckIn,
     unreviewCheckIn,
     updateCheckInNotes,
+    filaDeRevision,
+    reabrirRevision,
     submitCheckIn,
     saveCheckInAnswers,
     loadCheckInHistory,
@@ -2969,6 +3386,11 @@ export const AppProvider = ({ children }) => {
     removePhase,
     setPhaseFork,
     chooseFork,
+    saveAnchor,
+    removeAnchor,
+    shiftFuturePhases,
+    igualar,
+    quitarReplanteo,
 
     // Condicionantes
     /* La lectura en bloque, para la pantalla que reparte: ver `useConditions`. */

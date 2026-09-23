@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { PageHead } from '@/components/ui/primitives';
 import { TusSemanas } from './TusSemanas';
+import { TuRoadmap } from './TuRoadmap';
 
 /**
  * «TUS SEMANAS» EN EL TELÉFONO — `/mi/evolucion/semanas`, una pantalla empujada
@@ -31,6 +32,7 @@ export const ClientCheckInsRoute = () => {
   return (
     <div className="stack cascada">
       <PageHead title="Tus semanas" sub="Lo que apuntaste, lo que entregaste y lo que te contestó" />
+      <TuRoadmap />
       <TusSemanas conCabecera={false} todas />
     </div>
   );

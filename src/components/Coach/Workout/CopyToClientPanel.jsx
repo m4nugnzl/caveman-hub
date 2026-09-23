@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { Copy, Layers, Salad, Waves } from 'lucide-react';
+import { useId, useState } from 'react';
+import { ArrowRight, ChevronLeft, ChevronRight, Copy, Layers, Salad, Users, Waves } from 'lucide-react';
 
 import { unitLabelPlural } from '@/domain/training';
-import { Field, Notice, OptionCard, Panel } from '@/components/ui/primitives';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { Notice, OptionCard } from '@/components/ui/primitives';
+import { Modal } from '@/components/ui/Modal';
+import { CarrilDePasos } from '@/components/ui/Asistente';
 import { useToast } from '@/components/ui/ToastProvider';
 
 /**
@@ -40,9 +41,11 @@ export const CopyToClientPanel = ({
   onReplicate,
   onClose,
 }) => {
-  const confirm = useConfirm();
   const toast = useToast();
+  const formId = useId();
+  const [paso, setPaso] = useState(0);
   const [sourceId, setSourceId] = useState('');
+  const [busca, setBusca] = useState('');
   /*
     ══ Nada viene marcado ═════════════════════════════════════════════════════
 
@@ -66,41 +69,29 @@ export const CopyToClientPanel = ({
   const others = clients.filter((c) => c.id !== activeClient.id);
   const source = others.find((c) => c.id === sourceId) || null;
   const nothingSelected = !training && !diet && !warmup;
+  /* El buscador solo aparece con cartera larga (ver el paso ①): con cinco
+     clientes, un campo de búsqueda encima de cinco nombres es un mando que
+     sobra. */
+  const losQueSalen = busca.trim()
+    ? others.filter((c) => c.name.toLowerCase().includes(busca.trim().toLowerCase()))
+    : others;
 
-  const handleCopy = async () => {
+  /*
+    ══ AQUÍ ESTUVO EL DIÁLOGO DE CONFIRMACIÓN ════════════════════════════════
+    `useConfirm` abría una ventana ENCIMA de esta para preguntar lo que esta
+    misma podía decir, con el agravante de que la de debajo era un panel
+    incrustado en la página y la de encima una ventana de verdad: dos
+    superficies distintas para una sola decisión.
+
+    Lo que decía aquel diálogo —de quién a quién, qué viene y qué se sustituye—
+    es hoy el TERCER PASO, y el botón del pie es el que confirma. Una sola
+    pregunta, en la superficie en la que ya estabas mirando. No se pierde la
+    protección: al último paso no se llega sin haber contestado los anteriores,
+    el resumen dice en rojo qué se va a sustituir y el botón cambia de rótulo a
+    «Sustituir y copiar» cuando de verdad se lleva algo por delante.
+  */
+  const copiar = async () => {
     if (!source || nothingSelected) return;
-
-    const parts = [
-      training && 'el programa de entrenamiento',
-      !training && warmup && 'el calentamiento',
-      diet && 'el plan nutricional',
-    ]
-      .filter(Boolean)
-      .join(' y ');
-
-    /*
-      Qué se pierde, dicho antes de tocar nada. El calentamiento solo aparece
-      aquí cuando va SUELTO: dentro de «entrenamiento» ya está incluido en «su
-      programa actual», y nombrarlo dos veces haría dudar de si son dos cosas.
-    */
-    const overwrites = [
-      training && hasProgram && 'su programa actual',
-      !training && warmup && hasWarmup && 'su calentamiento actual',
-      diet && hasDiet && 'su dieta actual',
-    ]
-      .filter(Boolean)
-      .join(' y ');
-
-    const ok = await confirm({
-      title: `¿Copiar de ${source.name}?`,
-      message: `Se traerá ${parts} de ${source.name} a ${activeClient.name}.`,
-      detail: overwrites
-        ? `Atención: esto SUSTITUYE ${overwrites}. No se puede deshacer.`
-        : `${activeClient.name} no tiene nada configurado en esos bloques, así que no se sobrescribe nada.`,
-      confirmLabel: 'Copiar',
-      tone: overwrites ? 'danger' : 'default',
-    });
-    if (!ok) return;
 
     const done = await onReplicate(sourceId, { training, diet, warmup });
     const NOMBRES = { training: 'entrenamiento', warmup: 'calentamiento', diet: 'dieta' };
@@ -145,156 +136,270 @@ export const CopyToClientPanel = ({
     setResult({ tone: 'warn', text: `${source.name} no tiene datos en los bloques seleccionados.` });
   };
 
+  /* Sin nadie de quien traer, la ventana lo dice y se cierra: los dos sitios que
+     la abren ya no la ofrecen en ese caso, así que esto es el cinturón. */
   if (others.length === 0) {
     return (
-      <Panel tight>
+      <Modal open onClose={onClose} size="md" title="Traer de otro cliente" icono={Users}>
         <Notice tone="info">Necesitas al menos dos clientes para copiar entre ellos.</Notice>
-      </Panel>
+      </Modal>
     );
   }
 
+  /*
+    ══ EL CARRIL DE PASOS ════════════════════════════════════════════════════
+    Dos o tres, según lo que haya que contestar: de quién siempre, qué se copia
+    solo cuando hay más de un bloque que ofrecer, y el resumen siempre. El
+    resumen es un paso y no una pantalla de cortesía: es DONDE SE CONFIRMA, y
+    por eso existe aunque solo se ofrezca la dieta.
+  */
+  const PASOS = [
+    { id: 'quien', titulo: 'De quién' },
+    ...(soloUno ? [] : [{ id: 'que', titulo: 'Qué se copia' }]),
+    { id: 'resumen', titulo: 'Confirmar' },
+  ];
+  const indice = Math.min(paso, PASOS.length - 1);
+  const actual = PASOS[indice];
+  /* No se avanza sin contestar: sin cliente elegido no hay nada que copiar, y
+     sin bloque marcado tampoco. El carril informa y no navega (`onIr` va sin
+     poner) por lo mismo — saltar al resumen dejaría la pregunta sin dar. */
+  const puedeSeguir =
+    actual.id === 'quien' ? Boolean(source) : actual.id === 'que' ? !nothingSelected : true;
+
+  /* Lo que se va a sustituir, dicho con nombre y apellidos. Es la frase que
+     antes vivía dentro del diálogo de confirmación; ahora ES el último paso. */
+  const loQueViene = [
+    training && 'el programa de entrenamiento',
+    !training && warmup && 'el calentamiento',
+    diet && 'el plan nutricional',
+  ]
+    .filter(Boolean)
+    .join(' y ');
+  const loQueSeSustituye = [
+    training && hasProgram && 'su programa actual',
+    !training && warmup && hasWarmup && 'su calentamiento actual',
+    diet && hasDiet && 'su dieta actual',
+  ]
+    .filter(Boolean)
+    .join(' y ');
+
+  const avanzar = (event) => {
+    event.preventDefault();
+    if (puedeSeguir && actual.id !== 'resumen') {
+      setPaso(indice + 1);
+      return;
+    }
+    if (actual.id === 'resumen') copiar();
+  };
+
   return (
-    <Panel tight className="col gap-4">
-      {result && <Notice tone={result.tone}>{result.text}</Notice>}
-
-      <div className="row-end wrap gap-4">
-        <Field label="Copiar desde" hint="El cliente que ya tiene lo que quieres replicar">
-          {(props) => (
-            <select
-              {...props}
-              className="select"
-              style={{ minWidth: 200 }}
-              value={sourceId}
-              onChange={(e) => {
-                setSourceId(e.target.value);
-                setResult(null);
-              }}
-            >
-              <option value="">Selecciona cliente…</option>
-              {others.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
-
-        {/*
-          ══ Por qué esto ya no son tres tics ═══════════════════════════════════
-
-          Eran tres casillas del sistema operativo con una frase al lado, y la
-          primera sustituye doce semanas de programa de otra persona. Un control
-          de 16 px, idéntico al de «acepto las condiciones», para una operación
-          irreversible.
-
-          Ahora cada una es una tarjeta con su icono, su nombre y qué se lleva
-          exactamente. La consecuencia se lee antes de marcarla, no después en el
-          diálogo de confirmación.
-
-          Con un solo bloque ofrecido no se pinta: elegir entre una cosa no es
-          elegir, y una tarjeta marcada que no se puede desmarcar solo estorba a
-          la única pregunta que queda —de quién—.
-        */}
-        {!soloUno && (
-        <Field label="Qué se copia">
-          <div className="opt-group">
-            {bloques.includes('training') && (
-            <OptionCard
-              icon={Layers}
-              label="Entrenamiento"
-              hint={`Estructura semanal, ${weekCount} ${unitLabelPlural(cycleType)}, tipo de ciclo y su calentamiento.`}
-              checked={training}
-              onChange={setTraining}
-            />
-            )}
-            {/*
-              ══ El calentamiento, suelto y SIEMPRE pulsable ══════════════════
-
-              Va aparte de «Entrenamiento» porque es lo que MÁS se repite entre
-              clientes —la misma pauta articular para media cartera— mientras que
-              el programa es lo que menos. Mezclarlos obligaba a sustituir doce
-              semanas de trabajo para traerse cuatro estiramientos.
-
-              Y ya no se desactiva. Estaba `disabled` mientras «Entrenamiento»
-              estuviera marcado —que era siempre, porque venía marcado de
-              serie—, así que en la práctica no se podía pulsar nunca. La
-              redundancia se DICE, que es lo que hacía falta; no se prohíbe.
-            */}
-            {bloques.includes('warmup') && (
-            <OptionCard
-              icon={Waves}
-              label="Calentamiento y movilidad"
-              hint={
-                training
-                  ? 'Ya va incluido con el entrenamiento.'
-                  : 'Solo la pauta previa a entrenar, sin tocar su programa.'
-              }
-              checked={warmup || training}
-              onChange={setWarmup}
-            />
-            )}
-            {/*
-              La dieta solo se ofrece si a esta persona se la llevas. Copiarle un
-              plan nutricional a un cliente de solo entrenamiento lo dejaría
-              guardado en una sección que ni él ni tú podéis abrir.
-            */}
-            {conNutricion && bloques.includes('diet') && (
-              <OptionCard
-                icon={Salad}
-                label="Dieta"
-                hint="Objetivo, macros, menú cerrado y tus pautas."
-                checked={diet}
-                onChange={setDiet}
-              />
-            )}
-          </div>
-        </Field>
-        )}
-
-        <div className="row gap-2">
+    <Modal
+      open
+      onClose={onClose}
+      size="lg"
+      title={soloUno && bloques[0] === 'diet' ? 'Traer la dieta de otro cliente' : 'Traer de otro cliente'}
+      sub={`A la ficha de ${activeClient.name}`}
+      icono={Users}
+      footer={
+        <>
+          {/* En el primer paso «Cancelar» va sin caja y en los demás «← Atrás»
+              con ella: irse de una ventana sin haber tocado nada no es un mando
+              que compita con «Siguiente», y volver un paso sí. La misma regla
+              que el asistente del objetivo. */}
           <button
             type="button"
-            className="btn btn-primary"
-            onClick={handleCopy}
-            disabled={!sourceId || nothingSelected}
+            className={indice === 0 ? 'btn btn-plain' : 'btn btn-secondary'}
+            onClick={indice === 0 ? onClose : () => setPaso(indice - 1)}
           >
-            <Copy size={15} /> Copiar
+            {indice === 0 ? (
+              'Cancelar'
+            ) : (
+              <>
+                <ChevronLeft size={15} /> Atrás
+              </>
+            )}
           </button>
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
-            Cerrar
+          <button
+            type="submit"
+            form={formId}
+            /* En rojo cuando de verdad sustituye algo. Es la única pantalla del
+               flujo en la que el botón se lleva por delante el trabajo de otro,
+               y el color es lo que lo dice antes de pulsarlo. */
+            className={`btn ${actual.id === 'resumen' && loQueSeSustituye ? 'btn-danger' : 'btn-primary'}`}
+            disabled={!puedeSeguir}
+          >
+            {actual.id === 'resumen' ? (
+              <>
+                <Copy size={15} /> {loQueSeSustituye ? 'Sustituir y copiar' : 'Copiar'}
+              </>
+            ) : (
+              <>
+                Siguiente <ChevronRight size={15} />
+              </>
+            )}
           </button>
+        </>
+      }
+    >
+      <form id={formId} className="wiz" onSubmit={avanzar}>
+        <CarrilDePasos pasos={PASOS} indice={indice} />
+
+        {result && <Notice tone={result.tone}>{result.text}</Notice>}
+
+        {/* La `key` remonta el panel al cambiar de paso: la animación de entrada
+            se reproduce y la ventana vuelve arriba. */}
+        <div className="wiz-panel" key={actual.id}>
+          {/* ── ① DE QUIÉN ───────────────────────────────────────────────
+              Una lista y no un desplegable. En un paso propio hay sitio, y lo
+              que se elige es una PERSONA: verlas es media respuesta, mientras
+              que un `select` obliga a abrirlo para saber siquiera a quién
+              tienes. Es la misma pieza con la que se elige en el resto de la
+              casa (`OptionCard`). */}
+          {actual.id === 'quien' && (
+            <>
+              <p className="t-sm t-secondary">
+                El cliente que ya tiene lo que quieres replicar. Se copia de él a{' '}
+                <strong>{activeClient.name}</strong>, nunca al revés.
+              </p>
+              {others.length > 6 && (
+                <label className="field">
+                  <span className="field-label">Buscar</span>
+                  <input
+                    className="input"
+                    type="search"
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Nombre del cliente"
+                    autoFocus
+                  />
+                </label>
+              )}
+              <div className="opt-group copia-clientes">
+                {losQueSalen.map((client) => (
+                  <OptionCard
+                    key={client.id}
+                    unaSola
+                    name="copia-desde"
+                    label={client.name}
+                    checked={client.id === sourceId}
+                    onChange={() => {
+                      setSourceId(client.id);
+                      setResult(null);
+                    }}
+                  />
+                ))}
+              </div>
+              {losQueSalen.length === 0 && (
+                <Notice tone="info">Ningún cliente se llama así.</Notice>
+              )}
+            </>
+          )}
+
+          {/* ── ② QUÉ SE COPIA ───────────────────────────────────────────
+              Las mismas tarjetas de siempre, pero ahora a lo ancho de su propio
+              paso: antes compartían renglón con el selector de cliente y con los
+              dos botones, y el renglón las dejaba a media altura de la ventana
+              con el aire repartido a ojo. */}
+          {actual.id === 'que' && (
+            <>
+              <p className="t-sm t-secondary">
+                Qué te llevas de <strong>{source?.name}</strong>.
+              </p>
+              <div className="opt-group">
+                {bloques.includes('training') && (
+                  <OptionCard
+                    icon={Layers}
+                    label="Entrenamiento"
+                    hint={`Estructura semanal, ${weekCount} ${unitLabelPlural(cycleType)}, tipo de ciclo y su calentamiento.`}
+                    checked={training}
+                    onChange={setTraining}
+                  />
+                )}
+                {/*
+                  El calentamiento va aparte de «Entrenamiento» porque es lo que
+                  MÁS se repite entre clientes —la misma pauta articular para
+                  media cartera— mientras que el programa es lo que menos.
+                  Mezclarlos obligaba a sustituir doce semanas de trabajo para
+                  traerse cuatro estiramientos. Y no se desactiva: la redundancia
+                  se DICE, no se prohíbe.
+                */}
+                {bloques.includes('warmup') && (
+                  <OptionCard
+                    icon={Waves}
+                    label="Calentamiento y movilidad"
+                    hint={
+                      training
+                        ? 'Ya va incluido con el entrenamiento.'
+                        : 'Solo la pauta previa a entrenar, sin tocar su programa.'
+                    }
+                    checked={warmup || training}
+                    onChange={setWarmup}
+                  />
+                )}
+                {/* La dieta solo si a esta persona se la llevas: copiarle un plan
+                    nutricional a un cliente de solo entrenamiento lo dejaría
+                    guardado en una sección que ni él ni tú podéis abrir. */}
+                {conNutricion && bloques.includes('diet') && (
+                  <OptionCard
+                    icon={Salad}
+                    label="Dieta"
+                    hint="Objetivo, macros, menú cerrado y tus pautas."
+                    checked={diet}
+                    onChange={setDiet}
+                  />
+                )}
+              </div>
+            </>
+          )}
+
+          {/* ── ③ CONFIRMAR ──────────────────────────────────────────────
+              Aquí estaba el diálogo de confirmación que se abría al pulsar
+              «Copiar». Era una ventana encima de otra ventana diciendo lo que la
+              de debajo ya podía decir, así que su contenido sube al último paso
+              y el botón del pie pasa a ser el que confirma. Una sola pregunta y
+              en el sitio donde se estaba mirando. */}
+          {actual.id === 'resumen' && (
+            <>
+              <div className="copia-resumen">
+                <span className="copia-resumen-quien">{source?.name}</span>
+                <ArrowRight size={18} aria-hidden="true" className="copia-resumen-flecha" />
+                <span className="copia-resumen-quien is-destino">{activeClient.name}</span>
+              </div>
+              <p className="t-sm t-secondary">
+                Se trae <strong>{loQueViene}</strong>.
+              </p>
+              {loQueSeSustituye ? (
+                <Notice tone="warn">
+                  Esto sustituye {loQueSeSustituye} de {activeClient.name}. No se puede deshacer.
+                </Notice>
+              ) : (
+                <Notice tone="info">
+                  {activeClient.name} no tiene nada en esos bloques, así que no se sobrescribe nada.
+                </Notice>
+              )}
+              {/* Qué NO se lleva, dicho antes de pulsar. */}
+              {training && (
+                <p className="t-xs t-tertiary">
+                  No se copian las sesiones registradas: son el registro de lo que ejecutó otra persona y
+                  no tienen sentido en esta ficha.
+                </p>
+              )}
+              {/*
+                ── Y en qué se diferencia de copiar una pieza ──────────────
+                Ésta es una de las cuatro puertas que parecen la misma —el
+                portapapeles, traer un día, traer un fichero y esto— y era la
+                única que no decía en qué se distingue: las otras tres AÑADEN una
+                pieza donde tú la sueltes y ésta REEMPLAZA el plan entero de una
+                persona por el de otra.
+              */}
+              <p className="t-xs t-tertiary">
+                Esto trae el plan <strong>entero</strong>. Para llevarte solo un día o una comida,
+                cópialos desde su ficha: se quedan en tu mano y los pegas donde quieras.
+              </p>
+            </>
+          )}
         </div>
-      </div>
-
-      {/* Qué NO se lleva, dicho antes de pulsar. Lo del registro solo se nombra
-          si el entrenamiento está sobre la mesa; con la dieta sola, lo que hay
-          que decir es qué viaja, porque el selector que lo decía no se pinta. */}
-      {bloques.includes('training') ? (
-        <p className="t-xs t-tertiary">
-          No se copian las sesiones registradas: son el registro de lo que ejecutó otra persona y no tienen
-          sentido en esta ficha.
-        </p>
-      ) : soloUno && bloques[0] === 'diet' ? (
-        <p className="t-xs t-tertiary">
-          Se trae su objetivo, sus macros, el menú entero con sus alternativas y sus pautas. Lo que el
-          cliente haya registrado no se toca.
-        </p>
-      ) : null}
-
-      {/*
-        ── Y EN QUÉ SE DIFERENCIA DE COPIAR UNA PIEZA ────────────────────────
-        Ésta es una de las cuatro puertas que parecen la misma —el portapapeles,
-        traer un día, traer un fichero y esto— y era la única que no decía en
-        qué se distingue: las otras tres AÑADEN una pieza donde tú la sueltes y
-        ésta REEMPLAZA el plan entero de una persona por el de otra. Se dice
-        aquí, al lado del botón, y con el nombre del gesto que hace lo otro,
-        para que quien buscaba «tráeme su día de pierna» sepa que no es esto.
-      */}
-      <p className="t-xs t-tertiary">
-        Esto trae el plan <strong>entero</strong> y sustituye el que haya. Para llevarte solo un día o
-        una comida, cópialos desde su ficha: se quedan en tu mano y los pegas donde quieras.
-      </p>
-    </Panel>
+      </form>
+    </Modal>
   );
 };

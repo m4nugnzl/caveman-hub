@@ -38,9 +38,61 @@ export const EVENT_KINDS = [
   { id: 'rest', label: 'Descanso', hint: 'Viaje, vacaciones, semana de descarga', color: 'var(--data-amber)' },
   { id: 'goal', label: 'Objetivo', hint: 'Una fecha a la que llegar', color: 'var(--data-pink)' },
   { id: 'note', label: 'Nota', hint: 'Cualquier otra cosa que quieras recordar', color: 'var(--data-slate)' },
+  /*
+    Las intervenciones de dieta (0123). Son pauta, como el destino: solo las
+    escribe el entrenador (`soloEntrenador`, y la base lo exige por RLS). Pueden
+    durar varios días (`hasta`) y llevar kcal. Sin color propio en el roadmap,
+    donde van en tinta: su color aquí es el del calendario, el de una nota.
+  */
+  { id: 'refeed', label: 'Refeed', hint: 'Uno o dos días de más hidratos', color: 'var(--data-slate)', soloEntrenador: true },
+  { id: 'diet_break', label: 'Diet break', hint: 'Una o dos semanas en mantenimiento', color: 'var(--data-slate)', soloEntrenador: true },
 ];
 
-export const kindMeta = (id) => EVENT_KINDS.find((k) => k.id === id) || EVENT_KINDS[EVENT_KINDS.length - 1];
+/* Lo desconocido se lee como una nota, por su nombre y no por su posición: la
+   lista crece por el final (0123) y «el último» dejó de ser la nota. */
+export const kindMeta = (id) => EVENT_KINDS.find((k) => k.id === id) || EVENT_KINDS.find((k) => k.id === 'note');
+
+/**
+ * Los tipos de evento a los que puede apuntar un plan: un sitio al que llegar.
+ * Lo mismo que exige la base (`client_events_ancla_kind`, migración 0122).
+ */
+export const ANCHOR_KINDS = ['race', 'goal'];
+
+/** Tope de cada texto de la competición: son rótulos, no fichas. */
+export const MAX_COMPETICION_TEXTO = 80;
+
+/**
+ * LOS DATOS DE UNA COMPETICIÓN, saneados. `null` si no hay nada que decir.
+ *
+ * Viven en `client_events.competicion` (0122), un `jsonb` y no columnas: cada
+ * federación nombra sus categorías y sus sedes a su manera, y la forma de estos
+ * campos no se sabrá hasta que haya una fuente real de calendarios. La base
+ * solo exige un objeto en un evento `race`; lo demás se decide aquí.
+ *
+ * `pesoLimiteKg` es el LÍMITE de la categoría, no un objetivo. Se acota a lo
+ * humano, como el peso objetivo de `clientGoal`.
+ */
+export const competicionDe = (raw) => {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const texto = (v) => String(v ?? '').trim().slice(0, MAX_COMPETICION_TEXTO) || null;
+  const kg = Number(String(raw.pesoLimiteKg ?? '').replace(',', '.'));
+  const limpio = {
+    federacion: texto(raw.federacion),
+    categoria: texto(raw.categoria),
+    sede: texto(raw.sede),
+    pesoLimiteKg: raw.pesoLimiteKg !== null && raw.pesoLimiteKg !== '' && Number.isFinite(kg) && kg >= 30 && kg <= 300
+      ? Math.round(kg * 10) / 10
+      : null,
+  };
+  return Object.values(limpio).some((v) => v !== null) ? limpio : null;
+};
+
+/** La competición dicha en una línea: «AEFN · −83 kg · Madrid». */
+export const competicionDicha = (competicion) => {
+  const c = competicionDe(competicion);
+  if (!c) return null;
+  return [c.federacion, c.categoria, c.sede].filter(Boolean).join(' · ') || null;
+};
 
 /** Lunes = 0 … domingo = 6, que es el orden en el que se lee un calendario aquí. */
 export const WEEKDAYS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -241,8 +293,12 @@ export const checkInSchedule = (preferences) => {
  * periodo. La cuenta del módulo normalizaría las semanas negativas al rango
  * [0, everyWeeks-1] y devolvería un periodo inventado — es el fallo que la
  * migración de `currentCheckInPeriod` ya tuvo una vez.
+ *
+ * Se exporta para las casillas de Revisiones (`estadosDeSemana`): con cadencia
+ * quincenal las dos semanas de un periodo son una sola entrega, y la portada
+ * tiene que saber cuáles van juntas con la MISMA cuenta que la cola.
  */
-const periodStartOf = (weekStartISO, anchor, everyWeeks) => {
+export const periodStartOf =(weekStartISO, anchor, everyWeeks) => {
   const semanas = Math.floor((daysBetween(anchor, weekStartISO) || 0) / 7);
   if (semanas < 0) return null;
   return addDays(weekStartISO, -(semanas % everyWeeks) * 7);
@@ -429,6 +485,22 @@ export const periodoAEntregar = ({
 };
 
 /**
+ * EL PERIODO QUE EMPIEZA EN UN LUNES DADO, con la misma forma que los otros
+ * dos (`start`, `dueOn`, `everyWeeks`, `isDue`, `moved`).
+ *
+ * Lo necesitan las revisiones PASADAS (`domain/revisionesPasadas.js`): saber
+ * qué día tocaba una que se quedó sin entregar, y cuándo se cerró su ventana
+ * de gracia, sin escribir una segunda cuenta de `dueOn`.
+ *
+ * @returns `null` sin día de revisión elegido.
+ */
+export const periodoQueEmpieza = (preferences, lunes, today = todayISO()) => {
+  const pauta = checkInSchedule(preferences);
+  if (pauta.weekday === null || !lunes) return null;
+  return periodoDe(weekStart(lunes), pauta, today);
+};
+
+/**
  * SU REVISIÓN, AHORA MISMO: el periodo vigente y si la ha entregado.
  *
  * ══ Por qué las dos cosas juntas ═══════════════════════════════════════════
@@ -522,9 +594,20 @@ export const estadoDeLaEntrega = ({
 /** Eventos indexados por fecha, para pintar la rejilla sin recorrer la lista N veces. */
 export const eventsByDate = (events) => {
   const map = new Map();
+  const poner = (dia, event) => {
+    if (!map.has(dia)) map.set(dia, []);
+    map.get(dia).push(event);
+  };
   for (const event of events) {
-    if (!map.has(event.date)) map.set(event.date, []);
-    map.get(event.date).push(event);
+    /* Un evento de varios días (`hasta`, 0123) está en CADA uno de sus días:
+       unas vacaciones de una semana ocupan la semana, no su lunes. El tope es
+       de seguridad: nada del producto dura más de un año. */
+    const fin = event.hasta && event.hasta > event.date ? event.hasta : event.date;
+    let dia = event.date;
+    for (let i = 0; dia && dia <= fin && i < 366; i += 1) {
+      poner(dia, event);
+      dia = addDays(dia, 1);
+    }
   }
   // Los del sistema primero, y dentro de cada grupo por orden de creación.
   const order = EVENT_KINDS.map((k) => k.id);

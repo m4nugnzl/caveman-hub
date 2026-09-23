@@ -16,12 +16,14 @@ import {
   drillsForDay,
   dayPlannedVolume,
   dayProgression,
+  devolverObjetivo,
   dayNames,
   exerciseProgression,
   firstCycleDate,
   indexAfterMove,
   isRestDay,
   microcycleIds,
+  objetivoPautado,
   nextCycleDate,
   nombreDeSubserie,
   normalizaTecnica,
@@ -33,12 +35,15 @@ import {
   supersetLabels,
   targetKind,
   TECNICAS,
+  cifraDeTecnica,
+  tecnicaAlEscribir,
   tecnicaDeLaSerie,
   tecnicaFrase,
   tecnicaOf,
   tecnicaPorDefecto,
   tecnicaSaid,
   today,
+  vaciarObjetivo,
   trainedMuscles,
   trainingDayCount,
   weekMuscleVolume,
@@ -1074,6 +1079,53 @@ describe('las técnicas de intensidad', () => {
   });
 });
 
+describe('el remate, al escribirlo', () => {
+  /* El mando pinta cada técnica como una frase con las cifras dentro. La
+     frase se arma con lo que declara cada campo, y lo que ve el cliente
+     (`tecnicaFrase`) NO cambia por eso: son dos lecturas del mismo dato. */
+  it('arma la frase de cada técnica con lo que declara el catálogo', () => {
+    const frase = (id) =>
+      tecnicaAlEscribir(id)
+        .map(({ campo, antes, despues }) => [antes, `[${campo.por}]`, despues].filter(Boolean).join(' '))
+        .join('  ');
+    expect(frase('bajada')).toBe('× [1]  − [20] %');
+    expect(frase('rest-pause')).toBe('× [2]  · [15] s');
+    expect(frase('myo-reps')).toBe('× [4]  de [5]  · [15] s');
+    expect(frase('parciales')).toBe('× [8]');
+    expect(tecnicaAlEscribir('no-existe')).toEqual([]);
+  });
+
+  it('un campo sin forma declarada se escribe con su rótulo detrás', () => {
+    const spec = TECNICAS.find((t) => t.id === 'parciales');
+    const { antes: _a, ...pelado } = spec.campos[0];
+    spec.campos[0] = pelado;
+    try {
+      expect(tecnicaAlEscribir('parciales')[0]).toMatchObject({ antes: '', despues: 'parciales' });
+    } finally {
+      spec.campos[0] = { ...pelado, antes: _a };
+    }
+  });
+
+  it('lo que ve el cliente sigue diciéndose igual', () => {
+    expect(TECNICAS.map((t) => tecnicaFrase(tecnicaPorDefecto(t.id)))).toEqual([
+      'bajada −20 %',
+      'rest-pause ×2, 15 s',
+      'myo-reps ×4 de 5, 15 s',
+      'parciales ×8',
+    ]);
+  });
+
+  it('una cifra tecleada cae en su rango, y el vacío no es el mínimo', () => {
+    const corte = TECNICAS[0].campos[1];
+    expect(cifraDeTecnica(corte, '25')).toBe(25);
+    expect(cifraDeTecnica(corte, '99')).toBe(60);
+    expect(cifraDeTecnica(corte, '1')).toBe(5);
+    expect(cifraDeTecnica(corte, '12,6')).toBe(13);
+    expect(cifraDeTecnica(corte, '')).toBeNull();
+    expect(cifraDeTecnica(corte, 'mucho')).toBeNull();
+  });
+});
+
 describe('el remate cuelga de la serie, y lleva sus números', () => {
   const conSets = (n, extra = {}) => ({
     sets: Array.from({ length: n }, () => ({ targetReps: '8-10' })),
@@ -1167,5 +1219,62 @@ describe('claveDelDia', () => {
 
   it('sin fecha válida no inventa día', () => {
     expect(claveDelDia('mañana')).toBe(null);
+  });
+});
+
+/* ══ QUITAR UNA COLUMNA DE OBJETIVO ════════════════════════════════════════
+   El «×» del rótulo «kg» vacía el peso de todas las series de la hoja en una
+   escritura, y el «Deshacer» del aviso lo devuelve serie a serie. */
+describe('quitar una columna de objetivo y deshacerlo', () => {
+  const serie = (targetKg = '', targetRir = '') => ({ kg: '', reps: '', rir: '', targetReps: '8-10', targetKg, targetRir });
+  const hoja = () => [
+    { id: 'a', name: 'Press banca', sets: [serie('100', '2'), serie('95', '2'), serie('90', '1')] },
+    { id: 'b', name: 'Fondos', sets: [serie(), serie()] },
+    { id: 'c', name: 'Press militar', sets: [serie('40'), serie(''), serie('35')] },
+  ];
+
+  it('guarda lo que había solo de los ejercicios que lo pautan', () => {
+    const antes = objetivoPautado(hoja(), 'targetKg');
+    expect(Object.keys(antes)).toEqual(['a', 'c']);
+    expect(antes.a).toEqual(['100', '95', '90']);
+    expect(antes.c).toEqual(['40', '', '35']);
+    expect(objetivoPautado(hoja(), 'targetRir')).toEqual({ a: ['2', '2', '1'] });
+  });
+
+  it('vaciar deja el objetivo en blanco y no toca nada más', () => {
+    const [press] = hoja();
+    const vacio = vaciarObjetivo(press, 'targetKg');
+    expect(vacio.sets.map((s) => s.targetKg)).toEqual(['', '', '']);
+    expect(vacio.sets.map((s) => s.targetRir)).toEqual(['2', '2', '1']);
+    expect(vacio.sets.map((s) => s.targetReps)).toEqual(['8-10', '8-10', '8-10']);
+    expect(vacio.name).toBe('Press banca');
+  });
+
+  it('con la hoja vaciada ya no queda nada que pautar: la columna se va', () => {
+    const vaciada = hoja().map((ex) => vaciarObjetivo(ex, 'targetKg'));
+    expect(objetivoPautado(vaciada, 'targetKg')).toEqual({});
+  });
+
+  it('un ejercicio sin nada que vaciar sale igual (mismas series)', () => {
+    const fondos = hoja()[1];
+    expect(vaciarObjetivo(fondos, 'targetKg').sets[0]).toBe(fondos.sets[0]);
+  });
+
+  it('deshacer devuelve cada valor a su serie', () => {
+    const original = hoja();
+    const antes = objetivoPautado(original, 'targetKg');
+    const vaciada = original.map((ex) => vaciarObjetivo(ex, 'targetKg'));
+    const devuelta = vaciada.map((ex) => (antes[ex.id] ? devolverObjetivo(ex, 'targetKg', antes[ex.id]) : ex));
+    expect(devuelta).toEqual(original);
+  });
+
+  it('deshacer no pisa lo escrito después ni resucita series quitadas', () => {
+    const [press] = hoja();
+    const antes = objetivoPautado([press], 'targetKg').a;
+    const vacio = vaciarObjetivo(press, 'targetKg');
+    /* Entre quitar y deshacer: se escribe 110 en la primera y se quita la última. */
+    const tocado = { ...vacio, sets: [{ ...vacio.sets[0], targetKg: '110' }, vacio.sets[1]] };
+    const devuelto = devolverObjetivo(tocado, 'targetKg', antes);
+    expect(devuelto.sets.map((s) => s.targetKg)).toEqual(['110', '95']);
   });
 });

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { buildWeightLog, weekDates } from '@/domain/anthropometry';
 import { inicialDelDia } from '@/domain/blocks';
-import { localeNumber, todayISO, weekStart, weekdayName } from '@/lib/dates';
+import { addDays, localeNumber, todayISO, weekStart, weekdayName } from '@/lib/dates';
 import { Panel } from '@/components/ui/primitives';
 
 /**
@@ -69,6 +69,13 @@ import { Panel } from '@/components/ui/primitives';
  *   sin plan y la escalera se leería como un cambio que nadie hizo.
  * @param onApuntar `(log)` — escribe. La ruta decide si ese día ya existe: un
  *   registro con medidas no se puede sustituir entero por un peso.
+ * @param soloDelPeriodo  Una revisión PASADA que se completa: el número de
+ *   semanas de su periodo. Entonces la tira son sus días y ninguno más —ni la
+ *   semana de hoy—, porque lo que se apunte ahí no puede caer en otra semana.
+ *   0 (lo normal) deja la tira como siempre.
+ * @param puedeElDia  `(fecha) => boolean`: si ese día todavía se puede tocar.
+ *   Un día de una semana revisada o fuera de plazo se pinta y no responde, como
+ *   los que no han llegado: la base lo rechazaría (0134).
  * @param conMedia  El renglón de la media al pie. En el MONITOR va a `false`:
  *   allí la media es la cifra grande del costado (`RevisionEnMonitor · TuMedia`)
  *   y decirla dos veces en la misma pantalla, una en 12 px y otra en 34, es la
@@ -86,6 +93,8 @@ export const PesoDeHoy = ({
   foto = null,
   onApuntar,
   conMedia = true,
+  soloDelPeriodo = 0,
+  puedeElDia = null,
 }) => {
   /* `null` mientras no se ha tocado: entonces manda la propuesta. En cuanto se
      escribe, manda lo escrito — incluido el vacío, que es alguien borrando para
@@ -111,7 +120,12 @@ export const PesoDeHoy = ({
     para la revisión que se entrega (`selloDelPeriodo`).
   */
   const lunes = weekStart(hoy);
-  const dias = [...weekDates(semana), ...(weekStart(semana) === lunes ? [] : weekDates(lunes))];
+  const dias =
+    soloDelPeriodo > 0
+      ? Array.from({ length: soloDelPeriodo }, (_, i) => weekDates(addDays(semana, i * 7))).flat()
+      : [...weekDates(semana), ...(weekStart(semana) === lunes ? [] : weekDates(lunes))];
+  /* Un día se toca si ya ha llegado y su semana sigue abierta para ti. */
+  const tocable = (fecha) => fecha <= hoy && (!puedeElDia || puedeElDia(fecha));
   /* Del historial entero y no de los pesajes del periodo: la segunda fila es de
      otra semana, y sus puntos saldrían todos vacíos. Con la lista sin pasar
      —cualquier otro que monte esta pieza— se cae a los del periodo. */
@@ -122,7 +136,7 @@ export const PesoDeHoy = ({
 
   /* Hoy si cae dentro de los días que se enseñan; si no, el último que ya pasó:
      el día elegido por defecto tiene que existir en la tira. */
-  const pordefecto = dias.includes(hoy) ? hoy : dias.filter((d) => d <= hoy).pop() || dias[0] || hoy;
+  const pordefecto = dias.includes(hoy) && tocable(hoy) ? hoy : dias.filter(tocable).pop() || dias[0] || hoy;
   const elegido = dia ?? pordefecto;
   const delDia = porFecha.get(elegido) || null;
 
@@ -136,9 +150,12 @@ export const PesoDeHoy = ({
   /* Ya apuntado y sin tocar la cifra: no hay nada que hacer. Tocarla vuelve a
      ofrecer el verbo, que es cómo se corrige sin un modo «editar». */
   const yaEsta = delDia !== null && numero === Number(delDia.weight);
+  /* Ningún día de la tira se puede tocar: una semana cerrada. La casilla se
+     queda para leer, sin verbo. */
+  const soloLectura = !tocable(elegido);
 
   const apuntar = () => {
-    if (!valido) return;
+    if (!valido || soloLectura) return;
     onApuntar(buildWeightLog({ date: elegido, weight: numero, nutritionFoto: foto }));
     setEscrito(null);
   };
@@ -158,7 +175,7 @@ export const PesoDeHoy = ({
               fecha: sin ella nombra una casilla y se escribe en la otra. */}
           {elegido === hoy
             ? 'Tu peso de hoy'
-            : `Tu peso del ${weekdayName(elegido, { conFecha: dias.length > 7 })}`}
+            : `Tu peso del ${weekdayName(elegido, { conFecha: dias.length > 7 || soloDelPeriodo > 0 })}`}
         </span>
         {/* Cuándo fue el último, en voz baja. Es lo que explica de dónde sale la
             cifra que viene puesta: sin esto, un número en una casilla vacía
@@ -194,13 +211,14 @@ export const PesoDeHoy = ({
           inputMode="decimal"
           className="input peso-hoy-input"
           value={valor}
+          readOnly={soloLectura}
           onChange={(e) => setEscrito(e.target.value)}
           aria-label={`Tu peso del ${weekdayName(elegido)}, en kilos`}
         />
         <span className="peso-hoy-u" aria-hidden="true">
           kg
         </span>
-        {!yaEsta && (
+        {!yaEsta && !soloLectura && (
           <button
             type="button"
             className="btn btn-primary peso-hoy-verbo"
@@ -226,7 +244,7 @@ export const PesoDeHoy = ({
             className={`peso-hoy-dia${porFecha.has(fecha) ? ' es-puesto' : ''}${
               fecha === elegido ? ' es-hoy' : ''
             }`}
-            disabled={fecha > hoy}
+            disabled={!tocable(fecha)}
             aria-pressed={fecha === elegido}
             aria-label={`${weekdayName(fecha)}${
               porFecha.has(fecha) ? `, ${kg(porFecha.get(fecha).weight)} kilos` : ', sin apuntar'

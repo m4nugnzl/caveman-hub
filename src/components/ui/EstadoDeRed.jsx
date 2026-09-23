@@ -3,6 +3,7 @@ import { Cloud, CloudOff, CloudUpload } from 'lucide-react';
 
 import { useActions, useData } from '@/context/AppContext';
 import { useConexion } from '@/lib/conexion';
+import { useVersionNueva } from '@/lib/version';
 import { Notice } from '@/components/ui/primitives';
 import { dayMonthMaybeYear, timeOfDay } from '@/lib/dates';
 
@@ -245,6 +246,10 @@ export const Nube = () => {
  *
  * ══ Cuándo habla ═══════════════════════════════════════════════════════════
  *
+ *   · VERSIÓN NUEVA    — se ha publicado otra y esta ya no guarda el programa
+ *                        (`lib/version`). Va antes que todo: los rechazos que
+ *                        vengan después son suyos, y lo que los arregla es
+ *                        recargar, no reintentar.
  *   · NO SE GUARDÓ     — hay red y el servidor ha rechazado algo. Va la primera
  *                        porque es lo único de esta franja que no se arregla
  *                        solo, y es la única que trae un verbo: «Reintentar».
@@ -285,6 +290,7 @@ export const EstadoDeRed = () => {
   const enLinea = useConexion();
   const { enEspera, fallosAlGuardar, copiaLocal } = useData();
   const { reintentarLoFallido } = useActions();
+  const versionNueva = useVersionNueva();
   const [explicacionLeida, setExplicacionLeida] = useState(seLeyoLaExplicacion);
 
   /*
@@ -337,7 +343,25 @@ export const EstadoDeRed = () => {
     Sin red no se dice: ahí no hay rechazo, hay espera, y eso ya lo cuenta la
     rama de abajo con su cifra. Ver `lib/dbErrors`.
   */
-  if (enLinea && fallosAlGuardar > 0) {
+  if (versionNueva) {
+    return (
+      <div className="layout" style={{ paddingBottom: 0 }}>
+        <Notice
+          tone="info"
+          action={
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>
+              Recargar
+            </button>
+          }
+        >
+          Hay una versión nueva.{' '}
+          <span className="solo-escritorio">Lo que cambies en un programa se guarda al recargar.</span>
+        </Notice>
+      </div>
+    );
+  }
+
+  if (enLinea && fallosAlGuardar.total > 0) {
     return (
       <div className="layout" style={{ paddingBottom: 0 }}>
         <Notice
@@ -348,9 +372,15 @@ export const EstadoDeRed = () => {
             </button>
           }
         >
-          {fallosAlGuardar === 1
-            ? 'Un cambio no se ha guardado.'
-            : `${fallosAlGuardar} cambios no se han guardado.`}{' '}
+          {/* Con la misma palabra que la pantalla de debajo: si todo son
+              series, «serie» —una por serie, no por campo—. Ver `contarFallos`. */}
+          {fallosAlGuardar.otros === 0
+            ? fallosAlGuardar.series === 1
+              ? 'Una serie no se ha guardado.'
+              : `${fallosAlGuardar.series} series no se han guardado.`
+            : fallosAlGuardar.total === 1
+              ? 'Un cambio no se ha guardado.'
+              : `${fallosAlGuardar.total} cambios no se han guardado.`}{' '}
           {/* El detalle del error lo lleva el indicador de la pantalla donde se
               escribió (`SaveIndicator`): aquí no se sabe cuál de las claves era
               ni de qué hablaba, y un mensaje de Postgres suelto en una franja

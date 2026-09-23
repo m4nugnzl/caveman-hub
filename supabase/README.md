@@ -136,19 +136,23 @@ Cada entrada de `history` es una revisión:
 
 ### 2. Los metadatos de las fotos viven en `tag`
 
-`progress_photos` tiene solo `id, client_id, photo_url, tag, created_at`.
+La aplicación lee y escribe solo `id, client_id, photo_url, tag, created_at`.
+Las columnas `angle`, `weight`, `notes` y `taken_on` de la `0001` existen en
+local y en producción, pero nadie las escribe desde que se rellenaron: `tag`
+es la única fuente de verdad.
 
 | Dato | Dónde se guarda |
 |---|---|
 | Semana del programa | En la **ruta** de Storage: `<clientId>/photos/week-12/…` |
 | Fecha | `created_at` |
-| Ángulo, peso, notas | JSON compacto en `tag`: `{"angle":"frontal","weight":81.5}` |
+| Ángulo, peso, notas, lado declarado | JSON compacto en `tag`: `{"angle":"frontal","weight":81.5}` |
 | Ruta del archivo | `photo_url` (la URL firmada se genera en cada carga) |
 
 Es un compromiso consciente: evita una migración y queda contenido en
 `src/lib/mappers.js`, a cambio de no poder filtrar por ángulo o peso desde SQL
 (la aplicación filtra en cliente de todas formas). La migración opcional los
-saca a columnas propias.
+copió a columnas propias una sola vez; para usarlas habría que volver a
+copiarlos y escribir en las dos a la vez.
 
 Las filas antiguas cuyo `tag` sea texto plano se interpretan como el ángulo.
 

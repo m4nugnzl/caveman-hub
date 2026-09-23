@@ -1,10 +1,11 @@
 import { Fragment, useMemo, useState } from 'react';
-import { Check, GitBranch, Pencil, Plus, Route, Target, Trash2 } from 'lucide-react';
+import { ArrowDown, Check, GitBranch, Pencil, Plus, Route, Target, Trash2 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { latestWeight } from '@/domain/anthropometry';
 import {
   FORK_RANGE,
+  PREGUNTA_MAX,
   forkDraft,
   forkState,
   forkablePhase,
@@ -25,16 +26,9 @@ import {
 } from '@/domain/roadmap';
 import { shortDate, todayISO } from '@/lib/dates';
 import { fmt, toNum } from '@/lib/num';
-import {
-  BotonAccion,
-  EmptyState,
-  Field,
-  Notice,
-  Panel,
-  SectionTitle,
-  Switch,
-  useAccionDeBoton,
-} from '@/components/ui/primitives';
+import { Medidor, Medidores } from '@/components/ui/Medidor';
+import { AnclaDelPlan } from './AnclaDelPlan';
+import { BotonAccion, EmptyState, Field, Notice, Switch, useAccionDeBoton } from '@/components/ui/primitives';
 
 /**
  * El roadmap del cliente: el plan por tramos, con el de hoy destacado.
@@ -52,16 +46,14 @@ import {
  * (migración 0028), no este componente: aquí solo se decide qué botones salen.
  */
 /*
-  ── `desnudo`: el mismo panel, sin su tarjeta ni su rótulo ────────────────
-  Desde que el roadmap se abre en una ventana (`dashboard/FasesPopup`), pintar
-  aquí su superficie y su sombra sería una tarjeta dentro de otra tarjeta —el
-  defecto que el rediseño del resumen vino a quitar— y su «Roadmap» diría por
-  segunda vez, con otra palabra, lo que ya dice el título de la ventana.
-
-  Con `desnudo` el contenido sale a pelo y el marco lo pone quien lo abre. Sin
-  él, se comporta exactamente como siempre.
+  ── Es el contenido de la ventana del plan (`PlanDelRoadmap`) ─────────────
+  Fue la ventana «Sus fases» (`dashboard/FasesPopup`) y luego la vista «Plan»
+  de una pestaña Roadmap que se retiró en R2. Aquí se edita: las fases con su
+  hilo, el cruce con «Elegir», el destino y el peso objetivo. La línea y el
+  libro se leen en Revisiones (la espina y el modo Semanas): cada cosa en un
+  solo sitio.
 */
-export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
+export const RoadmapPanel = ({ audience = 'coach' }) => {
   const {
     activeClient,
     phases,
@@ -73,6 +65,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     chooseFork,
     plan,
     updateClientPreferences,
+    anchors,
   } = useApp();
 
   /* Igual que en el portal: el peso sale del histórico, que es lo único que se
@@ -82,7 +75,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
      se va es del proceso entero, y este panel es el proceso entero. */
   const destino = clientGoal(activeClient);
   const [form, setForm] = useState(null); // null | {…draft, id?}
-  const [forkForm, setForkForm] = useState(null); // null | {phaseId, options}
+  const [forkForm, setForkForm] = useState(null); // null | {phaseId, options, pregunta}
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -108,7 +101,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     que sí puede crear la primera fase; al cliente el roadmap le aparece solo en
     cuanto exista.
   */
-  if (isClient && state.all.length === 0) return null;
+  if (isClient && state.all.length === 0 && anchors.length === 0) return null;
 
   const abrirNuevo = () => {
     const draft = nextPhaseDraft(phases, 'cut', 12, hoy);
@@ -135,19 +128,19 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     if (!fase) return;
     setForm(null);
     setError('');
-    setForkForm({ phaseId: fase.id, options: existente?.options || forkDraft() });
+    setForkForm({ phaseId: fase.id, options: existente?.options || forkDraft(), pregunta: existente?.pregunta || '' });
   };
 
   const guardarCruce = async (event) => {
     event.preventDefault();
-    const problema = validateFork(phases, forkForm.phaseId, forkForm.options);
+    const problema = validateFork(phases, forkForm.phaseId, forkForm.options, forkForm.pregunta);
     if (problema) {
       setError(problema);
       return false;
     }
 
     setBusy(true);
-    const res = await setPhaseFork(forkForm.phaseId, forkForm.options);
+    const res = await setPhaseFork(forkForm.phaseId, forkForm.options, forkForm.pregunta.trim());
     setBusy(false);
 
     if (!res.ok) {
@@ -218,6 +211,25 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     return true;
   };
 
+  /* La pregunta que le faltaba a un cruce de antes de la 0125, sin tocar sus
+     caminos. */
+  const guardarPregunta = async (pregunta) => {
+    const problema = validateFork(phases, cruce.phase.id, cruce.options, pregunta);
+    if (problema) {
+      setError(problema);
+      return false;
+    }
+    setBusy(true);
+    const res = await setPhaseFork(cruce.phase.id, cruce.options, pregunta.trim());
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
   const borrar = async (id) => {
     setBusy(true);
     const res = await removePhase(id);
@@ -230,7 +242,6 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     hijos entre sí. Sin esto, la cabecera queda tocando la primera fase. Mismo
     olvido que en el panel de Ayuda.
   */
-  const Marco = desnudo ? 'div' : Panel;
   /*
     Sin fases, el hueco central ya ofrece «Nueva fase». Sacar además
     este arriba deja dos botones iguales peleando por el mismo clic, y el de la
@@ -244,36 +255,32 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
     ) : null;
 
   return (
-    <Marco className="col gap-4">
-      {desnudo ? (
-        anadir && <div className="row between">{anadir}</div>
-      ) : (
-        <SectionTitle icon={Route} action={anadir}>
-          Roadmap
-        </SectionTitle>
-      )}
-
-      {error && !form && !forkForm && <Notice tone="error">{error}</Notice>}
-
+    <div className="plan-roadmap">
       {/*
-        ══ El destino, encima del recorrido que lleva a él ═══════════════════
-        Estuvo al pie de «Cómo va», y allí era un ajuste metido en una pantalla
-        de lectura: la tarjeta dice dónde acaba y debajo pedía teclear dónde
-        tenía que acabar. Aquí es la primera línea de lo mismo que ordena esta
-        ventana —las fases son el CAMINO, esto es el final— y se llega desde la
-        misma puerta que abría la tarjeta.
-
-        Solo con dirección elegida (`clientGoal` devuelve `null` sin ella): un
-        peso objetivo sin dirección no se puede leer luego, así que tampoco se
-        ofrece escribirlo.
+        ══ El destino y el peso, arriba del todo ═════════════════════════════
+        Las fases son el CAMINO; esto es el final, y se lee primero: a dónde
+        se va y a qué peso, y después cómo se llega.
       */}
-      {puedeEditar && destino && (
-        <Destino
-          key={`meta-${destino.targetWeightKg ?? 'sin'}`}
-          goal={destino}
-          onSet={(kg) => updateClientPreferences(activeClient.id, 'goal', { targetWeightKg: kg })}
-        />
-      )}
+      <aside className="plan-roadmap-lado">
+        <AnclaDelPlan puedeEditar={puedeEditar} hoy={hoy} />
+        {/*
+          El peso objetivo. Estuvo al pie de «Cómo va», y allí era un ajuste
+          metido en una pantalla de lectura. Solo con dirección elegida
+          (`clientGoal` devuelve `null` sin ella): un peso objetivo sin
+          dirección no se puede leer luego, así que tampoco se ofrece escribirlo.
+        */}
+        {puedeEditar && destino && (
+          <Destino
+            key={`meta-${destino.targetWeightKg ?? 'sin'}`}
+            goal={destino}
+            onSet={(kg) => updateClientPreferences(activeClient.id, 'goal', { targetWeightKg: kg })}
+          />
+        )}
+      </aside>
+
+      <div className="plan-roadmap-main">
+      {anadir && <div className="row row-end">{anadir}</div>}
+      {error && !form && !forkForm && <Notice tone="error">{error}</Notice>}
 
       {/*
         El agujero de hoy. Es el único aviso que da esta pantalla porque es el
@@ -339,6 +346,7 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
               onChoose={puedeEditar ? elegirCamino : null}
               onEdit={puedeEditar ? () => abrirCruce(cruce) : null}
               onDiscard={puedeEditar ? descartarCruce : null}
+              onPregunta={puedeEditar ? guardarPregunta : null}
               busy={busy}
               error={error}
             />
@@ -382,7 +390,8 @@ export const RoadmapPanel = ({ audience = 'coach', desnudo = false }) => {
           error={error}
         />
       )}
-    </Marco>
+      </div>
+    </div>
   );
 };
 
@@ -536,14 +545,22 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 
         {/* La barra solo en la fase en curso: en las pasadas marcaría siempre 100
             y en las futuras siempre 0, que no es información sino ruido. */}
+        {/* El medidor de la casa en su variante de PROGRESO: en tinta, porque
+            el tiempo no es un dato con color ni algo que juzgar. La barra va
+            por días; la cifra, por semanas, que es como se planifica. */}
         {current && progress && !progress.open && (
           <div className="col gap-1">
-            <div className="plan-bar is-fase">
-              <span className="plan-bar-fill" style={{ width: `${progress.pct}%` }} />
-            </div>
+            <Medidores>
+              <Medidor
+                etiqueta="Semana"
+                valor={progress.elapsed}
+                techo={progress.total}
+                cifra={Math.ceil(progress.elapsed / 7)}
+                de={` de ${Math.ceil(progress.total / 7)}`}
+              />
+            </Medidores>
             <span className="t-2xs t-tertiary tnum">
-              Semana {Math.ceil(progress.elapsed / 7)} · {progress.weeksLeft}{' '}
-              {progress.weeksLeft === 1 ? 'semana restante' : 'semanas restantes'}
+              {progress.weeksLeft} {progress.weeksLeft === 1 ? 'semana restante' : 'semanas restantes'}
             </span>
           </div>
         )}
@@ -756,8 +773,8 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) 
  * número porque no se sabe cuál va a ser: es un sitio donde el carril se abre,
  * y el rombo es lo que dice eso sin una palabra.
  */
-const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, busy }) => {
-  const { options, decidesOn, daysLeft, due, overdue } = fork;
+const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, onPregunta, busy }) => {
+  const { options, pregunta, decidesOn, daysLeft, due, overdue } = fork;
 
   return (
     <div className="rmap-item is-fork">
@@ -812,6 +829,15 @@ const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, busy }) => {
           {overdue && <span className="badge badge-warn">Se pasó</span>}
         </div>
 
+        {/* La pregunta que se decide ese día (0125), y debajo sus respuestas.
+            Un cruce de antes sin pregunta la pide aquí, a quien puede
+            escribirla; el cliente lee las ramas por su frase. */}
+        {pregunta ? (
+          <p className="rmap-pregunta">{pregunta}</p>
+        ) : onPregunta ? (
+          <PreguntaQueFalta onGuardar={onPregunta} busy={busy} />
+        ) : null}
+
         <div className="rmap-roads">
           {options.map((camino, index) => (
             <Fragment key={index}>
@@ -844,7 +870,40 @@ const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, busy }) => {
 };
 
 /**
- * Un camino: su «si», a dónde lleva, y el botón que lo convierte en fase.
+ * La pregunta que le falta a un cruce planteado antes de la 0125.
+ *
+ * No es un aviso: es el campo, en el sitio donde irá la pregunta. Se guarda sin
+ * tocar los caminos.
+ */
+const PreguntaQueFalta = ({ onGuardar, busy }) => {
+  const [texto, setTexto] = useState('');
+  const envio = useAccionDeBoton();
+  return (
+    <form
+      className="rmap-pregunta-falta"
+      onSubmit={(e) => {
+        e.preventDefault();
+        envio.lanzar(() => onGuardar(texto));
+      }}
+    >
+      <Field label="Escribe la pregunta que decide este cruce" hint="Sus caminos se leerán como las respuestas.">
+        <input
+          className="input"
+          maxLength={PREGUNTA_MAX}
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+          placeholder="¿Llega al Nacional con margen?"
+        />
+      </Field>
+      <BotonAccion type="submit" className="btn btn-secondary btn-sm" estado={envio.estado} disabled={busy || !texto.trim()}>
+        Guardar la pregunta
+      </BotonAccion>
+    </form>
+  );
+};
+
+/**
+ * Un camino: su respuesta, a dónde lleva, y el botón que lo convierte en fase.
  *
  * ── Por qué es un contorno y no una tarjeta ─────────────────────────────────
  * Porque no es nada todavía. Las fases tienen superficie —son cosas que
@@ -865,6 +924,7 @@ const RoadCard = ({ option, weight, onChoose, busy }) => {
           literalmente lo que decide cuál se coge, así que es lo primero que hay
           que leer. Debajo del nombre se leería como un pie de foto del volumen. */}
       <span className="rmap-road-when">{option.when}</span>
+      <ArrowDown size={13} className="rmap-road-flecha" aria-hidden="true" />
 
       <strong className="rmap-road-name">{option.title}</strong>
 
@@ -936,10 +996,22 @@ const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) =
       <div className="col gap-1">
         <span className="section-label">El cruce</span>
         <span className="t-xs t-secondary">
-          Al acabar la fase habrá que elegir uno. Escribe de qué depende cada camino con tus
-          palabras: nadie va a comprobarlo por ti, y esa frase es lo que tu cliente va a leer.
+          Al acabar la fase habrá que elegir un camino. Escribe la pregunta que lo decide y, en cada
+          camino, la respuesta que lleva a él. Nadie va a comprobarlo por ti: es lo que tu cliente va
+          a leer.
         </span>
       </div>
+
+      <Field label="La pregunta" hint="Una frase. Se contesta el día del cruce.">
+        <input
+          autoFocus
+          className="input"
+          maxLength={PREGUNTA_MAX}
+          value={value.pregunta || ''}
+          onChange={(e) => onChange({ ...value, pregunta: e.target.value })}
+          placeholder="¿Llega al Nacional con margen?"
+        />
+      </Field>
 
       {/* El formulario tiene la forma del resultado: bloque, «o», bloque. Antes
           cada uno se abría con un «Camino 1» que no decía nada que no dijera ya
@@ -1000,12 +1072,12 @@ const RoadFields = ({ option, index, onChange, onRemove }) => {
         </div>
       )}
 
-      <Field label="Si…" hint="La condición, con tus palabras.">
+      <Field label="Respuesta" hint="Lo que contesta la pregunta para coger este camino.">
         <input
           className="input"
           value={option.when}
           onChange={(e) => onChange({ when: e.target.value })}
-          placeholder="Si el punto ha bajado lo suficiente"
+          placeholder={index === 0 ? 'Sí, con margen' : 'No, todavía le sobra'}
         />
       </Field>
 

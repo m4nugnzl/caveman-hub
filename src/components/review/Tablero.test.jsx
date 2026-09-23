@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 
-import { ReviewChart } from './ReviewChart';
 import { TrainingCard } from './TrainingCard';
 import { NutritionCard } from './NutritionCard';
 import { BodyCard } from './BodyCard';
@@ -84,69 +83,6 @@ const track = nutritionTrack({
       snapshot: { kcals: 2200, protein: 190, carbs: 220, fats: 68, steps: 12000, cardio: '3 días de 25 min' },
     },
   ],
-});
-
-describe('ReviewChart', () => {
-  const pinta = () => renderToStaticMarkup(<ReviewChart weeks={track} selected={6} ancho={900} />);
-
-  /*
-    La razón de que esta pieza exista: la misma curva salía DOS veces en la
-    misma pantalla, una pulsable y otra no. Aquí hay una, y lleva las dos
-    bandas rotuladas.
-  */
-  it('rotula las dos bandas y las separa', () => {
-    const html = pinta();
-
-    expect(html).toContain('PESO');
-    expect(html).toContain('KCAL OBJETIVO');
-    expect(html).toContain('banda-corte');
-    /* Un solo dibujo. */
-    expect(html.match(/grafica-svg/g)).toHaveLength(1);
-  });
-
-  /* Un objetivo no se mide: se pone y sigue puesto. El punto marca dónde TÚ lo
-     cambiaste, que es lo que convierte el dibujo en el registro de tus
-     decisiones. */
-  it('marca el escalón donde cambiaste las calorías', () => {
-    expect(pinta()).toContain('banda-escalon');
-  });
-
-  /*
-    Y las dibuja como un instrumento, no como una forma: rejilla, números en el
-    canal de la izquierda y área bajo la curva. Sin eso, un punto a media altura
-    había que estimarlo interpolando de cabeza entre dos extremos escritos en una
-    esquina — que es como estaba.
-  */
-  it('lleva rejilla, eje y área: se lee un valor, no una forma', () => {
-    const html = pinta();
-
-    expect(html).toContain('grafica-rejilla');
-    expect(html).toContain('grafica-eje');
-    expect(html).toContain('banda-area');
-  });
-
-  /* Y dice qué vale la semana elegida: sin esto, elegir una semana movía una
-     raya y no decía nada. */
-  it('lee en palabras la semana elegida', () => {
-    const html = pinta();
-
-    expect(html).toContain('grafica-lectura');
-    expect(html).toContain('Semana 6');
-    expect(html).toContain('2200 kcal');
-  });
-
-  /* Y es el mando: la tira son marcas pequeñas, no cajas anchas. */
-  it('la tira de semanas es el selector', () => {
-    const html = pinta();
-
-    expect(html).toContain('grafica-semana');
-    expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('>S6<');
-  });
-
-  it('sin semanas no pinta nada', () => {
-    expect(renderToStaticMarkup(<ReviewChart weeks={[]} selected={1} ancho={900} />)).toBe('');
-  });
 });
 
 describe('TrainingCard', () => {
@@ -316,6 +252,37 @@ describe('TrainingCard', () => {
       'no tiene días montados'
     );
   });
+
+  /*
+    ══ Lo que la LENTE DE ENTRENO le pidió a esta tarjeta ═════════════════════
+    La semana abierta desde la lente tiene que contar su entreno con el detalle
+    de Historial: cuánto se movió —por semana y por día— y qué ejercicios no
+    han superado su marca. Lo primero es un dato que ya traía `clientWeek`; lo
+    segundo es la racha que ya contaba `exerciseTrend`, puesta por su nombre.
+  */
+  it('dice cuánto levantó, en la semana y en cada día', () => {
+    const html = pinta({
+      tonelaje: 34210,
+      dias: [{ dayName: 'Día 1', done: true, date: '2026-04-04', loggedSets: 3, plannedSets: 4, tonnage: 6600 }],
+    });
+    expect(html).toContain('34,2 t levantados');
+    expect(html).toContain('6,6 t');
+  });
+
+  it('nombra los que no han superado su marca, y sin llamarlo un problema', () => {
+    /* La sentadilla se queda en 110 las dos últimas: dos microciclos sin tope. */
+    const planos = [micro(1, 100), micro(2, 105), micro(3, 110), micro(4, 110), micro(5, 110)];
+    const html = pinta({ microcycles: planos, semana: 5 });
+
+    expect(html).toContain('Sentadilla');
+    /* Es un dato, no un aviso: su renglón va en la tinta de siempre y no en la
+       de ámbar, que es la que esta pantalla usa para lo que falta. */
+    expect(html).toContain('<p class="tarjeta-meta">Sin superar su marca');
+  });
+
+  it('cuando todo sube, no hay línea que poner', () => {
+    expect(pinta()).not.toContain('Sin superar su marca');
+  });
 });
 
 describe('NutritionCard', () => {
@@ -418,11 +385,6 @@ describe('BodyCard', () => {
      lleva su resumen en el rótulo: plegar no es esconder. */
   it('solo se pliega lo que se consulta, y con su resumen', () => {
     expect(pinta()).toContain('sin medidas cerca');
-  });
-
-  /* Y ya no hay una segunda curva aquí dentro: la gráfica está arriba, una vez. */
-  it('no repite la gráfica de arriba', () => {
-    expect(pinta()).not.toContain('grafica-svg');
   });
 });
 

@@ -390,11 +390,28 @@ export const tandasDe = (dias = []) => {
   return tandas;
 };
 
-/** La cadena de una secuencia, escrita: «2-1 2-1 3-1». */
-export const cadenaDe = (dias = []) =>
-  tandasDe(dias)
-    .map((t) => `${t.entreno}-${t.descanso}`)
-    .join(' ');
+/** Cada tanda escrita, sin agrupar: «2-1 2-1 2-1». */
+const tandasEscritas = (dias) => tandasDe(dias).map((t) => `${t.entreno}-${t.descanso}`);
+
+/** La cadena de una secuencia, tanda a tanda: «2-1 2-1 2-1». */
+export const cadenaLiteral = (dias = []) => tandasEscritas(dias).join(' ');
+
+/**
+ * LA CADENA DE UNA SECUENCIA, ESCRITA COMO SE ESCRIBE A MANO.
+ *
+ * Si todas las tandas son iguales, es la tanda a secas: «2-1». No «2-1 2-1 2-1»
+ * ni «2-1 ×3», porque «2-1» YA significa que se repite hasta colocar todas las
+ * hojas —es lo que hace `generarSecuencia` con una sola tanda—, y deletrearla
+ * dice lo mismo tres veces. Solo se deletrea cuando las tandas son distintas:
+ * «2-1 2-1 3-1».
+ *
+ * Al escribir se aceptan las dos formas (`leerCadena` lee las dos); lo que se
+ * guarda es la secuencia, así que al releerla sale siempre la corta.
+ */
+export const cadenaDe = (dias = []) => {
+  const partes = tandasEscritas(dias);
+  return partes.every((p) => p === partes[0]) ? partes[0] || '' : partes.join(' ');
+};
 
 /**
  * LA SECUENCIA QUE SALE DE UNA CADENA, con las hojas en orden.
@@ -459,6 +476,26 @@ export const duracionDe = (microciclo) => microciclo?.dias?.length || 0;
 export const entrenosDe = (microciclo) => (microciclo?.dias || []).filter((d) => !d.descanso).length;
 
 /**
+ * QUÉ DÍA DE LA VUELTA ES HOY. El índice, o `null` si hoy no cae dentro.
+ *
+ * En un rotativo no hay calendario que lo diga: el día 1 es el que arranca el
+ * microciclo (`micro.date`) y los demás van detrás, uno por día. Mirando la
+ * tira no se puede deducir —«D3» no es ningún día de la semana—, y por eso el
+ * editor lo marca. Fuera de la vuelta no hay nada que marcar: `null`.
+ *
+ * @param microciclo `{ tipo, dias }` ya leído.
+ * @param desde      Cuándo empieza la vuelta (la fecha del microciclo en curso).
+ * @param hoy        Para las pruebas; por defecto, hoy.
+ */
+export const diaEnCursoDe = (microciclo, desde, hoy = todayISO()) => {
+  const total = microciclo?.dias?.length || 0;
+  const inicio = toISODate(desde);
+  if (!total || !inicio) return null;
+  const i = daysBetween(inicio, hoy);
+  return i !== null && i >= 0 && i < total ? i : null;
+};
+
+/**
  * Cuántas veces sale cada hoja en la secuencia. Una hoja puede caer dos días
  * —Push el lunes y el jueves— y entonces pide dos sesiones, no una. Los días
  * de entreno sin hoja no cuentan.
@@ -495,6 +532,175 @@ export const casillasDe = (microciclo) => {
     sesion: dias[i]?.descanso || !dias[i]?.hoja ? null : dias[i].hoja,
     rest: Boolean(dias[i]?.descanso || !dias[i]?.hoja),
   }));
+};
+
+/* ── Editar la secuencia ─────────────────────────────────────────────────────
+   Lo que hace la tira del microciclo (`EditorDelMicrociclo`), gesto a gesto.
+   Todas reciben un microciclo ya leído (`normalizaMicrociclo`) y devuelven uno
+   nuevo, o el MISMO si el gesto no cambia nada: quien escribe lo usa para no
+   guardar ni apuntar un paso de deshacer vacío. */
+
+const conDias = (microciclo, dias) => ({ tipo: microciclo.tipo, dias });
+const diaDe = (hoja) => (hoja ? { hoja } : { descanso: true });
+
+/** El día `i` pasa a ser esa hoja, o descanso con `null`. */
+export const ponerDia = (microciclo, i, hoja) => {
+  const dias = microciclo?.dias || [];
+  if (i < 0 || i >= dias.length) return microciclo;
+  const nuevo = diaDe(hoja);
+  if ((dias[i].hoja || null) === (nuevo.hoja || null) && Boolean(dias[i].descanso) === Boolean(nuevo.descanso)) {
+    return microciclo;
+  }
+  return conDias(microciclo, dias.map((d, j) => (j === i ? nuevo : d)));
+};
+
+/**
+ * Arrastrar un día sobre otro.
+ *
+ * En el semanal los dos se INTERCAMBIAN: los días son del calendario y no se
+ * corren —llevar el martes al jueves no puede mover el miércoles—. En el
+ * rotativo el día se MUEVE y los de en medio se corren, porque ahí lo que se
+ * edita es el orden de la vuelta.
+ */
+export const arrastrarDia = (microciclo, de, a) => {
+  const dias = microciclo?.dias || [];
+  if (de === a || de < 0 || a < 0 || de >= dias.length || a >= dias.length) return microciclo;
+  const copia = [...dias];
+  if (microciclo.tipo === 'semanal') {
+    [copia[de], copia[a]] = [copia[a], copia[de]];
+  } else {
+    const [dia] = copia.splice(de, 1);
+    copia.splice(a, 0, dia);
+  }
+  return conDias(microciclo, copia);
+};
+
+/** Un día de descanso detrás del `i` (al final con `i = N - 1`). Solo rotativo. */
+export const anadirDiaDespues = (microciclo, i) => {
+  if (microciclo?.tipo !== 'rotativo') return microciclo;
+  const dias = [...microciclo.dias];
+  dias.splice(Math.max(0, Math.min(i + 1, dias.length)), 0, { descanso: true });
+  return conDias(microciclo, dias);
+};
+
+/** Quita el día `i`. Solo rotativo, y nunca el último que queda. */
+export const quitarDia = (microciclo, i) => {
+  if (microciclo?.tipo !== 'rotativo' || microciclo.dias.length <= 1) return microciclo;
+  if (i < 0 || i >= microciclo.dias.length) return microciclo;
+  return conDias(
+    microciclo,
+    microciclo.dias.filter((_, j) => j !== i)
+  );
+};
+
+/**
+ * Cambiar de tipo, sin preguntar (se ofrece Deshacer).
+ *
+ * Semanal → rotativo: los mismos siete días, que pasan a numerarse. Rotativo →
+ * semanal: los siete primeros, y descanso en lo que falte. `quitados` dice
+ * cuántos días se han caído, para que el aviso los nombre.
+ */
+export const cambiarTipo = (microciclo, tipo) => {
+  if (!microciclo || microciclo.tipo === tipo || (tipo !== 'semanal' && tipo !== 'rotativo')) {
+    return { microciclo, quitados: 0 };
+  }
+  if (tipo === 'rotativo') return { microciclo: { tipo, dias: [...microciclo.dias] }, quitados: 0 };
+  const dias = WEEK_DAYS.map((_, i) => microciclo.dias[i] || { descanso: true });
+  return { microciclo: { tipo, dias }, quitados: Math.max(0, microciclo.dias.length - 7) };
+};
+
+/**
+ * Las tandas reescritas: la secuencia que sale de la cadena con estas hojas.
+ * `null` si la cadena no se lee. Solo rotativo: el semanal no tiene tandas.
+ */
+export const conTandas = (microciclo, cadena, hojas = []) => {
+  if (microciclo?.tipo !== 'rotativo') return null;
+  const dias = generarSecuencia(cadena, hojas);
+  if (!dias || dias.length === 0) return null;
+  return JSON.stringify(dias) === JSON.stringify(microciclo.dias) ? microciclo : { tipo: 'rotativo', dias };
+};
+
+/** Las hojas del plan que no caen en ningún día: la fila «Sin día». */
+export const hojasSinDia = (microciclo, hojas = []) => {
+  const veces = vecesDeCadaHoja(microciclo);
+  return hojas.map((h) => (typeof h === 'string' ? h : h?.dayName)).filter((h) => h && !veces.has(h));
+};
+
+/** En qué días cae una hoja (índices). */
+export const diasDeLaHoja = (microciclo, hoja) =>
+  (microciclo?.dias || []).flatMap((d, i) => (!d.descanso && d.hoja === hoja ? [i] : []));
+
+/** El nombre de una hoja cambia también en los días en los que cae. */
+export const renombrarEnMicrociclo = (microciclo, de, a) => {
+  const nombre = String(a || '').trim();
+  if (!microciclo || !nombre || !microciclo.dias.some((d) => d.hoja === de)) return microciclo;
+  return conDias(
+    microciclo,
+    microciclo.dias.map((d) => (d.hoja === de ? { hoja: nombre } : d))
+  );
+};
+
+/**
+ * Un microciclo que llega de fuera —el Compositor, un bloque copiado— para un
+ * bloque con estas hojas: los días de una hoja que no está pasan a descanso.
+ * `null` si no se puede leer.
+ */
+export const microcicloParaLasHojas = (microciclo, hojas = []) => {
+  const limpio = normalizaMicrociclo(microciclo);
+  if (!limpio) return null;
+  const hay = new Set(hojas.map((h) => (typeof h === 'string' ? h : h?.dayName)));
+  return conDias(
+    limpio,
+    limpio.dias.map((d) => (d.hoja && !hay.has(d.hoja) ? { descanso: true } : d))
+  );
+};
+
+/**
+ * LA SECUENCIA SIGUE A LAS HOJAS DEL PLAN (§5 del estudio).
+ *
+ * Tras cambiar las hojas —añadir, quitar, reordenar—:
+ *   · Un rotativo que sigue siendo exactamente lo que da el generador con las
+ *     hojas de antes se REGENERA con las de ahora.
+ *   · Si no (semanal, o rotativo retocado a mano), los días de una hoja que ya
+ *     no está pasan a descanso —la longitud no cambia, así que no se mueve
+ *     ninguna fecha ni ninguna clave de la dieta— y una hoja nueva no entra:
+ *     se queda en «Sin día».
+ *
+ * `cadenas` son las candidatas con las que se prueba si la secuencia es la
+ * generada: la del patrón del cliente, si la tiene; se añaden la primera tanda
+ * sola y la cadena literal.
+ */
+export const seguirAlPlan = (microciclo, hojasAntes = [], hojas = [], cadenas = []) => {
+  if (!microciclo) return microciclo;
+  const antes = hojasAntes.map((h) => (typeof h === 'string' ? h : h?.dayName));
+  const ahora = hojas.map((h) => (typeof h === 'string' ? h : h?.dayName));
+  if (JSON.stringify(antes) === JSON.stringify(ahora)) return microciclo;
+
+  if (microciclo.tipo === 'rotativo') {
+    const [primera] = tandasDe(microciclo.dias);
+    const candidatas = [
+      ...cadenas,
+      primera && `${primera.entreno}-${primera.descanso}`,
+      /* La LITERAL, tanda a tanda: aquí se prueba si la secuencia es la que
+         sale de una cadena, y «2-1 2-1 3-1» no es lo mismo que su forma corta
+         cuando las tandas son distintas. */
+      cadenaLiteral(microciclo.dias),
+    ].filter(Boolean);
+    const mismo = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const cadena = candidatas.find((c) => mismo(generarSecuencia(c, antes), microciclo.dias));
+    if (cadena) {
+      const dias = generarSecuencia(cadena, ahora);
+      return !dias || mismo(dias, microciclo.dias) ? microciclo : { tipo: 'rotativo', dias };
+    }
+  }
+
+  const quedan = new Set(ahora);
+  const idas = new Set(antes.filter((h) => !quedan.has(h)));
+  if (!microciclo.dias.some((d) => idas.has(d.hoja))) return microciclo;
+  return conDias(
+    microciclo,
+    microciclo.dias.map((d) => (idas.has(d.hoja) ? { descanso: true } : d))
+  );
 };
 
 // ── Constructores ──────────────────────────────────────────────────────────
@@ -727,12 +933,19 @@ export const TECNICAS = [
     id: 'bajada',
     verbo: 'bajada',
     dicho: 'con bajada',
-    ayuda: 'Al llegar al fallo se baja el peso y se sigue sin descanso',
+    ayuda: 'Al fallo, bajas el peso y sigues sin descansar',
     /* `por` es el valor por defecto: el que se pone al elegir la técnica, para
-       que nunca haya un remate a medio escribir. */
+       que nunca haya un remate a medio escribir.
+
+       `antes` y `despues` son lo que rodea a la cifra cuando se ESCRIBE: el
+       mando del remate pinta la técnica como una frase con las casillas dentro
+       —«bajada ×[1] −[20] %»— y la arma con esto. Son opcionales: un campo sin
+       ellos se escribe con su `label` detrás («[8] parciales»), así que una
+       técnica nueva no obliga a tocar el mando. Lo que ve el cliente NO sale de
+       aquí sino de `cifras`, que además calla lo obvio (la bajada única). */
     campos: [
-      { key: 'veces', label: 'bajadas', por: 1, min: 1, max: 5 },
-      { key: 'corte', label: '% menos', por: 20, min: 5, max: 60 },
+      { key: 'veces', label: 'bajadas', por: 1, min: 1, max: 5, antes: '×' },
+      { key: 'corte', label: '% menos', por: 20, min: 5, max: 60, antes: '−', despues: '%' },
     ],
     sub: 'veces',
     nombreSub: (i, p) => (p.veces > 1 ? `bajada ${i + 1}` : 'bajada'),
@@ -743,10 +956,10 @@ export const TECNICAS = [
     id: 'rest-pause',
     verbo: 'rest-pause',
     dicho: 'a rest-pause',
-    ayuda: 'Se llega al fallo, se descansan unos segundos y se siguen sacando repeticiones',
+    ayuda: 'Al fallo, pausa corta y sacas más repeticiones',
     campos: [
-      { key: 'veces', label: 'tandas', por: 2, min: 1, max: 5 },
-      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60 },
+      { key: 'veces', label: 'tandas', por: 2, min: 1, max: 5, antes: '×' },
+      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60, antes: '·', despues: 's' },
     ],
     sub: 'veces',
     nombreSub: (i) => `tanda ${i + 1}`,
@@ -757,11 +970,11 @@ export const TECNICAS = [
     id: 'myo-reps',
     verbo: 'myo-reps',
     dicho: 'con myo-reps',
-    ayuda: 'Una serie activa y detrás miniseries de pocas repeticiones con descansos muy cortos',
+    ayuda: 'Serie de activación y miniseries con pausas cortas',
     campos: [
-      { key: 'veces', label: 'miniseries', por: 4, min: 1, max: 8 },
-      { key: 'reps', label: 'reps cada una', por: 5, min: 1, max: 15 },
-      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60 },
+      { key: 'veces', label: 'miniseries', por: 4, min: 1, max: 8, antes: '×' },
+      { key: 'reps', label: 'reps cada una', por: 5, min: 1, max: 15, antes: 'de' },
+      { key: 'pausa', label: 'segundos', por: 15, min: 5, max: 60, antes: '·', despues: 's' },
     ],
     sub: 'veces',
     nombreSub: (i) => `mini ${i + 1}`,
@@ -777,8 +990,8 @@ export const TECNICAS = [
     id: 'parciales',
     verbo: 'parciales',
     dicho: 'con parciales',
-    ayuda: 'Se termina con repeticiones parciales en el recorrido donde queda fuerza',
-    campos: [{ key: 'reps', label: 'parciales', por: 8, min: 1, max: 30 }],
+    ayuda: 'Al fallo, repeticiones parciales en el tramo fuerte',
+    campos: [{ key: 'reps', label: 'parciales', por: 8, min: 1, max: 30, antes: '×' }],
     /* Sin subserie: las parciales son el final de ESA serie, no otra tanda. */
     sub: null,
     cifras: (p) => (p.reps != null ? `×${p.reps}` : ''),
@@ -849,6 +1062,28 @@ export const subseriesDe = (tecnica) => {
   const spec = tecnicaSpec(tecnica?.id);
   if (!spec?.sub) return 0;
   return Math.max(0, Number(tecnica?.[spec.sub]) || 0);
+};
+
+/**
+ * Cómo se escribe una técnica: la frase del mando del remate, en trozos.
+ * Cada campo es `{ campo, antes, despues }`; la pieza pone la casilla en medio.
+ * Sin `antes` ni `despues` declarados, el rótulo del campo va detrás.
+ */
+export const tecnicaAlEscribir = (id) =>
+  (tecnicaSpec(id)?.campos || []).map((campo) => ({
+    campo,
+    antes: campo.antes ?? '',
+    despues: campo.antes == null && campo.despues == null ? campo.label : (campo.despues ?? ''),
+  }));
+
+/**
+ * Un número tecleado en un campo de una técnica, dentro de su rango.
+ * `null` si no es un número —el vacío incluido: `Number('')` es cero, y borrar
+ * la casilla no es escribir el mínimo—.
+ */
+export const cifraDeTecnica = (campo, valor) => {
+  const n = toNum(valor);
+  return n === null ? null : Math.max(campo.min, Math.min(campo.max, Math.round(n)));
 };
 
 /** Solo los números: «×2, −20 %», o cadena vacía si no hay ninguno escrito. */
@@ -928,6 +1163,51 @@ export const rangoPautado = (exercise, campo) => {
 };
 
 /**
+ * ══ RETIRAR UNA COLUMNA DE OBJETIVO ════════════════════════════════════════
+ *
+ * La columna de kilos o de RIR de una hoja existe mientras alguna serie la usa
+ * (`camposDeLaHoja`). Abrirla era un clic —«+ kg»— y quitarla era vaciar
+ * casilla a casilla todas las series de todos los ejercicios. Estas tres son el
+ * gesto inverso, repartido en lo que necesita cada parte:
+ *
+ *   · `objetivoPautado` — lo que había, por ejercicio y por serie. Es lo que se
+ *     guarda para el «Deshacer», y su tamaño es el «de 6 ejercicios» del aviso.
+ *   · `vaciarObjetivo`  — el ejercicio sin ese objetivo en ninguna serie.
+ *   · `devolverObjetivo`— lo de antes, de vuelta en su serie.
+ *
+ * Vacío es `''`, que es lo que deja una casilla borrada y lo que trae una serie
+ * nueva (`emptySet`): no hay una tercera forma de «sin pautar».
+ */
+export const objetivoPautado = (exercises = [], campo) => {
+  const antes = {};
+  for (const ex of exercises) {
+    const valores = (ex?.sets || []).map((s) => s?.[campo] ?? '');
+    if (valores.some((v) => String(v).trim() !== '')) antes[ex.id] = valores;
+  }
+  return antes;
+};
+
+export const vaciarObjetivo = (exercise, campo) => ({
+  ...exercise,
+  sets: (exercise?.sets || []).map((s) => (String(s?.[campo] ?? '').trim() === '' ? s : { ...s, [campo]: '' })),
+});
+
+/*
+  Devuelve solo lo que había, y solo donde la serie sigue vacía: si entre quitar
+  y deshacer se escribió algo en esa casilla, lo nuevo manda. Una serie que ya
+  no existe (se quitó entre medias) no se resucita.
+*/
+export const devolverObjetivo = (exercise, campo, valores = []) => ({
+  ...exercise,
+  sets: (exercise?.sets || []).map((s, i) => {
+    const antes = valores[i];
+    if (antes === undefined || String(antes).trim() === '') return s;
+    if (String(s?.[campo] ?? '').trim() !== '') return s;
+    return { ...s, [campo]: antes };
+  }),
+});
+
+/**
  * «última con bajada ×2, −20 % · descanso 90 s», o `null` si no lleva nada.
  *
  * Dice DE QUÉ SERIE habla cada remate porque ya no tienen por qué estar en la
@@ -1004,6 +1284,30 @@ export const cloneExerciseAsTemplate = (exercise) => ({
   ...(tecnicaOf(exercise) ? { tecnica: tecnicaOf(exercise) } : {}),
   ...(exercise.restSeconds ? { restSeconds: exercise.restSeconds } : {}),
   sets: seriesComoPauta(exercise),
+});
+
+/**
+ * UNA HOJA DE ESTA MISMA PERSONA, COPIADA COMO OTRA HOJA SUYA.
+ *
+ * «Pull B a partir de Pull A»: el mismo plan con otro nombre, para cambiarle
+ * dos cosas. No es `cloneExerciseAsTemplate` a secas, porque aquella está
+ * pensada para cruzar de una persona a otra y por eso deja fuera la nota del
+ * entrenador. Aquí la persona es la misma y la nota es plan —«escápulas abajo
+ * antes de tirar» vale igual en Pull B—, así que viaja. Y viaja lo que es de
+ * la HOJA y no de un ejercicio: tu indicación y su calentamiento propio (un
+ * `[]` también, que es «esta hoja no se calienta»).
+ *
+ * Lo que no viaja es lo mismo que allí: los ids —cada ejercicio es nuevo y
+ * empieza sin historial— y lo levantado.
+ */
+export const copiaDeLaHoja = (hoja, dayName) => ({
+  dayName,
+  exercises: (hoja?.exercises || []).map((ex) => ({
+    ...cloneExerciseAsTemplate(ex),
+    ...(String(ex.coachNote || '').trim() ? { coachNote: ex.coachNote } : {}),
+  })),
+  ...(Array.isArray(hoja?.mobilityDrills) ? { mobilityDrills: deepClone(hoja.mobilityDrills) } : {}),
+  ...(String(hoja?.coachNote || '').trim() ? { coachNote: hoja.coachNote } : {}),
 });
 
 /**

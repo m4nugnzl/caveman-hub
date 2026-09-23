@@ -1,9 +1,10 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
 
 import { usePhotoBatch } from '@/components/photos/usePhotoBatch';
 import { Thumb } from '@/components/photos/Thumb';
+import { shortDate } from '@/lib/dates';
 import { enumeraEs } from '@/lib/texto';
 import { Aire, Boton, Cabecera, Tramo } from './Piezas';
 
@@ -32,16 +33,17 @@ import { Aire, Boton, Cabecera, Tramo } from './Piezas';
  * y tu entrenador puede verlas desde ese momento. Lo que le AVISA de que la
  * semana está lista es la entrega, que es el botón de la lista de la revisión.
  *
- * Una foto ya guardada no se cambia desde aquí: subir otra encima dejaría dos
- * fotos del mismo ángulo en la misma semana. Para quitar una está el archivo,
- * en «Tus fotos».
+ * Una foto ya guardada no se cambia subiendo otra encima: dejaría dos fotos
+ * del mismo ángulo en la misma semana. Se QUITA —la cruz, con confirmación— y
+ * el hueco vuelve a estar libre. Solo mientras su entrenador no haya revisado
+ * la semana (23 sep 2026); revisada, las fotos se miran y no se tocan.
  *
  * Lo que NO se copia: el «en ayunas» del dibujo —es una pauta de tu
  * entrenador, no de la aplicación— y el verde del marco, que aquí es el tic de
  * «guardada» y nada más.
  */
 export const PantallaFotosDeLaSemana = ({ datos }) => {
-  const { semana, angulos, clientId, onSubir, onVolver } = datos;
+  const { semana, angulos, clientId, onSubir, onVolver, pasada = null, soloLectura = false, onQuitar = null } = datos;
   const entrada = useRef(null);
   /* El ángulo del hueco que se ha tocado: el lote le pone esa etiqueta a lo
      que llegue del selector. Una ref y no estado porque se lee dentro del
@@ -70,11 +72,17 @@ export const PantallaFotosDeLaSemana = ({ datos }) => {
 
   return (
     <>
-      <Cabecera titulo="Fotos de progreso" sub={`Revisión · semana ${semana}`} atras={{ onClick: onVolver }} />
+      <Cabecera
+        titulo="Fotos de progreso"
+        sub={pasada ? `Revisión · ${pasada}` : `Revisión · semana ${semana}`}
+        atras={{ onClick: onVolver }}
+      />
 
       <Tramo>
         <p className="tel-pie tel-pie-arriba">
-          {enumeraEs(angulos.map((a) => a.label))}. Toca un hueco para hacer o elegir esa foto.
+          {soloLectura
+            ? 'Esta semana ya está cerrada: sus fotos se miran y no se cambian.'
+            : `${enumeraEs(angulos.map((a) => a.label))}. Toca un hueco para hacer o elegir esa foto.`}
         </p>
 
         <input
@@ -98,9 +106,10 @@ export const PantallaFotosDeLaSemana = ({ datos }) => {
                 <Hueco
                   angulo={a}
                   esperando={esperando}
-                  ocupado={lote.busy}
+                  ocupado={lote.busy || soloLectura}
                   onElegir={() => elegir(a.id)}
                   onQuitar={esperando ? () => lote.drop(esperando.id) : null}
+                  onQuitarGuardada={onQuitar && a.ahora ? () => onQuitar(a.ahora) : null}
                 />
               </li>
             );
@@ -138,15 +147,18 @@ export const PantallaFotosDeLaSemana = ({ datos }) => {
         </Link>
       </Tramo>
 
+      {soloLectura ? null : (
       <div className="tel-hoja-pie">
         <Boton onClick={guardar} disabled={n === 0 || lote.busy}>
           {lote.busy ? 'Subiendo…' : n > 1 ? `Guardar ${n} fotos` : 'Guardar fotos'}
         </Boton>
         <p className="tel-pie tel-centrado">
-          Se guardan en tu semana {semana}. Cuando lo tengas todo, entrega la revisión para que tu
-          entrenador sepa que está lista.
+          {pasada
+            ? `Se guardan en tu ${pasada}, sea cual sea el día en que las hiciste. Cuando lo tengas todo, entrégala.`
+            : `Se guardan en tu semana ${semana}. Cuando lo tengas todo, entrega la revisión para que tu entrenador sepa que está lista.`}
         </p>
       </div>
+      )}
 
       <Aire />
     </>
@@ -157,22 +169,9 @@ export const PantallaFotosDeLaSemana = ({ datos }) => {
  * UN HUECO: guardada (la foto, con su tic), esperando (la elegida, con su
  * estado) o vacío (la de la última vez de fondo, y el signo de sumar).
  */
-const Hueco = ({ angulo, esperando, ocupado, onElegir, onQuitar }) => {
+const Hueco = ({ angulo, esperando, ocupado, onElegir, onQuitar, onQuitarGuardada }) => {
   if (angulo.ahora) {
-    return (
-      <figure className="tel-hueco tel-guardada">
-        <span className="tel-hueco-marco">
-          <Thumb url={angulo.ahora.url} width={240} alt={`Tu ${angulo.label.toLowerCase()} de esta semana`} />
-          <span className="tel-hueco-tic" aria-hidden="true">
-            <Check size={13} strokeWidth={3} />
-          </span>
-        </span>
-        <figcaption className="tel-hueco-pie">
-          <b>{angulo.label}</b>
-          <span>Guardada</span>
-        </figcaption>
-      </figure>
-    );
+    return <Guardada angulo={angulo} onQuitar={onQuitarGuardada} />;
   }
 
   const estado = esperando
@@ -180,7 +179,11 @@ const Hueco = ({ angulo, esperando, ocupado, onElegir, onQuitar }) => {
       ? 'Subiendo…'
       : esperando.status === 'error'
         ? 'No ha subido'
-        : 'Sin guardar'
+        : /* La fecha de la cámara, si la trae: para ver que es la buena. No
+             decide a qué semana va. Ver `fechaDeLaFoto`. */
+          esperando.hechaEl
+          ? `Sin guardar · hecha el ${shortDate(esperando.hechaEl)}`
+          : 'Sin guardar'
     : angulo.antes
       ? `Guía: semana ${angulo.antes.semana}`
       : 'Falta';
@@ -222,5 +225,69 @@ const Hueco = ({ angulo, esperando, ocupado, onElegir, onQuitar }) => {
         <span>{estado}</span>
       </span>
     </div>
+  );
+};
+
+/**
+ * UNA FOTO YA GUARDADA. Con la cruz, mientras la semana siga abierta: quitarla
+ * se confirma en el mismo sitio —es borrar una foto suya, y un toque suelto al
+ * desplazar no puede llevársela—. Si la base se niega (la semana se revisó
+ * mientras tanto), se dice ahí mismo.
+ */
+const Guardada = ({ angulo, onQuitar }) => {
+  const [seguro, setSeguro] = useState(false);
+  const [quitando, setQuitando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const quitar = async () => {
+    setQuitando(true);
+    const res = await onQuitar();
+    setQuitando(false);
+    if (res?.ok === false) setError(res.error || 'No se ha podido quitar.');
+    else setSeguro(false);
+  };
+
+  return (
+    <figure className="tel-hueco tel-guardada">
+      <span className="tel-hueco-marco">
+        <Thumb url={angulo.ahora.url} width={240} alt={`Tu ${angulo.label.toLowerCase()} de esta semana`} />
+        <span className="tel-hueco-tic" aria-hidden="true">
+          <Check size={13} strokeWidth={3} />
+        </span>
+      </span>
+      {onQuitar && !seguro ? (
+        <button
+          type="button"
+          className="tel-hueco-quitar"
+          onClick={() => {
+            setError(null);
+            setSeguro(true);
+          }}
+          aria-label={`Quitar la foto ${angulo.label.toLowerCase()}`}
+        >
+          <X size={13} aria-hidden="true" />
+        </button>
+      ) : null}
+      <figcaption className="tel-hueco-pie">
+        <b>{angulo.label}</b>
+        {seguro ? (
+          <span className="tel-hueco-seguro">
+            <button type="button" className="btn btn-sm btn-plain" onClick={() => setSeguro(false)} disabled={quitando}>
+              Dejarla
+            </button>
+            <button type="button" className="btn btn-sm btn-secondary" onClick={quitar} disabled={quitando}>
+              {quitando ? 'Quitando…' : 'Quitar'}
+            </button>
+          </span>
+        ) : (
+          <span>Guardada</span>
+        )}
+        {error ? (
+          <span className="tel-error" role="alert">
+            {error}
+          </span>
+        ) : null}
+      </figcaption>
+    </figure>
   );
 };

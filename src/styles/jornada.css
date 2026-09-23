@@ -50,8 +50,8 @@
 @keyframes palette-sale {
   to { opacity: 0; transform: translateY(-10px) scale(0.985); }
 }
-.palette-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
-.palette-backdrop[data-state='closing'] > .palette { animation: palette-sale var(--fast) both; }
+.palette-backdrop[data-state='closing'] { animation: fade-sale var(--salida) both; }
+.palette-backdrop[data-state='closing'] > .palette { animation: palette-sale var(--salida) both; }
 
 .palette-input {
   display: flex; align-items: center; gap: var(--s2);
@@ -220,6 +220,10 @@
   z-index: 400;
   display: flex; align-items: center; gap: var(--s3);
   max-width: min(480px, calc(100vw - 2 * var(--s4)));
+  /* Con `left: 50%` el ancho «que cabe» es media pantalla, y en el teléfono el
+     texto salía una palabra por renglón. Mide lo que su contenido, con el tope
+     de arriba. */
+  width: max-content;
   padding: var(--s3) var(--s4);
   background: var(--surface-raised); color: var(--text);
   border: 1px solid var(--edge); border-radius: var(--r-lg);
@@ -234,8 +238,8 @@
 .toast-x:hover { color: var(--text); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .toast { animation: toast-entra 0.26s var(--ease); }
-  .toast[data-state='closing'] { animation: toast-sale var(--fast) both; }
+  .toast { animation: toast-entra var(--entrada); }
+  .toast[data-state='closing'] { animation: toast-sale var(--salida) both; }
 }
 @keyframes toast-entra {
   from { opacity: 0; transform: translate(-50%, 8px); }
@@ -375,7 +379,7 @@
     box-shadow: var(--shadow-lg);
     /* Era el único overlay SIN entrada: el velo fundía y la hoja aparecía de
        golpe, justo donde más se espera que algo suba desde el borde. */
-    animation: hoja-entra var(--normal) both;
+    animation: hoja-entra var(--entrada) both;
   }
   @keyframes hoja-entra {
     from { transform: translateY(110%); }
@@ -383,8 +387,8 @@
   @keyframes hoja-sale {
     to { transform: translateY(110%); }
   }
-  .sheet-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
-  .sheet-backdrop[data-state='closing'] > .sheet { animation: hoja-sale var(--fast) both; }
+  .sheet-backdrop[data-state='closing'] { animation: fade-sale var(--salida) both; }
+  .sheet-backdrop[data-state='closing'] > .sheet { animation: hoja-sale var(--salida) both; }
   /* La agarradera ya no se dibuja aquí: es la MISMA pieza que la de la ventana
      cuando baja a hoja, y desde que además recibe el arrastre para cerrar tiene
      que ser una sola regla. Está junto al modal, en `controles.css` («LA

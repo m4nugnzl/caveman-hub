@@ -350,6 +350,28 @@ export const useCheckIns = ({ stampNow }) => {
     return { ok: true };
   }, []);
 
+  /**
+   * La fila de una semana SIN entregarla (migración 0134). La usa el cierre de
+   * quien no entregó: con `submitCheckIn` la fila nacía con `submitted_at`, y
+   * el cliente veía «entregada · revisada» en una semana que nunca mandó.
+   */
+  const filaDeRevision = useCallback(async (clientId, week) => {
+    const { data, error } = await supabase.rpc('fila_de_revision', { target: clientId, week });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, id: data };
+  }, []);
+
+  /**
+   * Abrirle al cliente una revisión pasada hasta una fecha, o cerrarla otra vez
+   * con `hasta` a `null` (migración 0134). Es el margen extra, a mano: fuera de
+   * las cuatro semanas, el cliente ya no puede completarla solo.
+   */
+  const reabrirRevision = useCallback(async (clientId, week, hasta) => {
+    const { data, error } = await supabase.rpc('reabrir_revision', { target: clientId, week, hasta });
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, id: data };
+  }, []);
+
   return {
     checkIns,
     setCheckIns,
@@ -362,5 +384,7 @@ export const useCheckIns = ({ stampNow }) => {
     reviewCheckIn,
     unreviewCheckIn,
     updateCheckInNotes,
+    filaDeRevision,
+    reabrirRevision,
   };
 };

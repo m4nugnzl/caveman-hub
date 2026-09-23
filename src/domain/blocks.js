@@ -20,28 +20,29 @@
  * de datos y nada de lo que ya existe cambia de forma. Ver la migración 0086.
  */
 import { newId } from '@/lib/ids';
-import { addDays, daysBetween, todayISO, weekStart } from '@/lib/dates';
+import { addDays, daysBetween, toISODate, todayISO, weekStart } from '@/lib/dates';
 import {
   MRV_GOALS,
   WEEK_DAYS,
-  cadenaDe,
   casillasDe,
   claveDelDia,
   cloneExerciseAsTemplate,
+  copiaDeLaHoja,
   cycleSlots,
   dayPlannedVolume,
   duracionDe,
-  generarSecuencia,
   isRestDay,
   normalizaMicrociclo,
   normalizePattern,
+  renombrarEnMicrociclo,
   rotatingSlots,
   secuenciaSemanal,
-  tandasDe,
+  seguirAlPlan,
   tecnicaOf,
   vecesDeCadaHoja,
 } from './training';
-import { executedSessions, sesionAMedias, sessionTonnage } from './sessions';
+import { executedSessions, sesionAbierta, sesionAMedias, sessionsOf, sessionTonnage } from './sessions';
+import { weekStartOfProgramWeek } from './photos';
 import { clientProtocol, isServiceOn } from './protocol';
 
 /** La última semana montada del programa (0 sin ninguna). */
@@ -101,8 +102,11 @@ export const structureOfBlock = (program, block) =>
  *
  * No añade semana: eso lo hace quien llama, que sabe si copia la estructura o
  * empieza de cero. Sin semanas montadas no hay nada que cerrar.
+ *
+ * `id` es el de un borrador que empieza (`domain/borradores`): el bloque que
+ * nace conserva el suyo. Si ya lo lleva otro bloque, se usa uno nuevo.
  */
-export const openNextBlock = (program, { name = null } = {}) => {
+export const openNextBlock = (program, { name = null, id = null } = {}) => {
   const lista = blocksOf(program);
   const abierto = lista[lista.length - 1];
   const fin = ultimaSemana(program?.microcycles);
@@ -115,7 +119,7 @@ export const openNextBlock = (program, { name = null } = {}) => {
     mobilityDrills: program?.mobilityDrills || [],
   };
   const nuevo = {
-    id: newId('b'),
+    id: id && !lista.some((b) => b.id === id) ? id : newId('b'),
     name: name || `Bloque ${lista.length + 1}`,
     fromWeek: fin + 1,
     toWeek: null,
@@ -389,6 +393,94 @@ export const pautaHeredada = (exercises = []) => {
 };
 
 /**
+ * EL ESQUEMA DE SERIES, EN TRAMOS: series seguidas que piden lo mismo.
+ *
+ * «4 × 6-8» es un tramo. «1 × 12, 3 × 6-8» son dos, y hasta ahora la rejilla del
+ * bloque no sabía decirlo: `pautaComun` contestaba `null` —las series no piden
+ * lo mismo— y la casilla imprimía «varias», que es exactamente tanta información
+ * como no poner nada. Quien abre el bloque para leer el plan tiene que enterarse
+ * de que la primera va a 12 sin irlo a buscar a otra pantalla.
+ *
+ * No hay campo nuevo: los tramos SALEN de las series, que es donde el plan ya
+ * vive, y vuelven a ellas sin perder nada (`setsDesdeTramos`). Es el modelo más
+ * pequeño que dice una pauta heterogénea, y el único que no crea una segunda
+ * verdad sobre la misma cosa.
+ *
+ * Tramos por POSICIÓN y no por valor: «1 × 12, 3 × 6-8, 1 × 12» son tres, no
+ * dos. Una pirámide que baja y vuelve a subir es lo que está escrito, y
+ * agruparla por el número la reordenaría al guardar.
+ *
+ * @returns `[{ n, reps }]`, vacío si el ejercicio no tiene series.
+ */
+export const tramosDeSeries = (exercise) => {
+  const tramos = [];
+  for (const set of exercise?.sets || []) {
+    const reps = String(set?.targetReps ?? '').trim();
+    const ultimo = tramos[tramos.length - 1];
+    if (ultimo && ultimo.reps === reps) ultimo.n += 1;
+    else tramos.push({ n: 1, reps });
+  }
+  return tramos;
+};
+
+/**
+ * EL ESQUEMA DE UN VISTAZO: «4×6-8», «12, 3×6-8», «6-8, 8-10, 8-12».
+ *
+ * Con el `×` pegado, que es como lo dibuja el frame y como cabe en una columna
+ * de 276 px. Y con **el 1 callado cuando hay más de un tramo**, que es la regla
+ * que hace que esto quepa en un renglón: una rampa de tres series distintas se
+ * escribía «1×6-8, 1×8-10, 1×8-12» —tres multiplicadores que siempre dicen lo
+ * mismo— y se lee «6-8, 8-10, 8-12», que es como lo escribe a mano cualquier
+ * entrenador. Cuántas series hay lo dice la propia lista.
+ *
+ * Con un solo tramo el multiplicador SÍ se escribe («4×6-8», «1×12»): ahí no
+ * hay lista que contar y sin él la cifra no diría cuántas series son.
+ */
+export const esquemaDicho = (tramos = []) => {
+  const solo = tramos.length === 1;
+  return tramos
+    .map(({ n, reps }) => (n === 1 && !solo ? reps || '—' : `${n}×${reps || '—'}`))
+    .join(', ');
+};
+
+/**
+ * LAS SERIES QUE SALEN DE UN ESQUEMA, conservando lo escrito por serie.
+ *
+ * Cada serie hereda POR POSICIÓN lo que ya había —los kilos pautados, el RIR y
+ * el remate—, y las que no tenían sitio antes nacen de la última sin su remate:
+ * es la misma regla con la que crece un ejercicio desde su casilla de series
+ * (`setBlockExerciseSetsIn`), y por eso repartir «4 × 6-8» en «1 × 12, 3 × 6-8»
+ * no borra la pirámide de kilos que ya estuviera escrita en la hoja.
+ *
+ * Lo único que dicta el esquema es el objetivo de repeticiones.
+ *
+ * Un tramo de cero series NO existe: es como se quita un tramo desde la fila, y
+ * aquí se cae solo. Un esquema entero a cero deja las series como estaban —un
+ * ejercicio sin ninguna no es un ejercicio—. Tope de 12, el de toda la casa.
+ */
+export const setsDesdeTramos = (tramos = [], previos = []) => {
+  const pedidas = [];
+  for (const { n, reps } of tramos) {
+    const cuantas = Math.max(0, Math.round(Number(n)) || 0);
+    for (let i = 0; i < cuantas && pedidas.length < 12; i += 1) pedidas.push(String(reps ?? '').trim());
+  }
+  if (pedidas.length === 0) return previos;
+  const ultima = previos[previos.length - 1];
+  return pedidas.map((targetReps, i) =>
+    previos[i]
+      ? { ...previos[i], targetReps }
+      : {
+          kg: '',
+          reps: '',
+          rir: '',
+          targetKg: ultima?.targetKg || '',
+          targetReps,
+          targetRir: ultima?.targetRir || '',
+        }
+  );
+};
+
+/**
  * Un ejercicio guardado, como lo lee una pantalla: las series contadas y la
  * pauta resumida, en vez del array de sets.
  *
@@ -549,8 +641,14 @@ export const blockPlan = (program, block) => {
  * ── Se cuentan APARICIONES, no hojas ────────────────────────────────────────
  * Una hoja que cae dos días del microciclo son dos sesiones planificadas, y
  * `hechas` solo suma las que cubren una aparición: la tercera sesión de una
- * hoja que sale dos veces no sube la adherencia. Las sesiones de una hoja que
- * ya no está en el plan cuentan como hasta ahora. Ver `vecesDeLaHoja`.
+ * hoja que sale dos veces no sube la adherencia. Ver `vecesDeLaHoja`.
+ *
+ * ── Lo que no estaba previsto va aparte ─────────────────────────────────────
+ * Las sesiones de una hoja que no está en el plan de ESE microciclo —quitada o
+ * renombrada después— van a `extra`, no a `hechas`. Antes sumaban a `hechas`
+ * sin sumar a `planificadas`, y la adherencia pasaba del 100 %: 4 de 1 (400 %)
+ * en un bloque real al que le quitaron tres hojas ya entrenadas. Se entrenaron,
+ * y el tonelaje las cuenta; lo que no hacen es cumplir un plan que no las pedía.
  *
  * @param client `{ cycleType, cyclePattern }`: para derivar la secuencia de los
  *   bloques que aún no la tienen guardada.
@@ -562,6 +660,7 @@ export const blockSummary = (program, block, client = null) => {
 
   let kg = 0;
   let hechas = 0;
+  let extra = 0;
   let planificadas = 0;
   /*
     ── Microciclo a microciclo, para poder DIBUJARLO ─────────────────────────
@@ -583,16 +682,15 @@ export const blockSummary = (program, block, client = null) => {
     const enElPlan = new Set(plan.map((h) => h.dayName));
 
     const suyasPlan = plan.reduce((n, h) => n + veces(h.dayName), 0);
-    const suyasHechas =
-      plan.reduce((n, h) => n + Math.min(porHoja.get(h.dayName) || 0, veces(h.dayName)), 0) +
-      sesiones.filter((s) => !enElPlan.has(s.dayName)).length;
+    const suyasHechas = plan.reduce((n, h) => n + Math.min(porHoja.get(h.dayName) || 0, veces(h.dayName)), 0);
+    const suyasExtra = sesiones.filter((s) => !enElPlan.has(s.dayName)).length;
 
     hechas += suyasHechas;
+    extra += suyasExtra;
     planificadas += suyasPlan;
     for (const s of sesiones) kg += sessionTonnage(s);
-    detalle.push({ semana: micro.weekNumber, hechas: suyasHechas, planificadas: suyasPlan });
+    detalle.push({ semana: micro.weekNumber, hechas: suyasHechas, planificadas: suyasPlan, extra: suyasExtra });
   }
-
 
   const fechas = suyos.map((m) => m.date).filter(Boolean);
   return {
@@ -603,6 +701,8 @@ export const blockSummary = (program, block, client = null) => {
     hasta: fechas[fechas.length - 1] || null,
     kg,
     hechas,
+    /* Sesiones de hojas que ese microciclo no tenía en el plan. */
+    extra,
     planificadas,
     /* Sin nada planificado no hay adherencia que dar: un 0 % diría que se lo
        saltó todo, y lo que pasa es que no había nada que saltarse. */
@@ -754,13 +854,17 @@ const objetivoDe = (ex) => {
 /**
  * Qué ha cambiado un bloque respecto al que hereda.
  *
- * Se empareja por nombre, como en toda la casa. Devuelve una línea por cambio;
- * sin ninguna, el bloque nuevo es idéntico al anterior y también hay que poder
- * decirlo.
+ * Se empareja por nombre, como en toda la casa — salvo que en el compositor se
+ * haya cambiado un ejercicio por otro en su sitio (mismo id, ver
+ * `renombrarEnLista`): eso se dice «X → Y», no «fuera X» y «entra Y». Devuelve
+ * una línea por cambio; sin ninguna, el bloque nuevo es idéntico al anterior y
+ * también hay que poder decirlo.
  */
 export const sessionDiff = (antesLista = [], ahoraLista = []) => {
   const out = [];
-  const clave = (n) => String(n || '').trim().toLowerCase();
+  const clave = claveDeNombre;
+  const parejaDe = (ex, lista = []) =>
+    (ex.id ? lista.find((e) => e.id === ex.id) : null) || lista.find((e) => clave(e.name) === clave(ex.name)) || null;
 
   for (const antes of antesLista) {
     const ahora = ahoraLista.find((s) => s.dayName === antes.dayName);
@@ -769,10 +873,13 @@ export const sessionDiff = (antesLista = [], ahoraLista = []) => {
       continue;
     }
     for (const ex of antes.exercises || []) {
-      const suyo = (ahora.exercises || []).find((e) => clave(e.name) === clave(ex.name));
+      const suyo = parejaDe(ex, ahora.exercises);
       if (!suyo) {
         out.push({ hoja: antes.dayName, tipo: 'menos', texto: `fuera ${ex.name}` });
         continue;
+      }
+      if (clave(suyo.name) !== clave(ex.name)) {
+        out.push({ hoja: antes.dayName, tipo: 'mas', texto: `${ex.name} → ${suyo.name}` });
       }
       const seriesAntes = (ex.sets || []).length;
       const seriesAhora = (suyo.sets || []).length;
@@ -791,7 +898,7 @@ export const sessionDiff = (antesLista = [], ahoraLista = []) => {
       continue;
     }
     for (const ex of ahora.exercises || []) {
-      if (!(antes.exercises || []).some((e) => clave(e.name) === clave(ex.name))) {
+      if (!parejaDe(ex, antes.exercises)) {
         out.push({ hoja: ahora.dayName, tipo: 'mas', texto: `entra ${ex.name}` });
       }
     }
@@ -1033,6 +1140,78 @@ export const fraseDeHorizonte = (program, bloque, semanaEnCurso, { unidad, unida
   return [cuanto, siguiente ? `después, ${siguiente.name}` : 'después, nada programado'].join(' · ');
 };
 
+/**
+ * EL BLOQUE EN EL CALENDARIO: de qué día a qué día fue (o va).
+ *
+ * ══ Para qué ═══════════════════════════════════════════════════════════════
+ *
+ * Para dibujar los bloques debajo de las fases, sobre el MISMO eje de fechas
+ * (`roadmap/EjeTemporal`). Fase y bloque no se anidan —la fase es la dirección
+ * del cuerpo y va por fechas; el bloque es la estructura del entreno y va por
+ * microciclos—, así que lo único que hace falta es traducir el segundo al
+ * calendario del primero.
+ *
+ * ══ Por qué NO con `weekStartOfProgramWeek` ════════════════════════════════
+ *
+ * Esa cuenta —lunes del alta + (N − 1) × 7— supone que el microciclo 1 empieza
+ * con el alta, que no hay pausas y que un microciclo mide siete días. En la
+ * demo se equivoca en los seis clientes, en cuatro por entre 3 y 21 semanas: el
+ * carril de Iván saldría entre febrero y abril cuando entrenó de julio a
+ * septiembre. Ver `docs/eje-temporal.md` §1.
+ *
+ * La verdad ya existe: cada microciclo guarda su fecha (`micro.date`, la pone
+ * `fechaDelCicloSiguiente` al montarlo, y la usa `anclaDelCiclo`). El bloque
+ * empieza el día de su primer microciclo y acaba el día antes de que acabara el
+ * último, medido con la secuencia del bloque (`duracionDe`) —siete en un ciclo
+ * semanal, lo que dure la vuelta en uno rotativo—.
+ *
+ * Solo sin fecha —programas viejos— se cae a la cuenta del alta, y se dice con
+ * `estimado`, para que el carril lo pinte distinto en vez de afirmarlo.
+ *
+ * ── Lo previsto ────────────────────────────────────────────────────────────
+ * Un bloque abierto con `plannedWeeks` mayor que lo escrito tiene un final
+ * PREVISTO: `previstoHasta`. Es su plan, no algo hecho, y se dibuja a trazos.
+ *
+ * @param opciones `{ cycleType, cyclePattern, startDate }` del cliente. Sin
+ *   `cycleType` se toma el del programa.
+ * @returns `{ bloque, desde, hasta, previstoHasta, estimado }`, o `null` si el
+ *   bloque no tiene microciclos o no hay de dónde sacar una fecha.
+ */
+export const tramoDelBloque = (program, block, { cycleType = null, cyclePattern = null, startDate = null } = {}) => {
+  const semanas = weeksOfBlock(program, block);
+  if (semanas.length === 0) return null;
+
+  const tipo = cycleType || program?.cycleType || 'weekly';
+  const micros = new Map((program?.microcycles || []).map((m) => [m.weekNumber, m]));
+  const primero = micros.get(semanas[0]);
+  const ultimo = micros.get(semanas[semanas.length - 1]);
+
+  let estimado = false;
+  const fechaDe = (micro) => {
+    const propia = toISODate(micro?.date);
+    if (propia) return propia;
+    estimado = true;
+    return startDate ? weekStartOfProgramWeek(startDate, micro?.weekNumber) : null;
+  };
+
+  const desde = fechaDe(primero);
+  const inicioDelUltimo = fechaDe(ultimo);
+  if (!desde || !inicioDelUltimo) return null;
+
+  const microciclo = microcicloDelBloque(program, block, { cycleType: tipo, cyclePattern });
+  const hasta = addDays(inicioDelUltimo, duracionDe(microciclo) - 1);
+
+  const abierto = block?.toWeek === null || block?.toWeek === undefined;
+  const { plannedWeeks } = blockTraits(block);
+  const faltan = abierto && plannedWeeks ? plannedWeeks - semanas.length : 0;
+  /* Cada semana que falta mide lo que dura la secuencia del bloque. Medía UNA
+     tanda del patrón —3 días en un 2-1 con seis hojas, no 9— y el fin previsto
+     de un bloque rotativo salía unas tres veces más cerca. */
+  const previstoHasta = faltan > 0 ? addDays(hasta, faltan * duracionDe(microciclo)) : null;
+
+  return { bloque: block, desde, hasta, previstoHasta, estimado };
+};
+
 /* ══════════════════════════════════════════════════════════════════════════
    EL MICROCICLO DEL BLOQUE
    ══════════════════════════════════════════════════════════════════════════
@@ -1127,8 +1306,8 @@ export const fechaDelCicloSiguiente = (program, previous, client = null) => {
  * tienen no se tocan, y si todos la tienen devuelve el mismo programa. No toca
  * `microcycles`, así que fechas y analítica no pueden moverse.
  *
- * Conectada en F2b: la llaman `applyPlan`, `updateWeeklySplit` y el cambio de
- * ciclo de `CycleSettings` antes de escribir, con la ficha del cliente de
+ * La llama `applyPlan` antes de cada escritura del plan (también la de la tira
+ * del microciclo, `ponerMicrocicloDelBloque`), con la ficha del cliente de
  * ANTES del cambio. Sin ficha no se llama: se guardaría un semanal a quien es
  * rotativo.
  */
@@ -1143,12 +1322,18 @@ export const materializarMicrociclos = (program, client = null) => {
   };
 };
 
+/** Todos los bloques del programa en el calendario, los que tienen microciclos. */
+export const tramosDeLosBloques = (program, opciones = {}) =>
+  blocksOf(program)
+    .map((b) => tramoDelBloque(program, b, opciones))
+    .filter(Boolean);
+
 /* ── Lo que hacía la lectura, ahora al escribir ──────────────────────────────
    Derivado en cada lectura, el rotativo seguía solo a las hojas y al patrón del
    cliente, y el semanal al reparto del programa. Guardado, eso hay que hacerlo
    al escribir, o la secuencia se quedaría con las hojas de cuando se guardó.
-   Estas tres funciones son ese seguimiento, y nada más: lo que se lee después
-   de cada escritura es lo que se leía derivando. */
+   `seguirALasHojas` es ese seguimiento, con las reglas de la tira (§5 del
+   estudio): lo generado se regenera y lo retocado solo pierde lo que se quita. */
 
 const igualQue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const conMicrociclo = (program, blockId, microciclo) => ({
@@ -1157,22 +1342,11 @@ const conMicrociclo = (program, blockId, microciclo) => ({
 });
 const hojasDelBloque = (program, block) => blockPlan(program, block).sessions.map((s) => s.dayName);
 
-/**
- * La cadena con la que el generador da EXACTAMENTE esta secuencia rotativa con
- * estas hojas, o `null` si no la da ninguna: se ha retocado a mano (§5 del
- * estudio). Se prueba con el patrón del cliente —con él se derivaba—, con la
- * primera tanda sola y con la cadena literal.
- */
-export const cadenaQueLaGenera = (microciclo, hojas, client = null) => {
-  if (microciclo?.tipo !== 'rotativo') return null;
-  const [primera] = tandasDe(microciclo.dias);
-  const patron = client?.cycleType === 'rotating' ? normalizePattern(client.cyclePattern) : null;
-  const candidatas = [
-    patron && `${patron.train}-${patron.rest}`,
-    primera && `${primera.entreno}-${primera.descanso}`,
-    cadenaDe(microciclo.dias),
-  ].filter(Boolean);
-  return candidatas.find((c) => igualQue(generarSecuencia(c, hojas), microciclo.dias)) || null;
+/** La cadena del patrón del cliente, con la que se derivaba su rotativo. */
+const cadenaDelCliente = (client) => {
+  if (client?.cycleType !== 'rotating') return [];
+  const patron = normalizePattern(client.cyclePattern);
+  return [`${patron.train}-${patron.rest}`];
 };
 
 /**
@@ -1181,12 +1355,12 @@ export const cadenaQueLaGenera = (microciclo, hojas, client = null) => {
  * `antes` ya tiene todas sus secuencias guardadas; `despues` es lo que ha
  * dejado la escritura. Los bloques nuevos —los abre el Compositor— guardan la
  * suya, derivada de cómo ha quedado el programa: el reparto que se le ha dado o
- * el patrón del cliente con sus hojas. Los rotativos que siguen siendo lo que da
- * el generador se regeneran con sus hojas nuevas. El semanal no se toca: sus
- * días los pone el reparto, no las hojas.
+ * el patrón del cliente con sus hojas. En los demás, `seguirAlPlan`: el
+ * rotativo que sigue siendo lo que da el generador se regenera con sus hojas
+ * nuevas, y en el resto los días de una hoja quitada pasan a descanso.
  *
- * Una secuencia que la propia escritura ha cambiado no se regenera: es la que
- * se quería.
+ * Una secuencia que la propia escritura ha cambiado no se toca: es la que se
+ * quería (renombrar ya la deja con el nombre nuevo, ver `renameBlockSessionIn`).
  */
 export const seguirALasHojas = (antes, despues, client = null) => {
   const previos = new Map(blocksOf(antes).map((b) => [b.id, b]));
@@ -1195,48 +1369,30 @@ export const seguirALasHojas = (antes, despues, client = null) => {
   const blocks = blocksOf(guardado).map((b) => {
     const previo = previos.get(b.id);
     const microciclo = normalizaMicrociclo(b.microciclo);
-    if (!previo || previo.microciclo !== b.microciclo || microciclo?.tipo !== 'rotativo') return b;
-    const hojasAntes = hojasDelBloque(antes, previo);
-    const hojas = hojasDelBloque(guardado, b);
-    if (igualQue(hojasAntes, hojas)) return b;
-    const cadena = cadenaQueLaGenera(microciclo, hojasAntes, client);
-    const dias = cadena && generarSecuencia(cadena, hojas);
-    if (!dias || igualQue(dias, microciclo.dias)) return b;
+    if (!previo || previo.microciclo !== b.microciclo || !microciclo) return b;
+    const nuevo = seguirAlPlan(
+      microciclo,
+      hojasDelBloque(antes, previo),
+      hojasDelBloque(guardado, b),
+      cadenaDelCliente(client)
+    );
+    if (nuevo === microciclo) return b;
     cambia = true;
-    return { ...b, microciclo: { tipo: 'rotativo', dias } };
+    return { ...b, microciclo: nuevo };
   });
   return cambia ? { ...guardado, blocks } : despues;
 };
 
 /**
- * EL CICLO DE LA FICHA, EN EL BLOQUE ABIERTO.
- *
- * Mientras `CycleSettings` siga cambiando el tipo y el patrón (hasta F2c), el
- * bloque abierto pasa a leerse como se derivaría con la ficha nueva. Los
- * cerrados se quedan como están: la estructura es de cada bloque.
+ * LA SECUENCIA DE UN BLOQUE, ESCRITA ENTERA: lo que guarda cada gesto de la tira
+ * del microciclo. Se sanea al entrar (`normalizaMicrociclo`); si no se puede
+ * leer, o no cambia nada, devuelve el mismo programa.
  */
-export const conCicloDelCliente = (program, client) => {
-  const abierto = currentBlock(program);
-  const microciclo = derivarMicrociclo(program, abierto, client);
-  return igualQue(normalizaMicrociclo(abierto.microciclo), microciclo)
-    ? program
-    : conMicrociclo(program, abierto.id, microciclo);
-};
-
-/**
- * Un día del semanal abierto: lo que escribe «Cae el …». `null` si el bloque
- * abierto no tiene un semanal guardado.
- */
-export const ponerDiaSemanal = (program, dia, valor) => {
-  const i = WEEK_DAYS.indexOf(dia);
-  const abierto = currentBlock(program);
-  const microciclo = normalizaMicrociclo(abierto?.microciclo);
-  if (i < 0 || microciclo?.tipo !== 'semanal') return null;
-  const nuevo = isRestDay(valor) ? { descanso: true } : { hoja: String(valor).trim() };
-  return conMicrociclo(program, abierto.id, {
-    tipo: 'semanal',
-    dias: microciclo.dias.map((d, j) => (j === i ? nuevo : d)),
-  });
+export const ponerMicrociclo = (program, blockId, microciclo) => {
+  const limpio = normalizaMicrociclo(microciclo);
+  const bloque = blocksOf(program).find((b) => b.id === blockId);
+  if (!limpio || !bloque || igualQue(normalizaMicrociclo(bloque.microciclo), limpio)) return program;
+  return conMicrociclo(program, blockId, limpio);
 };
 
 /**
@@ -1315,9 +1471,16 @@ export const BLOCK_CHANGE = {
   EJERCICIO_MAS: 'ejercicio-mas',
   EJERCICIO_MENOS: 'ejercicio-menos',
   SERIES: 'series',
+  /* Cambiar el reparto de las series, no cuántas hay: «4×6-8 → 1×12, 3×6-8».
+     No es el de arriba con otro texto —ahí la cifra sube o baja y eso se lee de
+     un vistazo; aquí lo que cambia es la forma del ejercicio. */
+  ESQUEMA: 'esquema',
   HOJA_MAS: 'hoja-mas',
   HOJA_MENOS: 'hoja-menos',
   PLANTILLA: 'plantilla',
+  /* Un ejercicio cambiado por otro en su sitio, con la misma pauta: «Press
+     banca → Remo». Sin su verbo, la bitácora no diría nada. */
+  NOMBRE: 'nombre',
 };
 
 /**
@@ -1350,6 +1513,12 @@ export const describeBlockChange = (entry) => {
       return `− ${que}`;
     case BLOCK_CHANGE.SERIES:
       return `${que}: ${entry.de} → ${entry.a} series`;
+    case BLOCK_CHANGE.ESQUEMA:
+      /* Sin «series» al final: el esquema ya lo lleva escrito en los dos lados
+         («1×12, 3×6-8»), y repetirlo diría «3×6-8 series». */
+      return `${que}: ${entry.de} → ${entry.a}`;
+    case BLOCK_CHANGE.NOMBRE:
+      return `${entry.de} → ${entry.a}`;
     case BLOCK_CHANGE.HOJA_MAS:
       return `hoja «${que}» añadida`;
     case BLOCK_CHANGE.HOJA_MENOS:
@@ -1804,9 +1973,13 @@ const conLoAnotado = (day, viejo) => {
  *
  * ── Las hojas retiradas se conservan ───────────────────────────────────────
  * Una hoja que el plan ya no tiene desaparece de la lectura, pero dentro de sus
- * `days` puede haber kilos de cuando sí existía. La proyección los deja donde
- * están: el objetivo es que no falte nada que el servidor necesite, no adelgazar
- * la fila. Nadie los pinta —la pantalla lee el plan— y no cuestan un registro.
+ * `days` puede haber sesiones o kilos de cuando sí existía. La proyección no
+ * decide por nadie: las deja donde están, en todos los microciclos. El objetivo
+ * es que no falte nada que el servidor necesite, no adelgazar la fila.
+ *
+ * Solo salen por un gesto: quitar esa hoja del bloque, que la suelta de los
+ * microciclos donde no se entrenó en el mismo paso (`soltarHojaSinEntrenar`).
+ * Renombrar no deja retiradas: se lleva el día de la tira (`renameBlockSessionIn`).
  */
 export const proyectarPlanEnDias = (program) => {
   const microcycles = program?.microcycles || [];
@@ -1858,6 +2031,36 @@ export const addBlockSessionIn = (program, blockId, dayName) => ({
 });
 
 /**
+ * «Copia de "Pull A"»: la hoja entera como hoja NUEVA del bloque, al final.
+ *
+ * Era una hoja en blanco y luego un alta por ejercicio —N + 1 escrituras con
+ * sus N + 1 guardados— y se quedaba por el camino lo que no es un ejercicio:
+ * tu indicación, el calentamiento propio y la nota de cada ejercicio. Aquí es
+ * una escritura, y la copia es la de `copiaDeLaHoja`: todo lo que es plan, con
+ * ids nuevos y sin lo registrado.
+ *
+ * Se copia la LÍNEA BASE de la hoja, no lo que enseñe un microciclo concreto:
+ * una excepción de Pull A («solo M3, press inclinado») es de sus semanas y de
+ * esa hoja, y convertirla en el plan fijo de Pull B sería inventarle una
+ * decisión a nadie.
+ *
+ * El nombre lo pone quien llama (`freeSheetName`). Si está cogido, vacío, o no
+ * existe la hoja de origen, devuelve el mismo programa: no hay a medias.
+ */
+export const duplicateBlockSessionIn = (program, blockId, dayName, nombreNuevo) => {
+  const nombre = String(nombreNuevo || '').trim();
+  const bloque = blocksOf(program).find((b) => b.id === blockId);
+  const origen = blockSessionOf(bloque, dayName);
+  if (!nombre || !origen || blockSessionOf(bloque, nombre)) return program;
+  return {
+    ...program,
+    blocks: blocksOf(program).map((b) =>
+      b.id !== blockId ? b : { ...b, sessions: [...blockSessionsOf(b), copiaDeLaHoja(origen, nombre)] }
+    ),
+  };
+};
+
+/**
  * Quita una hoja del bloque.
  *
  * Sus excepciones se van con ella: describen cómo se apartaba de un plan que
@@ -1878,10 +2081,30 @@ export const removeBlockSessionFrom = (program, blockId, dayName) => ({
   ),
 });
 
-/** Le cambia el nombre. Las excepciones lo siguen: son de esa hoja. */
+/**
+ * Le cambia el nombre. Las excepciones lo siguen: son de esa hoja.
+ *
+ * ── Y lo entrenado también, dentro de su bloque ─────────────────────────────
+ * Las sesiones de la hoja y su día en cada microciclo del bloque pasan al
+ * nombre nuevo en la misma escritura. Antes se quedaban con el viejo: el
+ * historial se partía en dos nombres, el viejo se quedaba como hoja retirada
+ * donde se había entrenado y sus sesiones dejaban de contar como hechas (22
+ * sep: «TORSO» contra «TORSO A»). El día se renombra con sus kilos heredados
+ * dentro, que `resolvedMicrocycles` casa por nombre.
+ *
+ * Fuera del bloque no se toca nada: en otro bloque esa hoja es otra.
+ *
+ * Quien está entrenando esa hoja en el teléfono manda sus series con el
+ * nombre que cargó, y el servidor las rechazaría. Por eso la interfaz no deja
+ * renombrar mientras haya una en curso: ver `sesionEnCursoDeLaHoja`.
+ */
 export const renameBlockSessionIn = (program, blockId, de, a) => {
   const nombre = String(a || '').trim();
   if (!nombre || nombre === de) return program;
+  const bloque = blocksOf(program).find((b) => b.id === blockId);
+  const semanas = new Set(bloque ? weeksOfBlock(program, bloque) : []);
+  const renombra = (x) => (x.dayName === de ? { ...x, dayName: nombre } : x);
+  const tiene = (lista) => (lista || []).some((x) => x.dayName === de);
   return {
     ...program,
     blocks: blocksOf(program).map((b) =>
@@ -1889,11 +2112,54 @@ export const renameBlockSessionIn = (program, blockId, de, a) => {
         ? b
         : {
             ...b,
-            sessions: blockSessionsOf(b).map((s) => (s.dayName === de ? { ...s, dayName: nombre } : s)),
-            overrides: blockOverridesOf(b).map((o) => (o.dayName === de ? { ...o, dayName: nombre } : o)),
+            sessions: blockSessionsOf(b).map(renombra),
+            overrides: blockOverridesOf(b).map(renombra),
+            /* Y los días de la tira en los que cae: la hoja es la misma. */
+            ...(normalizaMicrociclo(b.microciclo)?.dias.some((d) => d.hoja === de)
+              ? { microciclo: renombrarEnMicrociclo(normalizaMicrociclo(b.microciclo), de, nombre) }
+              : {}),
+          }
+    ),
+    microcycles: (program?.microcycles || []).map((m) =>
+      !semanas.has(m.weekNumber) || !(tiene(m.days) || tiene(m.sessions))
+        ? m
+        : {
+            ...m,
+            days: (m.days || []).map(renombra),
+            ...(m.sessions ? { sessions: m.sessions.map(renombra) } : {}),
           }
     ),
   };
+};
+
+/** Una sesión abierta que empezó hace menos de esto se está entrenando. */
+const EN_CURSO_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * LA SESIÓN DE ESA HOJA QUE ALGUIEN ESTÁ ENTRENANDO AHORA, o `null`.
+ *
+ * El teléfono toma el nombre de la hoja al abrir la sesión y no lo vuelve a
+ * leer: cada serie viaja con él a `log_session_set`, que exige que ese día
+ * exista en el microciclo. Renombrar a mitad de sesión le dejaría la pantalla
+ * sin hoja y le haría rechazar lo que queda en la cola.
+ *
+ * «En curso» es abierta (`sesionAbierta`: algo anotado y sin cerrar) y
+ * empezada en las últimas 24 horas. Una que se dejó a medias hace días no
+ * bloquea para siempre: esa ya no la tiene nadie en la mano.
+ */
+export const sesionEnCursoDeLaHoja = (program, blockId, dayName, ahora = Date.now()) => {
+  const bloque = blocksOf(program).find((b) => b.id === blockId);
+  if (!bloque) return null;
+  const semanas = new Set(weeksOfBlock(program, bloque));
+  for (const micro of program?.microcycles || []) {
+    if (!semanas.has(micro.weekNumber)) continue;
+    for (const sesion of sessionsOf(micro)) {
+      if (sesion.dayName !== dayName || !sesionAbierta(sesion)) continue;
+      const desde = Date.parse(sesion.startedAt || sesion.date || '');
+      if (Number.isFinite(desde) && ahora - desde < EN_CURSO_MS) return sesion;
+    }
+  }
+  return null;
 };
 
 /** La mueve de sitio dentro del bloque: el orden en el que se lee. */
@@ -1961,6 +2227,168 @@ export const moveBlockExerciseIn = (program, blockId, dayName, from, to) =>
     return copia;
   });
 
+/*
+  ── CAMBIAR UN EJERCICIO POR OTRO, CON SU ESTRUCTURA ────────────────────────
+  Para poner otro ejercicio en el sitio de uno había que quitarlo y meter el
+  nuevo, y con el viejo se iban sus series, sus rangos, el RIR, los remates, la
+  nota y la superserie: había que volver a montarlo todo a mano. Ahora se pulsa
+  el nombre, se escribe el otro y la estructura se queda.
+
+  ── Es OTRO ejercicio, y por eso lleva id nuevo ─────────────────────────────
+  «Su progreso se pierde porque es otro ejercicio.» Lo que se hereda es la
+  PAUTA, no la historia: el ejercicio nuevo estrena identificador, igual que el
+  de una excepción (ver `overridePlanExerciseIn`). Con el id de antes, lo que
+  se hubiera anotado del viejo —una sesión a medias esta semana— se sumaría al
+  nuevo, y el registro mezclaría dos ejercicios bajo un nombre.
+
+  La única salvedad son las mayúsculas: «press banca» → «Press banca» es el
+  mismo ejercicio bien escrito, y conserva su id.
+
+  ── Por qué no vale un nombre repetido ──────────────────────────────────────
+  En esta casa un ejercicio de una hoja se localiza por su NOMBRE (ver «Por
+  NOMBRE, y resuelto aquí dentro» en `useWorkout`): dos «Press banca» en la
+  misma hoja serían el mismo para cada manejador, y tocar uno escribiría en el
+  otro. Se compara como compara toda la casa, sin espacios ni mayúsculas.
+
+  ── Lo ya registrado no se toca ─────────────────────────────────────────────
+  Las sesiones guardan su propia foto del ejercicio (`entries[]`, con su id y
+  su nombre) y esto no la reescribe: lo que se hizo, se hizo con el de antes.
+*/
+
+const claveDeNombre = (n) => String(n || '').trim().toLowerCase();
+
+/** Por qué no se puede poner ese nombre: `'vacio'`, `'repetido'` o `null` si vale. */
+export const porQueNoSeRenombra = (exercises = [], exerciseId, nombre) => {
+  const clave = claveDeNombre(nombre);
+  if (!clave) return 'vacio';
+  return exercises.some((ex) => ex.id !== exerciseId && claveDeNombre(ex.name) === clave) ? 'repetido' : null;
+};
+
+/**
+ * El músculo del ejercicio nuevo, si está en la biblioteca: cambiar «Press
+ * banca» por «Remo con barra» y dejarle «Pecho» contaría su volumen en el grupo
+ * equivocado. `null` si el nombre no está: entonces se queda el que tenía.
+ */
+export const musculoDelNombre = (library = [], nombre) => {
+  const clave = claveDeNombre(nombre);
+  return (library || []).find((item) => claveDeNombre(item?.name) === clave)?.muscle || null;
+};
+
+/** La frase del rechazo, para decirla donde se elige el ejercicio. */
+export const avisoDeRenombrar = (motivo, nombre = '') =>
+  motivo === 'vacio'
+    ? 'Un ejercicio necesita nombre.'
+    : motivo === 'repetido'
+      ? `Ya hay un «${String(nombre).trim()}» en esta hoja: elige otro.`
+      : '';
+
+/** ¿Pasa a ser otro ejercicio, o es el mismo con las mayúsculas corregidas? */
+const esOtroEjercicio = (antes, nombre) => claveDeNombre(antes) !== claveDeNombre(nombre);
+
+/**
+ * Cambia un ejercicio de una lista por otro, con su estructura.
+ * Devuelve la MISMA lista si el nombre no vale o no cambia nada.
+ *
+ * Es la escritura del COMPOSITOR, y ahí conserva el id: sus hojas todavía no
+ * son el plan de nadie —nada se ha anotado contra esos ids— y mantenerlo es lo
+ * que deja al diario del bloque decir «Press banca → Remo» en vez de «fuera» y
+ * «entra» (ver `sessionDiff`).
+ */
+export const renombrarEnLista = (exercises = [], exerciseId, nombre, { muscle = null } = {}) => {
+  const suyo = exercises.find((ex) => ex.id === exerciseId);
+  if (!suyo || porQueNoSeRenombra(exercises, exerciseId, nombre)) return exercises;
+  const limpio = String(nombre).trim();
+  const musculo = muscle || suyo.muscle;
+  if (limpio === suyo.name && musculo === suyo.muscle) return exercises;
+  return exercises.map((ex) => (ex.id === exerciseId ? { ...ex, name: limpio, muscle: musculo } : ex));
+};
+
+/**
+ * Los ejercicios con los que un nombre de esa hoja no puede coincidir: los del
+ * bloque y los que entran por excepción en alguna semana. Los que SUSTITUYEN
+ * a este mismo ejercicio no cuentan —nunca conviven con él—.
+ */
+export const nombresDeLaHoja = (block, dayName, exerciseId = null) => [
+  ...(blockSessionOf(block, dayName)?.exercises || []),
+  ...blockOverridesOf(block, dayName)
+    .filter((o) => o.exercise && (exerciseId === null || o.targetId !== exerciseId))
+    .map((o) => o.exercise),
+];
+
+/**
+ * Cambia un ejercicio del BLOQUE por otro, con su estructura, en una sola
+ * escritura.
+ *
+ * Las excepciones de esa hoja que colgaban de él pasan al nuevo: apuntan a su
+ * id, su `sobre` —el «en lugar de X»— dice el nombre nuevo, y si la excepción
+ * era el MISMO ejercicio retocado (se llamaba igual: «esta semana, dos series»)
+ * pasa a ser el nuevo retocado. Una sustitución de verdad —otro nombre— se
+ * queda como está.
+ *
+ * @param muscle  el músculo nuevo, si cambia; `null` lo deja.
+ * @param id      el id del ejercicio nuevo. Lo pone quien llama cuando lo
+ *                necesita saber (para seguir enfocándolo en la hoja).
+ */
+export const renameBlockExerciseIn = (
+  program,
+  blockId,
+  dayName,
+  exerciseId,
+  nombre,
+  { muscle = null, id = null } = {}
+) => {
+  const bloque = blocksOf(program).find((b) => b.id === blockId);
+  const suyo = (blockSessionOf(bloque, dayName)?.exercises || []).find((ex) => ex.id === exerciseId);
+  if (!suyo) return program;
+  if (porQueNoSeRenombra(nombresDeLaHoja(bloque, dayName, exerciseId), exerciseId, nombre)) return program;
+
+  const limpio = String(nombre).trim();
+  const musculo = muscle || suyo.muscle;
+  if (limpio === suyo.name && musculo === suyo.muscle) return program;
+
+  const viejo = suyo.name;
+  const otro = esOtroEjercicio(viejo, limpio);
+  const idNuevo = otro ? id || newId('ex') : exerciseId;
+  /* El músculo de una excepción solo sigue al del bloque si era el mismo: si
+     alguien le puso otro a propósito, esa decisión es suya. */
+  const cambiado = (ex, conId) => ({
+    ...ex,
+    id: conId,
+    name: limpio,
+    ...(ex.muscle === suyo.muscle ? { muscle: musculo } : {}),
+  });
+
+  return {
+    ...program,
+    blocks: blocksOf(program).map((b) => {
+      if (b.id !== blockId) return b;
+      const sessions = blockSessionsOf(b).map((s) =>
+        s.dayName !== dayName
+          ? s
+          : {
+              ...s,
+              exercises: (s.exercises || []).map((ex) => (ex.id === exerciseId ? cambiado(ex, idNuevo) : ex)),
+            }
+      );
+      if (!Array.isArray(b.overrides)) return { ...b, sessions };
+      return {
+        ...b,
+        sessions,
+        overrides: b.overrides.map((o) => {
+          if (o.dayName !== dayName || o.targetId !== exerciseId) return o;
+          const mismo = Boolean(o.exercise) && o.exercise.name === viejo;
+          return {
+            ...o,
+            targetId: idNuevo,
+            ...(o.sobre === viejo ? { sobre: limpio } : {}),
+            ...(mismo ? { exercise: cambiado(o.exercise, otro ? newId('ex') : o.exercise.id) } : {}),
+          };
+        }),
+      };
+    }),
+  };
+};
+
 /**
  * Cuántas series pide un ejercicio del bloque.
  *
@@ -1998,6 +2426,23 @@ export const setBlockExerciseTargetIn = (program, blockId, dayName, exerciseId, 
   conEjercicios(program, blockId, dayName, (lista) =>
     lista.map((ex) => (ex.id !== exerciseId ? ex : { ...ex, sets: (ex.sets || []).map((s) => ({ ...s, targetReps })) }))
   );
+
+/**
+ * EL ESQUEMA ENTERO DE UN EJERCICIO: «1 × 12, 3 × 6-8».
+ *
+ * Los dos de arriba son este mismo con UN tramo —cuántas series, y qué piden
+ * todas—, que es el caso que se da el 90 % de las veces y por eso conserva su
+ * casilla. Se quedan porque son las dos escrituras con nombre propio de la
+ * rejilla: la de las series lleva su apunte en la bitácora y la de las
+ * repeticiones es el verbo que la hoja también usa. Este entra cuando los
+ * tramos son más de uno, que es justo lo que no se podía escribir sin salir de
+ * la vista. Ver `setsDesdeTramos`.
+ */
+export const setBlockExerciseSchemeIn = (program, blockId, dayName, exerciseId, tramos) =>
+  updateBlockExerciseIn(program, blockId, dayName, exerciseId, (ex) => ({
+    ...ex,
+    sets: setsDesdeTramos(tramos, ex.sets || []),
+  }));
 
 /* ══════════════════════════════════════════════════════════════════════════
    ESCRIBIR DESDE LA HOJA
@@ -2090,6 +2535,49 @@ export const updatePlanExerciseIn = (program, weekNumber, dayName, exerciseId, f
   }
 
   return program;
+};
+
+/**
+ * Lo mismo para VARIOS ejercicios de la hoja, en una sola escritura.
+ *
+ * Es lo que hace falta para un gesto de la hoja entera —quitar la columna de
+ * kilos— sin dejar N pasos en el guardado ni N «Deshacer»: cada ejercicio se
+ * escribe donde vive (el bloque o su excepción), igual que de uno en uno.
+ */
+export const updatePlanExercisesIn = (program, weekNumber, dayName, exerciseIds, fn) =>
+  (exerciseIds || []).reduce((p, id) => updatePlanExerciseIn(p, weekNumber, dayName, id, fn), program);
+
+/**
+ * Cambia un ejercicio por otro desde la HOJA de un microciclo, donde vive.
+ *
+ * Del bloque, con `renameBlockExerciseIn` y sus excepciones detrás. De una
+ * excepción —un alta o una sustitución de esas semanas—, en la excepción, sin
+ * tocar el bloque: el nombre no puede chocar con lo que esa semana enseña.
+ * Sin plan en el bloque no hay dónde escribir y no se hace nada.
+ */
+export const renamePlanExerciseIn = (
+  program,
+  weekNumber,
+  dayName,
+  exerciseId,
+  nombre,
+  { muscle = null, id = null } = {}
+) => {
+  const { donde, bloque } = wherePlanExercise(program, weekNumber, dayName, exerciseId);
+  if (donde === 'bloque') return renameBlockExerciseIn(program, bloque.id, dayName, exerciseId, nombre, { muscle, id });
+  if (donde !== 'excepcion') return program;
+  const deLaSemana = planOfDay(program, weekNumber, dayName)?.exercises || [];
+  if (porQueNoSeRenombra(deLaSemana, exerciseId, nombre)) return program;
+  const suyo = deLaSemana.find((ex) => ex.id === exerciseId);
+  if (suyo && suyo.name === String(nombre).trim() && (!muscle || muscle === suyo.muscle)) return program;
+  /* Otro ejercicio, otro id: lo mismo que en el bloque. */
+  const otro = esOtroEjercicio(suyo?.name, nombre);
+  return updatePlanExerciseIn(program, weekNumber, dayName, exerciseId, (ex) => ({
+    ...ex,
+    ...(otro ? { id: id || newId('ex') } : {}),
+    name: String(nombre).trim(),
+    ...(muscle ? { muscle } : {}),
+  }));
 };
 
 /**

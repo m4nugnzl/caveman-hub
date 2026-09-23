@@ -50,6 +50,10 @@ export function createSaveQueue({
   /* Por defecto siempre hay red: así los tests y cualquier uso que no le pase
      nada se comportan exactamente como antes de que esto existiera. */
   isOnline = () => true,
+  /* Lo que el servidor ha RECHAZADO para siempre, con su payload: la cola ya no
+     lo guarda en el navegador, así que quien quiera conservarlo tiene que
+     apuntárselo aquí. Ver `lib/seriesNoGuardadas`. */
+  onRechazo = null,
 }) {
   /** key -> { latest, sender, inFlight, timer, sent } */
   const queues = new Map();
@@ -121,7 +125,10 @@ export function createSaveQueue({
             encendido para siempre. Se sigue enseñando el error y `retry` sigue
             funcionando mientras la pestaña viva. Ver `esRechazoDefinitivo`.
           */
-          if (esRechazoDefinitivo(error)) store?.clear(key);
+          if (esRechazoDefinitivo(error)) {
+            store?.clear(key);
+            onRechazo?.(key, payload, error);
+          }
 
           emit(key, 'error', traduceDbError(error));
           return;
@@ -234,10 +241,23 @@ export function createSaveQueue({
     return false;
   };
 
+  /**
+   * Lo que sigue sin confirmar, con su último payload. Lo lee quien vuelve a
+   * pedir los datos al servidor: lo que trae todavía no lo tiene, y pisarlo con
+   * eso borraría de la pantalla lo que la persona acaba de escribir.
+   */
+  const pendientes = (prefijo = '') => {
+    const lista = [];
+    for (const [key, q] of queues) {
+      if (q.hasPayload && key.startsWith(prefijo)) lista.push({ key, payload: q.latest });
+    }
+    return lista;
+  };
+
   const reset = () => {
     for (const q of queues.values()) if (q.timer) clearTimeout(q.timer);
     queues.clear();
   };
 
-  return { enqueue, retry, reenviarTodo, flushAll, hasUnsaved, reset };
+  return { enqueue, retry, reenviarTodo, flushAll, hasUnsaved, pendientes, reset };
 }

@@ -36,13 +36,16 @@ export const PantallaPeso = ({ datos }) => {
   const {
     ahora, delta, tendencia, medias, dias, hoy, ultimo, onApuntar, ultimos, onVolver,
     revision = null, guardado = null,
+    /* Una revisión PASADA: sus días y ninguno más, y se abre por el último que
+       se puede tocar, porque hoy no está en la tira. */
+    pasada = null, diaInicial = null,
   } = datos;
   /* `null` mientras no se elige: manda hoy. Una sola variable y no «día + si se
      ha tocado», que deja escribir el imposible de no tener ninguno elegido. */
   const [dia, setDia] = useState(null);
   const [escrito, setEscrito] = useState(null);
 
-  const elegido = dia ?? hoy;
+  const elegido = dia ?? diaInicial ?? hoy;
   const delDia = dias.find((d) => d.date === elegido) || null;
   /* La cifra que viene puesta: la de ese día si ya está, y si no la última
      apuntada. Proponer la última es lo que hace que esto sean dos gestos. */
@@ -69,7 +72,7 @@ export const PantallaPeso = ({ datos }) => {
      viernes, y decir «el del viernes» sobre una casilla y guardarlo en la otra
      es exactamente lo que esta línea existe para evitar. */
   const nombreDelDia = (fecha) =>
-    dias.length > 7
+    dias.length > 7 || pasada
       ? weekdayName(fecha, { conFecha: true }).toLowerCase()
       : weekdayName(fecha).toLowerCase();
 
@@ -107,7 +110,9 @@ export const PantallaPeso = ({ datos }) => {
         {/* Con dos semanas en la tira, qué es cada fila. Sin esto son catorce
             casillas iguales y el cliente no sabe que la de arriba es la de la
             revisión que debe — que es justo la que ha venido a rellenar. */}
-        {revision && dias.length > 7 ? (
+        {pasada ? (
+          <p className="tel-pie tel-pie-arriba">Los días de tu {pasada}. Lo que apuntes cuenta para ella.</p>
+        ) : revision && dias.length > 7 ? (
           <p className="tel-pie tel-pie-arriba">
             Los días de {revision} y los de esta semana.
           </p>
@@ -123,7 +128,7 @@ export const PantallaPeso = ({ datos }) => {
               className={`tel-peso-dia${d.date === elegido ? ' es-elegido' : ''}${
                 d.peso != null ? ' es-puesto' : ''
               }`}
-              disabled={d.futuro}
+              disabled={d.futuro || d.cerrado}
               aria-pressed={d.date === elegido}
               /* Con dos semanas hay dos viernes: el nombre del día solo no
                  distingue las casillas, tampoco leído en voz alta. */
@@ -176,9 +181,9 @@ export const PantallaPeso = ({ datos }) => {
         </p>
         <Boton
           callado={yaEsta}
-          disabled={!valido || yaEsta}
+          disabled={!valido || yaEsta || delDia?.cerrado}
           onClick={() => {
-            if (!valido || yaEsta) return;
+            if (!valido || yaEsta || delDia?.cerrado) return;
             onApuntar(numero, elegido);
             setEscrito(null);
           }}

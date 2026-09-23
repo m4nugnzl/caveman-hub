@@ -1,0 +1,588 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EL LIENZO ÚNICO (19 sep, séptima y octava vuelta)
+   --------------------------------------------------------------------------
+   El dueño lo llamó «carditis»: dentro de un cliente flotaban sobre el gris
+   la cabecera, la barra de bloques, cuatro hojas y tres tarjetas del
+   costado, cada una con su canto, su radio y su hueco. Diez islas para UNA
+   mesa de trabajo, y ninguna sensación de mesa.
+
+   Ahora la columna de trabajo del cliente es UNA hoja (`.shell-main.is-lienzo`,
+   la clase la pone `CoachLayout`) y todo va apilado DENTRO de ella, separado
+   por filetes y no por huecos:
+
+     ┌─ lienzo ───────────────────────────────────────────────────────────┐
+     │  [◧] JO Javier Ortega  En riesgo · Microciclo 18                   │
+     │  Resumen  Entreno  Dieta  Revisiones  Protocolo                    │
+     ├────────────────────────────────────────────────────────────────────┤
+     │  Bloques › Bloque 1 · M7 M8 M9 M10 · + hoja                        │
+     ├───────────────────────────────────────────────┬────────────────────┤
+     │  ┌ Empuje ┐ ┌ Tirón ┐ ┌ Pierna ┐ ┌ Full ┐      │ Este bloque        │
+     │  │        │ │       │ │        │ │      │      │ Volumen            │
+     │  └────────┘ └───────┘ └────────┘ └──────┘      │ Progresión         │
+     └───────────────────────────────────────────────┴────────────────────┘
+
+   En la octava vuelta tomó el acabado de macOS: cristal esmerilado, sombra
+   en dos niveles, radio 18, el mando del ancho como botón de barra de
+   herramientas y el costado como INSPECTOR.
+
+   Va la ÚLTIMA de `index.css` a propósito: corrige reglas de revision.css y
+   de piezas.css (la vista del bloque tiene tres vueltas escritas allí), y
+   así lo hace sin pelear por especificidad. Solo escritorio: en el teléfono
+   no hay lienzo que dibujar, la pantalla ya es la hoja.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (min-width: 1024px) {
+  /* ── 1. EL LIENZO, DE CRISTAL ───────────────────────────────────────────
+     El marco de 16 px por arriba, por la derecha y por abajo (por la
+     izquierda lo pone el `gap` del chasis), así que su canto de arriba cae
+     a la misma altura que el de la barra lateral. Canto de luz y sombra en
+     dos niveles (`--vidrio-canto`, `--shadow-profunda`): la pieza se posa por
+     su sombra, no por una raya de tinta. Sin `overflow`: los menús y las
+     ventanas que salen de dentro no se pueden recortar. */
+  .shell-main.is-lienzo {
+    position: relative;
+    margin: var(--marco) var(--marco) var(--marco) 0;
+    min-height: calc(100dvh - var(--marco) * 2);
+    background: transparent;
+    border: 1px solid var(--vidrio-canto);
+    border-radius: var(--r-tarjeta);
+    box-shadow: var(--shadow-profunda);
+    /* Las píldoras y los campos del cliente, a 10: la esquina continua de
+       las piezas pequeñas, un escalón por debajo de los 18 del lienzo. Se
+       redefine el token AQUÍ y no en tokens.css: el resto de la aplicación
+       sigue con la familia de mandos de 8. */
+    --r-control: 10px;
+    /* ── UN SOLO NÚMERO PARA TODO EL CANTO IZQUIERDO (décima vuelta) ──────
+       «Alinea con precisión de píxel todo el margen izquierdo del lienzo: el
+       avatar, las pestañas, la barra de bloques y las columnas de
+       entrenamiento.»
+
+       Estaban los cuatro en `--s5` menos la cabecera, que sumaba 44 px más
+       para la calle del mando del ancho: la cara y el nombre arrancaban a 66
+       y la barra de bloques a 22. El mando se ha ido a la barra lateral
+       (`ui/Pliegue`), así que la calle sobra y queda un número.
+
+       Y queda escrito UNA vez: las reglas de abajo leen esta variable en vez
+       de repetir `var(--s5)`, que es como se descuadró la primera vez. Son
+       SEIS y ninguna es opcional — la cabecera, las pestañas, el cuerpo de la
+       página, la barra de bloques, la mesa de rutinas y el inspector—: el eje
+       es una sola línea o no es un eje.
+       Son los 22 de la escala de la casa y no los 24 del encargo: 24 no tiene
+       token, y meter un quinto valor de sangrado para esta pantalla es
+       exactamente lo que hace que dos pantallas dejen de alinearse. */
+    --sangria-lienzo: var(--s5);
+  }
+  /* ── EL CRISTAL VA EN UNA CAPA, NO EN EL LIENZO ─────────────────────────
+     `backdrop-filter` en un contenedor lo convierte en el bloque contenedor
+     de todo lo `position: fixed` que lleva dentro, y dentro del lienzo viven
+     piezas fijas que no salen por portal (el pie del portapapeles, los
+     avisos): se habrían anclado al lienzo en vez de a la ventana. La capa
+     `::before` lleva el esmerilado y el blanco al 85 % DETRÁS del contenido
+     y sus hijos no se enteran. `z-index: -1` la deja bajo todo el lienzo y
+     sobre el fondo de la aplicación porque el lienzo no crea contexto de
+     apilamiento —ni `z-index` ni `transform` ni `isolation`, a propósito—. */
+  .shell-main.is-lienzo::before {
+    content: '';
+    position: absolute; inset: 0; z-index: -1;
+    border-radius: inherit;
+    background: var(--vidrio);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    pointer-events: none;
+  }
+
+  /* ── 2. LA CABECERA, UNA BANDA ESMERILADA ───────────────────────────────
+     Es el techo de la hoja, cerrado por el filete del inspector. Esmerilada
+     como una barra de título de macOS: al bajar, lo que pasa por debajo se
+     adivina desenfocado — es donde el cristal SE VE, porque el lienzo entero
+     está sobre un gris liso. La misma capa `::before`, y aquí sí queda
+     encerrada: la cabecera es pegajosa con `z-index` y ya es su propio
+     contexto de apilamiento. */
+  .is-lienzo > .cliente-cab {
+    padding: 0;
+    background: transparent;
+    border-bottom: 1px solid var(--canto-inspector);
+    border-radius: calc(var(--r-tarjeta) - 1px) calc(var(--r-tarjeta) - 1px) 0 0;
+  }
+  .is-lienzo > .cliente-cab::before {
+    content: '';
+    position: absolute; inset: 0; z-index: -1;
+    border-radius: inherit;
+    background: var(--vidrio);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    pointer-events: none;
+  }
+  .is-lienzo > .cliente-cab > .cliente-cab-in {
+    position: relative;
+    margin: 0;
+    /* El sangrado del lienzo, y nada más. Aquí estuvo la calle de 44 px del
+       mando del ancho, que se ha ido a la barra lateral: la cara, el nombre y
+       las pestañas arrancan ahora en la misma vertical que la barra de
+       bloques y que las hojas del bloque. */
+    padding: 0 var(--sangria-lienzo);
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* El cuerpo: el aire de una tarjeta. La vista del bloque lo quita (abajo)
+     porque sus bandas llegan de canto a canto. `.shell-main.is-lienzo` y no
+     `.is-lienzo` a secas: tiene que empatar con
+     `.shell-main:has(.cliente-cab) > .layout` (chasis.css), y empatando gana
+     esta hoja por ir la última. */
+  /* ── Y EL CUERPO LEE EL MISMO NÚMERO (20 sep) ──────────────────────────
+     «La cabecera del cliente y las tabs comparten un único eje vertical de
+     alineación con el contenido de debajo. Quiero poder trazar una línea
+     recta» (el dueño).
+
+     El eje ya estaba escrito una vez —`--sangria-lienzo`, arriba— y lo leían
+     la cabecera, las pestañas, la barra de bloques, la mesa de rutinas y el
+     inspector. El CUERPO no: pedía `var(--s5)` a mano. Daba el mismo número,
+     así que la línea salía recta por coincidencia y no por construcción: el
+     día que el eje cambie de valor, esta regla se queda atrás y el contenido
+     se descuelga de su cabecera sin que nada avise. Ahora hay UN número y un
+     solo sitio donde cambiarlo. */
+  .shell-main.is-lienzo > .layout {
+    padding: var(--sangria-lienzo);
+  }
+  .shell-main.is-lienzo > .layout:has(.entreno.is-conjunto) { padding: 0; }
+
+  /* ── 3. EL PLANIFICADOR DE ENTRENO ──────────────────────────────────────
+     Dos columnas dentro del lienzo: las hojas del bloque a lo que quede y el
+     inspector a 320 fijos. La barra de bloques cruza las dos, como banda. */
+  .is-lienzo .entreno-pagina { gap: 0; }
+  .is-lienzo .entreno-pagina .entreno.is-conjunto {
+    grid-template-columns: minmax(0, 1fr) var(--ancho-costado, 320px);
+    gap: 0;
+    align-items: stretch;
+    flex: 1;
+  }
+
+  /* La barra de bloques: banda, no caja. Sin fondo, canto ni radio; un
+     filete debajo y el mismo sangrado que la cabecera de encima.
+
+     Vale para las DOS vistas desde la décima vuelta. Con una hoja abierta
+     seguía siendo una tarjeta con su margen, así que sus migas arrancaban 22
+     px más adentro que el nombre de la persona de arriba: el encargo pedía
+     precisión de píxel en el canto izquierdo y la barra la rompía justo en la
+     vista en la que más se la mira. */
+  .is-lienzo .entreno > .tira {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: var(--s2) var(--sangria-lienzo);
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--canto-inspector);
+    border-radius: 0;
+  }
+  /* ── Y EN LA VISTA DE HOJA, LA BANDA SE SALE DEL AIRE DE LA PÁGINA ──────
+     Con una hoja abierta el cuerpo SÍ lleva el relleno de la hoja (la mesa y
+     el costado son cajas, no bandas), así que la barra heredaba 22 px por la
+     izquierda y sus migas arrancaban en 333 mientras el nombre de la persona
+     estaba en 311. Se sale del relleno con márgenes negativos y vuelve a
+     medir el ancho entero, que es lo que la hace banda.
+
+     Los dos números son EL MISMO —el relleno del que sale y el que se pone
+     por dentro—, así que la barra cae a plomo con la cabecera por
+     construcción y no por coincidencia.
+
+     Y también POR ARRIBA (21 sep): «está en otra posición, hay más espacio
+     arriba». El relleno de la página es de los cuatro lados y solo se
+     deshacía en dos, así que con una hoja abierta la barra bajaba 22 px
+     respecto a la del bloque (152 contra 130, medido): al cambiar de vista,
+     la fila saltaba. Ahora pega a las pestañas en las dos. */
+  .is-lienzo .entreno.is-hoja > .tira {
+    margin-top: calc(-1 * var(--sangria-lienzo));
+    margin-left: calc(-1 * var(--sangria-lienzo));
+    margin-right: calc(-1 * var(--sangria-lienzo));
+  }
+
+  /* ══ Y LOS DOS PISOS VUELVEN A SER UNO (20 sep) ═══════════════════════
+     «Me gusta el rediseño, pero me chirría que rompa en dos filas y que pese
+     tanto.»
+
+     La barra tenía un renglón por nivel —arriba el bloque, abajo su línea de
+     tiempo— y eso costaba 100 px de chasis en la pantalla más alta del
+     producto, la mitad de ellos para enseñar cuatro pastillas. La fila vuelve
+     a ser una, de 50, y el reparto por ámbitos lo hace el EJE HORIZONTAL, que
+     es el que sobraba:
+
+       Bloques › Bloque 2 ⌄ ABIERTO │ ▒M7 M8 M9 [M10 ⌄]▒ + microciclo
+                                            + hoja │ ⟲ ⟳ + bloque ⚙
+
+     A la izquierda, fijo, lo que dice DÓNDE ESTÁS. En medio, elástico, lo
+     único que crece con el programa —y por tanto lo único que puede
+     desbordar—. A la derecha, fijo, lo que se puede HACER. Un filete entre el
+     primero y el segundo, y otro antes del alta del bloque; ninguno más, que
+     un filete repetido deja de separar.
+
+     Lo que NO vuelve del intento anterior de fila única es el `flex-wrap`:
+     envolver era exactamente el defecto que el dueño señala. Lo que se parte
+     ahora es el carril, por dentro y deslizando; la fila nunca. */
+  .is-lienzo .entreno .tira-fila { min-height: 32px; flex-wrap: nowrap; }
+  /* El nombre del bloque y su chapa son UNA cosa —«Bloque 2, abierto»— y no se
+     parten nunca: son el ancla del renglón. */
+  .is-lienzo .entreno .tira-fila .tira-lista { flex-wrap: nowrap; }
+  /* ── EL RITMO DEL RASTRO, UNO SOLO ─────────────────────────────────────
+     «Mucho aire entre el icono de carpeta y "Bloque 2", y "ABIERTO"
+     pegadísimo a "Bloque 2".»
+
+     Medido: 4 px a la izquierda del chevron y 20 a su derecha, porque el aire
+     lo ponían cuatro piezas distintas —el margen negativo de la miga, el hueco
+     del camino, el `margin-left` de la lista y el relleno del titular— y
+     ninguna sabía de las otras. Y la chapa se quedaba a 10, la mitad.
+
+     Ahora el hueco lo pone el camino UNA vez y las piezas no traen el suyo: el
+     mismo aire a los dos lados del chevron y el mismo entre el nombre y su
+     chapa. Un rastro es una sucesión regular o no se lee como un rastro. */
+  .is-lienzo .entreno .tira-camino { gap: 6px; }
+  .is-lienzo .entreno .tira-camino > .tira-miga { margin: 0; padding: 3px 0; }
+  .is-lienzo .entreno .tira-camino > .tira-miga:hover { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+  .is-lienzo .entreno .tira-lista { margin-left: 0; gap: 6px; }
+  /* Y el titular aprieta su relleno de 10 a 8. Es lo que queda del desnivel
+     después de quitar el margen que no era suyo: a la izquierda del chevron
+     hay TEXTO y a su derecha una CAJA, así que la misma distancia de 6 px se
+     lee más ancha por el relleno de la caja que viene detrás. Dos píxeles
+     menos por dentro acercan el nombre sin apretarlo contra su canto. */
+  .is-lienzo .entreno .tira-camino .tira-eslabon.is-on { padding-inline: var(--s2); }
+  /* Y la chapa se despega con su propio aire, que es lo que la hace un rótulo
+     SOBRE el nombre y no una sílaba más del nombre. */
+  .is-lienzo .entreno .tira .bl-chapa { margin-left: 2px; }
+
+  /* ── LOS MICROCICLOS, UN CONTROL SEGMENTADO CONTINUO ────────────────────
+     Eran pastillas sueltas con su canto cada una, y en un renglón con «‹ 6
+     más» y «+ microciclo» al lado se leían como seis botones que hacen seis
+     cosas distintas. Son lo contrario: una elección entre hermanos, como el
+     segmentado de iOS. Así que van dentro de UNA pista hundida y el
+     encendido es el único que levanta papel blanco.
+
+     Desde la fila única la pista es además el CARRIL: se desliza por dentro
+     cuando el bloque tiene más microciclos de los que caben, con el canto
+     desvanecido y el abierto traído a la vista (`.tira-micros` en
+     `revision.css`). La pista gris es lo que hace que un carril que esconde
+     algo siga leyéndose como una sola elección entre hermanos y no como una
+     hilera cortada. */
+  .is-lienzo .entreno .tira .tira-micros {
+    gap: 2px;
+    padding: 2px;
+    background: var(--fill);
+    border-radius: var(--r-control);
+  }
+  /* `:not(.is-on)` porque este selector le gana por especificidad al azul de
+     `.tira .hoja-semana.is-on` (piezas.css): sin la exclusión, la pastilla
+     encendida se quedaba en una caja blanca vacía —el fondo azul borrado y la
+     letra todavía en blanco—. Se vio en captura. */
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana:not(.is-on) {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+    /* Un escalón por debajo del de la pista, que es lo que hace que la
+       pastilla encendida se vea DENTRO y no encima. */
+    border-radius: var(--r-control-sm);
+  }
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana:hover:not(.is-on) { background: var(--fill-strong); }
+  /* ── Y EL ENCENDIDO SIGUE SIENDO AZUL ──────────────────────────────────
+     El segmentado de macOS levanta papel blanco en la opción elegida, y así
+     salió la primera vez: sobre la pista gris se veía la caja blanca y NO se
+     veía lo que ponía dentro, porque la pastilla encendida de esta casa lleva
+     la letra en `--accent-on` (blanco sobre azul, `piezas.css`).
+
+     No es un descuido que arreglar con un color de letra: el azul lleno es
+     una decisión escrita —«la señal aparece donde se puede tocar o DONDE
+     ESTÁS»— y cambiarlo por papel blanco la revertiría de tapadillo en la
+     única pastilla que dice por qué microciclo vas. Lo que aporta la pista
+     gris es lo que faltaba: que los cuatro se lean como UNA elección entre
+     hermanos y no como cuatro botones sueltos. El relleno azul sigue siendo
+     lo que dice cuál. */
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana.is-on { border-radius: var(--r-control-sm); }
+
+  /* El área de rutinas, con el aire de la hoja. */
+  .is-lienzo .entreno.is-conjunto > .entreno-hoja.mesa-panel {
+    padding: var(--sangria-lienzo);
+  }
+  .is-lienzo .entreno.is-conjunto .mesa-cuerpo { padding: 0; }
+  .is-lienzo .entreno.is-conjunto .plan-rejilla { gap: var(--s4); }
+  /* Los días, tarjetas INCRUSTADAS: canto de la casa, radio 12, sin sombra.
+     Son cajas porque cada una se arrastra, se suelta y se abre por separado;
+     lo que pierden es el radio de 26 y el aire de objeto suelto. El relleno
+     de 22 se queda: es la calle del asa de arrastre (`.plan-asa`, a −19). */
+  .is-lienzo .entreno.is-conjunto .plan-col {
+    border-color: var(--edge-card);
+    border-radius: var(--r-control-lg);
+    box-shadow: none;
+  }
+
+  /* ── EL INSPECTOR ───────────────────────────────────────────────────────
+     El panel de cifras como el inspector de una app de macOS: UNA columna
+     continua con un tinte apenas más frío que la mesa, separada de ella por
+     un solo filete de negro al 7 %. Dentro, las tres secciones ya no llevan
+     filetes entre ellas —eran tres parches cosidos—: se separan por aire y
+     por su título, como los grupos de un inspector. La esquina de abajo
+     sigue el radio del lienzo, que no recorta (ver arriba). */
+  .is-lienzo .entreno.is-conjunto > .entreno-lado-derecho {
+    padding: var(--s2) 0 var(--s5);
+    /* ── Y EL INSPECTOR ES BLANCO (décima vuelta) ───────────────────────
+       Llevó `--surface-sunken`, un tinte más frío que la mesa, con el
+       argumento de que así se lee como otra zona. Lo que pasó es que las
+       cuatro mini-tarjetas de «Este bloque» son de ese mismo papel hundido:
+       sobre él se perdían y había que darles canto para que existieran, o
+       sea dos grises casi iguales, uno encima del otro, separados por una
+       raya.
+
+       Blanco, la escala vuelve a tener tres escalones: el papel del panel,
+       el papel hundido de cada cifra y el canto que las cierra. Lo que
+       separa el inspector de la mesa es el filete, que sube de negro al 7 %
+       al canto de la casa para poder hacer ese trabajo él solo. */
+    background: var(--surface);
+    border-left: 1px solid var(--edge-card);
+    border-bottom-right-radius: calc(var(--r-tarjeta) - 1px);
+  }
+  .is-lienzo .entreno.is-conjunto .bloque-lecturas,
+  .is-lienzo .entreno.is-conjunto .bloque-comova { gap: 0; }
+  /* Las tres secciones se separan por AIRE y por su título, y el aire es el
+     mismo en las tres: un relleno igual por los cuatro costados del panel, de
+     modo que la distancia entre «Este bloque» y «Volumen» sea la misma que
+     entre «Volumen» y «Progresión». Es lo que hace que se lean como grupos de
+     un inspector y no como tres tarjetas cosidas. */
+  .is-lienzo .entreno.is-conjunto .lado-tarjeta {
+    gap: var(--s3);
+    padding: var(--s4) var(--sangria-lienzo);
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  /* La sección que se pulsa se enciende como un grupo de inspector. */
+  .is-lienzo .entreno.is-conjunto .lado-tarjeta.tarjeta-puerta:hover:not(:has(button:not(.task-hit):hover)) {
+    background: var(--fill-subtle);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .is-lienzo .entreno.is-conjunto .lado-cab .section-label {
+    font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em;
+  }
+
+  /* ── LAS CUATRO CIFRAS, EN UNA CAJA Y EN UN RENGLÓN (21 sep) ────────────
+     Del 19 al 21 fueron cuatro mini-tarjetas de dos en dos. El dueño, con la
+     captura del renglón al lado: «me gustaba más así». Vuelve la caja única
+     con las cuatro en fila, que es la figura de una comparación.
+
+     Lo que la había echado eran dos averías, y las dos se quedan resueltas:
+     · «11/12» se montaba sobre «ENTREN.» porque las cuatro columnas eran
+       iguales a la fuerza y la carga, la más ancha, no cabía en su cuarto.
+       Ahora cada celda mide lo que lleva (`flex: auto`) y la cifra no
+       se parte nunca: lo que cede es el rótulo, con puntos suspensivos.
+     · los filetes de la «paridad» de `.bloque-cifras` (piezas.css) se
+       dibujaban encima del texto. Aquí no hay filetes: separa el aire
+       —12 entre cifras, 16 al canto—. Necesita el costado ancho (abajo,
+       «EL COSTADO CRECE CON LA VENTANA»): a 320 fijos solo cabía apretando a 8 y 10. El prefijo
+       `.shell-main.is-lienzo` es lo que le gana a la paridad. */
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta {
+    display: flex; align-items: stretch; justify-content: space-between;
+    gap: var(--s3);
+    padding: var(--s3) var(--s4);
+    background: var(--surface-sunken);
+    border: 1px solid var(--edge-card);
+    border-radius: var(--r-md);
+  }
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta > .bloque-cifra {
+    display: flex; flex-direction: column; gap: 4px;
+    flex: 0 1 auto; min-width: 0;
+    padding: 0;
+    background: none; border: 0; border-radius: 0;
+  }
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta > .bloque-cifra > .k {
+    font-size: var(--fs-2xs); font-weight: 600; letter-spacing: 0.01em;
+    color: var(--text-suave);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta > .bloque-cifra > .v {
+    font-size: var(--fs-md); line-height: 1.1; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta > .bloque-cifra > .v > small {
+    font-size: var(--fs-2xs); font-weight: 500; letter-spacing: 0; margin-left: 1px;
+    color: var(--text-suave);
+  }
+
+  /* ── 4. LAS OTRAS PESTAÑAS, SOBRE BLANCO ────────────────────────────────
+     El Resumen se pensó sobre gris: sus tarjetas y sus cifras llevaban el
+     canto fino (`--edge-fino`) y una sombra de contacto, que sobre blanco
+     no dibujan nada. Dentro del lienzo toman el canto de la casa y pierden
+     la sombra: son cajas incrustadas, igual que los días de Entreno. */
+  .is-lienzo .resumen-pagina .tarjeta,
+  .is-lienzo .resumen-pagina .kpi {
+    border-color: var(--edge-card);
+    box-shadow: none;
+  }
+
+  /* ── 5. LA JERARQUÍA TIPOGRÁFICA ────────────────────────────────────────
+     Tres voces y nada más. Los TÍTULOS —el nombre de la persona, el de cada
+     día, el de cada sección— en 600 con el tracking cerrado, que es el peso
+     de un título de macOS; el 700 de antes gritaba en cuatro columnas
+     seguidas. Los SUBTEXTOS en tinta al 60 % (`--text-suave`), el gris
+     semitransparente de iOS. Las CHAPAS de estado no se tocan: ya son tinte
+     claro con letra de su tono, por encima de 4,5:1. */
+  /* El nombre NO entra en la bajada de peso de esta ley (20 sep, 2.ª vuelta):
+     a 18 px es lo único que le queda para presidir sin competir con las cifras
+     de 22, que son las que se llevaron el tamaño. Ver el porqué en
+     `.cliente-cab-nombre`, en `chasis.css`. */
+  .is-lienzo .entreno.is-conjunto .plan-col-nombre { font-weight: 600; letter-spacing: -0.025em; }
+  .is-lienzo .cliente-cab-meta,
+  .is-lienzo .lado-desde,
+  .is-lienzo .tarjeta-sub,
+  .is-lienzo .kpi-s,
+  .is-lienzo .plan-col-sub { color: var(--text-suave); }
+
+  /* ══ 6 · QUE SE NOTE LO QUE SE TOCA (19 sep, décima vuelta) ══════════════
+     «Reintroduce efectos hover refinados y feedback táctil.» El lienzo dejó
+     la pantalla muy quieta: al aplanar las islas en una sola hoja, las
+     tarjetas de día se quedaron con un cambio de canto de un escalón de gris
+     —#e2e8f0 a #cbd5e1— que a un metro de la pantalla no existe. Una rejilla
+     de ocho cajas en la que nada responde se lee como una tabla impresa.
+
+     Lo que se devuelve es el par de siempre y nada más: la tarjeta se despega
+     2 px y toma sombra; la fila de ejercicio enciende su realce. Dos niveles,
+     dos respuestas distintas, ninguna de las dos decorativa — las dos dicen
+     «esto se abre». */
+  .is-lienzo .entreno.is-conjunto .plan-col {
+    transition:
+      border-color var(--fast),
+      box-shadow var(--fast),
+      transform var(--fast),
+      opacity var(--fast);
+  }
+  /* Menos la que se está ARRASTRANDO (`is-dragging`, de `marcas` en
+     `ConjuntoDelBloque`): levantar con el ratón lo que el ratón ya está
+     moviendo deja la pieza dos píxeles por encima de su hueco durante todo el
+     gesto, y encima pelea con el `transform` del arrastre. */
+  .is-lienzo .entreno.is-conjunto .plan-col:hover:not(.is-dragging) {
+    border-color: var(--canto-tocado);
+    box-shadow: var(--shadow-tocada);
+    transform: translateY(-2px);
+  }
+  /* El teclado ve lo mismo que el ratón, menos el salto: un `transform` al
+     tabular mueve la página entera bajo el foco. */
+  .is-lienzo .entreno.is-conjunto .plan-col:focus-within {
+    border-color: var(--canto-tocado);
+    box-shadow: var(--shadow-tocada);
+  }
+  /* Y lo que se pulsa lo dice el cursor, pero SOLO lo que se pulsa: la fila
+     de ejercicio no lleva mano porque no se abre —enciende su realce porque
+     es una zona de soltar y porque dentro tiene verbos—, y un cursor de mano
+     sobre algo que no responde al clic es una promesa rota. Aquí se le pone a
+     los botones que perdieron su caja: `button.plan-col-nombre` (el `span`
+     del mismo nombre, sin hoja que abrir, se queda sin mano). */
+  .is-lienzo .entreno.is-conjunto button.plan-col-nombre,
+  .is-lienzo .entreno.is-conjunto button.plan-col-dia.is-mando { cursor: pointer; }
+  /* ══════════════════════════════════════════════════════════════════════
+     LA PASTILLA DEL MICROCICLO ABIERTO ES UN MANDO CON MENÚ (20 sep)
+     ----------------------------------------------------------------------
+     «Las acciones del microciclo accesibles desde el propio chip: pulsar el
+     chip activo o su zona de menú abre borrar / duplicar / mover / exportar.»
+
+     La pastilla encendida es `MenuAcciones` con la geometría de sus hermanas,
+     así que el carril sigue siendo una hilera regular; lo único que la
+     distingue es el chevron al final, que es lo que dice que ahí hay algo más
+     que un sitio al que ir. En las apagadas no hay chevron porque en ellas el
+     gesto es viajar, y en la abierta no hay viaje que ofrecer.
+
+     El chevron va en `--accent-on` a media tinta: sobre el relleno azul, a
+     tinta llena competiría con el propio dorsal. */
+  .is-lienzo .entreno .tira .tira-micros > .menu-acciones { display: inline-flex; }
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana.is-on { padding-right: 5px; gap: 6px; cursor: pointer; }
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana.is-on > svg {
+    color: var(--accent-on); opacity: .7; flex-shrink: 0;
+    transition: opacity var(--fast);
+  }
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana.is-on:hover > svg,
+  .is-lienzo .entreno .tira .tira-micros .hoja-semana.is-on[aria-expanded='true'] > svg { opacity: 1; }
+
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Y CÓMO DEGRADA CUANDO NO CABE
+   ----------------------------------------------------------------------
+   «Degradación elegante cuando no quepa: desborde con desplazamiento
+   horizontal y marcas de "hay más", nunca un salto a dos líneas que mueva
+   el contenido de abajo.»
+
+   El salto a dos líneas es lo que se viene a quitar, así que la fila va en
+   `nowrap` y lo que cede es, por este orden:
+
+     1. EL CARRIL, deslizando. Es lo primero porque es lo único que puede
+        esconder sin perder nada: lo escondido sigue a un gesto de distancia
+        y el canto desvanecido dice que está ahí.
+     2. LA PALABRA DE «+ bloque», que es el verbo menos frecuente de la fila
+        —un bloque se empieza cada seis semanas— y se queda con su glifo y su
+        rótulo del ratón.
+     3. LOS DOS VERBOS DEL CANTO DERECHO, que se recogen enteros. Se van en
+        vez de quedarse sin palabra porque tres cruces azules iguales en la
+        misma esquina no son tres mandos: son un acertijo. «+ microciclo» se
+        queda, que es el que vive pegado a la lista que aumenta.
+     4. LA PRIMERA MIGA Y LA CHAPA. Las dos se vuelven a leer con un gesto
+        —«Bloques» está también dentro del desplegable del nombre, y si el
+        bloque está abierto lo dice su ficha—; el nombre del bloque, no.
+
+   Va por `@container` y no por `@media`: la barra lateral se pliega con el
+   asa del canto y el inspector se abre y se cierra, así que el ancho de la
+   fila no lo dice la ventana. Es el mismo idioma que ya usan Inicio, Cobros y
+   la cartera.
+
+   Y va FUERA del `@media` del lienzo —al contrario que el resto de este
+   fichero— porque los tramos valen para cualquier ancho: la barra se estrecha
+   igual en un portátil que no llegue a los 1024. */
+.entreno > .tira { container-type: inline-size; container-name: tira; }
+/* La fila no envuelve NUNCA por encima del teléfono, que es exactamente lo que
+   se viene a quitar. Lo que cede es el carril —deslizando— y después los
+   verbos, por tramos. */
+.entreno .tira-fila.is-una { flex-wrap: nowrap; }
+
+@container tira (max-width: 1000px) {
+  .tira-fila.is-una .tira-mas.is-de-bloque .tira-mas-palabra { display: none; }
+  .tira-fila.is-una .tira-mas.is-de-bloque { padding-inline: 6px; }
+}
+@container tira (max-width: 860px) {
+  .tira-fila.is-una .tira-mas.is-de-hoja .tira-mas-palabra { display: none; }
+  .tira-fila.is-una .tira-mas.is-de-hoja { padding-inline: 6px; }
+  .tira-fila.is-una .bl-chapa { display: none; }
+}
+
+/* ── EL COSTADO CRECE CON LA VENTANA (21 sep) ─────────────────────────────
+   De 320 (a 1440) a 380 (a 1600), los del frame: a 320 fijos las cuatro
+   cifras de «Este bloque» iban apretadas en su renglón. No antes: a 1440 con
+   345 las hojas bajaban a 237 y el «4 × 6-8» se caía debajo del nombre.
+
+   Se probó también que los verbos del bloque midieran lo mismo que el
+   costado, para que su filete cayera sobre la raya de la columna. El dueño lo
+   quitó: «hay demasiado espacio y queda mal». Los verbos van seguidos. */
+@media (min-width: 1440px) {
+  .is-lienzo .entreno-pagina .entreno.is-conjunto {
+    --ancho-costado: clamp(320px, calc(320px + (100vw - 1440px) * 0.375), 380px);
+  }
+}
+
+/* En el teléfono sí se parte, y a propósito: ahí una fila apretada es una fila
+   que empuja la página de lado al arrastrar. Ver la regla 35 de
+   `piezas.css`. */
+@media (max-width: 639.98px) {
+  .entreno .tira-fila.is-una { flex-wrap: wrap; }
+}
+
+/* ── «ESTE BLOQUE» CUANDO NO CABE EN UN RENGLÓN ────────────────────────────
+   Las cuatro cifras en fila piden ~290 px con su aire (12 entre ellas, 16 al
+   canto). Con menos —el costado a 320, entre 1440 y ~1500— no se aprietan:
+   pasan a dos por dos DENTRO DE LA MISMA CAJA. Apretarlas a 8 y 10 fue lo que
+   el dueño vio «muy comprimido»; las cuatro mini-tarjetas, lo que rechazó. */
+.shell-main.is-lienzo .entreno.is-conjunto .lado-tarjeta:has(> .bloque-cifras.is-compacta) {
+  container: cifras-del-bloque / inline-size;
+}
+@container cifras-del-bloque (max-width: 289.98px) {
+  .shell-main.is-lienzo .entreno.is-conjunto .bloque-cifras.is-compacta {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s3) var(--s4);
+  }
+}

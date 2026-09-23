@@ -1,0 +1,28 @@
+/*
+  ══ LO PREVISTO: LOS BLOQUES EN BORRADOR ════════════════════════════════════
+
+  Un borrador no ha pasado: no tiene semanas, ni fechas, ni cifras. Se pinta
+  con la misma fila que un bloque (`.bl-fila`) y una sola diferencia, la que
+  dice «esto todavía no es»: el filo de la izquierda es un trazo discontinuo,
+  el mismo recurso que el dibujo aprobado usa para la descarga prevista.
+
+  Nada de fondo ni de color propio: en esta lista el color señala dónde estás
+  (ver la ley del color), y un borrador no es un sitio donde se esté.
+
+  Vive en su propia hoja y no en `piezas.css` porque ese fichero tiene cambios
+  sin commitear de otra sesión. Cuando se commiteen, esto se muda al lado de
+  `.bl-fila` y esta hoja desaparece.
+*/
+
+.bl-fila.is-borrador {
+  border-left: 2px dashed var(--edge-control);
+  padding-left: var(--s3);
+}
+
+/* Y sus verbos se leen siempre, no al acercarse: la fila no tiene cifras que
+   tapar, y un borrador sin rellenar es justo lo que hay que poder rellenar. */
+.bl-fila.is-borrador .bl-mandos {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}

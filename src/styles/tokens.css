@@ -252,7 +252,18 @@
 
      La MESA —lo de fuera de la hoja— se queda en gris: es lo que sigue
      diciendo dónde acaba el papel. */
-  --hoja: #ffffff;
+  /* ── Y VUELVE A UN GRIS DE PAPEL (19 sep) ───────────────────────────────
+     El dueño lo pide así: lienzo #f8fafc y tarjetas blancas con su canto y
+     una sombra corta. El trazo sigue separando (ver `--edge-card`), pero ahora
+     con escalón de luz: una tarjeta blanca sobre blanco se leía como un
+     recuadro dibujado, no como una pieza posada. La mesa sigue un punto más
+     honda (`--canvas-alt`), así que el escalón mesa → hoja → tarjeta se lee
+     en los tres pasos. */
+  /* ── Y UN PASO MÁS HONDO, CON LA BARRA FLOTANTE (19 sep, quinta vuelta) ─
+     La barra lateral vuelve a flotar, ahora como tarjeta BLANCA, y el fondo
+     de la aplicación baja a #f1f5f9 para que se despegue de él. Con la hoja
+     en #f8fafc la barra blanca apenas se separaba del papel. */
+  --hoja: #f1f5f9;
 
   /* ── Separadores y rellenos ── */
   /* La misma rampa fría. `--hairline` es el canto de tarjeta del frame de
@@ -308,7 +319,15 @@
      escrito así y no como `var(--hairline)` porque son dos decisiones
      distintas que hoy coinciden: una separa superficies y la otra dibuja
      filetes dentro de ellas. */
-  --edge-card: #e5e7eb;
+  /* Un punto más frío desde el 19 sep (#e5e7eb → #e2e8f0): sobre la hoja gris
+     el canto neutro tiraba a amarillo al lado del lienzo pizarra. */
+  --edge-card: #e2e8f0;
+  /* ── El canto fino (19 sep, tercera vuelta) ──────────────────────────────
+     Negro al 6 %: el filo de las mini-tarjetas del Resumen (la franja de
+     cifras, las filas de «El plan» y de «Cómo lo lleva»). Es un canto que se
+     intuye más que se ve y por eso sirve para separar piezas DENTRO de una
+     tarjeta sin dibujar una rejilla. */
+  --edge-fino: rgba(0, 0, 0, 0.06);
 
   /* ── El canto de lo que se TOCA ──────────────────────────────────────────
      Solo para controles: el borde del botón secundario, de los campos y de los
@@ -450,15 +469,63 @@
 
      Sobre papel van oscurecidos hasta pasar 4,5:1 como TEXTO, no solo como
      relleno: en las listas de métricas y en las píldoras de macro el color es
-     texto pequeño, y ahí una paleta pensada solo para rellenar barras falla. */
+     texto pequeño, y ahí una paleta pensada solo para rellenar barras falla.
+
+     ══ LA PALETA SE CIERRA EN SEIS + NEUTRO (20 sep 2026) ═══════════════════
+
+     Eran nueve. Se van `--data-lime` y `--data-orange`, y el porqué es medible:
+
+       · `--data-orange` (#b3520f) estaba a OCHO GRADOS de matiz de `--warning`
+         (#c2410c). No eran parecidos: eran el mismo naranja. Una serie de
+         cintura y una advertencia se pintaban igual.
+       · `--data-lime` (#557d12) era el verde que competía con el verde del
+         BIEN sin añadir una distinción que no diera ya el teal.
+
+     Y seis no es un número redondo elegido a ojo: es el que el producto ya
+     usaba donde reparte color solo. Las dos ruedas que asignan tinta sin que
+     nadie elija —las medidas propias y las preguntas propias— tienen seis
+     entradas cada una. Nueve tintas para eso era acumulación.
+
+     ── Las seis, por lo que significan ─────────────────────────────────────
+       azul     el cuerpo y su medida — peso, ritmo, pesaje, cita
+       rojo     el cuerpo que cambia de forma — % graso, cintura, dolor
+       violeta  la carga — tonelaje, serie tope, esfuerzo, entrenos hechos
+       teal     el trabajo hecho — series, adherencia al plan, energía
+       ámbar    la comida — kcal, carbos, adherencia a la dieta, digestiones
+       rosa     lo que se cuenta a mano — pasos, proteína, fotos, estrés
+
+     `--data-slate` NO es la séptima: es LA REFERENCIA —el fantasma, lo
+     comparado, lo que no lleva color— y es lo que contesta `readiness.js` y
+     `medidaColor` cuando una serie no dice tinta. Tiene que sobrar siempre, o
+     deja de significar eso. Por eso salió de las dos ruedas.
+
+     ── Y LA REGLA QUE IMPIDE QUE VUELVA A PASAR ────────────────────────────
+     El conflicto entre el dato y el estado no se resuelve por MATIZ —no queda
+     sitio en el círculo: el semáforo se queda el rojo, el naranja y el verde,
+     que son tres de las seis familias útiles—. Se resuelve por SITIO, que es
+     lo que ya se hizo con el azul del acento:
+
+       EL SEMÁFORO SOLO APARECE COMO RELLENO PEGADO A UN JUICIO — una chapa,
+       una barra de «cómo lo lleva», una flecha de tendencia.
+       LA PALETA DE DATO SOLO APARECE COMO TRAZO, DISCO DE LEYENDA O CIFRA DE
+       UNA SERIE.
+
+     Nunca la misma marca. Mientras eso se cumpla, que `--data-rose` y
+     `--negative` sean parientes no confunde a nadie: uno dibuja una línea y el
+     otro rellena una chapa.
+
+     ── Cuando dos series comparten tinta ───────────────────────────────────
+     Comparten porque son LA MISMA FAMILIA, y se dice cuál en el sitio donde se
+     asigna. El peso y su ritmo, el tonelaje y la serie tope, el esfuerzo y la
+     fatiga: son el mismo dato medido dos veces, y por eso no estorba que se
+     vean iguales. Compartir por falta de tintas, sin escribir la razón, es
+     exactamente lo que este bloque viene a impedir. */
   --data-blue: #1b6ea6;
   --data-rose: #c0392b;
   --data-teal: #0e7f73;
   --data-amber: #96690a;
   --data-violet: #7a34ad;
   --data-pink: #a8306e;
-  --data-lime: #557d12;
-  --data-orange: #b3520f;
   --data-slate: #656f7b;
 
   /* Área bajo las líneas: el mismo color con muy poca opacidad. */
@@ -498,6 +565,21 @@
   --positive-soft: #ecfdf5;
   --negative: #dc2626;
   --negative-soft: #fef2f2;
+  /* ── El canto de una chapa de estado (19 sep) ────────────────────────────
+     La chapa «En riesgo» lleva tinte, letra y además un canto del mismo tono
+     un paso más fuerte que el tinte: sobre la cabecera blanca el tinte solo
+     (#fef2f2 sobre #fff, 1,05:1) no dibujaba el contorno de la píldora. */
+  --positive-edge: #a7f3d0;
+  --warning-edge: #fed7aa;
+  --negative-edge: #fecaca;
+  /* ── El semáforo de las barras (19 sep) ──────────────────────────────────
+     Las barras de «Cómo lo lleva» se pintan por juicio. Son RELLENOS, no
+     letra: van en el tono medio de cada familia, que se lee a 10 px de alto
+     sin llegar al peso de la cifra (la cifra sigue en `--positive` y
+     compañía, que son los que llegan al contraste de texto). */
+  --semaforo-bien: #10b981;
+  --semaforo-medio: #f59e0b;
+  --semaforo-mal: #ef4444;
   --warning: #c2410c;
   --warning-soft: #fff7ed;
 
@@ -616,6 +698,7 @@
      lo saca de la lotería. */
   --fs-3xs: 0.5625rem;  /* 9px — glifo dentro de su caja, no texto */
   --fs-2xs: 0.6875rem;  /* 11px — encabezados de columna */
+  --fs-micro: 0.625rem; /* 10px — rótulo en versales de una mini-tarjeta */
   --fs-xs: 0.75rem;     /* 12px — etiquetas, deltas */
   /* ── EL ESCALÓN DEL MANDO (17 sep · frame 32:100) ────────────────────────
      El frame escribe TODA la cinta del programa en 13 px: la miga «Bloques»,
@@ -724,6 +807,11 @@
      en sus radios cerrados: siguen siendo instrumento. */
   --r-lg: 20px;
   --r-xl: 26px;
+  /* La tarjeta del panel (Resumen, /mi/progreso) a 16 desde el 19 sep, pedida
+     por el dueño: a 20 la esquina de una caja de 300 px se comía la primera
+     letra del rótulo. Token propio y no `--r-lg` rebajado: lo de 20 también
+     viste ventanas y hojas, que no se han pedido. */
+  --r-tarjeta: 18px; /* 16 → 18 el 19 sep: la esquina continua de las piezas grandes */
   --r-pill: 999px;
 
   /* ── EL RADIO DE LO QUE SE TOCA ───────────────────────────────────────────
@@ -748,6 +836,10 @@
      de la cabecera (`--h-control-lg`). Crecen con la altura: a 8 px, un botón
      de 36 se leía más cuadrado que el chip de 32 de al lado. Hoy solo los pide
      la cartera; el resto de la casa sigue en `--r-control`. */
+  /* El escalón de 8 con nombre propio (19 sep): el lienzo del cliente sube
+     --r-control a 10 para sus píldoras y campos, y el botón de barra de
+     herramientas (el mando del ancho) se queda en 8. */
+  --r-control-sm: 8px;
   --r-control-md: 10px;
   --r-control-lg: 12px;
 
@@ -876,6 +968,39 @@
   --shadow-md: 0 6px 20px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 24px 56px -28px rgba(15, 23, 42, 0.45), 0 3px 8px rgba(15, 23, 42, 0.08);
   --shadow-float: 0 10px 28px -8px rgba(15, 23, 42, 0.22);
+  /* La de la tarjeta del panel: un solo contacto corto, sin el halo largo de
+     `--shadow-sm`. Sobre la hoja gris ya no hace falta que la sombra separe;
+     solo dice que la caja está posada. */
+  --shadow-tarjeta: 0 1px 3px rgba(15, 23, 42, 0.04);
+  /* Lo que flota sobre el lienzo sin ser una capa: la barra lateral. Un paso
+     más difusa que la de las tarjetas, porque está más despegada. */
+  --shadow-flotante: 0 2px 8px rgba(0, 0, 0, 0.04);
+  /* ── LA PROFUNDIDAD DE CRISTAL (19 sep, octava vuelta) ────────────────────
+     El acabado de macOS/iOS que pidió el dueño para el lienzo del cliente y
+     sus cabeceras: blanco esmerilado al 85 %, un canto de luz en vez de un
+     canto de tinta, y una sombra en dos niveles —la ancha que posa la pieza
+     y la corta que la pega— en vez de una sola. */
+  --vidrio: rgba(255, 255, 255, 0.85);
+  --vidrio-canto: rgba(255, 255, 255, 0.6);
+  --shadow-profunda: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  /* El filete del inspector: negro al 7 %, un punto por encima del canto fino
+     de las mini-tarjetas porque separa dos columnas enteras. */
+  --canto-inspector: rgba(0, 0, 0, 0.07);
+  /* El subtexto neutro semitransparente: tinta al 60 %, que sobre blanco sale
+     a #6f747f (4,8:1) — pasa AA a 12 px, que es donde se usa. */
+  --text-suave: rgba(15, 23, 42, 0.6);
+  /* ── LA TARJETA QUE SE LEVANTA AL PASAR POR ENCIMA (19 sep, décima) ───────
+     «Reintroduce efectos hover refinados en las tarjetas de día.» El canto de
+     reposo es `--edge-card`; al acercarse sube dos escalones de gris y la
+     pieza se despega 2 px con una sombra corta y ancha. Es el par que usan
+     las rejillas de tarjetas de Linear y Vercel: el movimiento dice «esto se
+     abre» sin que haga falta pintar ningún botón.
+
+     De noche el gris no sirve —un canto más claro sobre papel oscuro se lee
+     como un realce permanente—, así que el canto va al filete fuerte y la
+     sombra se hace negra. */
+  --canto-tocado: #94a3b8;
+  --shadow-tocada: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
 
   /* ── Aquí vivía la flecha de las puertas ─────────────────────────────────
      Un «→» dibujado con `mask` que colgaba de todo lo que llevaba a algún
@@ -1118,6 +1243,179 @@
   --lote-filete: rgba(255, 255, 255, 0.08);
   --lote-pausa: #dc2626;
   --lote-pausa-hover: #b91c1c;
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     EL VOCABULARIO VIGENTE (20 sep 2026)
+     --------------------------------------------------------------------------
+     Todo lo de arriba es cierto y sigue mandando. Lo que faltaba era ESTO: el
+     puñado de decisiones que cualquier pieza nueva necesita el primer minuto
+     —cuánta sombra, cuánto canto, cuánto radio, cuánto tiempo— dicho una sola
+     vez y en un solo sitio.
+
+     Existe porque se midió lo contrario. Con la aplicación delante el 20 sep:
+     once tokens de sombra (cuatro haciendo el trabajo y seis nacidos para una
+     pantalla cada uno), tres primitivas de tarjeta con tres radios distintos,
+     veinte valores literales de `letter-spacing` y un único token de
+     movimiento —`--fast`— cubriendo el 84 % de las transiciones de la casa.
+
+     Ninguno de esos valores estaba mal por su cuenta: cada uno se eligió
+     mirando SU pantalla. El defecto es el de siempre en este archivo —nadie
+     los miraba juntos— y la consecuencia es que la pantalla número veintisiete
+     vuelve a elegir desde cero.
+
+     Lo que sigue NO sustituye a los tokens de arriba de un día para otro: los
+     declara canónicos y deja escrito a qué apunta cada legado. La tabla de
+     migración vive en `docs/lenguaje-visual.md`.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* ── ELEVACIÓN: DOS NIVELES, Y NINGUNO MÁS ───────────────────────────────
+     Cada nivel son DOS capas y siempre las mismas dos, porque es lo que hace
+     que una superficie se vea posada y no recortada:
+
+       · la SOMBRA DE CONTACTO — corta, casi sin desenfoque, pegada al canto de
+         abajo. Es la que dice que la pieza toca el papel.
+       · la SOMBRA AMBIENTAL — larga, muy tenue y con spread negativo, que la
+         recoge para que no manche el lienzo. Es la que da el volumen.
+
+     Una sombra de una sola capa se lee como un borde gris mal puesto; una
+     sombra dura (alfa alta y sin spread negativo) se lee como un recorte de
+     presentación. Ninguna de las dos aparece en esta casa.
+
+     `--elev-1` es LO POSADO: la tarjeta, la lista, la barra flotante, la
+     cabecera de cristal. Es el nivel por defecto y el 90 % de las superficies
+     no pasa de aquí.
+
+     `--elev-2` es LO QUE FLOTA POR ENCIMA DE OTRA COSA: el menú, el popover,
+     el modal, la ventana lateral, y la tarjeta mientras el ratón la levanta.
+     Nunca una pieza en reposo.
+
+     No hay nivel 3. Si algo parece pedirlo, lo que pide es un velo
+     (`--scrim`), que es como esta casa dice «lo de atrás está inerte».
+
+     El alfa es bajo a propósito (6 % y 10 % en el contacto): sobre el lienzo
+     pizarra, una sombra que se ve es una sombra que sobra. */
+  --elev-1: 0 1px 2px -1px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --elev-2: 0 2px 4px -2px rgba(15, 23, 42, 0.10), 0 18px 44px -14px rgba(15, 23, 42, 0.22);
+
+  /* Los cinco que nacieron para una pantalla cada uno pasan a ser nombres de
+     lo mismo. Se conservan porque los escriben quince reglas y renombrarlas es
+     otro trabajo; lo que ya no son es otra decisión. Los cuatro veteranos
+     —`xs`, `sm`, `md`, `lg`— se quedan con su valor hasta que se migren sus
+     ochenta y tres usos: ver la tabla del documento. */
+  --shadow-tarjeta: var(--elev-1);
+  --shadow-flotante: var(--elev-1);
+  --shadow-profunda: var(--elev-1);
+  --shadow-float: var(--elev-2);
+  --shadow-tocada: var(--elev-2);
+
+  /* ── EL RADIO DE LA MINI-TARJETA ─────────────────────────────────────────
+     12 px. El valor ya existía —`--r-control-lg`— y las pantallas nuevas lo
+     estaban usando para vestir CAJAS: la franja de cifras del Resumen, las
+     fichas de la Librería. Un radio que se llama «control» puesto en una
+     tarjeta es cómo empieza la siguiente generación de valores sueltos, así
+     que la caja pequeña tiene su nombre y el mando conserva el suyo.
+
+     Mismo número, dos nombres, a propósito: el día que el mando cambie de
+     canto, la mini-tarjeta no tiene por qué seguirlo. */
+  --r-tarjeta-sm: 12px;
+
+  /* ── EL HUECO FINO: los dos peldaños que la escala no tenía ──────────────
+     La escala de espaciado empieza en 4 px y salta a 8. Medido sobre las
+     veintiséis hojas, los dos huecos más escritos de la casa caen justo ahí
+     debajo y por eso van a mano: `gap: 2px` 105 veces y `gap: 6px` 83 —188
+     declaraciones fuera de toda rejilla—.
+
+     No son un descuido ni un escalón que falte en la escala: son el aire de
+     DENTRO de una pieza, que es otra medida. Un icono contra su rótulo no se
+     separa como dos filas de una lista.
+
+       · `--hueco-glifo` (2 px) — lo que va pegado: el icono y su palabra, la
+         unidad y su cifra, dos renglones de la misma etiqueta.
+       · `--hueco-renglon` (6 px) — dos cosas distintas dentro de la misma
+         caja: el título y su subtítulo, dos mandos de la misma barra.
+
+     Nombrados por su trabajo y no `--s0` / `--s1-medio` por lo mismo que
+     `--hueco-movil` más arriba: un número que existe porque se midió algo
+     concreto se llama por lo que mide. */
+  --hueco-glifo: 2px;
+  --hueco-renglon: 6px;
+
+  /* ── EL INTERLETRAJE ─────────────────────────────────────────────────────
+     Esto es el `font-weight: 730` de esta generación. Había un solo token
+     —`--tracking-stencil`, 18 usos— y VEINTE valores literales alrededor:
+     −0,01 / −0,012 / −0,015 / −0,02 / −0,022 / −0,025 / −0,026 / −0,028 /
+     −0,03 por el lado cerrado, y 0,01 / 0,02 / 0,04 / 0,05 / 0,06 / 0,08 /
+     0,09 / 0,1 / 0,14 por el abierto. Nueve maneras de decir «un pelín más
+     cerrado» que a un palmo de la pantalla son exactamente la misma.
+
+     Cinco valores, y la regla que los ordena: EL INTERLETRAJE VA AL REVÉS QUE
+     EL TAMAÑO. Cuanto más grande la letra, más se cierra; cuanto más pequeña
+     y más en versales, más se abre.
+
+       −0,02  TITULAR  de `--fs-lg` para arriba, y las cifras grandes.
+       −0,01  TEXTO    el cuerpo apretado: el botón, la fila, el rótulo de una
+                       mini-tarjeta. Es el que más se usa.
+        0     el resto. No hace falta escribirlo.
+        0,04  VERSAL   una etiqueta en mayúsculas de 11-12 px.
+        0,1   TROQUEL  la etiqueta de sección en versales de 9-10 px
+                       (`--tracking-stencil`, que ya estaba y no se toca). */
+  --tracking-titular: -0.02em;
+  --tracking-texto: -0.01em;
+  --tracking-versal: 0.04em;
+
+  /* ── MOVIMIENTO: TRES TIEMPOS Y DOS CURVAS ───────────────────────────────
+     Había uno. `--fast` (0,16 s) firmaba 447 de las 531 transiciones de la
+     casa, `--normal` 18 y `--slow` 3 — o sea que abrir un panel, encender un
+     canto y cerrar una ventana duraban lo mismo, y treinta y cinco reglas más
+     se escribían su propia duración a mano (0,32 / 0,4 / 180 ms / 0,85…).
+
+     Tres tiempos, elegidos por lo que responde cada uno:
+
+       · MICRO (0,12 s) — lo que no se mueve de sitio: un color, una opacidad,
+         un canto que se enciende. Tiene que sentirse instantáneo.
+       · ENTRADA (0,26 s) — lo que LLEGA y ocupa sitio: una ventana, un panel,
+         una fila que aparece. Necesita tiempo para que el ojo la siga.
+       · SALIDA (0,16 s) — lo que se va. SIEMPRE más rápido que la entrada:
+         esperar a que algo desaparezca es la forma más barata de que una
+         interfaz se sienta lenta, y lo que ya decidiste no merece ceremonia.
+
+     Y dos curvas además de la que ya había:
+
+       · `--ease-salida` acelera y se va (no frena al final, porque no hay nada
+         que aterrizar).
+       · `--muelle` es el hermano discreto de `--spring`. `--spring` (1,32) es
+         un rebote de verdad y está reservado a lo que ATERRIZA —un modal, una
+         marca que cae en su sitio—; su comentario prohíbe usarlo en hover, y
+         con razón: una tarjeta que rebota al pasar el ratón es un juguete.
+         Éste pasa doce centésimas por encima y vuelve, que es lo que hace que
+         una caja se sienta con muelle y no con motor.
+
+     `--slow` se queda para las cascadas de montaje de pantalla, que no
+     responden a un gesto: presentan. */
+  --dur-micro: 0.12s;
+  --dur-entrada: 0.26s;
+  --dur-salida: 0.16s;
+  --ease-salida: cubic-bezier(0.4, 0, 1, 1);
+  --muelle: cubic-bezier(0.34, 1.12, 0.64, 1);
+  --micro: var(--dur-micro) var(--ease);
+  --entrada: var(--dur-entrada) var(--ease);
+  --salida: var(--dur-salida) var(--ease-salida);
+  /* El gesto de una caja: hover y press. Ver `--muelle`. */
+  --gesto: var(--dur-micro) var(--muelle);
+
+  /* ── EL FOCO ─────────────────────────────────────────────────────────────
+     79 reglas escriben `outline: 2px solid var(--accent)` y una se escribió
+     2,5 px. El separador del canto sí variaba de verdad —2 px en 40 reglas,
+     1 px en 24— y esa diferencia no la decidió nadie: es la distancia que
+     cabía en cada sitio.
+
+     Uno para todo, y el separador también: un foco que cambia de grosor según
+     dónde estés es un foco que no se reconoce. El `-2px` de las trece reglas
+     que lo llevan hacia dentro es legítimo y se queda —una fila a sangre no
+     tiene por fuera dónde dibujarlo—, pero se escribe
+     `calc(var(--foco-sep) * -1)` para que siga siendo el mismo número. */
+  --foco: 2px solid var(--accent);
+  --foco-sep: 2px;
 }
 
 /* ==========================================================================
@@ -1312,15 +1610,14 @@
   --acero-aire: rgba(111, 165, 238, 0.055);
 
   /* Los mismos discos, subidos de luz para mantener el contraste sobre hierro
-     sin volverse fosforitos. */
+     sin volverse fosforitos. Seis y el neutro desde el 20 sep: ver el bloque
+     de la paleta en el tema claro, que es donde se razona. */
   --data-blue: #59b4e6;
   --data-rose: #ee7368;
   --data-teal: #47cdb8;
   --data-amber: #e8bc55;
   --data-violet: #c58ae6;
   --data-pink: #ee8ab9;
-  --data-lime: #9fd45e;
-  --data-orange: #f2a362;
   --data-slate: #9ba5b1;
 
   --area-opacity: 0.16;
@@ -1335,6 +1632,13 @@
   --positive-soft: rgba(69, 201, 140, 0.15);
   --negative: #ec6156;
   --negative-soft: rgba(236, 97, 86, 0.15);
+  --positive-edge: rgba(69, 201, 140, 0.35);
+  --warning-edge: rgba(242, 141, 74, 0.35);
+  --negative-edge: rgba(236, 97, 86, 0.35);
+  --edge-fino: rgba(255, 255, 255, 0.07);
+  --semaforo-bien: #34d399;
+  --semaforo-medio: #fbbf24;
+  --semaforo-mal: #f87171;
   --warning: #f28d4a;
   --warning-soft: rgba(242, 141, 74, 0.16);
 
@@ -1357,7 +1661,34 @@
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
-  --shadow-float: 0 14px 34px -10px rgba(0, 0, 0, 0.65);
+  --shadow-float: var(--elev-2);
+
+  /* ── LOS DOS NIVELES, DE NOCHE ──────────────────────────────────────────
+     Misma anatomía —contacto corto y ambiental larga con spread negativo— y
+     tres cambios que impone el material:
+
+       · la tinta pasa a NEGRO puro. Una sombra teñida de pizarra sobre un
+         lienzo de pizarra no es una sombra, es una mancha del mismo color.
+       · el alfa SUBE mucho (6 % → 45 %). Sobre papel la sombra compite con
+         el blanco; sobre hierro compite con el negro, y hasta que no llega
+         casi a la mitad no se ve nada.
+       · la ambiental se abre un punto más, porque es lo único que da
+         profundidad cuando el escalón de superficie es corto.
+
+     Y aun así no hacen aquí el trabajo que hacen de día: sobre hierro quien
+     separa una tarjeta del lienzo es `--edge` (ver el bloque de `--edge-card`
+     más arriba). Estas dos posan la pieza; no la recortan. */
+  --elev-1: 0 1px 2px -1px rgba(0, 0, 0, 0.45), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --elev-2: 0 2px 4px -2px rgba(0, 0, 0, 0.55), 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+  --shadow-tarjeta: var(--elev-1);
+  --shadow-flotante: var(--elev-1);
+  --shadow-profunda: var(--elev-1);
+  --shadow-tocada: var(--elev-2);
+  --vidrio: rgba(28, 32, 39, 0.82);
+  --vidrio-canto: rgba(255, 255, 255, 0.08);
+  --canto-inspector: rgba(255, 255, 255, 0.08);
+  --text-suave: rgba(233, 236, 242, 0.6);
+  --canto-tocado: var(--hairline-strong);
 
   /* El cuerpo del control, de noche. La sombra de contacto aprieta —sobre un
      fondo oscuro una sombra clara no existe— y el filo de luz SE QUEDA: es lo

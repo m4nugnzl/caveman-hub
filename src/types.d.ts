@@ -232,6 +232,11 @@ export interface WorkoutData {
   microcycles: Microcycle[];
   /** Los bloques, como rangos de semanas. Vacío = todo es el Bloque 1 (ver `domain/blocks`). */
   blocks: TrainingBlock[];
+  /**
+   * Los bloques en borrador detrás del abierto, en orden (0133). Ausente si la
+   * fila no trae la columna: entonces no se manda. Ver `domain/borradores`.
+   */
+  draftBlocks?: DraftBlock[];
 }
 
 /** Un bloque de entreno: la estructura que no cambia y sus semanas. */
@@ -251,6 +256,34 @@ export interface TrainingBlock {
    * lee de `Microcycle.days` como siempre. Ver `domain/blocksMigration`.
    */
   sessions?: BlockSession[];
+  /** A qué juega: rótulo, no receta (`BLOCK_INTENTS`). */
+  intent?: string;
+  /**
+   * Cuánto se prevé que dure, en MICROCICLOS. En un semanal son semanas; en un
+   * rotativo son vueltas de su secuencia (un «2-1 2-1 3-1» dura 10 días), así
+   * que 4 microciclos son 40 días. Opcional en un bloque; obligatorio en un
+   * borrador, que sin duración no cae en ningún sitio.
+   */
+  plannedWeeks?: number;
+  note?: string;
+}
+
+/**
+ * UN BLOQUE EN BORRADOR: previsto, sin semanas. No tiene `fromWeek` ni fechas:
+ * su sitio sale del final previsto del abierto y de lo que duran los de antes.
+ * «Empezar ahora» lo pasa a `TrainingBlock` con el MISMO id.
+ */
+export interface DraftBlock {
+  id: string;
+  name: string;
+  plannedWeeks: number;
+  intent?: string;
+  note?: string;
+  sessions?: BlockSession[];
+  mobilityDrills?: MobilityDrill[];
+  microciclo?: { tipo: 'semanal' | 'rotativo'; dias: Array<{ hoja?: string; descanso?: boolean }> };
+  /** Los ejercicios que se siguen en la lente: el nombre, y el id de la Librería si lo hay. */
+  referencias?: Array<{ ejercicioId?: string; nombre: string }>;
 }
 
 /** Un ejercicio de calentamiento. */

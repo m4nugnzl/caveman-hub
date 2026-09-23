@@ -51,13 +51,42 @@ const rutaLimpia = (url) => {
   }
 };
 
+/*
+  La zona horaria de quien escribe, para que la base sepa qué DÍA es para él.
+
+  La lee `fechar_la_pauta` (migración 0124): un cambio de dieta hecho el lunes
+  a las 00:30 en Madrid es del lunes, no del domingo de UTC. Sin la cabecera la
+  base usa la de Madrid. Si el navegador no la sabe, no se manda.
+*/
+const zonaHoraria = (() => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+})();
+
+/*
+  Solo en las peticiones a la BASE (`/rest/v1/`), nunca como cabecera global
+  del cliente: las funciones edge declaran en su CORS las cuatro cabeceras que
+  admiten (`authorization, x-client-info, apikey, content-type`), y una quinta
+  haría fallar la comprobación previa del navegador en Stripe, Drive, Notion y
+  la radiografía.
+*/
+const conZonaHoraria = (url, init) => {
+  if (!zonaHoraria || !url.includes('/rest/v1/')) return init;
+  const headers = new Headers(init?.headers || {});
+  headers.set('x-zona-horaria', zonaHoraria);
+  return { ...init, headers };
+};
+
 const fetchConRegistro = async (input, init) => {
   const url = typeof input === 'string' ? input : input?.url || '';
   const metodo = init?.method || 'GET';
 
   let response;
   try {
-    response = await fetch(input, init);
+    response = await fetch(input, conZonaHoraria(url, init));
     /*
       Ha contestado alguien. Da igual QUÉ conteste —un 403 también demuestra que
       hay servidor al otro lado—: lo que se comprobaba es que la conversación es

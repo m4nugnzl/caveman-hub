@@ -790,6 +790,9 @@ export const PROTOCOL_HOME = '/protocolos';
 /** Ruta de una sección de un cliente. Nadie construye estas cadenas a mano. */
 export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${section}`;
 
+/** Una semana de Revisiones, por su lunes; sin lunes, la portada con todas. */
+export const semanaPath = (clientId, lunes = null) => clientPath(clientId, lunes ? `semana/${lunes}` : 'semana');
+
 /**
  * Las secciones que existen para ESTE cliente.
  *
@@ -857,7 +860,18 @@ export const clientHomeFor = (protocol) => {
  * cliente estando en las fotos te devolvía a su check-in.
  */
 const seccionDe = (pathname, prefijo) =>
-  new RegExp(`^${prefijo}/(.+)$`).exec(pathname)?.[1]?.replace(/\/$/, '') || null;
+  sinLunes(new RegExp(`^${prefijo}/(.+)$`).exec(pathname)?.[1]?.replace(/\/$/, '') || '') || null;
+
+/**
+ * La sección sin el lunes del final: `semana/2026-09-14` es `semana`.
+ *
+ * Desde el 22 sep cada semana de Revisiones tiene su dirección, con su lunes
+ * (`/c/:id/semana/<lunes>`). Una fecha no se puede listar en `also`, así que se
+ * quita aquí, en el único sitio que parte la ruta en secciones: sin esto,
+ * dentro de una semana ninguna pestaña quedaba encendida. Al cambiar de
+ * cliente se cae en su portada, porque sus semanas son otras.
+ */
+export const sinLunes = (seccion) => String(seccion).replace(/\/\d{4}-\d{2}-\d{2}$/, '');
 
 /**
  * Todas las rutas que pertenecen a una sección: la suya y sus niveles.

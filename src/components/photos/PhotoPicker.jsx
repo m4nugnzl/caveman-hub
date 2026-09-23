@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { Camera, Check, Plus, X } from 'lucide-react';
 
 import { ANGLES } from '@/domain/photos';
+import { shortDate } from '@/lib/dates';
 import { enumeraEs } from '@/lib/texto';
 import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
@@ -96,7 +97,10 @@ export const PhotoPicker = ({ items, busy, onAddFiles, onSetTag, onDrop, compact
                   )}
                   {item.status === 'uploading' && 'Subiendo…'}
                   {item.status === 'error' && item.error}
-                  {item.status === 'pending' && item.file.name}
+                  {/* La fecha de la cámara, si la trae, en vez del nombre del
+                      archivo: dice si es la foto buena. No decide a qué semana
+                      va (`fechaDeLaFoto`). */}
+                  {item.status === 'pending' && (item.hechaEl ? `Hecha el ${shortDate(item.hechaEl)}` : item.file.name)}
                 </span>
 
                 {!busy && item.status !== 'done' && (

@@ -87,6 +87,19 @@ const ORDEN = [
   'automation_runs',
   'workout_data',
   'anthropometry',
+  /*
+    ══ LAS VERSIONES DE LA PAUTA, ANTES QUE LA DIETA (0124) ═══════════════════
+
+    Escribir `nutrition_plans` dispara `fechar_la_pauta`, que para la base es
+    un cambio de pauta hecho HOY: cada dieta restaurada dejaría un escalón con
+    su hilo que nadie decidió. Por eso este cliente manda `x-sin-versiones` y
+    el disparador no actúa mientras dura (ver `db` en `main`).
+
+    Y van antes por si la pausa fallara: con las versiones de la copia ya
+    puestas, la dieta restaurada es igual a la última versión y el disparador
+    borra la de hoy («lo deshecho no deja rastro»).
+  */
+  'nutrition_plan_versions',
   'nutrition_plans',
   'progress_photos',
   'check_ins',
@@ -95,6 +108,8 @@ const ORDEN = [
   /* Lo mandado y lo contestado (0105). Después de `clients`, que es de quien
      cuelga por clave foránea. */
   'client_actions',
+  /* Las series que su teléfono no pudo guardar (0132). Cuelgan de `clients`. */
+  'series_no_guardadas',
   /* Lesiones, patologías y alergias (0077), y la maquinaria de su gimnasio
      (0079). Las copiaba `backup.mjs` y esta lista no las nombraba, así que sus
      archivos se escribían en la copia y nadie los volvía a leer: la
@@ -162,6 +177,8 @@ const CLAVE = {
   /* Una foto por día (0074). También sin `id`: la clave natural es la fecha, y
      es lo que hace que repetir la restauración no duplique el histórico. */
   platform_snapshots: 'dia',
+  /* Una versión de la pauta por cliente y día (0124), sin `id`. */
+  nutrition_plan_versions: 'client_id,dia',
 };
 
 /*
@@ -292,6 +309,58 @@ const listaArchivos = async (raiz, base = '') => {
   return out;
 };
 
+/**
+ * El cliente con el que se restaura.
+ *
+ * `x-sin-versiones`: mientras dura la restauración, reescribir una dieta no es
+ * cambiarla. Sin esta cabecera, `fechar_la_pauta` (0124) fecharía hoy cada
+ * dieta restaurada: un escalón con su hilo que nadie decidió. Solo cuenta con
+ * la clave de servicio, que es la que lleva este cliente.
+ */
+const clienteDeRestauracion = (url, key) =>
+  createClient(url, key, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { 'x-sin-versiones': '1' } },
+  });
+
+/**
+ * Escribe las filas de UNA tabla. Devuelve el mensaje de error, o `null`.
+ *
+ * `upsert` y no `insert`: restaurar tiene que poder REPETIRSE. Un fallo a
+ * mitad —se cae la red con veinte tablas puestas— no puede obligar a empezar de
+ * cero, porque empezar de cero significa vaciar una base a medio restaurar, que
+ * es cuando de verdad se pierde algo.
+ *
+ * En trozos porque una tabla de bloques son varios MB por fila.
+ *
+ * Aparte de `main` para que la prueba de ida y vuelta
+ * (`supabase/tests/versiones-de-la-dieta.test.js`) restaure con ESTE código y
+ * no con una copia suya.
+ */
+const restauraTabla = async (db, tabla, filas) => {
+  const TROZO = 200;
+  const generado = ID_GENERADO.has(tabla);
+  const onConflict = CLAVE[tabla] || 'id';
+
+  for (let i = 0; i < filas.length; i += TROZO) {
+    const lote = filas.slice(i, i + TROZO);
+    const { error } = generado
+      ? /* Sin el `id`, que lo pone la base. Ver `ID_GENERADO`. */
+        await db.from(tabla).insert(
+          lote.map((fila) => {
+            const copia = { ...fila };
+            delete copia.id;
+            return copia;
+          })
+        )
+      : await db
+          .from(tabla)
+          .upsert(lote, { onConflict, ignoreDuplicates: SOLO_ANADIR.has(tabla) });
+    if (error) return error.message;
+  }
+  return null;
+};
+
 const main = async () => {
   const escribir = args.includes('--escribir');
   const carpeta = args.find((a) => !a.startsWith('-'));
@@ -322,7 +391,7 @@ const main = async () => {
     if (escribir) fail('No se restaura una copia marcada como incompleta.');
   }
 
-  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const db = clienteDeRestauracion(url, key);
 
   // ── 1. Las cuentas ───────────────────────────────────────────────────────
   const cuentas = (await leeTabla(dir, '_auth_users')) || [];
@@ -366,34 +435,9 @@ const main = async () => {
       continue;
     }
 
-    /*
-      `upsert` y no `insert`: restaurar tiene que poder REPETIRSE. Un fallo a
-      mitad —se cae la red con veinte tablas puestas— no puede obligar a empezar
-      de cero, porque empezar de cero significa vaciar una base a medio
-      restaurar, que es cuando de verdad se pierde algo.
-
-      En trozos porque una tabla de bloques son varios MB por fila.
-    */
-    const TROZO = 200;
+    const error = await restauraTabla(db, tabla, filas);
+    if (error) fail(`${tabla}: ${error}`);
     const generado = ID_GENERADO.has(tabla);
-    const onConflict = CLAVE[tabla] || 'id';
-
-    for (let i = 0; i < filas.length; i += TROZO) {
-      const lote = filas.slice(i, i + TROZO);
-      const { error } = generado
-        ? /* Sin el `id`, que lo pone la base. Ver `ID_GENERADO`. */
-          await db.from(tabla).insert(
-            lote.map((fila) => {
-              const copia = { ...fila };
-              delete copia.id;
-              return copia;
-            })
-          )
-        : await db
-            .from(tabla)
-            .upsert(lote, { onConflict, ignoreDuplicates: SOLO_ANADIR.has(tabla) });
-      if (error) fail(`${tabla}: ${error.message}`);
-    }
     log(`  ✓  ${tabla.padEnd(22)} ${filas.length}${generado ? '  (con id nuevo)' : ''}`);
     total += filas.length;
   }
@@ -461,4 +505,4 @@ if (llamadoDirectamente) {
   main().catch((e) => fail(e?.message || String(e)));
 }
 
-export { ORDEN };
+export { ORDEN, clienteDeRestauracion, restauraTabla };

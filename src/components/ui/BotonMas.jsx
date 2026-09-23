@@ -57,26 +57,41 @@ export const BotonMas = ({
      verbos — sin ella los tres «+» pesan lo mismo y el que se busca hay que
      leerlo. Uno por pantalla, o deja de significar nada. */
   destacado = false,
+  /* DE QUÉ es este «+», como marca estable para el CSS. Solo la necesita la
+     barra del bloque de Entreno, donde conviven tres y una fila estrecha tiene
+     que decidir cuál conserva su palabra y cuál se recoge entero: quitarles la
+     palabra a los tres deja tres cruces azules idénticas en la misma esquina,
+     que no son tres mandos sino un acertijo. Ver la degradación por tramos en
+     `lienzo.css`. No se deduce de `palabra` porque esa la escribe cada
+     pantalla y lleva tildes y espacios. */
+  que = null,
 }) => {
-  const clase = `tira-mas${destacado ? ' is-destacado' : ''}`;
+  const clase = `tira-mas${que ? ` is-de-${que}` : ''}${destacado ? ' is-destacado' : ''}`;
+  /* Y la palabra va en su propio `span` para poder retirarla sin tocar el
+     glifo, que es lo que mantiene el botón reconocible y pulsable. */
   const dentro = (
     <>
       <Plus size={13} aria-hidden="true" />
-      {palabra}
+      <span className="tira-mas-palabra">{palabra}</span>
     </>
   );
+  /* El rótulo del ratón dice siempre el verbo entero, porque la palabra puede
+     no estar: en una fila estrecha el botón se queda con el glifo, y un «+»
+     pelado sin nada que leer es un mando mudo. */
+  const rotulo = title || `Añadir ${palabra}`;
   return items ? (
     <MenuAcciones
       clase={clase}
       label={dentro}
       items={items}
       ariaLabel={ariaLabel || `Añadir ${palabra}`}
+      titulo={rotulo}
       descriptivo={descriptivo}
       alineado={alineado}
       sinFlecha
     />
   ) : (
-    <button type="button" className={clase} onClick={onClick} title={title} aria-label={ariaLabel || undefined}>
+    <button type="button" className={clase} onClick={onClick} title={rotulo} aria-label={ariaLabel || undefined}>
       {dentro}
     </button>
   );

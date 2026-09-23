@@ -4,10 +4,11 @@ import { Camera, ChevronDown, ChevronRight, Download, Trash2 } from 'lucide-reac
 
 import { useApp } from '@/context/AppContext';
 import {
-  angleLabel,
-  angleShort,
   angulosParaFiltrar,
+  celdaDeLaFoto,
+  etiquetaDeLaFoto,
   groupByWeek,
+  inicialDeLaFoto,
   photoFileName,
   photoWeight,
   slug,
@@ -122,7 +123,7 @@ export const PhotoArchive = () => {
   );
 
   const filtradas = useMemo(
-    () => (angulo === 'all' ? suyas : suyas.filter((p) => p.angle === angulo)),
+    () => (angulo === 'all' ? suyas : suyas.filter((p) => celdaDeLaFoto(p) === angulo)),
     [suyas, angulo]
   );
 
@@ -149,7 +150,7 @@ export const PhotoArchive = () => {
           foto: p,
           caption: [
             g.label,
-            angleLabel(p.angle),
+            etiquetaDeLaFoto(p),
             p.date ? shortDate(p.date) : null,
             photoWeight(p, history) ? `${fmt(photoWeight(p, history), { decimals: 1 })} kg` : null,
           ]
@@ -237,7 +238,7 @@ export const PhotoArchive = () => {
     event.stopPropagation();
     const ok = await confirm({
       title: '¿Borrar esta foto?',
-      message: `Se borrará la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}.`,
+      message: `Se borrará la foto ${etiquetaDeLaFoto(photo).toLowerCase()} del ${photo.date}.`,
       detail: 'La imagen se borra también del almacenamiento y no se puede recuperar.',
       confirmLabel: 'Borrar la foto',
       tone: 'danger',
@@ -414,18 +415,18 @@ export const PhotoArchive = () => {
                               type="button"
                               className="archivo-abrir"
                               onClick={() => setViendo(desde + i)}
-                              title={`${angleLabel(photo.angle)} · ${photo.date}`}
+                              title={`${etiquetaDeLaFoto(photo)} · ${photo.date}`}
                             >
                               {photo.url ? (
                                 <Thumb
                                   url={photo.url}
                                   width={280}
-                                  alt={`${angleLabel(photo.angle)} del ${photo.date}`}
+                                  alt={`${etiquetaDeLaFoto(photo)} del ${photo.date}`}
                                 />
                               ) : (
                                 <span className="archivo-hueco">sin vista previa</span>
                               )}
-                              <span className="archivo-tag">{angleShort(photo.angle)}</span>
+                              <span className="archivo-tag">{inicialDeLaFoto(photo)}</span>
                             </button>
 
                             {/* Los dos verbos de una foto, en el mismo canto y en
@@ -438,7 +439,7 @@ export const PhotoArchive = () => {
                                   type="button"
                                   className="btn btn-icon btn-icon-compact"
                                   onClick={(e) => bajarUna(photo, e)}
-                                  aria-label={`Descargar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
+                                  aria-label={`Descargar la foto ${etiquetaDeLaFoto(photo).toLowerCase()} del ${photo.date}`}
                                 >
                                   <Download size={13} />
                                 </button>
@@ -448,7 +449,7 @@ export const PhotoArchive = () => {
                                 type="button"
                                 className="btn btn-icon btn-icon-compact btn-icon-danger"
                                 onClick={(e) => borrar(photo, e)}
-                                aria-label={`Borrar la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}`}
+                                aria-label={`Borrar la foto ${etiquetaDeLaFoto(photo).toLowerCase()} del ${photo.date}`}
                               >
                                 <Trash2 size={13} />
                               </button>

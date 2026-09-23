@@ -171,4 +171,33 @@ describe('createSaveQueue', () => {
     await espera();
     expect(store.clear).toHaveBeenCalledWith('set:kg');
   });
+  it('un rechazo definitivo se entrega a quien lo quiera conservar, con su payload', async () => {
+    const store = { save: vi.fn(), clear: vi.fn() };
+    const onRechazo = vi.fn();
+    const { q, estados } = cola({ store, onRechazo });
+    const error = { code: 'P0001', message: 'El día Pull A no está en el plan de la semana 3' };
+
+    q.enqueue('set:c1:s1:e1:0:kg', { value: '40' }, () => Promise.resolve({ error }));
+    await espera();
+
+    expect(store.clear).toHaveBeenCalledWith('set:c1:s1:e1:0:kg');
+    expect(onRechazo).toHaveBeenCalledWith('set:c1:s1:e1:0:kg', { value: '40' }, error);
+    expect(estados.at(-1)).toEqual(['set:c1:s1:e1:0:kg', 'error']);
+  });
+
+  it('un fallo que no es definitivo no se entrega: sigue en la nota', async () => {
+    const onRechazo = vi.fn();
+    const { q } = cola({ onRechazo });
+    q.enqueue('set:kg', { value: '40' }, () => Promise.resolve({ error: { message: 'timeout' } }));
+    await espera();
+    expect(onRechazo).not.toHaveBeenCalled();
+  });
+
+  it('dice lo que queda sin confirmar, por prefijo', async () => {
+    const { q } = cola({ isOnline: () => false });
+    q.enqueue('set:c1:a', { v: 1 }, () => Promise.resolve({ error: null }));
+    q.enqueue('workout:c1', { v: 2 }, () => Promise.resolve({ error: null }));
+    expect(q.pendientes('set:')).toEqual([{ key: 'set:c1:a', payload: { v: 1 } }]);
+    expect(q.pendientes()).toHaveLength(2);
+  });
 });

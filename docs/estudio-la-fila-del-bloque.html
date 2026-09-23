@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>La fila del bloque</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --canvas:#f1f5f9; --surface:#ffffff; --sunken:#f8fafc;
+    --hairline:#e5e7eb; --hairline-strong:#cbd5e1;
+    --fill-subtle:#f8fafc; --fill:#f1f5f9; --fill-strong:#e2e8f0;
+    --text:#0f172a; --text-secondary:#475569; --text-tertiary:#64748b;
+    --accent:#2b7ab8; --accent-soft:rgba(59,141,212,.08); --accent-on:#fff;
+    --positive:#047857; --positive-soft:#ecfdf5;
+    --negative:#dc2626;
+    --canto-inspector:rgba(0,0,0,.07);
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:22px; --s6:32px;
+    --r-sm:9px; --r-control:8px; --r-control-sm:8px; --r-control-md:10px;
+    --fs-3xs:.5625rem; --fs-2xs:.6875rem; --fs-xs:.75rem; --fs-control:.8125rem; --fs-sm:.875rem;
+    --font:'Geist',-apple-system,'Segoe UI',system-ui,sans-serif;
+    --fast:140ms cubic-bezier(.2,.7,.3,1);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:var(--s6) 0 96px; background:var(--canvas); color:var(--text);
+    font-family:var(--font); font-size:15px; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:0 var(--s5)}
+  h1{font-size:30px; font-weight:600; letter-spacing:-.025em; margin:0 0 6px}
+  .sub{color:var(--text-secondary); margin:0 0 var(--s6); max-width:68ch}
+  h2{font-size:20px; font-weight:600; letter-spacing:-.02em; margin:0 0 var(--s2)}
+  h3{font-size:15px; font-weight:600; margin:var(--s5) 0 var(--s2)}
+  p{margin:0 0 var(--s3); max-width:74ch; color:var(--text-secondary)}
+  p strong{color:var(--text); font-weight:600}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:.85em; background:var(--fill); padding:1px 5px; border-radius:5px; color:var(--text)}
+
+  section{margin:0 0 var(--s6)}
+  .lamina{
+    background:var(--surface); border:1px solid var(--hairline); border-radius:14px;
+    padding:var(--s5); margin:0 0 var(--s4);
+  }
+  .lamina-cab{display:flex; align-items:baseline; gap:var(--s3); margin:0 0 var(--s4); flex-wrap:wrap}
+  .lamina-num{
+    font-size:var(--fs-2xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--text-tertiary);
+  }
+  .lamina-tit{font-size:17px; font-weight:600; letter-spacing:-.015em}
+  .lamina-lema{font-size:var(--fs-sm); color:var(--text-tertiary)}
+
+  /* El marco que imita la página de Entreno */
+  .marco{
+    background:var(--surface); border:1px solid var(--hairline-strong); border-radius:10px;
+    overflow:hidden; max-width:100%;
+  }
+  .marco-cab{
+    display:flex; align-items:center; gap:var(--s2);
+    padding:10px var(--s5); border-bottom:1px solid var(--hairline);
+    font-size:var(--fs-sm); font-weight:600; color:var(--text);
+  }
+  .marco-cab .avatar{width:22px;height:22px;border-radius:50%;background:var(--fill-strong);flex:none}
+  .marco-cuerpo{padding:var(--s5); background:var(--sunken); color:var(--text-tertiary); font-size:var(--fs-xs)}
+
+  /* ══ PIEZAS COMUNES (tomadas de la app) ═════════════════════════════════ */
+  .tira{padding:var(--s2) var(--s5); border-bottom:1px solid var(--canto-inspector); background:var(--surface)}
+  .fila{display:flex; align-items:center; gap:var(--s2); flex-wrap:nowrap; min-width:0; min-height:32px}
+
+  .miga{
+    display:inline-flex; align-items:center; gap:6px; flex:none;
+    padding:3px 6px; border:0; border-radius:var(--r-sm); background:none; cursor:pointer;
+    font:inherit; font-size:var(--fs-xs); font-weight:500; color:var(--text-tertiary);
+    white-space:nowrap; transition:background var(--fast), color var(--fast);
+  }
+  .miga:hover{background:var(--fill-subtle); color:var(--text)}
+  .paso{color:var(--hairline-strong); flex:none; display:flex}
+
+  .titular{
+    display:inline-flex; align-items:center; gap:var(--s1); flex:none;
+    padding:var(--s1) var(--s2); border:0; border-radius:var(--r-sm);
+    background:transparent; cursor:pointer; font:inherit;
+    font-size:1rem; font-weight:600; letter-spacing:-.015em; color:var(--text);
+    white-space:nowrap; transition:background var(--fast);
+  }
+  .titular:hover{background:var(--fill-subtle)}
+  .titular svg{color:var(--text-tertiary); flex:none}
+
+  .chapa{
+    flex:none; border-radius:6px; padding:2px 9px;
+    background:var(--positive-soft); color:var(--positive);
+    font-size:var(--fs-3xs); font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  }
+
+  .mas{
+    display:inline-flex; align-items:center; gap:var(--s1); flex:none;
+    padding:var(--s1) var(--s2); border:0; border-radius:var(--r-sm);
+    background:transparent; cursor:pointer; font:inherit;
+    font-size:var(--fs-xs); font-weight:600; color:var(--accent); white-space:nowrap;
+    transition:background var(--fast);
+  }
+  .mas:hover{background:var(--accent-soft)}
+
+  .icono{
+    display:inline-flex; align-items:center; justify-content:center; flex:none;
+    width:26px; height:26px; border:0; border-radius:var(--r-control); background:transparent;
+    color:var(--text-tertiary); cursor:pointer; transition:background var(--fast), color var(--fast);
+  }
+  .icono:hover{background:var(--fill); color:var(--text)}
+  .divisor{flex:none; width:1px; height:20px; margin:0 var(--s1); background:var(--fill-strong)}
+  .hueco{flex:1 1 var(--s4); min-width:0}
+
+  /* ── LA DEGRADACIÓN, POR TRAMOS ────────────────────────────────────────
+     Cuando el renglón deja de caber, lo que se va NO es lo que dice dónde
+     estás: se van primero las palabras de los verbos —que tienen su glifo y su
+     título—, y solo después la primera miga y la chapa, que son lo que se
+     puede volver a leer con un gesto. En ningún tramo salta a dos renglones ni
+     se estrangula el carril, que tiene su suelo. */
+  /* Medio · se va la palabra del verbo menos frecuente —un bloque se empieza
+     cada seis semanas— y se queda su glifo con su título. */
+  .marco[data-ancho="medio"] .mas[data-que="bloque"] .palabra{display:none}
+  .marco[data-ancho="medio"] .mas[data-que="bloque"]{padding:var(--s1) 6px}
+  /* Estrecho · y los dos verbos del canto derecho se recogen dentro del ⚙ en
+     vez de quedarse como tres cruces iguales, que es lo que pasa cuando se
+     estrecha a base de quitar palabras. Se queda «+ microciclo», que es el que
+     vive pegado a la lista que aumenta. Se van también la primera miga y la
+     chapa: las dos se vuelven a leer con un gesto, el nombre del bloque no. */
+  .marco[data-ancho="estrecho"] .mas[data-que="bloque"],
+  .marco[data-ancho="estrecho"] .mas[data-que="hoja"],
+  .marco[data-ancho="estrecho"] .miga,
+  .marco[data-ancho="estrecho"] .paso,
+  .marco[data-ancho="estrecho"] .chapa{display:none}
+
+  /* ── A · el carril segmentado ──────────────────────────────────────────── */
+  .carril{
+    display:flex; align-items:center; gap:2px; padding:2px;
+    background:var(--fill); border-radius:var(--r-control);
+    /* El suelo del carril: tres pastillas. Por debajo deja de ser una línea de
+       tiempo y pasa a ser una mirilla, y entonces lo que hay que ceder es otra
+       cosa (ver la degradación por tramos, arriba). */
+    min-width:164px; overflow-x:auto; scrollbar-width:none; overscroll-behavior-x:contain;
+  }
+  .carril::-webkit-scrollbar{display:none}
+  .carril[data-desborde="der"]{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent)}
+  .carril[data-desborde="izq"]{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 26px),transparent)}
+  .carril[data-desborde="ambos"]{-webkit-mask-image:linear-gradient(to right,transparent,#000 26px,#000 calc(100% - 26px),transparent);mask-image:linear-gradient(to right,transparent,#000 26px,#000 calc(100% - 26px),transparent)}
+
+  .micro{
+    display:inline-flex; align-items:center; gap:6px; flex:none;
+    height:26px; padding:0 9px; border:0; border-radius:var(--r-control-sm);
+    background:none; cursor:pointer; font:inherit;
+    font-size:var(--fs-control); font-weight:500; color:var(--text-secondary);
+    transition:background var(--fast), color var(--fast);
+  }
+  .micro:hover{background:var(--fill-strong); color:var(--text)}
+  .micro .pt{
+    width:6px; height:6px; border-radius:50%; flex:none;
+    box-shadow:inset 0 0 0 1.5px var(--hairline-strong);
+  }
+  .micro.hecha .pt{background:var(--positive); box-shadow:none}
+  .micro.curso .pt{background:var(--accent); box-shadow:none}
+  .micro.on{background:var(--accent); color:var(--accent-on); cursor:default; padding-right:3px}
+  .micro.on:hover{background:var(--accent)}
+  .micro.on .pt{background:var(--accent-on); box-shadow:none; opacity:.9}
+  .micro.on.curso .pt{background:#fff; box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+  .micro .zona{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px; height:20px; margin-left:1px; border-radius:6px;
+    background:rgba(255,255,255,.16); color:var(--accent-on); flex:none;
+  }
+  .micro .zona:hover{background:rgba(255,255,255,.3)}
+  .micro.mas-viejos{color:var(--text-tertiary); gap:var(--s1); padding:0 7px}
+
+  /* ── B · la regla ──────────────────────────────────────────────────────── */
+  .regla{
+    display:flex; align-items:stretch; gap:2px; padding:2px;
+    background:var(--fill); border-radius:var(--r-control);
+    flex:1 1 auto; min-width:120px; height:30px; overflow:hidden;
+  }
+  .tramo{
+    position:relative; flex:1 1 0; min-width:9px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:0; border-radius:6px; background:var(--fill-strong); cursor:pointer; padding:0;
+    font:inherit; font-size:var(--fs-2xs); font-weight:600; color:var(--text-tertiary);
+    transition:background var(--fast), color var(--fast);
+  }
+  .tramo:hover{background:var(--hairline-strong); color:var(--text)}
+  .tramo.hecha{background:rgba(4,120,87,.16); color:var(--positive)}
+  .tramo.hecha:hover{background:rgba(4,120,87,.28)}
+  .tramo .num{opacity:0}
+  .tramo.ancho{flex:0 0 auto; padding:0 10px}
+  .tramo.ancho .num{opacity:1}
+  .tramo.on{
+    flex:0 0 auto; padding:0 6px 0 10px; gap:6px;
+    background:var(--accent); color:var(--accent-on); cursor:default;
+  }
+  .tramo.on .num{opacity:1; font-size:var(--fs-control); font-weight:600}
+  .tramo.on .zona{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:18px; height:18px; border-radius:5px; background:rgba(255,255,255,.18);
+  }
+  .tramo.on .zona:hover{background:rgba(255,255,255,.32)}
+  /* La aguja del «en curso»: estado, no selección. Va en el CANTO IZQUIERDO del
+     tramo —donde empieza lo de hoy— y no por el medio, que es donde tropieza
+     con el nombre cuando el tramo lleva nombre. */
+  .tramo.curso::after{
+    content:''; position:absolute; left:-2px; top:-2px; bottom:-2px; width:2px;
+    background:var(--accent); border-radius:2px;
+  }
+  .tramo.curso.on::after{display:none}
+  .tramo.curso{color:var(--accent); background:rgba(43,122,184,.16)}
+  .tramo.curso:hover{background:rgba(43,122,184,.28)}
+
+  /* ── Anotaciones ───────────────────────────────────────────────────────── */
+  .nota{
+    display:flex; gap:var(--s2); align-items:flex-start;
+    font-size:var(--fs-xs); color:var(--text-tertiary); margin-top:var(--s3);
+  }
+  .nota b{color:var(--text-secondary); font-weight:600}
+  .marca{
+    display:inline-block; min-width:18px; height:18px; line-height:18px; text-align:center;
+    border-radius:5px; background:var(--fill); color:var(--text-secondary);
+    font-size:var(--fs-3xs); font-weight:700; flex:none; padding:0 4px;
+  }
+
+  .cuentas{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--s3);
+    margin:var(--s4) 0 0;
+  }
+  .cuenta{background:var(--sunken); border-radius:10px; padding:var(--s3) var(--s4)}
+  .cuenta dt{font-size:var(--fs-2xs); font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-tertiary)}
+  .cuenta dd{margin:2px 0 0; font-size:var(--fs-sm); color:var(--text)}
+
+  .mando{
+    display:flex; align-items:center; gap:var(--s3); margin:0 0 var(--s3);
+    font-size:var(--fs-xs); color:var(--text-tertiary);
+  }
+  .mando input[type=range]{flex:1 1 260px; max-width:340px; accent-color:var(--accent)}
+  .mando output{font-variant-numeric:tabular-nums; font-weight:600; color:var(--text-secondary); min-width:56px}
+
+  /* ── El menú dibujado ──────────────────────────────────────────────────── */
+  .menus{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:var(--s4)}
+  .menu{
+    background:var(--surface); border:1px solid var(--hairline); border-radius:var(--r-control-md);
+    box-shadow:0 6px 20px -8px rgba(15,23,42,.16), 0 1px 3px rgba(15,23,42,.06);
+    padding:6px; font-size:var(--fs-sm); overflow:hidden; align-self:start;
+  }
+  .menu-tit{
+    font-size:var(--fs-3xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--text-tertiary); padding:6px 10px 4px;
+  }
+  .menu-it{display:flex; gap:10px; align-items:flex-start; padding:7px 10px; border-radius:7px; color:var(--text)}
+  .menu-it:hover{background:var(--fill-subtle)}
+  .menu-it svg{flex:none; margin-top:3px; color:var(--text-tertiary)}
+  .menu-it small{display:block; color:var(--text-tertiary); font-size:var(--fs-xs); font-weight:400}
+  .menu-it.rojo{color:var(--negative)} .menu-it.rojo svg{color:var(--negative)}
+  .menu-sep{border:0; border-top:1px solid var(--hairline); margin:5px 0}
+
+  .iconos-prueba{display:flex; gap:var(--s5); flex-wrap:wrap; align-items:center}
+  .icono-prueba{display:flex; align-items:center; gap:var(--s2); background:var(--sunken); border-radius:9px; padding:8px 12px}
+  .icono-prueba .et{font-size:var(--fs-2xs); color:var(--text-tertiary); font-weight:600; letter-spacing:.04em; text-transform:uppercase}
+
+  .veredicto{
+    background:var(--surface); border:1px solid var(--hairline); border-left:3px solid var(--accent);
+    border-radius:0 12px 12px 0; padding:var(--s4) var(--s5);
+  }
+  ul{margin:0 0 var(--s3); padding-left:1.15rem; color:var(--text-secondary); max-width:74ch}
+  li{margin:0 0 5px} li strong{color:var(--text)}
+  .falta{color:var(--negative); font-weight:600}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>La fila del bloque</h1>
+  <p class="sub">La cabecera de Entreno mezcla dos ámbitos en dos pisos, y el de abajo se lo lleva
+  entero la línea de microciclos. Dos maneras de meterlo todo en un renglón sin perder lo que la
+  versión vieja tenía de cómodo. Frente a lo que hay hoy, y con la degradación medida.</p>
+
+  <!-- ══ 0 · LO QUE HAY ══════════════════════════════════════════════════ -->
+  <section>
+    <h2>0 · Lo que hay</h2>
+    <p>Dos filas. La de abajo existe solo para los microciclos y ocupa una altura entera de
+    cabecera; el rastro tiene el aire repartido a ojo y la chapa pegada al nombre; y las acciones
+    del microciclo viven en un <code>···</code> al otro extremo de la fila, lejos de la pastilla de
+    la que hablan.</p>
+
+    <div class="lamina">
+      <div class="lamina-cab">
+        <span class="lamina-num">Hoy</span>
+        <span class="lamina-tit">Dos pisos</span>
+        <span class="lamina-lema">32 + 8 + 32 + 12 px de cabecera, más el filete</span>
+      </div>
+
+      <div class="marco">
+        <div class="marco-cab"><span class="avatar"></span>Marcos Ruiz</div>
+        <div class="tira">
+          <div class="fila">
+            <button class="miga"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>Bloques</button>
+            <span class="paso"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+            <span style="display:inline-flex;align-items:center;gap:2px;margin-left:8px">
+              <button class="titular">Bloque 2<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+              <span class="chapa">Abierto</span>
+            </span>
+            <span class="hueco"></span>
+            <button class="icono" title="Deshacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+            <button class="icono" title="Rehacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
+            <span class="divisor"></span>
+            <button class="mas" data-que="bloque" title="Añadir bloque"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">bloque</span></button>
+            <button class="icono" title="Opciones del bloque"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+          </div>
+          <div class="fila" style="margin-top:8px;padding-bottom:12px">
+            <div style="display:inline-flex;align-items:center;gap:2px;padding:2px;background:var(--fill);border-radius:8px">
+              <button class="micro mas-viejos"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>6 más</button>
+              <button class="micro">M7</button>
+              <button class="micro">M8&nbsp;<span style="font-size:var(--fs-xs);color:var(--accent);font-weight:600">· en curso</span></button>
+              <button class="micro">M9</button>
+              <button class="micro on" style="padding-right:9px">M10</button>
+            </div>
+            <button class="mas" data-que="microciclo" title="Añadir microciclo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">microciclo</span></button>
+            <span class="hueco"></span>
+            <button class="mas" data-que="hoja" title="Añadir hoja"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">hoja</span></button>
+            <button class="icono" title="Opciones del microciclo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+          </div>
+        </div>
+        <div class="marco-cuerpo">La rejilla del bloque empieza aquí</div>
+      </div>
+
+      <div class="cuentas">
+        <div class="cuenta"><dt>El aire del rastro</dt><dd>4&nbsp;px a la izquierda del chevron, <strong>20&nbsp;px</strong> a su derecha: los suman el margen de la miga (−2), el hueco del camino (4), el <code>margin-left</code> de la lista (8) y el relleno del titular (8).</dd></div>
+        <div class="cuenta"><dt>La chapa</dt><dd><strong>10&nbsp;px</strong> desde el chevron del desplegable. La mitad que por el otro lado del nombre.</dd></div>
+        <div class="cuenta"><dt>«en curso»</dt><dd><strong>+58&nbsp;px</strong> de ancho en una pastilla que no es la elegida. Es la palabra la que la hace competir con el relleno azul.</dd></div>
+        <div class="cuenta"><dt>Las dos papeleras</dt><dd>Hoy ninguna: borrar el microciclo está en el <code>···</code> del canto derecho, fuera del alcance de su pastilla.</dd></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ A ═══════════════════════════════════════════════════════════════ -->
+  <section>
+    <h2>A · El carril</h2>
+    <p>Tres zonas en un renglón, separadas por aire y un solo filete: <strong>dónde estás</strong>
+    (el rastro, fijo a la izquierda), <strong>por dónde vas</strong> (el carril de microciclos, que
+    es lo elástico y lo único que desborda) y <strong>qué puedes hacer</strong> (fijo a la derecha).
+    Los microciclos siguen siendo las pastillas de siempre dentro de su pista hundida, y son ellas
+    las que se deslizan cuando no caben: el rastro y los verbos no se mueven nunca.</p>
+
+    <div class="lamina">
+      <div class="lamina-cab">
+        <span class="lamina-num">A</span>
+        <span class="lamina-tit">El carril</span>
+        <span class="lamina-lema">una fila · 32 px · la pastilla que ya existe</span>
+      </div>
+
+      <div class="mando">
+        <label for="anchoA">Ancho de la ventana</label>
+        <input type="range" id="anchoA" min="620" max="1136" value="1136" />
+        <output for="anchoA" id="salidaA">1136 px</output>
+      </div>
+
+      <div class="marco" id="marcoA">
+        <div class="marco-cab"><span class="avatar"></span>Marcos Ruiz</div>
+        <div class="tira">
+          <div class="fila">
+            <button class="miga">Bloques</button>
+            <span class="paso"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+            <button class="titular">Bloque 2<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="chapa">Abierto</span>
+
+            <span class="divisor" style="margin:0 6px"></span>
+
+            <div class="carril" id="carrilA" data-desborde="no">
+              <button class="micro hecha" title="Microciclo 1 · 4 hojas · entrenado"><span class="pt"></span>M1</button>
+              <button class="micro hecha" title="Microciclo 2 · 4 hojas · entrenado"><span class="pt"></span>M2</button>
+              <button class="micro hecha" title="Microciclo 3 · 4 hojas · entrenado"><span class="pt"></span>M3</button>
+              <button class="micro hecha" title="Microciclo 4 · 4 hojas · entrenado"><span class="pt"></span>M4</button>
+              <button class="micro hecha" title="Microciclo 5 · 4 hojas · entrenado"><span class="pt"></span>M5</button>
+              <button class="micro hecha" title="Microciclo 6 · 4 hojas · entrenado"><span class="pt"></span>M6</button>
+              <button class="micro hecha" title="Microciclo 7 · 4 hojas · entrenado"><span class="pt"></span>M7</button>
+              <button class="micro curso" title="Microciclo 8 · 4 hojas · en curso"><span class="pt"></span>M8</button>
+              <button class="micro" title="Microciclo 9 · 4 hojas · por hacer"><span class="pt"></span>M9</button>
+              <button class="micro on" title="Microciclo 10 · 4 hojas · por hacer · sus opciones"><span class="pt"></span>M10<span class="zona"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button>
+            </div>
+            <button class="mas" data-que="microciclo" title="Añadir microciclo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">microciclo</span></button>
+
+            <span class="hueco"></span>
+
+            <button class="mas" data-que="hoja" title="Añadir hoja"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">hoja</span></button>
+            <span class="divisor"></span>
+            <button class="icono" title="Deshacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+            <button class="icono" title="Rehacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
+            <button class="mas" data-que="bloque" title="Añadir bloque"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">bloque</span></button>
+            <button class="icono" title="Opciones de «Bloque 2»"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+          </div>
+        </div>
+        <div class="marco-cuerpo">La rejilla del bloque empieza aquí — 50 px más arriba que hoy</div>
+      </div>
+
+      <div class="nota"><span class="marca">1</span><span><b>Desborda solo el carril.</b> Estrecha la ventana con el mando, o pasa la rueda por encima de las pastillas: el canto que esconde algo se desvanece, y ni el rastro ni los verbos se mueven de sitio. Nunca hay un segundo renglón, así que la rejilla de abajo no sube ni baja.</span></div>
+      <div class="nota"><span class="marca">2</span><span><b>El punto es el estado; el relleno, la selección.</b> M1–M7 llevan punto verde (entrenados), M8 punto azul (en curso), M9 y M10 punto hueco (por hacer). El azul lleno lo tiene solo M10, que es donde estás. La palabra «en curso» sale de la pastilla y se dice al pasar por encima.</span></div>
+      <div class="nota"><span class="marca">3</span><span><b>La pastilla encendida lleva su chevron.</b> Es la zona de menú del microciclo —fechas, duplicar, borrar— sin salir de la fila y pegada a lo que nombra. Pulsar el cuerpo de la pastilla donde ya estás abre el mismo menú.</span></div>
+    </div>
+  </section>
+
+  <!-- ══ B ═══════════════════════════════════════════════════════════════ -->
+  <section>
+    <h2>B · La regla</h2>
+    <p>Los microciclos dejan de ser una hilera que crece y pasan a ser una <strong>regla de ancho
+    fijo</strong>: una pista continua repartida en tantos tramos como microciclos tenga el bloque.
+    El que miras se ensancha y lleva su nombre; el que está en curso lleva una aguja; los
+    entrenados van tintados. Un bloque de cuatro y uno de veinte ocupan lo mismo, así que la fila
+    no puede desbordar por aquí: comprime.</p>
+
+    <div class="lamina">
+      <div class="lamina-cab">
+        <span class="lamina-num">B</span>
+        <span class="lamina-tit">La regla</span>
+        <span class="lamina-lema">una fila · 32 px · ancho constante, caiga el bloque que caiga</span>
+      </div>
+
+      <div class="mando">
+        <label for="anchoB">Ancho de la ventana</label>
+        <input type="range" id="anchoB" min="620" max="1136" value="1136" />
+        <output for="anchoB" id="salidaB">1136 px</output>
+      </div>
+      <div class="mando">
+        <label for="cuantosB">Microciclos del bloque</label>
+        <input type="range" id="cuantosB" min="3" max="20" value="10" />
+        <output for="cuantosB" id="salidaCuantos">10</output>
+      </div>
+
+      <div class="marco" id="marcoB">
+        <div class="marco-cab"><span class="avatar"></span>Marcos Ruiz</div>
+        <div class="tira">
+          <div class="fila">
+            <button class="miga">Bloques</button>
+            <span class="paso"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></span>
+            <button class="titular">Bloque 2<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
+            <span class="chapa">Abierto</span>
+
+            <span class="divisor" style="margin:0 6px"></span>
+
+            <div class="regla" id="reglaB"></div>
+
+            <button class="mas" data-que="microciclo" title="Añadir microciclo"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">microciclo</span></button>
+            <span class="divisor"></span>
+            <button class="mas" data-que="hoja" title="Añadir hoja"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">hoja</span></button>
+            <button class="icono" title="Deshacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>
+            <button class="icono" title="Rehacer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg></button>
+            <button class="mas" data-que="bloque" title="Añadir bloque"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="palabra">bloque</span></button>
+            <button class="icono" title="Opciones de «Bloque 2»"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg></button>
+          </div>
+        </div>
+        <div class="marco-cuerpo">La rejilla del bloque empieza aquí</div>
+      </div>
+
+      <div class="nota"><span class="marca">1</span><span><b>El ancho no depende del número.</b> Sube «microciclos del bloque» a 20: los tramos se estrechan, no se salen. El «6 más» desaparece del problema porque no hay nada plegado — está todo, más pequeño.</span></div>
+      <div class="nota"><span class="marca">2</span><span><b>La aguja es el estado.</b> El microciclo en curso lleva un filete azul de 2&nbsp;px que cruza la pista de arriba abajo, como el «hoy» de las gráficas del Resumen. Donde estás sigue siendo el relleno azul. Nunca son la misma marca, así que nunca compiten.</span></div>
+      <div class="nota"><span class="marca">3</span><span><b>Lo que cabe se escribe.</b> El tramo elegido y el que está en curso llevan siempre su nombre; los demás lo enseñan si el bloque es corto y lo callan si es largo, y entonces el título al pasar por encima dice cuál es, cuántas hojas tiene y cómo va.</span></div>
+      <div class="nota"><span class="marca">4</span><span><b>El precio.</b> Con veinte microciclos, saltar a uno concreto es apuntar a un tramo de 10&nbsp;px. A cambio, ver de un vistazo cuánto llevas del bloque —que hoy no se ve en ninguna parte de la cabecera— sale gratis.</span></div>
+    </div>
+  </section>
+
+  <!-- ══ LO QUE COMPARTEN ════════════════════════════════════════════════ -->
+  <section>
+    <h2>Lo que comparten las dos</h2>
+
+    <h3>El rastro: un solo ritmo</h3>
+    <p>Un hueco único entre todas las piezas del camino —<strong>6&nbsp;px</strong> a cada lado del
+    chevron— y la chapa despegada del nombre con el mismo aire con el que el nombre se despega del
+    chevron. Se consigue quitando el <code>margin-left</code> de la lista y el relleno lateral del
+    titular, y poniendo el hueco una sola vez en el contenedor.</p>
+
+    <div class="lamina">
+      <div class="iconos-prueba">
+        <div class="icono-prueba">
+          <span class="et">Hoy</span>
+          <button class="miga"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2"/></svg>Bloques</button>
+        </div>
+        <div class="icono-prueba">
+          <span class="et">Pila de hojas</span>
+          <button class="miga"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="11" rx="2"/><path d="M6 18h12M8 21h8"/></svg>Bloques</button>
+        </div>
+        <div class="icono-prueba">
+          <span class="et">Sin icono</span>
+          <button class="miga">Bloques</button>
+        </div>
+      </div>
+      <div class="nota" style="margin-top:var(--s4)"><span class="marca">↑</span><span>Las dos maquetaciones van <b>sin icono</b>: «Bloques» es la primera palabra del camino y el chevron que le sigue ya dice que es camino. Un glifo ahí es el único dibujo de una zona que por lo demás es texto, y la carpeta además miente —un bloque no es una carpeta—. Si quieres marca, la pila de hojas es lo que más se parece a lo que hay detrás.</span></div>
+    </div>
+
+    <h3>Un ámbito, un menú — y sin duplicar nada</h3>
+    <p>Las dos papeleras no vuelven, pero sí vuelve lo que tenían de útil: manipular el microciclo
+    sin salir de la pantalla. La regla es que <strong>cada menú cuelga de la pieza que nombra a su
+    objeto</strong>, y que cada verbo destructivo dice en voz alta qué se lleva.</p>
+
+    <div class="menus">
+      <div class="menu">
+        <div class="menu-tit">⚙ · el menú del bloque</div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Renombrar el bloque</div>
+        <hr class="menu-sep" />
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copiar «Bloque 2» al portapapeles</div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>Traer el programa de otro cliente</div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2v6h6"/><path d="M4 22V4a2 2 0 0 1 2-2h8l6 6v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="m9 13 3-3 3 3"/></svg>Traer de un fichero</div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>Ajustes del programa</div>
+        <hr class="menu-sep" />
+        <div class="menu-it rojo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg><span>Quitar «Bloque 2»<small>sus 10 microciclos pasan a «Bloque 1»</small></span></div>
+      </div>
+
+      <div class="menu">
+        <div class="menu-tit">▾ · el menú del microciclo</div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Fechas y sesiones de M10<small>cuándo empieza y qué se entrenó</small></span></div>
+        <div class="menu-it"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Duplicar M10<small>crea M11 con los kilos ya puestos</small></span></div>
+        <hr class="menu-sep" />
+        <div class="menu-it rojo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg><span>Borrar M10 y sus 4 hojas<small>se puede deshacer durante 10 s</small></span></div>
+      </div>
+    </div>
+
+    <div class="nota" style="margin-top:var(--s4)"><span class="marca">!</span><span><b>Lo que pediste y no existe todavía.</b> <span class="falta">Mover</span> y <span class="falta">exportar</span> un microciclo no tienen nada detrás: los microciclos se numeran seguidos dentro del programa y no hay función para cambiarlos de sitio ni de bloque (<code>domain/blocks.js</code>), y al portapapeles solo va el bloque entero, nunca un microciclo (<code>lib/portapapeles</code>). Los dejo fuera en vez de dibujar dos verbos que no harían nada; si los quieres, son trabajo de dominio aparte y te lo digo antes de meterme.</span></div>
+
+    <h3>Selección y estado, escritos</h3>
+    <div class="lamina">
+      <div style="display:flex;gap:var(--s5);flex-wrap:wrap;align-items:center">
+        <div style="display:inline-flex;align-items:center;gap:2px;padding:2px;background:var(--fill);border-radius:8px">
+          <button class="micro hecha"><span class="pt"></span>M7</button>
+          <button class="micro curso"><span class="pt"></span>M8</button>
+          <button class="micro"><span class="pt"></span>M9</button>
+          <button class="micro on"><span class="pt"></span>M10<span class="zona"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></button>
+        </div>
+        <ul style="margin:0">
+          <li><strong>Relleno azul</strong> = dónde estoy. Uno solo, siempre.</li>
+          <li><strong>Punto verde</strong> = entrenado · <strong>punto azul</strong> = en curso · <strong>punto hueco</strong> = por hacer.</li>
+          <li>Si coinciden —estás en el que está en curso— el punto se vuelve blanco con halo sobre el relleno azul, y se leen los dos.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Lo que yo haría</h2>
+    <div class="veredicto">
+      <p style="margin-bottom:var(--s2)"><strong>A, el carril.</strong> Es la que no cambia de pieza:
+      la pastilla del microciclo es la misma que ya está en la hoja de series y en la vista de
+      bloque, y esta pantalla lleva ocho vueltas pagando el haber dibujado la misma pregunta de dos
+      maneras. Lo que aporta B —ver cuánto llevas del bloque de un vistazo— es una lectura, y las
+      lecturas de esta pantalla viven en «Este bloque», no en la cabecera. Es la regla con la que se
+      cerró la novena vuelta: la cabecera identifica, la tarjeta lee.</p>
+      <p style="margin-bottom:0"><strong>B merece la pena si</strong> los bloques largos son lo
+      normal y saltar entre microciclos es el gesto diario. Entonces el carril de A vive desbordado
+      —escondiendo siempre algo— y la regla deja de ser una idea bonita para ser la única que cabe.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  /* El canto que esconde algo se desvanece: lo mismo que hace `.tira-lista.is-carril`. */
+  const carril = document.getElementById('carrilA');
+  const medir = () => {
+    const izq = carril.scrollLeft > 1;
+    const der = carril.scrollLeft < carril.scrollWidth - carril.clientWidth - 1;
+    carril.dataset.desborde = izq && der ? 'ambos' : izq ? 'izq' : der ? 'der' : 'no';
+  };
+  /* Y la pastilla abierta se trae a la vista si ha quedado fuera: un carril que
+     esconde justo donde estás no vale para nada. Es lo que ya hace la tira de
+     hojas en `TiraDelPrograma`. */
+  const traerLaAbierta = () => {
+    const on = carril.querySelector('.micro.on');
+    if (!on || carril.scrollWidth <= carril.clientWidth) return;
+    const fuera = on.offsetLeft < carril.scrollLeft
+      || on.offsetLeft + on.offsetWidth > carril.scrollLeft + carril.clientWidth;
+    /* Los 8 px de más son el relleno de la pista y el aire del desvanecido: sin
+       ellos la pastilla queda a ras del canto y el chevron sale cortado. */
+    if (fuera) carril.scrollLeft = on.offsetLeft + on.offsetWidth - carril.clientWidth + 8;
+  };
+  carril.addEventListener('scroll', medir, { passive: true });
+  carril.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const tope = carril.scrollWidth - carril.clientWidth;
+    if (tope <= 0) return;
+    e.preventDefault();
+    carril.scrollLeft += e.deltaY;
+  }, { passive: false });
+
+  /* Las dos láminas se estrechan con su mando, para ver cómo degradan. */
+  const ata = (rango, salida, marco) => {
+    const r = document.getElementById(rango);
+    const s = document.getElementById(salida);
+    const m = document.getElementById(marco);
+    const pinta = () => {
+      const ancho = Number(r.value);
+      m.style.width = ancho + 'px';
+      m.dataset.ancho = ancho < 820 ? 'estrecho' : ancho < 1000 ? 'medio' : 'ancho';
+      s.textContent = ancho + ' px' + (m.dataset.ancho === 'ancho' ? '' : ' · ' + m.dataset.ancho);
+      traerLaAbierta();
+      medir();
+    };
+    r.addEventListener('input', pinta);
+    pinta();
+  };
+  ata('anchoA', 'salidaA', 'marcoA');
+  ata('anchoB', 'salidaB', 'marcoB');
+
+  /* La regla de B se repinta con el número de microciclos. */
+  const regla = document.getElementById('reglaB');
+  const cuantos = document.getElementById('cuantosB');
+  const salidaCuantos = document.getElementById('salidaCuantos');
+  const chevron = '<span class="zona"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>';
+  const pintaRegla = () => {
+    const n = Number(cuantos.value);
+    const curso = Math.max(1, n - 2);
+    const corto = n <= 8;
+    regla.innerHTML = '';
+    for (let i = 1; i <= n; i++) {
+      const b = document.createElement('button');
+      const hecha = i < curso;
+      const clases = ['tramo'];
+      if (hecha) clases.push('hecha');
+      if (i === curso) clases.push('curso');
+      if (i === n) clases.push('on');
+      else if (corto || i === curso) clases.push('ancho');
+      b.className = clases.join(' ');
+      b.title = 'Microciclo ' + i + ' · 4 hojas · ' + (hecha ? 'entrenado' : i === curso ? 'en curso' : 'por hacer');
+      b.innerHTML = '<span class="num">M' + i + '</span>' + (i === n ? chevron : '');
+      regla.appendChild(b);
+    }
+    salidaCuantos.textContent = String(n);
+  };
+  cuantos.addEventListener('input', pintaRegla);
+  pintaRegla();
+</script>
+</body>
+</html>

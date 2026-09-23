@@ -1,6 +1,10 @@
+import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
 import { useApp } from '@/context/AppContext';
-import { entregaDelPeriodo, periodoAEntregar } from '@/domain/calendar';
+import { entregaDelPeriodo, periodoAEntregar, periodoQueEmpieza } from '@/domain/calendar';
 import { weekFromStart } from '@/domain/photos';
+import { estadoDeRevision } from '@/domain/revisionesPasadas';
 import { todayISO, weekStart } from '@/lib/dates';
 
 /**
@@ -15,20 +19,84 @@ import { todayISO, weekStart } from '@/lib/dates';
  * Es el lunes del periodo ABIERTO, no el de esta semana (ver
  * `periodoAEntregar`): con cadencia quincenal el periodo empezó hace dos, y
  * con la ventana de gracia abierta la entrega todavía va a la anterior.
+ *
+ * ══ O una revisión PASADA, si la dirección la pide (23 sep 2026) ═══════════
+ *
+ * `?semana=<lunes>` abre una revisión que se quedó sin entregar —o entregada y
+ * sin revisar— para completarla. La pide «Tus semanas» y la arrastran los pasos
+ * del teléfono de pantalla en pantalla, así que la lista, el peso, las fotos y
+ * el cuestionario guardan contra ESA semana sin saber que es una pasada.
+ *
+ * Su fila no está en `checkIns` del contexto, que guarda solo la última de cada
+ * cliente: se pide el historial una vez y `recargar` lo vuelve a leer después
+ * de entregar. Si la semana pedida no es una pasada —es la de hoy, o no existe
+ * en su pauta— se ignora y manda el camino normal.
  */
 export const useSemanaDeEntrega = () => {
-  const { activeClient, checkIns } = useApp();
+  const { activeClient, checkIns, loadCheckInHistory } = useApp();
+  const [params] = useSearchParams();
+  const pedida = params.get('semana');
+  const clienteId = activeClient?.id;
 
-  const entrega = checkIns?.[activeClient?.id];
+  /* `null` mientras no se ha leído: sin la fila, una entregada parecería sin
+     entregar el primer instante. */
+  const [historial, setHistorial] = useState(null);
+
+  const recargar = useCallback(async () => {
+    if (!clienteId || !pedida) return;
+    const res = await loadCheckInHistory(clienteId);
+    setHistorial(res.checkIns || []);
+  }, [clienteId, pedida, loadCheckInHistory]);
+
+  useEffect(() => {
+    setHistorial(null);
+    recargar();
+  }, [recargar]);
+
+  const hoy = todayISO();
+  const entrega = checkIns?.[clienteId];
+
+  const revision =
+    activeClient && pedida
+      ? estadoDeRevision({
+          lunes: pedida,
+          entregas: historial || [],
+          preferences: activeClient.preferences,
+          startDate: activeClient.startDate,
+          hoy,
+        })
+      : null;
+
+  if (revision?.pasada) {
+    const deEste = revision.entrega;
+    return {
+      periodo: { ...periodoQueEmpieza(activeClient.preferences, revision.lunes, hoy), pasada: true },
+      semana: revision.lunes,
+      semanasDelPeriodo: revision.semanas,
+      deEste,
+      yaEntregada: Boolean(deEste?.submittedAt),
+      /* Para una pasada, «cerrada» es lo que ya no se puede tocar: revisada o
+         fuera de plazo. La pantalla dice cuál con `revision.motivo`. */
+      cerrada: !revision.editable,
+      semanaFoto: weekFromStart(activeClient.startDate, revision.lunes),
+      revision,
+      cargando: historial === null,
+      recargar,
+      /* Lo que los pasos del teléfono añaden a su dirección para no perder la
+         semana por el camino. */
+      consulta: `?semana=${revision.lunes}`,
+    };
+  }
+
   const periodo = activeClient
     ? periodoAEntregar({
         preferences: activeClient.preferences,
         startDate: activeClient.startDate,
         entrega,
-        today: todayISO(),
+        today: hoy,
       })
     : null;
-  const semana = periodo?.start || weekStart(todayISO());
+  const semana = periodo?.start || weekStart(hoy);
   const semanasDelPeriodo = periodo?.everyWeeks || 1;
   /* La fila de ESTE periodo y no «la de este lunes en adelante»: una fila de
      una semana posterior —el entrenador cerrando la que viene mientras el
@@ -59,5 +127,9 @@ export const useSemanaDeEntrega = () => {
       misma cifra, y ahora las dos salen de aquí.
     */
     semanaFoto: activeClient ? weekFromStart(activeClient.startDate, semana) : null,
+    revision: null,
+    cargando: false,
+    recargar,
+    consulta: '',
   };
 };

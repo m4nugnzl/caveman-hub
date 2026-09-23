@@ -2,70 +2,82 @@ import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { TimelineSpine } from './TimelineSpine';
-import { reviewTimeline } from '@/domain/timeline';
+import { semanasDelPlan } from '@/domain/semanasDelPlan';
 
 /**
- * La espina: el proceso entero del cliente, y el salto largo, y van aquí por un motivo
- * concreto.
+ * La espina: el roadmap del cliente y el selector de semana de la revisión.
  *
- * ══ Qué venían a atrapar ════════════════════════════════════════════════════
+ * ══ Qué vienen a atrapar ════════════════════════════════════════════════════
  *
- * La revisión reventaba al abrirse: `Coach/WeekReview.jsx` construía la línea de
- * tiempo en un `useMemo` que leía las fotos agrupadas cien líneas antes de que
- * se declararan, o sea un `ReferenceError` en cada render. No lo vieron el
- * `eslint`, ni `tsc`, ni el build —los tres miran el archivo, y el archivo es
- * válido— porque solo aparece cuando alguien lo ejecuta.
+ * La revisión reventó una vez al abrirse por un `ReferenceError` que no vieron
+ * ni `eslint`, ni `tsc`, ni el build: solo aparece cuando alguien monta el
+ * componente. Estas lo montan, en sus dos estados.
  *
- * Mil trescientas pruebas de dominio y ninguna que montara un componente. Éstas
- * lo montan.
- *
- * ── Con `renderToStaticMarkup` y no con un DOM ─────────────────────────────
- * Sin dependencias nuevas: `react-dom` ya está, y `jsdom` o `testing-library`
- * serían dos paquetes y una configuración para lo que aquí hace falta, que es
- * comprobar que el árbol se construye. Lo que no se puede probar así son los
- * efectos ni los gestos —el ancho medido, el arrastre, las flechas—, y por eso
- * las reglas que deciden qué se ve viven en `domain/timeline.js`, donde sí se
- * prueban de verdad (`timeline.test.js`).
+ * Con `renderToStaticMarkup` y sin DOM: lo que no se prueba así —el ancho
+ * medido, el arrastre— lo deciden reglas que viven en `domain/` y en
+ * `roadmap/geometria`, donde sí se prueban.
  */
 
-const ALTA = '2026-07-27';
+const HOY = '2026-11-12';
 
-const lineaDe = (n) => {
-  const weeks = Array.from({ length: n }, (_, i) => i + 1);
-  return reviewTimeline({
-    weeks,
-    startDate: ALTA,
-    series: weeks.map((w) => ({
-      week: new Date(Date.parse(`${ALTA}T00:00:00Z`) + (w - 1) * 7 * 86400000)
-        .toISOString()
-        .slice(0, 10),
-      weight: 84 - w * 0.1,
-      kcals: 2400 - w * 5,
-    })),
-  });
+const definicion = {
+  id: 'def',
+  title: 'Definición',
+  direction: 'cut',
+  ratePct: 0.6,
+  startsOn: '2026-09-07',
+  endsOn: '2026-12-27',
+  replanteos: [{ semana: '2026-10-19', pesoBase: 74.9, ratePct: 0.7 }],
 };
 
+const history = [];
+for (let t = Date.parse('2026-09-01'); t <= Date.parse(HOY); t += 2 * 86400000) {
+  history.push({ date: new Date(t).toISOString().slice(0, 10), weight: 76 - (t - Date.parse('2026-09-01')) / (86400000 * 60) });
+}
+
+const plan = semanasDelPlan({
+  phases: [definicion],
+  history,
+  reviews: [{ weekStart: '2026-10-12', snapshot: { kcals: 2450 } }],
+  plan: { kcals: 2300 },
+  hoy: HOY,
+});
+
+const pinta = (props) => renderToStaticMarkup(<TimelineSpine plan={plan} {...props} />);
+
 describe('TimelineSpine', () => {
-  /* La regresión que motiva el rediseño: el proceso entero, sin recortes. */
-  it('dibuja las cuarenta semanas y nombra los dos extremos', () => {
-    const html = renderToStaticMarkup(
-      <TimelineSpine weeks={lineaDe(40)} selected={30} desde={20} hasta={30} />
-    );
-    expect(html).toContain('de la semana 1 a la 40');
-    expect(html).toContain('>S1<');
-    expect(html).toContain('>S40<');
-    /* La banda de la ventana, que es lo que ata la espina al apartado. */
-    expect(html).toContain('espina-ventana');
+  it('plegada: la banda, el peso y las marcas, sin fantasmas ni kcal', () => {
+    const html = pinta({
+      elegida: '2026-10-26',
+      pendiente: '2026-11-02',
+      marcas: new Set(['2026-10-12']),
+      onPlan: () => {},
+    });
+    expect(html).toContain('is-espina');
+    expect(html).toContain('lp-fase');
+    /* El peso real lo dibuja `TrazoDelPeso`, el mismo que las tiras. */
+    expect(html).toContain('progreso-trazo');
+    expect(html).toContain('lp-marca-hecha');
+    expect(html).toContain('lp-marca-pendiente');
+    /* La banda de las fases abre el plan. */
+    expect(html).toContain('lp-golpe-plan');
+    expect(html).not.toContain('lp-fantasma');
+    expect(html).not.toContain('lp-kcal');
+    expect(html).toContain('Desplegar');
   });
 
-  it('sin recorte no pinta banda: no señalaría nada', () => {
-    const html = renderToStaticMarkup(
-      <TimelineSpine weeks={lineaDe(6)} selected={3} desde={0} hasta={6} />
-    );
-    expect(html).not.toContain('espina-ventana');
+  it('desplegada: la línea entera, con su zoom y su leyenda', () => {
+    const html = pinta({ abierta: true, elegida: '2026-10-26' });
+    expect(html).not.toContain('is-espina');
+    /* El replanteo del 19 oct deja la recta de antes como fantasma. */
+    expect(html).toContain('lp-fantasma');
+    expect(html).toContain('lp-kcal');
+    expect(html).toContain('Temporada');
+    expect(html).toContain('Media semanal');
+    expect(html).toContain('Plegar');
   });
 
-  it('sin semanas no pinta nada', () => {
-    expect(renderToStaticMarkup(<TimelineSpine weeks={[]} selected={null} />)).toBe('');
+  it('sin plan no pinta nada', () => {
+    expect(renderToStaticMarkup(<TimelineSpine plan={null} />)).toBe('');
   });
 });

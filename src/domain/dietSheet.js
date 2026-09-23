@@ -85,6 +85,24 @@ const numero = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+/** ¿Lo que sigue a la cifra la convierte en «por kilo de peso»? */
+const esPorKilo = (texto, desde) =>
+  /^\s*(?:por|\/|x)\s*(?:kg|kilo)/i.test(String(texto).slice(desde, desde + 16));
+
+/**
+ * Las kilocalorías que salen de los macros, cuando la hoja no las dice.
+ *
+ * Una pestaña de macros que calcula la celda KCAL con una fórmula —o que la deja
+ * vacía porque «ya se sabe»— llegaba con proteína, hidratos y grasa y 0 kcal de
+ * objetivo. Con los tres macros el número no es una suposición: es aritmética
+ * (4 · 4 · 9), y es mejor que un cero que el cliente leería como verdad.
+ */
+export const conKcalCalculadas = (t) => {
+  if (!t || (t.kcals != null && t.kcals > 0)) return t;
+  if ([t.protein, t.carbs, t.fats].some((v) => v == null)) return t;
+  return { ...t, kcals: Math.round(t.protein * 4 + t.carbs * 4 + t.fats * 9) };
+};
+
 /**
  * Los macros que hay escritos en un texto, vengan en el orden que vengan.
  *
@@ -132,6 +150,12 @@ export const macrosDeTexto = (texto) => {
     */
     if (/^(g|gr)$/.test(etiqueta) && !m[2]) continue;
 
+    /* «4,81 gramos de hidratos por kg de peso corporal» es una proporción, no
+       el objetivo. Una hoja real lo escribe al lado de cada cifra —y con la
+       etiqueta equivocada, «gramos de proteína» en la fila de los hidratos—, y
+       leído como objetivo dejaba la proteína del día en 4,81 g. */
+    if (esPorKilo(texto, m.index + m[0].length)) continue;
+
     /* La primera de cada clase gana: en «Total: 600 Kcal | 25g P …» lo que viene
        después son los macros de esa misma línea, pero en una hoja que repite el
        resumen dos veces la de arriba es la buena. */
@@ -153,6 +177,7 @@ export const macrosDeTexto = (texto) => {
     /(kilocalor[ií]as?|calor[ií]as?|kcals?|prote[ií]nas?|proteins?|hidratos(?:\s+de\s+carbono)?|carbohidratos?|carbos?|carbs?|grasas?|fats?)\s*[:=]?\s*(\d+(?:[.,]\d+)?)\s*(?:gramos|grs?|g)?\b/gi;
 
   for (const m of String(texto).matchAll(alReves)) {
+    if (esPorKilo(texto, m.index + m[0].length)) continue;
     const valor = numero(m[2]);
     const clave = claveDeMacro(norm(m[1]));
     if (valor === null || !clave || out[clave] !== null) continue;
@@ -219,7 +244,7 @@ const claveDeMacro = (etiqueta) => {
 };
 
 /* Una celda que es SOLO el rótulo de un macro: «KCAL», «Proteína», «G». */
-const RE_ROTULO_MACRO = /^(kcals?|kilocalor[ií]as?|calor[ií]as?|energ[ií]a|prote[ií]nas?|proteins?|prot\.?|p|hidratos(\s*de\s*carbono)?|carbohidratos?|carbos?|carbs?|hc|ch|h|grasas?|fats?|g)\s*:?$/i;
+const RE_ROTULO_MACRO = /^(kcals?|kilocalor[ií]as?|calor[ií]as?|energ[ií]a|prote[ií]nas?|proteins?|prot\.?|p|hidratos(\s*de\s*carbono)?|carbohidratos?|carbos?|carbs?|hc|ch|h|grasas?|fats?|g)(\s*totales?)?\s*:?$/i;
 
 /** Un número suelto, con la unidad pegada si la lleva: «2500», «135 g». */
 const soloNumero = (celda) => {
@@ -665,8 +690,12 @@ const cabeceraDeRejilla = (grid, filasDeComida) => {
   pauta de una dieta real, en la primera página— marcaría el plan entero como el
   día de entrenar.
 */
-const RE_ENTRENO = /\b(d[ií]as?\s*high|entrenos?|entrenamientos?|training|high\s*carb|high)\b/i;
-const RE_DESCANSO = /\b(d[ií]as?\s*low|descansos?|rest\s*days?|low\s*carb|low)\b/i;
+/* «Día ON» y «Día OFF» también: es como lo escribe media profesión —el día que
+   se entrena está «on»—. Solo con «día» delante o «day» detrás: un «on» suelto
+   es una preposición en inglés. */
+const RE_ENTRENO =
+  /\b(d[ií]as?\s*high|d[ií]as?\s*on|on\s*days?|entrenos?|entrenamientos?|training|high\s*carb|high)\b/i;
+const RE_DESCANSO = /\b(d[ií]as?\s*low|d[ií]as?\s*off|off\s*days?|descansos?|rest\s*days?|low\s*carb|low)\b/i;
 
 /**
  * Si la hoja dice a qué tipo de día pertenece, cuál es y con qué palabra lo dice.
@@ -685,6 +714,114 @@ export const varianteDeTexto = (texto) => {
   const entreno = RE_ENTRENO.exec(t);
   if (entreno) return { variant: 'training', label: entreno[0] };
   return { variant: null, label: null };
+};
+
+/**
+ * Un objetivo por tipo de día, en la MISMA hoja.
+ *
+ * ══ Por qué no basta con el objetivo de la hoja ════════════════════════════
+ *
+ * Porque la pestaña de macros de quien distingue días trae DOS objetivos, y el
+ * lector se quedaba con el primero que encontraba: el día de descanso no
+ * llegaba y nada lo decía. Se ven de dos maneras en hojas reales —y a veces las
+ * dos a la vez en la misma pestaña—:
+ *
+ *     Uno debajo del otro                    Uno al lado del otro
+ *
+ *     MACROS OBJETIVO DÍA ON                 MACROS TRAINING DAY │ MACROS REST DAY
+ *     KCAL │ HC  │ P   │ G                   PROTEÍNA  137      │         134
+ *     3600 │ 525 │ 195 │ 80                  HIDRATOS  351      │         331
+ *     MACROS OBJETIVO DÍA OFF
+ *     KCAL │ HC  │ P   │ G
+ *     3400 │ 495 │ 175 │ 80
+ *
+ * Lo que tienen en común es el ANCLA: una celda que dice de qué día es lo que
+ * tiene debajo y a la derecha. Cada cifra se le da al ancla que quede por
+ * encima y a su izquierda y esté en la columna más cercana —y entre dos en la
+ * misma columna, la más baja—. La columna primero porque una pestaña puede
+ * traer las dos maquetaciones a la vez: con la fila primero, el bloque apilado
+ * de la izquierda se quedaba las cifras de descanso del de la derecha.
+ *
+ * Solo se contesta cuando salen DOS tipos de día. Con uno, el objetivo de la
+ * hoja ya lo dice todo y esto no añade nada.
+ *
+ * @returns `[{ variant, label, targets }]`, entreno primero, o `null`.
+ */
+const objetivosPorVariante = (grid, saltar = new Set()) => {
+  const anclas = [];
+  grid.forEach((fila, r) => {
+    if (saltar.has(r)) return;
+    fila.forEach((celda, k) => {
+      const texto = String(celda || '').trim();
+      if (!texto || texto.length > 60) return;
+      const { variant, label } = varianteDeTexto(texto);
+      if (variant) anclas.push({ r, k, variant, label, targets: { kcals: null, protein: null, carbs: null, fats: null } });
+    });
+  });
+  if (new Set(anclas.map((a) => a.variant)).size < 2) return null;
+
+  const anclaDe = (r, k) =>
+    anclas
+      .filter((a) => a.r <= r && a.k <= k)
+      .sort((a, b) => b.k - a.k || b.r - a.r)[0] || null;
+
+  const apuntar = (ancla, clave, valor) => {
+    if (ancla && ancla.targets[clave] === null) ancla.targets[clave] = valor;
+  };
+
+  grid.forEach((fila, r) => {
+    if (saltar.has(r)) return;
+    fila.forEach((celda, c) => {
+      if (!RE_ROTULO_MACRO.test(celda || '')) return;
+      const clave = claveDeMacro(norm(celda.replace(/\s*totales?/i, '').replace(/:$/, '')));
+      if (!clave) return;
+
+      /* A la derecha, hasta el siguiente rótulo: una fila puede traer la cifra
+         del día de entreno y, más allá, la del de descanso. */
+      let alguna = false;
+      for (let k = c + 1; k < fila.length; k += 1) {
+        if (RE_ROTULO_MACRO.test(fila[k] || '')) break;
+        const valor = soloNumero(fila[k]);
+        if (valor === null) continue;
+        apuntar(anclaDe(r, k), clave, valor);
+        alguna = true;
+      }
+      if (alguna) return;
+
+      /* Y si no, debajo: los rótulos en una fila y las cifras en la siguiente. */
+      for (let s = r + 1; s <= r + 2 && s < grid.length; s += 1) {
+        const valor = soloNumero(grid[s]?.[c]);
+        if (valor !== null) {
+          apuntar(anclaDe(r, c), clave, valor);
+          break;
+        }
+      }
+    });
+  });
+
+  const porVariante = new Map();
+  for (const ancla of anclas) {
+    const t = ancla.targets;
+    const macros = [t.protein, t.carbs, t.fats].filter((v) => v !== null).length;
+    if (t.kcals === null && macros < 2) continue;
+    const previo = porVariante.get(ancla.variant);
+    /* Una hoja que calcula el objetivo con fórmulas entrega «2417,446583»: se
+       redondea a lo que un entrenador escribiría. */
+    const redondo = (v, d = 1) => (v === null || v === undefined ? v : Math.round(v * 10 ** d) / 10 ** d);
+    const juntos = conKcalCalculadas(fundirMacros(previo?.targets, t));
+    porVariante.set(ancla.variant, {
+      variant: ancla.variant,
+      label: previo?.label || ancla.label,
+      targets: {
+        kcals: redondo(juntos.kcals, 0),
+        protein: redondo(juntos.protein),
+        carbs: redondo(juntos.carbs),
+        fats: redondo(juntos.fats),
+      },
+    });
+  }
+  if (porVariante.size < 2) return null;
+  return ['training', 'rest'].map((v) => porVariante.get(v)).filter(Boolean);
 };
 
 /* ══ El dibujo de una comida ═══════════════════════════════════════════════ */
@@ -996,6 +1133,7 @@ const parseDietText = (lineas) => {
 
 const lecturaVacia = () => ({
   format: null,
+  targetsByVariant: null,
   variant: null,
   variantRaw: null,
   targets: null,
@@ -1031,17 +1169,25 @@ export const parseDietGrid = (rejilla) => {
 
   const cabecera = cabeceraDeRejilla(grid, filasDeComida);
   const textoEntero = grid.map(textoDeFila).join(' \n ');
+  /* Dos objetivos en la misma hoja —entreno y descanso—: el de la hoja es el
+     del día de entreno, y cada uno viaja además con su día. */
+  const targetsByVariant = objetivosPorVariante(grid, filasDeComida);
+  const targets = conKcalCalculadas(targetsByVariant?.[0]?.targets || cabecera.targets);
 
   const notes = [...cabecera.notas, ...notasSueltas].map((body) => ({ title: '', body }));
   /* Solo la cabecera de la hoja decide el tipo de día: una pauta escrita dentro
-     de una comida puede nombrar el descanso sin que la hoja sea la del descanso. */
-  const { variant, label } = varianteDeTexto(textoEntero.slice(0, 400));
+     de una comida puede nombrar el descanso sin que la hoja sea la del descanso.
+     Con dos objetivos la hoja es de los dos días y no de uno. */
+  const { variant, label } = targetsByVariant
+    ? { variant: null, label: null }
+    : varianteDeTexto(textoEntero.slice(0, 400));
 
   return {
-    format: comidas.length ? 'tabla' : cabecera.targets ? 'macros' : null,
+    format: comidas.length ? 'tabla' : targets ? 'macros' : null,
     variant,
     variantRaw: label,
-    targets: cabecera.targets,
+    targets,
+    targetsByVariant,
     steps: cabecera.steps,
     cardio: cabecera.cardio,
     notes,
@@ -1084,7 +1230,8 @@ export const parseDietSheet = (texto) => {
     format: comidas.length ? 'texto' : targets ? 'macros' : null,
     variant,
     variantRaw: label,
-    targets,
+    targets: conKcalCalculadas(targets),
+    targetsByVariant: null,
     steps,
     cardio,
     notes: notas,
@@ -1112,6 +1259,10 @@ export const mergeDietReadings = (entradas = []) => {
   const conComidas = [];
   let base = lecturaVacia();
   let hayAlgo = false;
+  /* Los objetivos por tipo de día, vengan de UNA hoja que trae los dos o de dos
+     hojas de solo macros que se distinguen por el nombre: «Macros ON» y
+     «Macros OFF» son el mismo plan partido en dos pestañas. */
+  const objetivos = new Map();
 
   for (const { name, reading } of entradas) {
     if (!reading || !reading.format) continue;
@@ -1125,6 +1276,19 @@ export const mergeDietReadings = (entradas = []) => {
       notes: [...base.notes, ...reading.notes],
     };
 
+    for (const t of reading.targetsByVariant || []) if (!objetivos.has(t.variant)) objetivos.set(t.variant, t);
+    if (!reading.meals.length && !reading.targetsByVariant && reading.targets) {
+      /* En el nombre de una pestaña, «ON» y «OFF» sueltos sí son el día: nadie
+         titula una pestaña con una preposición. */
+      const variant =
+        reading.variant ||
+        varianteDeTexto(name || '').variant ||
+        (/\boff\b/i.test(name || '') ? 'rest' : /\bon\b/i.test(name || '') ? 'training' : null);
+      if (variant && !objetivos.has(variant)) {
+        objetivos.set(variant, { variant, label: name || reading.variantRaw || variant, targets: reading.targets });
+      }
+    }
+
     if (reading.meals.length) {
       conComidas.push({
         /* El nombre de la pestaña vale como etiqueta cuando la hoja no dice por
@@ -1137,6 +1301,27 @@ export const mergeDietReadings = (entradas = []) => {
   }
 
   if (!hayAlgo) return { ...lecturaVacia(), variants: [] };
+
+  const targetsByVariant = objetivos.size >= 2 ? ['training', 'rest'].map((v) => objetivos.get(v)).filter(Boolean) : null;
+
+  /* Sin menú, cada objetivo es una variante sin comidas: lo que se trae es qué
+     comer en cifras el día de entreno y el de descanso. */
+  if (!conComidas.length && targetsByVariant) {
+    return {
+      ...base,
+      targets: targetsByVariant[0].targets,
+      targetsByVariant,
+      format: 'macros',
+      meals: [],
+      variants: targetsByVariant.map((t, i) => ({
+        id: `v${i}`,
+        label: t.label,
+        variant: t.variant,
+        targets: t.targets,
+        meals: [],
+      })),
+    };
+  }
 
   const variants = conComidas.map((v, i) => ({
     id: `v${i}`,
@@ -1160,8 +1345,19 @@ export const mergeDietReadings = (entradas = []) => {
     variants[0].variant = 'default';
   }
 
+  /* Cada menú sin cifras propias, con el objetivo de SU día cuando la hoja de
+     macros lo distingue: sin esto el día de descanso se quedaba sin objetivo.
+     Las cifras que traiga la propia hoja del menú mandan: son las más cercanas. */
+  if (targetsByVariant) {
+    for (const v of variants) {
+      const suyo = targetsByVariant.find((t) => t.variant === v.variant);
+      if (suyo && !v.targets) v.targets = suyo.targets;
+    }
+  }
+
   return {
     ...base,
+    targetsByVariant,
     format: variants.length ? 'libro' : base.targets ? 'macros' : null,
     meals: variants[0]?.meals || [],
     variants,

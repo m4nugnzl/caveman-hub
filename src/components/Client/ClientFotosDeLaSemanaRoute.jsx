@@ -5,6 +5,7 @@ import { useApp } from '@/context/AppContext';
 import { ANGLES, fotosPorAngulo, photoWeek } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
 import { useMediaQuery } from '@/lib/useMediaQuery';
+import { shortDate } from '@/lib/dates';
 import { useSemanaDeEntrega } from './useSemanaDeEntrega';
 import { PantallaFotosDeLaSemana } from './movil/PantallaFotosDeLaSemana';
 
@@ -26,10 +27,10 @@ import { PantallaFotosDeLaSemana } from './movil/PantallaFotosDeLaSemana';
  * entrenador no le pide fotos, esta pantalla no existe (`askPhotos`).
  */
 export const ClientFotosDeLaSemanaRoute = () => {
-  const { activeClient, progressPhotos, uploadProgressPhoto, ensurePhotoUrls } = useApp();
+  const { activeClient, progressPhotos, uploadProgressPhoto, deleteProgressPhoto, ensurePhotoUrls } = useApp();
   const navigate = useNavigate();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
-  const { semanaFoto } = useSemanaDeEntrega();
+  const { semanaFoto, semana: lunes, cerrada, revision } = useSemanaDeEntrega();
 
   const protocol = useMemo(
     () => (activeClient ? clientProtocol(activeClient.preferences) : null),
@@ -66,6 +67,12 @@ export const ClientFotosDeLaSemanaRoute = () => {
     }),
     clientId: activeClient.id,
     onSubir: uploadProgressPhoto,
+    /* Una revisión PASADA: cuál es, para decirlo arriba. */
+    pasada: revision ? `semana del ${shortDate(lunes)}` : null,
+    /* Revisada, o una pasada fuera de plazo: las fotos se miran y no se tocan
+       (0134). Mientras no, una foto equivocada se quita desde aquí. */
+    soloLectura: cerrada,
+    onQuitar: cerrada ? null : (foto) => deleteProgressPhoto(foto),
     onVolver: () => (window.history.length > 1 ? navigate(-1) : navigate('/mi/evolucion')),
   };
 

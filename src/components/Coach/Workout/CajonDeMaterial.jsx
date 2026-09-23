@@ -193,7 +193,7 @@ export const CajonDeMaterial = ({
                         type="button"
                         className="link"
                         onClick={() => onPonerPieza(pieza)}
-                        title="Entra como una hoja nueva del bloque abierto, con todo lo suyo dentro"
+                        title="Añadir como hoja nueva"
                       >
                         ponerla en el bloque
                       </button>

@@ -1,7 +1,40 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ANGLES, validatePhotoFile } from '@/domain/photos';
 import { newId } from '@/lib/ids';
+import { fechaDeLaFoto } from '@/lib/fechaDeLaFoto';
+
+/**
+ * Copia el archivo elegido a la memoria de la página, en el momento de elegirlo.
+ *
+ * ══ Por qué ════════════════════════════════════════════════════════════════
+ *
+ * Un `File` del selector no es la foto: es una REFERENCIA a un archivo del
+ * teléfono, y el navegador lo lee cuando alguien lo pide. En Android, lo que
+ * sale de la galería es un permiso prestado que caduca —al volver a abrir el
+ * selector, al limpiar el `<input>`, o cuando la app de fotos lo decide—. La
+ * miniatura se ve porque se pintó al momento; la subida, que llega después
+ * al pulsar «Guardar», encuentra el archivo cerrado y `fetch` falla sin
+ * respuesta: «Failed to fetch», en las cuatro fotos.
+ *
+ * Pasó con Guillermo el 23 sep 2026: la pantalla de fotos por huecos (18 sep)
+ * abre la galería una vez por ángulo y sube al final; el asistente de antes
+ * las elegía todas de una vez y en agosto le subieron sin problema.
+ *
+ * Leer los bytes al elegir cierra el hueco para siempre: lo que se sube es una
+ * copia que ya no depende de nadie. Si ni siquiera se puede leer entonces, se
+ * sigue con la referencia —la subida dirá lo que pase— en vez de impedir
+ * elegir la foto.
+ */
+const aMemoria = async (file) => {
+  try {
+    const bytes = await file.arrayBuffer();
+    return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
+  } catch (err) {
+    console.warn('No se pudo copiar la foto elegida; se subirá desde el archivo:', err);
+    return file;
+  }
+};
 
 /**
  * Un lote de fotos a punto de subirse: los archivos elegidos, su ángulo y cómo
@@ -48,6 +81,9 @@ export const usePhotoBatch = ({
   const [items, setItems] = useState([]);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  /* id → promesa de la copia en memoria (ver `aMemoria`). La subida la espera:
+     quien pulsa «Guardar» justo al elegir no puede adelantarse a la copia. */
+  const copias = useRef(new Map());
 
   // Cada miniatura es un object URL: hay que revocarlos o se filtra memoria.
   useEffect(
@@ -77,23 +113,40 @@ export const usePhotoBatch = ({
 
     setError(rejected.length > 0 ? rejected.join(' · ') : null);
 
+    const nuevos = accepted.map((file) => ({ id: newId('up'), file }));
     setItems((prev) => {
       const used = new Set(prev.map((i) => i.tag));
       const next = [...prev];
-      for (const file of accepted) {
+      for (const { id, file } of nuevos) {
         const tag = nextTag(used);
         used.add(tag);
         next.push({
-          id: newId('up'),
+          id,
           file,
           url: URL.createObjectURL(file),
           tag,
           status: 'pending',
           error: null,
+          /* El día que dice la cámara, si lo trae: se enseña como referencia y
+             no decide nada. Llega un instante después (ver `fechaDeLaFoto`). */
+          hechaEl: null,
         });
       }
       return next;
     });
+
+    for (const { id, file } of nuevos) {
+      copias.current.set(
+        id,
+        aMemoria(file).then((copia) => {
+          setItems((prev) => prev.map((i) => (i.id === id ? { ...i, file: copia } : i)));
+          return copia;
+        })
+      );
+      fechaDeLaFoto(file).then((hechaEl) => {
+        if (hechaEl) setItems((prev) => prev.map((i) => (i.id === id ? { ...i, hechaEl } : i)));
+      });
+    }
   };
 
   const setTag = (id, tag) => setItems((prev) => prev.map((i) => (i.id === id ? { ...i, tag } : i)));
@@ -102,6 +155,7 @@ export const usePhotoBatch = ({
     setItems((prev) => {
       const gone = prev.find((i) => i.id === id);
       if (gone) URL.revokeObjectURL(gone.url);
+      copias.current.delete(id);
       return prev.filter((i) => i.id !== id);
     });
 
@@ -121,9 +175,10 @@ export const usePhotoBatch = ({
     for (const item of pending) {
       setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: 'uploading' } : i)));
 
+      const file = (await copias.current.get(item.id)) || item.file;
       const result = await onUpload({
         clientId,
-        file: item.file,
+        file,
         week,
         [tagKey]: item.tag,
         notes,

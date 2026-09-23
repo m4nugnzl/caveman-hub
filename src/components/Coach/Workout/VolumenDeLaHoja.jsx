@@ -80,8 +80,8 @@ export const VolumenDeLaHoja = ({ program = null, bloque, hoja, cycleType, hojas
             type="button"
             className="task-hit"
             onClick={() => setAbierto(true)}
-            aria-label={`Cómo reparte «${bloque.name}» sus series por grupo`}
-            title={`Cómo reparte «${bloque.name}» sus series por grupo`}
+            aria-label={`Ver el volumen de «${bloque.name}»`}
+            title={`Ver el volumen de «${bloque.name}»`}
           />
         )}
         <div className="lado-cab">

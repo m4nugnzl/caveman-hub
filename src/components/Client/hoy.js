@@ -1,5 +1,5 @@
 import { blockOfWeek, resolvedMicrocycles, structureOfBlock } from '@/domain/blocks';
-import { scaleQuestions } from '@/domain/protocol';
+import { scaleQuestions, tonoDeEscala } from '@/domain/protocol';
 import { allSessions, allSessionsOfDay, historialDeEjercicio, isSetLogged, sessionSetCount } from '@/domain/sessions';
 import { WEEK_DAYS } from '@/domain/training';
 import { toNum } from '@/lib/num';
@@ -315,22 +315,6 @@ export const sensacionesRecientes = (micros, protocolo) => {
     if (filas.length > 0) return filas.slice(0, 4);
   }
   return [];
-};
-
-/**
- * EL JUICIO DE UNA RESPUESTA DE ESCALA, para el color de su barrita: es el
- * semáforo de la casa («el semáforo juzga»), y aquí sí hay de qué juzgar porque
- * la pregunta dice hacia dónde es mejor (`lowerIsBetter`). La fatiga y el dolor
- * no lo llevan escrito en los protocolos viejos y se leen como en
- * `PanelEntreno`: menos es mejor.
- *
- * @returns {'bien'|'medio'|'mal'}
- */
-const tonoDeEscala = (valor, max, q) => {
-  const menosEsMejor = q.lowerIsBetter ?? (q.id === 'fatigue' || q.id === 'pain');
-  const parte = max > 0 ? Math.min(1, Math.max(0, valor / max)) : 0;
-  const bueno = menosEsMejor ? 1 - parte : parte;
-  return bueno >= 0.7 ? 'bien' : bueno > 0.4 ? 'medio' : 'mal';
 };
 
 /**

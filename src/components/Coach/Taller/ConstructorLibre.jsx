@@ -64,7 +64,6 @@ import {
 } from '@/components/ui/primitives';
 import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
-import { Pliegue } from '@/components/ui/Pliegue';
 /* El control del cliente, tal cual. Ver el porqué en `CampoLibre`. */
 import { CampoLibre } from '@/components/Client/CampoLibre';
 import { GUIAS, GuiaDeMedidas } from './GuiaDeMedidas';
@@ -893,10 +892,9 @@ export const ConstructorLibre = ({
       <header className="cartera-cab cinta-pagina">
         <div className="cartera-cab-in">
           <div className="cartera-cab-linea">
-            {/* El mando del ancho, en la calle del chasis: el mismo botón y el
-                mismo punto que en las demás cintas — un constructor es una
-                pantalla más, y de las que agradecen el ancho. Ver `ui/Pliegue`. */}
-            <Pliegue />
+            {/* Aquí estuvo el mando del ancho. Vive ahora en la fila de la marca
+                  de la barra lateral, montado una sola vez para toda la
+                  aplicación. Ver `ui/Pliegue`. */}
             <button
               type="button"
               className="cab-volver"

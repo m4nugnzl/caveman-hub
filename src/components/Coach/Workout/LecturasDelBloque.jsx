@@ -56,8 +56,8 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
       type="button"
       className="task-hit"
       onClick={onAmpliar}
-      aria-label="El historial de todos los bloques, con su gráfica"
-      title="El historial de todos los bloques, con su gráfica"
+      aria-label="Ver el historial de bloques"
+      title="Ver el historial de bloques"
     />
     {/* «2 microciclos» era el titular de esta tarjeta y se ha ido: la tira del
         programa los dibuja uno a uno —`M1 · M2 · en curso`— dos dedos más
@@ -121,18 +121,17 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
       */}
       {resumen.planificadas > 0 && (
         <div className="bloque-cifra" title="Entrenamientos hechos de los planificados">
-          <span className="k">entren.</span>
+          <span className="k">sesiones</span>
           <span className="v">
             {resumen.hechas}
             <small>/{resumen.planificadas}</small>
           </span>
         </div>
       )}
-      {/* El frame escribe «CUMPLIMIENTO» y aquí no cabe: 86 px medidos en una
-          celda de 72, y es UNA palabra, así que no hay dónde partirla —el propio
-          dibujo la parte por la mitad, «CUMPLIMIE / NTO»—. «Cumplido» mide 60,
-          dice lo mismo y además concuerda con lo que lleva debajo: «95 %
-          cumplido». */}
+      {/* «Cumplido» y «carga», cortas otra vez desde el 21 sep: las cuatro
+          vuelven a un renglón (el dueño prefirió la caja única a las
+          mini-tarjetas de 2 × 2) y «cumplimiento» no cabe en su cuarto. La
+          frase entera sigue en el `title`. */}
       {resumen.adherencia !== null && resumen.adherencia !== undefined && (
         <div className="bloque-cifra" title="Series hechas sobre las pautadas">
           <span className="k">cumplido</span>
@@ -156,7 +155,24 @@ const TarjetaCifras = ({ resumen, unidad, onAmpliar }) => (
    que todavía no está escrito en ninguna parte. Escribir allí una segunda
    tarjeta sería tener dos maneras de decir la misma cifra. */
 export const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
+  /*
+    ── «Y 8 MÁS» ABRE AQUÍ, NO EN OTRA PANTALLA (20 sep) ───────────────────
+    Este verbo abría la ventana del volumen, que es la tabla de grupos POR
+    HOJA: para leer los ocho grupos que faltaban había que salir del costado,
+    cruzar una capa y volver a buscar la columna del total. La ventana sigue
+    estando —la abre la tarjeta entera, que es su puerta— pero para lo que de
+    verdad dice: cómo reparte el bloque ese volumen hoja a hoja.
+
+    Lo que pide «y 8 más» es el RESTO DE ESTA LISTA, y el resto de esta lista
+    cabe donde está. Es el mismo gesto que los micros de la dieta
+    (`LecturasDeLaDieta`): un `.lado-mas` con `aria-expanded` que enseña y
+    esconde lo suyo sin sacar a nadie de su sitio. Y el verbo se mantiene en
+    el nombre al volver —«Ocultar los otros 8»—, que es la señalización de la
+    casa: una acción conserva su nombre en todo el camino.
+  */
+  const [todos, setTodos] = useState(false);
   const pasados = grupos.filter((m) => m.mrv && m.valor > m.mrv).length;
+  const ocultos = grupos.length - GRUPOS_A_LA_VISTA;
   return (
     <section className={`lado-tarjeta${grupos.length > 0 ? ' tarjeta-puerta' : ''}`} aria-label="Volumen por grupo">
       {grupos.length > 0 && (
@@ -183,10 +199,15 @@ export const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
         <p className="t-sm t-tertiary">Sin ejercicios todavía.</p>
       ) : (
         <>
-          <BarrasDeVolumen grupos={grupos.slice(0, GRUPOS_A_LA_VISTA)} />
-          {grupos.length > GRUPOS_A_LA_VISTA && (
-            <button type="button" className="lado-mas" onClick={onAmpliar}>
-              y {grupos.length - GRUPOS_A_LA_VISTA} más
+          <BarrasDeVolumen grupos={todos ? grupos : grupos.slice(0, GRUPOS_A_LA_VISTA)} />
+          {ocultos > 0 && (
+            <button
+              type="button"
+              className="lado-mas"
+              onClick={() => setTodos((v) => !v)}
+              aria-expanded={todos}
+            >
+              {todos ? `Ocultar los otros ${ocultos}` : `y ${ocultos} más`}
             </button>
           )}
         </>
@@ -225,9 +246,15 @@ const EJERCICIOS_A_LA_VISTA = 4;
   Sigue sin recetar: dice cuánto se ha movido cada uno, no qué hacer con ello.
 */
 const TarjetaProgresion = ({ filas, unidades }) => {
+  /* Ver la nota de `TarjetaVolumen`: el mismo verbo, el mismo gesto. Aquí
+     además «y 16 más» ERA UN `<li>`: iba pintado de azul y en negrita —la
+     forma con la que esta casa dice «esto se pulsa»— y no se podía pulsar. La
+     única manera de ver el ejercicio diecisiete no existía. */
+  const [todos, setTodos] = useState(false);
   const peso = (f) => (f.dir === 'down' ? 0 : f.dir === 'flat' ? 1 : 2);
   const orden = [...filas].sort((a, b) => peso(a) - peso(b) || b.delta - a.delta);
   const quietos = filas.filter((f) => f.dir !== 'up').length;
+  const ocultos = orden.length - EJERCICIOS_A_LA_VISTA;
 
   /* Lo que dice el renglón de la derecha: los kilos ganados o perdidos sobre su
      1RM estimado, y en los clavados cuántos entrenamientos llevan sin subir,
@@ -252,7 +279,7 @@ const TarjetaProgresion = ({ filas, unidades }) => {
         </div>
       </div>
       <ul className="progresion-quietos">
-        {orden.slice(0, EJERCICIOS_A_LA_VISTA).map((f) => (
+        {(todos ? orden : orden.slice(0, EJERCICIOS_A_LA_VISTA)).map((f) => (
           <li
             key={f.name}
             title={`${f.name}: 1RM estimado ${
@@ -263,10 +290,21 @@ const TarjetaProgresion = ({ filas, unidades }) => {
             <span className={`d is-${f.dir}`}>{movimiento(f)}</span>
           </li>
         ))}
-        {orden.length > EJERCICIOS_A_LA_VISTA && (
-          <li className="progresion-mas">y {orden.length - EJERCICIOS_A_LA_VISTA} más</li>
-        )}
       </ul>
+      {/* Fuera del `<ul>`: no es una fila de la lista, es el verbo de la
+          tarjeta, y así es EXACTAMENTE el mismo objeto que el del volumen —un
+          `.lado-mas` detrás del filete que cierra la lista—. Dos tarjetas
+          vecinas con el mismo verbo se escriben una sola vez. */}
+      {ocultos > 0 && (
+        <button
+          type="button"
+          className="lado-mas"
+          onClick={() => setTodos((v) => !v)}
+          aria-expanded={todos}
+        >
+          {todos ? `Ocultar los otros ${ocultos}` : `y ${ocultos} más`}
+        </button>
+      )}
     </section>
   );
 };
@@ -323,10 +361,21 @@ export const LecturasDelBloque = ({
           unidad={unidad}
           onAmpliar={() => setVentana('historial')}
         />
+        {/* La `key` es el bloque, y es lo que devuelve las dos listas a su medida
+            al cambiar de bloque: dejar «y 8 más» abierto y saltar a uno de cinco
+            grupos enseña una tarjeta desplegada que nadie ha desplegado. Un
+            estado de VISTA no sobrevive al objeto que se está viendo. */}
         {plan.sessions.length > 0 && (
-          <TarjetaVolumen grupos={grupos} unidad={unidad} onAmpliar={() => setVentana('volumen')} />
+          <TarjetaVolumen
+            key={bloque?.id}
+            grupos={grupos}
+            unidad={unidad}
+            onAmpliar={() => setVentana('volumen')}
+          />
         )}
-        {progresion.length > 0 && <TarjetaProgresion filas={progresion} unidades={unidades} />}
+        {progresion.length > 0 && (
+          <TarjetaProgresion key={bloque?.id} filas={progresion} unidades={unidades} />
+        )}
       </div>
 
       {/* Las ventanas se montan solo abiertas: cerradas no calculan nada. */}

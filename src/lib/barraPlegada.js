@@ -22,16 +22,16 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
  *    devolvía la barra se quedaban en la mesa y el trabajo solo se corría a la
  *    izquierda. Un mando que promete ancho y entrega mudanza no vale.
  *
- * Hoy es un botón callado en la ESQUINA DE LA CINTA, la línea con la que
- * arranca toda pantalla, y lo que hace de verdad es ensanchar la hoja: plegada
- * la barra, `--max-w-trabajo` sube los 192 px que ella suelta (ver
- * `chasis.css`). El mando está donde está el trabajo y el trabajo crece.
+ * Y seis más después de esas tres (el historial entero, en `ui/Pliegue`).
+ * Hoy es una capa sobre la esquina de la PROPIA BARRA, que solo aparece al
+ * pasar por ella: pertenece a lo que pliega y no le quita al lienzo ni un
+ * píxel. Lo que hace de verdad sigue siendo ensanchar la hoja: plegada la
+ * barra, `--max-w-trabajo` sube los 192 px que ella suelta (ver `chasis.css`).
  *
  * ── Por qué es un almacén y no un `useState` ────────────────────────────────
- * El mando ya no lo pinta quien pinta la barra: la cinta la montan tres piezas
- * distintas (`CoachLayout`, `ClientPortfolio`, `ui/Cinta`) y el `<aside>`
- * vive en la primera. Con un `useState` en `CoachLayout` habría que bajar el
- * gancho por contexto o por props hasta el fondo del árbol. Es una preferencia
+ * El estado lo leen piezas que no son padre unas de otras —el mando, la barra
+ * que se pinta plegada y el ancho de la hoja—, y con un `useState` en
+ * `CoachLayout` habría que bajarlo por contexto o por props. Es una preferencia
  * del aparato guardada en `localStorage` —una sola verdad, fuera de React—, así
  * que se lee con `useSyncExternalStore` y quien la quiera la pide donde esté.
  *
@@ -54,9 +54,9 @@ const guardado = () => {
   }
 };
 
-/* El valor vivo y quién lo mira. Fuera del árbol a propósito: los tres montajes
-   del mando y la barra tienen que ver el MISMO booleano, y ninguno es padre de
-   los otros. */
+/* El valor vivo y quién lo mira. Fuera del árbol a propósito: los montajes del
+   mando y la barra tienen que ver el MISMO booleano, y ninguno es padre de los
+   otros. */
 let plegada = guardado();
 const oyentes = new Set();
 
@@ -82,34 +82,117 @@ export const alternarBarra = () => {
   oyentes.forEach((avisar) => avisar());
 };
 
+/* Aquí vivió `useMandoDescubierto`, la marca de «este aparato ya sabe que el
+   mando existe». Hacía falta cuando el mando se escondía en el lienzo y solo se
+   encendía al acercarse a una franja: había que enseñarlo una primera vez. Hoy
+   también está escondido en reposo, pero lo que lo enciende es LA BARRA ENTERA
+   —por donde se navega—, así que es imposible no verlo y no hay nada que
+   recordar. Se borró la clave también: un `localStorage` con banderas que ya
+   no lee nadie es basura que sobrevive al código. */
+
 /**
- * El atajo del ancho: `Ctrl + \` (`⌘ + \` en Apple).
+ * El atajo del ancho: `Ctrl + B` (`⌘ + B` en Apple), y `Ctrl + \` de propina.
  *
- * La barra que se abre y se cierra con la misma tecla en VS Code, en Linear y en
- * Notion. Es el gesto de quien pliega y devuelve diez veces al día, y no le
- * cuesta un píxel a la pantalla — el botón de la calle sigue estando para quien
- * no se sabe las teclas.
+ * La `B` la pide el dueño y es la de Slack, Xcode y el propio VS Code para su
+ * barra primaria. La `\` estaba antes y se queda sin anunciarse: no cuesta un
+ * byte y respeta el dedo de quien ya la tenía aprendida.
+ *
+ * ── `preventDefault`, y en cuál ────────────────────────────────────────────
+ * Solo en la `B`, y hace falta: en Firefox `Ctrl + B` abre el panel de
+ * marcadores, así que sin esto el atajo plegaría la barra Y sacaría un cajón
+ * del navegador encima. La `\` no tiene función propia en ningún navegador y se
+ * deja pasar.
+ *
+ * ── Y NO se dispara mientras se escribe ───────────────────────────────────
+ * `Ctrl + B` es «negrita» en cualquier caja de texto enriquecido y es un gesto
+ * que los dedos hacen solos. En un `input` o un `textarea` normales no hace
+ * nada, pero el día que esta aplicación tenga un campo con formato, el atajo se
+ * le comería la negrita. Con un campo enfocado, el ancho de la ventana no es lo
+ * que se está tocando. (La `\` sí pasa siempre, como en VS Code.)
  *
  * Se monta UNA vez, y por eso no cuelga de `useBarraPlegada`: ese hook lo piden
- * los tres montajes del mando, y con el oyente dentro una sola pulsación
- * alternaría tres veces —o sea, ninguna—. Su sitio es `CoachLayout`, que es el
- * único que pinta la barra: sin barra no hay nada que plegar.
- *
- * Sin `preventDefault`: `Ctrl + \` no tiene función propia en los navegadores
- * (a diferencia de `Ctrl + K`, que en Firefox se lleva la búsqueda del
- * navegador). Y funciona también con un campo enfocado, como en VS Code: el
- * ancho de la ventana no es parte de lo que estás escribiendo.
+ * los montajes del mando, y con el oyente dentro una sola pulsación alternaría
+ * varias veces —o sea, ninguna—. Su sitio es `CoachLayout`, que es el único que
+ * pinta la barra: sin barra no hay nada que plegar.
  */
+const escribiendo = (el) =>
+  !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+
 export const useAtajoDelAncho = () => {
   useEffect(() => {
     const alPulsar = (evento) => {
-      if (!(evento.metaKey || evento.ctrlKey) || evento.key !== '\\') return;
-      alternarBarra();
+      if (!(evento.metaKey || evento.ctrlKey) || evento.altKey) return;
+      const tecla = String(evento.key).toLowerCase();
+      if (tecla === 'b') {
+        if (escribiendo(document.activeElement)) return;
+        evento.preventDefault();
+        alternarBarra();
+        return;
+      }
+      if (tecla === '\\') alternarBarra();
     };
     window.addEventListener('keydown', alPulsar);
     return () => window.removeEventListener('keydown', alPulsar);
   }, []);
 };
+
+/* ══ EL INTERRUPTOR DE PROTOTIPO ══════════════════════════════════════════
+   TEMPORAL, y ya solo con UNA pregunta abierta: el dibujo del icono.
+
+   La otra —DÓNDE va el mando— la cerró el dueño el 21 sep, y se cerró sacándolo
+   del lienzo. Aquí vivió `?mando=0|1|2`, tres sitios dentro de la hoja
+   comparados por lo que costaban de ancho (13 px, 13 px, cero). Los tres
+   perdieron por lo mismo: «me sigue chirriando que esté ahí siempre». En la
+   superficie donde se trabaja, lo permanente molesta cueste lo que cueste.
+   Ahora vive en la barra, como capa que solo aparece al pasar por ella, y no
+   hay posición que elegir. Se borra la clave también: un `localStorage` con
+   ajustes que ya no lee nadie es basura que sobrevive al código.
+
+     ?icono=panel   el de la casa de iconos (`PanelLeftClose` / `PanelLeftOpen`)
+     ?icono=marca   una marca propia: la barra DIBUJADA, ancha o estrecha
+
+   Se pone una vez y queda guardado en el aparato. */
+const AJUSTES = {
+  icono: { clave: 'caveman-mando-icono', valores: ['panel', 'marca'], porDefecto: 'panel' },
+};
+
+try {
+  localStorage.removeItem('caveman-mando-sitio');
+} catch {
+  /* Sin almacenamiento no hay nada que limpiar. */
+}
+
+const ajusteGuardado = (nombre) => {
+  const { clave, valores, porDefecto } = AJUSTES[nombre];
+  try {
+    const dela = new URLSearchParams(window.location.search).get(nombre);
+    if (dela !== null) {
+      const limpio = valores.includes(dela) ? dela : porDefecto;
+      localStorage.setItem(clave, limpio);
+      return limpio;
+    }
+    const puesto = localStorage.getItem(clave);
+    return valores.includes(puesto) ? puesto : porDefecto;
+  } catch {
+    return porDefecto;
+  }
+};
+
+/* Se leen UNA vez al arrancar: cambiar de prototipo es recargar, que es lo que
+   se quiere — dos formas del mando vivas en la misma sesión no se comparan, se
+   confunden. */
+const elegido = {};
+const leerAjuste = (nombre) => {
+  if (elegido[nombre] === undefined) {
+    elegido[nombre] =
+      typeof window === 'undefined' ? AJUSTES[nombre].porDefecto : ajusteGuardado(nombre);
+  }
+  return elegido[nombre];
+};
+const sinCambios = () => () => {};
+
+export const useMandoIcono = () =>
+  useSyncExternalStore(sinCambios, () => leerAjuste('icono'), () => AJUSTES.icono.porDefecto);
 
 export const useBarraPlegada = () => {
   const estado = useSyncExternalStore(suscribir, leer, leerEnServidor);

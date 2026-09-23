@@ -35,7 +35,7 @@ const kg = (v) => `${v > 0 ? '+' : ''}${Number(v).toLocaleString('es-ES', { maxi
  *   objetivo no vive en otra pantalla, se edita en la ventana de las fases—. Sin
  *   destino la fila es texto, que es lo que ve el cliente en su portal.
  */
-const Palanca = ({ k, valor, sub, a = null, texto = false }) => {
+export const Palanca = ({ k, valor, sub, a = null, texto = false }) => {
   const dentro = (
     <>
       <span className="palanca-k">
@@ -97,7 +97,6 @@ export const TarjetaPlan = ({
   conEntreno,
   aDieta,
   aEntreno,
-  onAbrirFases,
   /* La foto del ciclo de esta persona (`cycleFoto`): con el ciclo repartido, la
      fila de calorías es su media ponderada y no el primer día del plan. */
   ciclo = null,
@@ -202,7 +201,6 @@ export const TarjetaPlan = ({
           valor={direction?.label || (isClient ? 'Sin objetivo' : invita('Ponle objetivo'))}
           texto
           sub={ritmo !== null && !oculto.weight ? `${kg(ritmo)} kg por semana` : null}
-          a={puerta(onAbrirFases)}
         />
         {conReparto && (
           <li>

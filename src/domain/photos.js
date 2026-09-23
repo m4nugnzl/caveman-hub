@@ -96,6 +96,44 @@ export const ORDEN_DE_ANGULOS = TODOS_LOS_ANGULOS.map((a) => a.id);
 
 export const angleLabel = (id) => angulo(id)?.label || id || 'Sin ángulo';
 
+const LADOS = ['izquierdo', 'derecho'];
+
+/**
+ * El lado de una foto de perfil: el de su ángulo, o el DECLARADO de una lateral
+ * antigua. `null` para las que no son de perfil y para las antiguas sin declarar.
+ *
+ * ── Declarar no es inventar ─────────────────────────────────────────────────
+ * El lado de una lateral antigua no se deduce: lo dice el entrenador, que lo ve
+ * en la foto en un segundo. Como la instrucción de entonces era «mismo lado
+ * siempre», se declara UNA vez por cliente (`lateralesAntiguas`) y se guarda en
+ * cada foto como `lado`, al lado de su ángulo y sin pisarlo.
+ */
+export const ladoDeLaFoto = (photo) => {
+  if (LADOS.includes(photo?.angle)) return photo.angle;
+  if (photo?.angle === 'lateral' && LADOS.includes(photo.lado)) return photo.lado;
+  return null;
+};
+
+/**
+ * EL ÁNGULO CON EL QUE UNA FOTO SE ENSEÑA Y SE COMPARA: el suyo, con la lateral
+ * antigua declarada en su lado.
+ *
+ * Todo lo que agrupa, filtra, ordena, empareja o nombra fotos por ángulo pasa
+ * por aquí y no por `photo.angle`: una lateral declarada izquierda tiene que ir
+ * con las izquierdas en la rejilla de la revisión, en el archivo, en el estudio
+ * y en el nombre del archivo que se descarga. Si una pantalla leyera `angle` a
+ * pelo, volvería a llamarla «Lateral (antiguo)» y la separaría de su serie.
+ *
+ * `photo.angle` queda para lo que es: lo que se subió, lo único que se escribe.
+ */
+export const celdaDeLaFoto = (photo) => ladoDeLaFoto(photo) || photo?.angle || null;
+
+/** El nombre del ángulo de UNA foto, con su lado declarado. */
+export const etiquetaDeLaFoto = (photo) => angleLabel(celdaDeLaFoto(photo));
+
+/** Y su inicial, para las etiquetas donde no cabe la palabra. */
+export const inicialDeLaFoto = (photo) => angleShort(celdaDeLaFoto(photo));
+
 /**
  * LOS ÁNGULOS QUE OFRECE UN FILTRO: los que se piden, más los retirados que
  * esta persona tenga de verdad.
@@ -106,7 +144,7 @@ export const angleLabel = (id) => angulo(id)?.label || id || 'Sin ángulo';
  */
 export const angulosParaFiltrar = (photos = []) => [
   ...ANGLES,
-  ...ANGULOS_RETIRADOS.filter((a) => photos.some((p) => p?.angle === a.id)),
+  ...ANGULOS_RETIRADOS.filter((a) => photos.some((p) => celdaDeLaFoto(p) === a.id)),
 ];
 
 export const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -189,7 +227,7 @@ export const photoFileName = (photo, { clientName = '', week = null } = {}) => {
   return [
     slug(clientName),
     semana != null ? `s${String(semana).padStart(2, '0')}` : null,
-    slug(photo.angle) || 'foto',
+    slug(celdaDeLaFoto(photo)) || 'foto',
     photo.date,
   ]
     .filter(Boolean)
@@ -294,7 +332,7 @@ export const angulosDelPeriodo = (photos = [], { startDate = null, desde = null,
     return w !== null && w >= primera && w < primera + tramo;
   };
 
-  return new Set(photos.filter((p) => p?.angle && dentro(p)).map((p) => p.angle));
+  return new Set(photos.filter((p) => p?.angle && dentro(p)).map(celdaDeLaFoto));
 };
 
 /**
@@ -312,14 +350,15 @@ export const fotosPorAngulo = (photos = [], semana, startDate) => {
   const ahora = new Map();
   const antes = new Map();
   for (const foto of photos) {
-    if (!foto?.angle) continue;
+    const celda = celdaDeLaFoto(foto);
+    if (!celda) continue;
     const w = photoWeek(foto, startDate);
     if (semana !== null && w === semana) {
-      ahora.set(foto.angle, foto);
+      ahora.set(celda, foto);
       continue;
     }
-    const previa = antes.get(foto.angle);
-    if (!previa || w > photoWeek(previa, startDate)) antes.set(foto.angle, foto);
+    const previa = antes.get(celda);
+    if (!previa || w > photoWeek(previa, startDate)) antes.set(celda, foto);
   }
   return { ahora, antes };
 };
@@ -352,7 +391,7 @@ export const sortPhotos = (photos) =>
   [...photos].sort((a, b) => {
     const byDate = String(b.date).localeCompare(String(a.date));
     if (byDate !== 0) return byDate;
-    return ORDEN_DE_ANGULOS.indexOf(a.angle) - ORDEN_DE_ANGULOS.indexOf(b.angle);
+    return ORDEN_DE_ANGULOS.indexOf(celdaDeLaFoto(a)) - ORDEN_DE_ANGULOS.indexOf(celdaDeLaFoto(b));
   });
 
 const dateRangeOf = (photos) => {
@@ -377,7 +416,7 @@ export const suggestPair = (photos) => {
   if (sorted.length < 2) return { before: null, after: sorted[0] || null };
 
   for (const angle of ORDEN_DE_ANGULOS) {
-    const ofAngle = sorted.filter((p) => p.angle === angle);
+    const ofAngle = sorted.filter((p) => celdaDeLaFoto(p) === angle);
     if (ofAngle.length >= 2) {
       return { before: ofAngle[ofAngle.length - 1], after: ofAngle[0] };
     }
@@ -455,7 +494,7 @@ export const weekAngleMatrix = ({ photos, weeks, angles, startDate }) => {
 
   const byKey = new Map();
   for (const photo of sortPhotos(photos)) {
-    const key = `${photoWeek(photo, startDate)}|${photo.angle}`;
+    const key = `${photoWeek(photo, startDate)}|${celdaDeLaFoto(photo)}`;
     // sortPhotos deja la más reciente primero: la primera de cada celda es la
     // que se queda si hay varias del mismo ángulo esa semana.
     if (!byKey.has(key)) byKey.set(key, photo);
@@ -540,7 +579,7 @@ export const photoCoverage = ({ photos = [], startDate, angles = ANGLE_IDS }) =>
     const week = photoWeek(photo, startDate);
     if (week === null || week === undefined) continue;
     if (!byWeek.has(week)) byWeek.set(week, new Set());
-    if (photo.angle) byWeek.get(week).add(photo.angle);
+    if (photo.angle) byWeek.get(week).add(celdaDeLaFoto(photo));
   }
 
   if (byWeek.size === 0) return [];
@@ -564,7 +603,7 @@ export const photoCoverage = ({ photos = [], startDate, angles = ANGLE_IDS }) =>
 };
 
 export const availableAngles = (photos) =>
-  ORDEN_DE_ANGULOS.filter((id) => photos.some((p) => p.angle === id));
+  ORDEN_DE_ANGULOS.filter((id) => photos.some((p) => celdaDeLaFoto(p) === id));
 
 /** Semanas transcurridas entre dos fotos según su semana de programa. */
 export const weekSpan = (before, after, startDate) => {
@@ -619,14 +658,14 @@ export const weekComparison = ({
   const actual = semanas.find((g) => g.week === weekNumber);
   if (!actual) return null;
 
-  const angles = ORDEN_DE_ANGULOS.filter((id) => actual.photos.some((p) => p.angle === id));
+  const angles = ORDEN_DE_ANGULOS.filter((id) => actual.photos.some((p) => celdaDeLaFoto(p) === id));
   if (angles.length === 0) return null;
 
   const elegido = angles.includes(angle) ? angle : angles[0];
-  const after = actual.photos.find((p) => p.angle === elegido) || null;
+  const after = actual.photos.find((p) => celdaDeLaFoto(p) === elegido) || null;
 
   const anteriores = semanas.filter(
-    (g) => g.week < weekNumber && g.photos.some((p) => p.angle === elegido)
+    (g) => g.week < weekNumber && g.photos.some((p) => celdaDeLaFoto(p) === elegido)
   );
   const options = anteriores.map((g) => g.week);
 
@@ -634,7 +673,7 @@ export const weekComparison = ({
   const before =
     contra === null
       ? null
-      : anteriores.find((g) => g.week === contra).photos.find((p) => p.angle === elegido);
+      : anteriores.find((g) => g.week === contra).photos.find((p) => celdaDeLaFoto(p) === elegido);
 
   return {
     angle: elegido,
@@ -647,4 +686,122 @@ export const weekComparison = ({
        —«hace 3 semanas» y no «S2»— cuando el cliente lleva medio año. */
     span: contra === null ? null : weekNumber - contra,
   };
+};
+
+// ── «Cómo se ve»: los cuatro ángulos a la vez (22 sep 2026) ─────────────────
+
+/** Las cuatro celdas de la rejilla, en orden de lectura: fila a fila. */
+export const CELDAS_DE_LA_REJILLA = ['frontal', 'izquierdo', 'derecho', 'espalda'];
+
+/**
+ * LO QUE SE SABE DE SUS LATERALES ANTIGUAS, para decidir qué se le ofrece.
+ *
+ *   · `sinLado`    cuántas siguen sin lado: si hay alguna, se ofrece declararlo.
+ *   · `lado`       el lado de todas las que lo tienen, si es uno solo.
+ *   · `mezcladas`  hay de los dos lados —porque alguna se marcó a mano—. Entonces
+ *                  la declaración por cliente NO se ofrece: aplicarla a ciegas
+ *                  pondría en el mismo lado fotos que alguien vio distintas.
+ *   · `fotos`      las que lleva la declaración: las que siguen siendo `lateral`.
+ *                  Las que se cambiaron de ángulo a mano no se tocan.
+ *
+ * Una lateral antigua es la que se SUBIÓ como `lateral` (la ruta lo dice,
+ * `origen`), aunque después se le cambiara el ángulo.
+ */
+export const lateralesAntiguas = (photos = []) => {
+  const antiguas = photos.filter((p) => p?.angle === 'lateral' || p?.origen === 'lateral');
+  const lados = new Set(antiguas.map(ladoDeLaFoto).filter(Boolean));
+  return {
+    total: antiguas.length,
+    sinLado: antiguas.filter((p) => !ladoDeLaFoto(p)).length,
+    lado: lados.size === 1 ? [...lados][0] : null,
+    mezcladas: lados.size > 1,
+    fotos: antiguas.filter((p) => p.angle === 'lateral'),
+  };
+};
+
+/**
+ * LA REJILLA DE DOS SEMANAS: una celda por ángulo con su Antes y su Ahora.
+ *
+ * Siempre las cuatro celdas que se piden, y un hueco honesto donde una semana no
+ * tiene ese ángulo: la cabecera promete dos semanas, y una pareja que tirase de
+ * una tercera la desmentiría.
+ *
+ * ── La lateral antigua sin lado ─────────────────────────────────────────────
+ *   · Si en las dos semanas no hay ninguna foto con lado, las celdas son tres
+ *     —frontal, lateral, espalda—: las dos son de cuando había una sola lateral,
+ *     y se comparan entre ellas como siempre.
+ *   · Si hay alguna con lado, salen las cuatro, y en la semana que solo tiene la
+ *     antigua sin lado sus dos celdas de perfil lo dicen (`antesSinLado`,
+ *     `ahoraSinLado`) en vez de emparejarla con un lado que no se sabe.
+ *
+ * @param antes  las fotos de la semana de antes.
+ * @param ahora  las de la semana de ahora.
+ */
+export const rejillaDeFotos = ({ antes = [], ahora = [] } = {}) => {
+  const porCelda = (fotos) => {
+    const celdas = new Map();
+    /* La más reciente primero: si hay dos del mismo ángulo, se queda la última. */
+    for (const foto of sortPhotos(fotos)) {
+      const celda = celdaDeLaFoto(foto);
+      if (celda && !celdas.has(celda)) celdas.set(celda, foto);
+    }
+    return celdas;
+  };
+  const a = porCelda(antes);
+  const b = porCelda(ahora);
+  const conLado = [...a.keys(), ...b.keys()].some((c) => LADOS.includes(c));
+  const antigua = a.has('lateral') || b.has('lateral');
+  const ids = !conLado && antigua ? ['frontal', 'lateral', 'espalda'] : CELDAS_DE_LA_REJILLA;
+
+  return ids.map((id) => {
+    const perfil = LADOS.includes(id);
+    return {
+      id,
+      antes: a.get(id) || null,
+      ahora: b.get(id) || null,
+      antesSinLado: perfil && !a.has(id) && a.has('lateral'),
+      ahoraSinLado: perfil && !b.has(id) && b.has('lateral'),
+    };
+  });
+};
+
+/**
+ * QUÉ DOS SEMANAS SE COMPARAN POR DEFECTO, y los dos atajos del selector.
+ *
+ * Una semana contra la anterior casi nunca enseña nada en una foto: el cuerpo no
+ * se mueve lo bastante en siete días para verse. Por eso el Antes por defecto es
+ * el INICIO DE LA FASE —lo que ha hecho este bloque de trabajo—; sin fases, el
+ * inicio de todo; y si la fase empezó justo esta semana, la última anterior con
+ * foto, que es el final de la fase de antes.
+ *
+ * @param semanas     las semanas con foto (números de programa).
+ * @param semana      la semana que se revisa.
+ * @param inicioFase  la semana de programa en la que empieza su fase, o null.
+ * @returns `{ ahora, antes, inicioDeFase, inicio }` — los dos últimos son a qué
+ *   semana lleva cada atajo, o null si no lleva a ninguna anterior a `ahora`.
+ */
+export const semanasParaComparar = ({ semanas = [], semana = null, inicioFase = null } = {}) => {
+  const orden = [...new Set(semanas)].filter((w) => w !== null).sort((x, y) => x - y);
+  if (orden.length === 0) return { ahora: null, antes: null, inicioDeFase: null, inicio: null };
+
+  const ahora =
+    (semana === null ? null : [...orden].reverse().find((w) => w <= semana)) ?? orden[orden.length - 1];
+  const previas = orden.filter((w) => w < ahora);
+  const inicio = previas[0] ?? null;
+  const inicioDeFase = inicioFase === null ? null : previas.find((w) => w >= inicioFase) ?? null;
+  const anterior = previas[previas.length - 1] ?? null;
+  const antes = inicioFase === null ? inicio : inicioDeFase ?? anterior;
+
+  return { ahora, antes, inicioDeFase, inicio };
+};
+
+/**
+ * La media de peso de una semana de programa: la misma cifra que la casilla de
+ * la portada, y no el pesaje del día de la foto —con dos fuentes, la cabecera
+ * y la casilla discrepaban por décimas—.
+ */
+export const mediaDeLaSemana = (history = [], startDate, week) => {
+  const lunes = weekStartOfProgramWeek(startDate, week);
+  if (!lunes) return null;
+  return weeklyWeightAverages(history).find((w) => w.date === lunes)?.value ?? null;
 };

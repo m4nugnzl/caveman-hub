@@ -1,7 +1,13 @@
 import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, FolderOpen, Trash2, Upload } from 'lucide-react';
 
-import { angleLabel, angleShort, angulosParaFiltrar, groupByWeek } from '@/domain/photos';
+import {
+  angulosParaFiltrar,
+  celdaDeLaFoto,
+  etiquetaDeLaFoto,
+  groupByWeek,
+  inicialDeLaFoto,
+} from '@/domain/photos';
 import { Notice, Panel, SectionTitle } from '@/components/ui/primitives';
 import { fmt } from '@/lib/num';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -23,7 +29,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
   const [angleFilter, setAngleFilter] = useState('all');
 
   const filtered = useMemo(
-    () => (angleFilter === 'all' ? photos : photos.filter((p) => p.angle === angleFilter)),
+    () => (angleFilter === 'all' ? photos : photos.filter((p) => celdaDeLaFoto(p) === angleFilter)),
     [photos, angleFilter]
   );
 
@@ -33,7 +39,7 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
     event.stopPropagation();
     const ok = await confirm({
       title: '¿Borrar esta foto?',
-      message: `Se borrará la foto ${angleLabel(photo.angle).toLowerCase()} del ${photo.date}.`,
+      message: `Se borrará la foto ${etiquetaDeLaFoto(photo).toLowerCase()} del ${photo.date}.`,
       detail: 'La imagen se borra también del almacenamiento y no se puede recuperar.',
       confirmLabel: 'Borrar la foto',
       tone: 'danger',
@@ -120,20 +126,20 @@ export const PhotoLibrary = ({ photos, client, usedPhotoIds, onAssign, onDelete,
                           style={{ width: '100%' }}
                           aria-pressed={used}
                           onClick={() => onAssign(photo.id)}
-                          title={`${angleLabel(photo.angle)} · ${photo.date}${photo.derivedWeight ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}`}
+                          title={`${etiquetaDeLaFoto(photo)} · ${photo.date}${photo.derivedWeight ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}`}
                         >
                           {photo.url ? (
                             /* Miniatura de 180 px, no el original de 3 MB. Ver
                                `photos/Thumb.jsx`: si la versión redimensionada no
                                está disponible, cae a la original sola. */
-                            <Thumb url={photo.url} width={180} alt={`${angleLabel(photo.angle)} del ${photo.date}`} />
+                            <Thumb url={photo.url} width={180} alt={`${etiquetaDeLaFoto(photo)} del ${photo.date}`} />
                           ) : (
                             <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                               sin vista previa
                             </span>
                           )}
                           {used && <span className="photo-thumb-slot">✓</span>}
-                          <span className="photo-thumb-tag">{angleShort(photo.angle)}</span>
+                          <span className="photo-thumb-tag">{inicialDeLaFoto(photo)}</span>
                         </button>
 
                         <button

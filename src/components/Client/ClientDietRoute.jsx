@@ -26,6 +26,7 @@ import { dietLog } from '@/domain/timeline';
 import { localeNumber, miles, todayISO, weekdayName } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useReviewRows } from '@/components/review/useReviewRows';
+import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
 import { useOculto } from './Oculto';
 import { DietaEnMonitor } from './DietaEnMonitor';
 import { PantallaComer as ComerEnTelefono } from './movil/PantallaComer';
@@ -72,6 +73,8 @@ export const ClientDietRoute = () => {
   /* Las revisiones traen la otra mitad del histórico de su pauta: la foto que
      queda escrita al cerrar cada una. Mismo gancho que usa «Progreso». */
   const { rows: reviews } = useReviewRows(activeClient?.id, { conEnlaces: false });
+  /* Y la pauta fechada (0124): con ella, cada cambio va en su día. */
+  const versiones = usePautaFechada();
 
   const programa = workoutData?.[activeClient?.id];
   const casillas = useMemo(
@@ -211,7 +214,7 @@ export const ClientDietRoute = () => {
 
   /* El histórico de su pauta, de lo más antiguo a lo más reciente, y desde
      cuándo lleva la de ahora — que es el dato de la frase. */
-  const registros = dietLog({ history: anthropometry?.[activeClient.id]?.history || [], reviews });
+  const registros = dietLog({ history: anthropometry?.[activeClient.id]?.history || [], reviews, versions: versiones });
   const pautas = registros.map((r) => Number(r.nutrition?.kcals) || 0).filter((n) => n > 0);
   const ultimoCambio = [...registros]
     .reverse()

@@ -1,0 +1,559 @@
+<title>El eje temporal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f3f5f8;
+    --surface: #ffffff;
+    --sunk: #e9edf2;
+    --ink: #16202a;
+    --muted: #5a6776;
+    --faint: #8a96a3;
+    --line: #dce2e9;
+    --accent: #2b7ab8;
+    --accent-soft: #e3eef7;
+    --cut: #2a9d8f;
+    --maintain: #7b8794;
+    --bulk: #d99a2b;
+    --anchor: #7a5bc7;
+    --good: #2f8a55;
+    --good-soft: #e3f3e9;
+    --warn: #b7791f;
+    --warn-soft: #fbf0dc;
+    --bad: #c2453d;
+    --bad-soft: #fbe6e4;
+    --hatch: rgba(22, 32, 42, 0.14);
+    --sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "Geist Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0f141a;
+      --surface: #171e26;
+      --sunk: #121820;
+      --ink: #e6ebf0;
+      --muted: #9aa6b3;
+      --faint: #6d7985;
+      --line: #28323d;
+      --accent: #5aa5de;
+      --accent-soft: #1a2d3d;
+      --cut: #3dbcac;
+      --maintain: #8d99a6;
+      --bulk: #e6ad48;
+      --anchor: #a58af0;
+      --good: #58c285;
+      --good-soft: #16291f;
+      --warn: #e0a64a;
+      --warn-soft: #2d2415;
+      --bad: #ee7b72;
+      --bad-soft: #321a19;
+      --hatch: rgba(230, 235, 240, 0.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #0f141a;
+    --surface: #171e26;
+    --sunk: #121820;
+    --ink: #e6ebf0;
+    --muted: #9aa6b3;
+    --faint: #6d7985;
+    --line: #28323d;
+    --accent: #5aa5de;
+    --accent-soft: #1a2d3d;
+    --cut: #3dbcac;
+    --maintain: #8d99a6;
+    --bulk: #e6ad48;
+    --anchor: #a58af0;
+    --good: #58c285;
+    --good-soft: #16291f;
+    --warn: #e0a64a;
+    --warn-soft: #2d2415;
+    --bad: #ee7b72;
+    --bad-soft: #321a19;
+    --hatch: rgba(230, 235, 240, 0.16);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-inline: 16px;
+    padding-block: 40px 80px;
+  }
+  .page { max-width: 960px; margin-inline: auto; display: flex; flex-direction: column; gap: 56px; }
+  h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+  h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 700; letter-spacing: -0.02em; }
+  h2 { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; }
+  h3 { font-size: 16px; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--sunk); padding: 1px 5px; border-radius: 4px; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .muted { color: var(--muted); }
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+  .stack-sm { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── Cabecera ─────────────────────────────────────────── */
+  header.intro { display: flex; flex-direction: column; gap: 14px; }
+  .status { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 500; padding: 3px 10px; border-radius: 999px;
+    background: var(--sunk); color: var(--muted);
+  }
+  .chip.ok { background: var(--good-soft); color: var(--good); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); }
+  .lede { font-size: 17px; color: var(--muted); max-width: 62ch; }
+
+  /* ── El eje (firma) ───────────────────────────────────── */
+  .eje-wrap {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .eje-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .countdown { font-family: var(--mono); font-size: 13px; color: var(--anchor); font-weight: 500; }
+  .eje-scroll { overflow-x: auto; padding-top: 28px; padding-right: 2px; }
+  .eje {
+    min-width: 760px; position: relative;
+    display: grid; grid-template-columns: 76px repeat(26, 1fr); row-gap: 10px;
+  }
+  .lane-label { font-size: 12px; font-weight: 600; color: var(--muted); align-self: center; }
+  .seg {
+    height: 34px; border-radius: 6px; padding-inline: 8px;
+    display: flex; align-items: center; font-size: 12px; font-weight: 500;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff;
+  }
+  .seg.cut { background: var(--cut); }
+  .seg.maintain { background: var(--maintain); }
+  .seg.bulk { background: var(--bulk); color: #1d1606; }
+  .seg.block { background: var(--sunk); color: var(--ink); border: 1px solid var(--line); }
+  .seg.block.plan { background: transparent; border-style: dashed; color: var(--muted); }
+  .seg.gap {
+    background: repeating-linear-gradient(135deg, var(--hatch) 0 5px, transparent 5px 10px);
+    color: var(--ink); border: 1px dashed var(--faint); justify-content: center;
+  }
+  .axis { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(26, 1fr); font-family: var(--mono); font-size: 10.5px; color: var(--faint); }
+  .axis span { border-left: 1px solid var(--line); padding-left: 3px; }
+  .marker { position: absolute; top: -4px; bottom: 18px; width: 0; border-left: 2px solid var(--anchor); }
+  .marker.today { border-left: 2px dotted var(--accent); }
+  .marker-tag {
+    position: absolute; top: -22px; transform: translateX(-50%); white-space: nowrap;
+    font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px;
+  }
+  .marker .marker-tag { background: var(--anchor); color: #fff; }
+  .marker.today .marker-tag { background: var(--accent); }
+  .eje-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); }
+  .eje-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  /* ── Secciones ────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 20px; }
+  .sec-head { display: flex; flex-direction: column; gap: 6px; }
+  .verdict { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 18px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .card.pick { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card.out { opacity: 0.72; }
+  .card p { font-size: 14px; }
+  .card .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+  .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; background: var(--sunk); }
+  tr:last-child td { border-bottom: 0; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* Barras del desfase */
+  .bars { display: flex; flex-direction: column; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .bar-row { display: grid; grid-template-columns: 120px 1fr 92px; gap: 12px; align-items: center; font-size: 14px; }
+  .bar-track { height: 12px; background: var(--sunk); border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--bad); border-radius: 999px; }
+  .bar-fill.small { background: var(--warn); }
+  .bar-val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; }
+  @media (max-width: 480px) { .bar-row { grid-template-columns: 88px 1fr 72px; gap: 8px; } }
+
+  /* Casos del tramo */
+  .caso { display: flex; flex-direction: column; gap: 8px; }
+  .mini { position: relative; height: 26px; display: flex; gap: 2px; }
+  .mini .seg { height: 26px; font-size: 11px; }
+  .mini .anchor-line { position: absolute; top: -4px; bottom: -4px; border-left: 2px solid var(--anchor); }
+  .over { background: repeating-linear-gradient(135deg, var(--bad-soft) 0 5px, transparent 5px 10px) !important; border: 1px dashed var(--bad); color: var(--bad) !important; }
+  .open-end { -webkit-mask-image: linear-gradient(90deg, #000 60%, transparent); mask-image: linear-gradient(90deg, #000 60%, transparent); }
+
+  pre {
+    margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.55;
+    background: var(--sunk); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; color: var(--ink);
+  }
+  .formula { font-family: var(--mono); font-size: 13.5px; }
+
+  .callout {
+    border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 6px;
+    background: var(--bad-soft); color: var(--ink);
+  }
+  .callout.info { background: var(--accent-soft); }
+  .callout strong { color: var(--bad); }
+  .callout.info strong { color: var(--accent); }
+
+  /* Orden de trabajo: es una secuencia real */
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; counter-reset: paso; }
+  ol.steps li {
+    counter-increment: paso; display: grid; grid-template-columns: 40px 1fr; gap: 14px;
+    padding-block: 14px; border-top: 1px solid var(--line);
+  }
+  ol.steps li:first-child { border-top: 0; }
+  ol.steps li::before {
+    content: counter(paso); font-family: var(--mono); font-size: 13px; font-weight: 500;
+    width: 30px; height: 30px; border-radius: 999px; display: grid; place-items: center;
+    background: var(--sunk); color: var(--muted);
+  }
+  ol.steps li.gate::before { background: var(--accent); color: #fff; }
+  ol.steps .step-body { display: flex; flex-direction: column; gap: 4px; }
+  ol.steps .step-body p { font-size: 14px; color: var(--muted); }
+  .files { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  .decide { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .decide { grid-template-columns: 1fr; } }
+  .decide .card h3 { font-size: 15px; }
+  .rec { font-size: 13px; color: var(--accent); font-weight: 500; }
+
+  ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+  footer { font-size: 13px; color: var(--faint); border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+
+<main class="page">
+
+  <header class="intro">
+    <span class="eyebrow">Caveman Hub · Prompt 6A · 21 sep 2026</span>
+    <h1>El eje temporal</h1>
+    <p class="lede">Cómo conectar lo que ya existe —fases, bloques y eventos del calendario— para saber dónde está el atleta, hacia dónde va, qué viene después y qué veníamos haciendo. Sin reescribir nada y sin que la app decida por el entrenador.</p>
+    <div class="status">
+      <span class="chip warn">Propuesta · pendiente de aprobar</span>
+      <span class="chip">Sin migración escrita</span>
+      <span class="chip">Detalle completo en docs/eje-temporal.md</span>
+    </div>
+  </header>
+
+  <!-- ══ La firma: el eje dibujado ══ -->
+  <section aria-labelledby="eje-t">
+    <div class="eje-wrap">
+      <div class="eje-head">
+        <h2 id="eje-t" style="font-size:18px">Lo que verá el entrenador</h2>
+        <span class="countdown">Nacional 2027 · faltan 18 semanas</span>
+      </div>
+      <p class="muted" style="font-size:14px">Ejemplo. Dos carriles sobre las mismas fechas: el cuerpo (fases) y el entreno (bloques). El ancla es la competición, y el plan se mide contra ella: aquí las fases acaban dos semanas antes, y ese hueco se dibuja. No sale ningún error.</p>
+      <div class="eje-scroll">
+        <div class="eje" role="img" aria-label="Carril de fases: volumen 10 semanas, definición 14 semanas, hueco de 2 semanas hasta la competición. Carril de bloques: acumulación, intensificación, descarga, acumulación, intensificación y un bloque abierto previsto.">
+          <!-- carril fases -->
+          <span class="lane-label" style="grid-row:1;grid-column:1">Cuerpo</span>
+          <div class="seg bulk" style="grid-row:1;grid-column:2 / span 10">Volumen · 10 sem · +0,25 %</div>
+          <div class="seg cut" style="grid-row:1;grid-column:12 / span 14">Definición · 14 sem · −0,6 %</div>
+          <div class="seg gap" style="grid-row:1;grid-column:26 / span 2">hueco 2 sem</div>
+          <!-- carril bloques -->
+          <span class="lane-label" style="grid-row:2;grid-column:1">Entreno</span>
+          <div class="seg block" style="grid-row:2;grid-column:2 / span 5">Acumulación</div>
+          <div class="seg block" style="grid-row:2;grid-column:7 / span 4">Intensif.</div>
+          <div class="seg block" style="grid-row:2;grid-column:11 / span 1">D</div>
+          <div class="seg block" style="grid-row:2;grid-column:12 / span 6">Acumulación</div>
+          <div class="seg block" style="grid-row:2;grid-column:18 / span 5">Intensificación</div>
+          <div class="seg block plan" style="grid-row:2;grid-column:23 / span 3">previsto</div>
+          <!-- eje -->
+          <div class="axis" style="grid-row:3">
+            <span>5 oct</span><span></span><span></span><span></span><span>2 nov</span><span></span><span></span><span></span><span>30 nov</span><span></span><span></span><span></span><span></span><span>4 ene</span><span></span><span></span><span></span><span>1 feb</span><span></span><span></span><span></span><span>1 mar</span><span></span><span></span><span></span><span></span>
+          </div>
+          <!-- marcas: columna 2 empieza en 76px; 26 columnas en el resto -->
+          <div class="marker today" style="left:calc(76px + (100% - 76px) * 8 / 26)"><span class="marker-tag">hoy</span></div>
+          <div class="marker" style="left:100%"><span class="marker-tag" style="transform:translateX(-100%)">Nacional · 4 abr</span></div>
+        </div>
+      </div>
+      <div class="eje-legend">
+        <span><i class="sw" style="background:var(--bulk)"></i>Volumen</span>
+        <span><i class="sw" style="background:var(--cut)"></i>Definición</span>
+        <span><i class="sw" style="background:var(--maintain)"></i>Mantenimiento</span>
+        <span><i class="sw" style="background:var(--sunk);border:1px solid var(--line)"></i>Bloque escrito</span>
+        <span><i class="sw" style="border:1px dashed var(--faint)"></i>Bloque previsto (<code>plannedWeeks</code>)</span>
+        <span><i class="sw" style="background:var(--anchor)"></i>Ancla</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 1 ══ -->
+  <section aria-labelledby="s1">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 1</span>
+      <h2 id="s1">Fase y bloque: dos carriles, no uno dentro del otro</h2>
+    </div>
+    <div class="verdict">
+      <span class="chip ok">No se anidan · confirmado</span>
+      <span class="chip bad">El puente <code>weekStartOfProgramWeek</code> · refutado</span>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Por qué no se anidan</h3>
+        <ul class="plain">
+          <li>El último bloque siempre está abierto y <code>plannedWeeks</code> es opcional. Un bloque sin final no cabe dentro de una fase con final.</li>
+          <li>Una definición de 12 semanas atraviesa acumulación, intensificación y descarga. Un split puede seguir igual al pasar de definición a mantenimiento.</li>
+          <li>Anidarlos ataría dos editores (Entreno y Sus fases) a los mismos datos y obligaría a migrar el <code>jsonb</code> de cada programa.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Qué se pierde en paralelo</h3>
+        <p>Solo el enlace explícito del tipo «este bloque sirve a esta fase». El entrenador lo ve igual con un carril encima del otro, y no hay que migrar nada.</p>
+      </div>
+    </div>
+
+    <div class="stack-sm">
+      <h3>El puente que proponía el encargo cuenta mal las fechas</h3>
+      <p class="muted" style="font-size:14px"><code>weekStartOfProgramWeek</code> calcula «lunes del alta + (N − 1) × 7». Da por hecho que el microciclo 1 empieza con el alta, que no hay pausas y que un microciclo dura 7 días. En la demo no se cumple en ningún cliente:</p>
+    </div>
+    <div class="bars" role="img" aria-label="Desfase entre la fecha calculada y la real del microciclo 1">
+      <div class="bar-row"><span>Iván Tormo</span><div class="bar-track"><div class="bar-fill" style="width:100%"></div></div><span class="bar-val">21 sem</span></div>
+      <div class="bar-row"><span>Álvaro Pino</span><div class="bar-track"><div class="bar-fill" style="width:71.4%"></div></div><span class="bar-val">15 sem</span></div>
+      <div class="bar-row"><span>Javier Ortega</span><div class="bar-track"><div class="bar-fill" style="width:38.1%"></div></div><span class="bar-val">8 sem</span></div>
+      <div class="bar-row"><span>Marta Ruiz</span><div class="bar-track"><div class="bar-fill" style="width:14.3%"></div></div><span class="bar-val">3 sem</span></div>
+      <div class="bar-row"><span>Claudia Rey</span><div class="bar-track"><div class="bar-fill small" style="width:4.1%"></div></div><span class="bar-val">6 días</span></div>
+      <div class="bar-row"><span>Nerea Sanz</span><div class="bar-track"><div class="bar-fill small" style="width:4.1%"></div></div><span class="bar-val">6 días</span></div>
+    </div>
+
+    <div class="callout info">
+      <strong>El puente bueno ya existe: <code>microcycle.date</code></strong>
+      <p style="font-size:14px">Una función pura nueva en <code>blocks.js</code>: <code>tramoDelBloque(program, block, client)</code>. <code>desde</code> es la fecha del primer microciclo del bloque y <code>hasta</code> es la del último más lo que dura su ciclo (<code>cycleSpanDays</code>, que sirve también para los rotativos). Si el bloque tiene <code>plannedWeeks</code>, lo que falta se dibuja a trazos. Solo sin fecha, en programas viejos, se cae a la cuenta antigua y se marca como estimado.</p>
+    </div>
+  </section>
+
+  <!-- ══ 2 ══ -->
+  <section aria-labelledby="s2">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 2</span>
+      <h2 id="s2">El ancla: una marca en el evento, y el plan medido por fechas</h2>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dónde podría vivir</th><th>Veredicto</th><th>Por qué</th></tr></thead>
+        <tbody>
+          <tr><td><code>preferences.roadmap</code></td><td><span class="chip bad">No</span></td><td>El cliente puede reescribir sus preferencias enteras (<code>set_client_preferences</code>, 0008), así que podría mover su propia meta.</td></tr>
+          <tr><td>Un enlace en cada fase</td><td><span class="chip bad">No</span></td><td>Obliga a etiquetar cada fase y permite contradicciones: una fase que apunta a un ancla y termina después de ella.</td></tr>
+          <tr><td>Tabla de temporadas</td><td><span class="chip bad">No</span></td><td>Se deriva sola (pregunta 5).</td></tr>
+          <tr><td><code>client_events.ancla</code></td><td><span class="chip ok">Sí</span></td><td>Una marca en un evento <code>race</code> o <code>goal</code>. Sigue el mismo patrón que <code>privada</code> (0106).</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="stack-sm">
+      <h3>Cómo se mide el plan</h3>
+      <p class="muted" style="font-size:14px">El tramo hacia un ancla son las fases con <code>ancla anterior ≤ starts_on &lt; ancla</code>. Luego se mira solo cómo acaba la última. Los cuatro resultados se dibujan; ninguno es un error:</p>
+    </div>
+    <div class="grid-2">
+      <div class="card caso">
+        <div class="top"><h3>Llega</h3><span class="chip ok">acaba la víspera o el día</span></div>
+        <div class="mini"><div class="seg bulk" style="flex:4">Volumen</div><div class="seg cut" style="flex:6">Definición</div><span class="anchor-line" style="left:100%"></span></div>
+      </div>
+      <div class="card caso">
+        <div class="top"><h3>Hueco</h3><span class="chip warn">faltan días</span></div>
+        <div class="mini"><div class="seg bulk" style="flex:4">Volumen</div><div class="seg cut" style="flex:4">Definición</div><div class="seg gap" style="flex:2">2 sem</div><span class="anchor-line" style="left:100%"></span></div>
+      </div>
+      <div class="card caso">
+        <div class="top"><h3>Exceso</h3><span class="chip warn">se pasa</span></div>
+        <div class="mini"><div class="seg bulk" style="flex:4">Volumen</div><div class="seg cut" style="flex:5">Definición</div><div class="seg over" style="flex:2">+10 días</div><span class="anchor-line" style="left:81.8%"></span></div>
+      </div>
+      <div class="card caso">
+        <div class="top"><h3>Abierta</h3><span class="chip">no se sabe</span></div>
+        <div class="mini"><div class="seg bulk" style="flex:4">Volumen</div><div class="seg cut open-end" style="flex:6">Definición, sin final</div><span class="anchor-line" style="left:100%"></span></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Cuenta atrás</h3>
+        <p>La próxima ancla desde hoy: «faltan 14 semanas», con semanas redondeadas hacia arriba igual que <code>phaseProgress</code>. Por debajo de 14 días se cuenta en días. Sale en Sus fases, en la tarjeta de objetivos del Resumen y en el Inicio del cliente.</p>
+      </div>
+      <div class="card">
+        <h3>Quién la toca</h3>
+        <p>Solo el entrenador. El cliente no puede crear un ancla ni editar o borrar un evento que lo sea. Puede apuntar su carrera y, si el entrenador la marca como ancla, a partir de ahí es del entrenador.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3 ══ -->
+  <section aria-labelledby="s3">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 3 · decides tú</span>
+      <h2 id="s3">Si la competición cambia de fecha</h2>
+    </div>
+    <div class="grid-3">
+      <div class="card pick">
+        <div class="top"><h3>C · No mover nada</h3><span class="chip accent">por defecto</span></div>
+        <p>El ancla se mueve, las fases se quedan y aparece el hueco o el exceso. Es lo que pide el límite: la app enseña y no reajusta.</p>
+      </div>
+      <div class="card pick">
+        <div class="top"><h3>A · Desplazar las futuras</h3><span class="chip accent">casilla opcional</span></div>
+        <p>Solo las que aún no han empezado. Las pasadas no se tocan porque cambiaría cómo se juzgaron esas semanas (<code>WeekReview:728</code>), y la fase en curso no se mueve de inicio.</p>
+      </div>
+      <div class="card out">
+        <div class="top"><h3>B · Estirarlas</h3><span class="chip bad">descartado</span></div>
+        <p>Para repartir los días habría que decidir cuánto le toca a cada fase, y eso es recetar. Además salen semanas no enteras y los ritmos cambian de sentido.</p>
+      </div>
+    </div>
+    <div class="callout info">
+      <strong>Recomendación: C, con A como casilla desmarcada</strong>
+      <p style="font-size:14px">Al mover el evento, el diálogo dice «las fases no se mueven; quedará un hueco de 3 semanas» y ofrece «Mover también las 2 fases que aún no han empezado». Si eliges A, hace falta una función en la base que mueva las fases en orden dentro de una sola transacción. Si se movieran una a una, chocarían con la regla de no solaparse a mitad de camino. Esa regla (<code>EXCLUDE</code>) no se toca.</p>
+    </div>
+  </section>
+
+  <!-- ══ 4 ══ -->
+  <section aria-labelledby="s4">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 4</span>
+      <h2 id="s4">Peso objetivo: basta con el del cliente, y hay un fallo</h2>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Por fase: no</h3>
+        <p>El destino de una fase ya sale de su peso de arranque + ritmo × semanas (<code>phaseProjection</code>). Un segundo número tecleado a mano acabaría contradiciendo esa cuenta, que es la que decide los veredictos.</p>
+      </div>
+      <div class="card">
+        <h3>Solo dos pesos</h3>
+        <p>El del cliente (<code>preferences.goal.targetWeightKg</code>) marca dónde acaba el proceso. En las competiciones con categoría, además, un <strong>peso límite</strong> en el evento. Es un tope, no un objetivo.</p>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Fallo: con una fase en curso, el cliente deja de ver su peso objetivo</strong>
+      <p style="font-size:14px"><code>effectiveGoal</code> devuelve el objetivo de la fase, que no incluye <code>targetWeightKg</code>. Peso, Progreso e Inicio del portal lo leen de ahí y lo pierden. El entrenador lo sigue viendo porque lee <code>clientGoal</code> directamente. Se arregla con una línea dentro de 6A y no cambia ningún veredicto.</p>
+    </div>
+  </section>
+
+  <!-- ══ 5 ══ -->
+  <section aria-labelledby="s5">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 5</span>
+      <h2 id="s5">La temporada se deriva sola</h2>
+    </div>
+    <pre class="formula">temporada k = fases con  ancla(k−1) ≤ starts_on &lt; ancla(k)
+nombre      = el título del ancla        → «Nacional 2027»
+arranque    = starts_on de su primera fase
+final       = la fecha del ancla</pre>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Lo que contesta</h3>
+        <ul class="plain">
+          <li><strong>Dónde está:</strong> la fase de hoy y su temporada.</li>
+          <li><strong>Hacia dónde va:</strong> el ancla y la cuenta atrás.</li>
+          <li><strong>Qué viene:</strong> el tramo siguiente.</li>
+          <li><strong>Qué veníamos haciendo:</strong> los tramos hasta anclas pasadas.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Los casos que no se derivan</h3>
+        <ul class="plain">
+          <li>Una temporada sin competición («año de volumen»): un evento <code>goal</code> marcado como ancla. Ya existe.</li>
+          <li>Dos competiciones principales: cada una cierra su tramo. Si un día hace falta distinguir principal de secundaria, <code>ancla</code> pasa a ser un texto con dos valores.</li>
+          <li>Si se borra el evento ancla, su temporada desaparece y las fases se quedan.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 6 ══ -->
+  <section aria-labelledby="s6">
+    <div class="sec-head">
+      <span class="eyebrow">Pregunta 6</span>
+      <h2 id="s6">Competiciones externas: el sitio hecho, sin importación</h2>
+    </div>
+    <pre>client_events.competicion jsonb   -- solo en kind = 'race'
+{
+  "federacion":   "texto libre",
+  "categoria":    "−83 kg, Men's Physique…",
+  "sede":         "texto libre",
+  "pesoLimiteKg": 83              -- opcional
+}</pre>
+    <p class="muted" style="font-size:14px">Va en un <code>jsonb</code> porque cada federación nombra las categorías a su manera, y la forma de estos campos no se sabrá hasta que haya una fuente real. Es el mismo criterio que <code>next_options</code> (0073).</p>
+    <div class="card">
+      <h3>El calendario de las federaciones naturales es un problema abierto. Faltaría decidir:</h3>
+      <ul class="plain">
+        <li><strong>Qué federaciones.</strong> Hay que preguntar a los entrenadores de la cartera cuáles usan.</li>
+        <li><strong>Qué publican.</strong> Casi siempre web, PDF o redes, sin un formato que se pueda leer automáticamente.</li>
+        <li><strong>Quién lo mantiene.</strong> Nosotros a mano, un acuerdo para recibir un feed ICS o CSV, o un catálogo que rellenen los entrenadores y haya que moderar. El scraping queda fuera.</li>
+        <li><strong>Copiar o apuntar.</strong> El evento copia la fecha. Si apuntara al catálogo, un cambio de la federación movería el ancla sola.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ══ Cómo se hace ══ -->
+  <section aria-labelledby="s7">
+    <div class="sec-head">
+      <span class="eyebrow">Orden de trabajo</span>
+      <h2 id="s7">Cómo se construye, una vez aprobado</h2>
+      <p class="muted">Cada paso deja la app funcionando. Hasta el paso 5 no se ve nada nuevo.</p>
+    </div>
+    <div class="card" style="padding-block:6px">
+      <ol class="steps">
+        <li class="gate"><div class="step-body"><h3>Decides las cuatro preguntas de abajo</h3><p>Sin eso no se escribe esquema.</p></div></li>
+        <li><div class="step-body"><h3>Migración <code>0122_el_plan_apunta_a_una_fecha.sql</code></h3><p>Añade <code>ancla</code> y <code>competicion</code>, dos comprobaciones, un índice parcial y las políticas de eventos que impiden al cliente tocar un ancla. Los datos que ya existen se quedan como están.</p><span class="files">supabase/migrations · lib/mappers.js</span></div></li>
+        <li><div class="step-body"><h3>Arreglar el peso objetivo en <code>effectiveGoal</code></h3><p>Conserva el <code>targetWeightKg</code> del cliente también cuando manda una fase, con su test.</p><span class="files">domain/roadmap.js · roadmap.test.js</span></div></li>
+        <li><div class="step-body"><h3>Dominio puro, con tests</h3><p><code>tramoDelBloque</code>, <code>anclaSiguiente</code>, <code>tramosHaciaAnclas</code> (llega, hueco, exceso o abierta, también por cada camino de un cruce) y <code>temporadas</code>. Los tests cubren rotativos, programas sin fecha y fases abiertas.</p><span class="files">domain/blocks.js · domain/roadmap.js</span></div></li>
+        <li><div class="step-body"><h3>El eje en Sus fases</h3><p>El carril de bloques debajo del de fases, la raya del ancla y el hueco o el exceso dibujados. Es lo mismo para el cliente, en solo lectura.</p><span class="files">components/roadmap/RoadmapPanel.jsx</span></div></li>
+        <li><div class="step-body"><h3>La cuenta atrás donde se mira</h3><p>Una línea en la tarjeta de objetivos del Resumen y otra junto a la fase en el Inicio del cliente. Sin ancla, no aparece.</p><span class="files">dashboard/Dashboard.jsx · Client/ClientStart.jsx</span></div></li>
+        <li><div class="step-body"><h3>El calendario</h3><p>La casilla «El plan apunta aquí» en competiciones y objetivos, solo para el entrenador. Los campos de competición en <code>race</code>. Si eliges A, el diálogo al mover un ancla.</p><span class="files">calendar/* · context/useCalendar.js</span></div></li>
+        <li><div class="step-body"><h3>Enmienda en <code>docs/producto.md</code> y validación</h3><p>Con el mismo formato que las del 28 de agosto. Después lint, tests, build y capturas con la demo local en claro, oscuro y móvil.</p></div></li>
+      </ol>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Consumidor</th><th>Qué cambia</th></tr></thead>
+        <tbody>
+          <tr><td><code>effectiveGoal</code></td><td>Conserva el peso objetivo. <strong>No se entera del ancla</strong>: el orden fase → objetivo suelto → <code>null</code> no cambia.</td></tr>
+          <tr><td><code>RoadmapPanel</code></td><td>Carril de bloques, ancla, hueco y exceso. <code>FasesPopup</code> no cambia.</td></tr>
+          <tr><td>Resumen · <code>ClientStart</code></td><td>La cuenta atrás.</td></tr>
+          <tr><td>Portal: Peso, Progreso, Inicio</td><td>Vuelven a enseñar el peso objetivo, sin cambios en su código.</td></tr>
+          <tr><td><code>reading.js</code>, <code>WeekReview</code>, <code>TarjetaProgreso</code>, <code>fork.js</code>, <code>phases_ending_soon</code></td><td><span class="chip">Nada</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══ Límite ══ -->
+  <section aria-labelledby="s8">
+    <div class="sec-head">
+      <span class="eyebrow">Límite duro</span>
+      <h2 id="s8">Lo que la app no hará</h2>
+    </div>
+    <p>No propondrá fases para tapar un hueco, no repartirá el exceso, no avisará de que el plan no llega y no moverá nada cuando una federación cambie una fecha. Esos tres automatismos quedan como propuesta, no se construyen. Tiene sentido volver a ellos cuando se haya visto cómo se usa la versión que solo enseña.</p>
+  </section>
+
+  <!-- ══ Decisiones ══ -->
+  <section aria-labelledby="s9">
+    <div class="sec-head">
+      <span class="eyebrow">Lo que necesito de ti</span>
+      <h2 id="s9">Cuatro decisiones antes de escribir la migración</h2>
+    </div>
+    <div class="decide">
+      <div class="card"><h3>1 · Si la competición cambia de fecha</h3><p>C sola, C con A como casilla, o A siempre.</p><span class="rec">Recomiendo: C con A como casilla</span></div>
+      <div class="card"><h3>2 · Marcar como hecha una competición ancla</h3><p>¿El cliente puede o no? Si sí, la política le deja cambiar solo <code>done</code>.</p><span class="rec">Recomiendo: que no pueda</span></div>
+      <div class="card"><h3>3 · El peso límite</h3><p>¿Entra ya en la competición, o espera a que haya un cliente con categoría de peso?</p><span class="rec">Recomiendo: que entre, cuesta una clave</span></div>
+      <div class="card"><h3>4 · El desfase de semanas</h3><p>¿Abro un encargo aparte para la cartera, la revisión y la línea de tiempo, que usan el mismo puente mal?</p><span class="rec">Recomiendo: sí, antes de 6A o en paralelo</span></div>
+    </div>
+  </section>
+
+  <footer>
+    Datos de la base local de la demo (6 clientes). Producción no se ha consultado: la consulta de solo lectura para medir el desfase está en <code>docs/eje-temporal.md</code>, §1. También se ha visto, sin tocarlo: el cliente puede reescribir su propio objetivo con <code>set_client_preferences</code>.
+  </footer>
+</main>

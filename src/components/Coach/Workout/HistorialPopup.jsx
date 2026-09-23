@@ -72,7 +72,6 @@ export const HistorialPopup = ({ open, onClose, program, cliente = null, bloque,
       size="lg"
       icono={TrendingUp}
       title="Historial de entrenamiento"
-      sub="Progreso del volumen de carga y cambios estructurales en la planificación"
       onClose={onClose}
     >
       <div className="historial">
@@ -116,7 +115,7 @@ export const HistorialPopup = ({ open, onClose, program, cliente = null, bloque,
                   <div>
                     <dt>entrenos</dt>
                     <dd>
-                      {r.hechas}
+                      {r.planificadas ? r.hechas : r.hechas + r.extra}
                       <small>/{r.planificadas}</small>
                     </dd>
                   </div>

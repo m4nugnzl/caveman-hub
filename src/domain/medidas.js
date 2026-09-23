@@ -139,7 +139,11 @@ export const MEDIDAS_DE_FABRICA = [
     max: 43,
     cuando: 'diaria',
     sentido: 'neutral',
-    color: 'var(--data-orange)',
+    /* Ámbar desde el 20 sep: era `--data-orange`, que se retira por estar a 8°
+       del naranja del aviso. De las cinco medidas de fábrica, el ámbar era la
+       única tinta libre —glucosa roja, pulso teal, tensiones violeta y gris— y
+       además es la que se lee como temperatura sin explicarla. */
+    color: 'var(--data-amber)',
   },
   {
     id: 'restingHr',
@@ -196,9 +200,21 @@ export const MAX_MEDIDAS = 12;
 export const MAX_MEDIDA_NAME = 40;
 export const MAX_MEDIDA_UNIT = 10;
 
-/** Color de las medidas propias: rotan por la paleta de datos, como las preguntas. */
+/**
+ * Color de las medidas propias: rotan por la paleta de datos, como las
+ * preguntas.
+ *
+ * Desde el 20 sep la rueda son EXACTAMENTE las seis tintas categóricas de la
+ * casa, en el orden en que se reparten (ver `docs/lenguaje-visual.md` §7.3).
+ * Entró el rojo en lugar del lima, que se retira.
+ *
+ * Seis y no siete: `--data-slate` queda fuera a propósito. Es la tinta de «la
+ * referencia» —lo comparado, el fantasma, lo que no lleva color— y tiene que
+ * sobrar siempre, o deja de significar eso. Es también lo que contesta
+ * `medidaColor` cuando una medida no dice color.
+ */
 const COLORES = [
-  'var(--data-lime)',
+  'var(--data-rose)',
   'var(--data-blue)',
   'var(--data-pink)',
   'var(--data-amber)',

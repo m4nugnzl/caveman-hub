@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { History, MessageSquare, Play, Scale, Send } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { MEDIDAS_FIJAS } from '@/domain/medidas';
-import { angleLabel } from '@/domain/photos';
+import { etiquetaDeLaFoto } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
+import { estadoDeRevision, puedeTocarLaSemana, revisionesPasadas } from '@/domain/revisionesPasadas';
 import { semanasDelRastro } from '@/domain/tusSemanas';
 import { localeNumber, shortDate, todayISO, weekdayName } from '@/lib/dates';
 import { Fila, Grupo } from '@/components/ui/Grupo';
@@ -50,6 +51,37 @@ const ESTADO = {
   revisada: 'revisada',
   entregada: 'entregada',
   'sin entregar': 'sin entregar',
+  'por entregar': 'por entregar',
+};
+
+/*
+  ══ LA ETIQUETA DE LA FILA, y el motivo en una línea (23 sep 2026) ══════════
+
+  Una revisión que todavía se puede completar se distingue de las cerradas y
+  de las que se pasaron de plazo: lleva el punto de «esto espera» —el mismo
+  que la cola del entrenador— y dice «Completar». Las que ya no, dicen por
+  qué en una línea: «Revisada por tu entrenador», «Cerrada por tu
+  entrenador», «Fuera de plazo». Ningún color: azul invita, y aquí lo único
+  que invita es el punto. Ver `la ley del color`.
+*/
+const etiqueta = (s) => {
+  const r = s.revision;
+  if (r?.completable && s.estado === 'sin entregar') return 'Completar';
+  if (r && !r.editable && r.motivo && s.estado !== 'revisada') return r.motivo;
+  if (s.estado === 'revisada' && r?.motivo === 'Cerrada por tu entrenador') return 'cerrada';
+  if (s.estado === 'entregada' && r?.tarde?.tipo === 'recuperada') return 'entregada tarde';
+  return s.estado ? ESTADO[s.estado] : null;
+};
+
+/* La línea que dice en qué punto está, dentro de la ventana. */
+const lineaDeEstado = (s) => {
+  const r = s.revision;
+  if (r?.completable) {
+    const hasta = r.hasta ? ` hasta el ${shortDate(r.hasta)}` : '';
+    return s.estado === 'entregada' ? `Entregada · puedes corregirla${hasta}` : `Sin entregar · puedes completarla${hasta}`;
+  }
+  if (r?.motivo) return r.motivo;
+  return s.estado ? ESTADO[s.estado] : null;
 };
 /* La tesela: gris siempre, el dibujo dice cómo quedó. Ver `la ley del color`. */
 const ICONO = { revisada: MessageSquare, entregada: Send };
@@ -67,6 +99,7 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
   } = useApp();
   const oculto = useOculto();
   const { rows: revisiones, checkIns } = useReviewRows(activeClient?.id);
+  const navigate = useNavigate();
   /* La ventana: `null` cerrada, `{ semana: null }` la lista entera,
      `{ semana, desdeLista }` una semana. */
   const [capa, setCapa] = useState(null);
@@ -84,6 +117,12 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
   const semanas = useMemo(() => {
     if (!activeClient) return [];
     const protocolo = clientProtocol(activeClient.preferences);
+    const pauta = {
+      entregas: checkIns,
+      preferences: activeClient.preferences,
+      startDate: activeClient.startDate,
+      hoy: todayISO(),
+    };
     return semanasDelRastro({
       history: anthropometry?.[activeClient.id]?.history || [],
       checkIns,
@@ -92,6 +131,10 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
       startDate: activeClient.startDate,
       catalogo: [...(protocolo?.medidas || []), ...MEDIDAS_FIJAS],
       hoy: todayISO(),
+      revisionDe: (lunes) => estadoDeRevision({ lunes, ...pauta }),
+      extras: revisionesPasadas(pauta)
+        .filter((r) => r.completable)
+        .map((r) => r.lunes),
     });
   }, [activeClient, anthropometry, checkIns, revisiones, progressPhotos]);
 
@@ -128,16 +171,34 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
       .join(' · ') || null;
 
   const filas = (lista, desdeLista) =>
-    lista.map((s) => (
-      <Fila
-        key={s.semana}
-        icono={ICONO[s.estado] || Scale}
-        title={titulo(s)}
-        sub={linea(s)}
-        valor={s.estado ? ESTADO[s.estado] : null}
-        onClick={() => setCapa({ semana: s.semana, desdeLista })}
-      />
-    ));
+    lista.map((s) => {
+      const invita = Boolean(s.revision?.completable && s.estado === 'sin entregar');
+      return (
+        <Fila
+          key={s.semana}
+          icono={ICONO[s.estado] || Scale}
+          title={titulo(s)}
+          sub={linea(s) || (invita ? 'Sin nada apuntado' : null)}
+          valor={etiqueta(s)}
+          avisa={invita}
+          onClick={() => setCapa({ semana: s.semana, desdeLista })}
+        />
+      );
+    });
+
+  /* Abrir la revisión de esa semana para completarla o corregirla: la misma
+     pantalla de siempre, contra ESA semana (`useSemanaDeEntrega`). */
+  const completar = (s) => navigate(`/mi/evolucion?semana=${s.revision.lunes}`);
+
+  /* Quitar un pesaje solo donde la base lo aceptaría (0134). */
+  const puedeQuitarEn = (s) =>
+    puedeTocarLaSemana({
+      fecha: s.semana,
+      entregas: checkIns,
+      preferences: activeClient.preferences,
+      startDate: activeClient.startDate,
+      hoy: todayISO(),
+    });
 
   const aLaVista = todas ? semanas : semanas.slice(0, EN_LA_REVISION);
   const quedan = semanas.length - aLaVista.length;
@@ -174,13 +235,7 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
         size="side"
         onClose={() => setCapa(null)}
         title={abierta ? titulo(abierta) : 'Tus semanas'}
-        sub={
-          abierta
-            ? abierta.estado
-              ? ESTADO[abierta.estado]
-              : null
-            : 'Lo que apuntaste, lo que entregaste y lo que te contestó'
-        }
+        sub={abierta ? lineaDeEstado(abierta) : 'Lo que apuntaste, lo que entregaste y lo que te contestó'}
         footer={
           abierta ? (
             <div className="rastro-pie">
@@ -216,7 +271,8 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
             s={abierta}
             medidas={abierta.medidas ? visibles(abierta.medidas.lista) : []}
             conPeso={!oculto.weight}
-            onQuitar={quitar}
+            onQuitar={puedeQuitarEn(abierta) ? quitar : null}
+            onCompletar={abierta.revision?.completable && !abierta.esta ? () => completar(abierta) : null}
           />
         ) : capa ? (
           <div className="list rastro-todas">{filas(semanas, true)}</div>
@@ -227,10 +283,25 @@ export const TusSemanas = ({ conCabecera = true, todas = false }) => {
 };
 
 /** Una semana entera, dentro de la ventana. */
-const Semana = ({ s, medidas, conPeso, onQuitar }) => {
+const Semana = ({ s, medidas, conPeso, onQuitar, onCompletar }) => {
   const nada = !(conPeso && s.pesajes.length) && !medidas.length && !s.fotos.length && !s.respuesta;
   return (
     <div className="rastro-cuerpo">
+      {/* COMPLETARLA, lo primero: es lo único que se puede HACER con una semana
+          pasada. Entregada y sin revisar, el mismo gesto la corrige. */}
+      {onCompletar ? (
+        <div className="rastro-completar">
+          <button type="button" className="btn btn-primary" onClick={onCompletar}>
+            {s.estado === 'entregada' ? 'Corregir esta semana' : 'Completar esta semana'}
+          </button>
+          <p>
+            {s.estado === 'entregada'
+              ? 'Tu entrenador aún no la ha revisado. Lo que cambies le llega marcado.'
+              : 'Apunta lo que te faltó: pesos de esos días, medidas, fotos. Cuenta para esta semana y no toca la de hoy.'}
+          </p>
+        </div>
+      ) : null}
+
       {conPeso && s.media !== null ? (
         <div className="rastro-media">
           <span className="rastro-media-cifra tnum">
@@ -247,7 +318,7 @@ const Semana = ({ s, medidas, conPeso, onQuitar }) => {
           <h4 className="rastro-rotulo">Tus pesajes</h4>
           <ul className="rastro-pesajes">
             {s.pesajes.map((p) => (
-              <Pesaje key={p.id} pesaje={p} onQuitar={() => onQuitar(p)} />
+              <Pesaje key={p.id} pesaje={p} onQuitar={onQuitar ? () => onQuitar(p) : null} />
             ))}
           </ul>
         </div>
@@ -277,14 +348,15 @@ const Semana = ({ s, medidas, conPeso, onQuitar }) => {
             {s.fotos.map((f) => (
               <li key={f.id}>
                 {f.url ? (
-                  <img src={f.url} alt={`Tu foto ${angleLabel(f.angle).toLowerCase()}`} loading="lazy" />
+                  <img src={f.url} alt={`Tu foto ${etiquetaDeLaFoto(f).toLowerCase()}`} loading="lazy" />
                 ) : (
                   <span className="rastro-foto-vacia" aria-hidden="true" />
                 )}
-                {/* `angleLabel` y no un mapa propio de `ANGLES`: aquí salen fotos
-                    del archivo entero, incluidas las de un ángulo que ya no se
-                    pide, y ésas se quedaban rotuladas «Foto». */}
-                <span>{angleLabel(f.angle)}</span>
+                {/* `etiquetaDeLaFoto` y no un mapa propio de `ANGLES`: aquí salen
+                    fotos del archivo entero, incluidas las de un ángulo que ya no
+                    se pide (se quedaban rotuladas «Foto») y las laterales antiguas
+                    con su lado ya declarado. */}
+                <span>{etiquetaDeLaFoto(f)}</span>
               </li>
             ))}
           </ul>
@@ -305,7 +377,7 @@ const Semana = ({ s, medidas, conPeso, onQuitar }) => {
         </div>
       ) : null}
 
-      {nada ? <p className="rastro-nada">Esta semana no apuntaste nada.</p> : null}
+      {nada && !onCompletar ? <p className="rastro-nada">Esta semana no apuntaste nada.</p> : null}
     </div>
   );
 };
@@ -323,7 +395,8 @@ const Pesaje = ({ pesaje, onQuitar }) => {
         {dia.charAt(0).toUpperCase() + dia.slice(1)} {Number(pesaje.fecha.slice(8, 10))}
       </span>
       <span className="rastro-peso tnum">{kg(pesaje.peso)} kg</span>
-      {seguro ? (
+      {/* Una semana revisada o fuera de plazo ya no se toca: el pesaje se lee. */}
+      {!onQuitar ? null : seguro ? (
         <span className="rastro-quitar-si">
           <button type="button" className="btn btn-sm btn-plain" onClick={() => setSeguro(false)}>
             Dejarlo

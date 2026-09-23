@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Check, History, Minus, Plus } from 'lucide-react';
+import { ArrowLeft, Check, CloudOff, History, Minus, Plus } from 'lucide-react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
-import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer } from '../sesion';
+import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
 import { Descanso } from './Descanso';
 
 /**
@@ -261,14 +261,18 @@ export const PantallaSesion = ({ datos }) => {
                 <button
                   key={i}
                   type="button"
-                  className="tel-ses-fila tel-cerrada"
-                  aria-label={`Corregir la serie ${i + 1}: ${resumenDeSerie(s, showRir)}`}
+                  className={`tel-ses-fila tel-cerrada${s.noGuardada ? ' tel-no-guardada' : ''}`}
+                  aria-label={`${s.noGuardada ? 'No guardada. ' : ''}Corregir la serie ${i + 1}: ${resumenDeSerie(s, showRir)}`}
                   onClick={() => abrir(i, { corregir: true })}
                 >
                   <span className="tel-ses-num">{i + 1}</span>
                   <span className="tel-ses-res">{resumenDeSerie(s, showRir)}</span>
-                  <span className="tel-ses-toca">Corregir</span>
-                  <Check className="tel-ses-tic" size={15} strokeWidth={2.6} aria-hidden="true" />
+                  <span className="tel-ses-toca">{s.noGuardada ? 'No guardada' : 'Corregir'}</span>
+                  {s.noGuardada ? (
+                    <CloudOff className="tel-ses-tic" size={15} strokeWidth={2.4} aria-hidden="true" />
+                  ) : (
+                    <Check className="tel-ses-tic" size={15} strokeWidth={2.6} aria-hidden="true" />
+                  )}
                 </button>
               ))}
             </>
@@ -285,6 +289,7 @@ export const PantallaSesion = ({ datos }) => {
                 <div className="tel-ses-viva">
                   <div className="tel-ses-viva-cab">
                     <span className="tel-ses-idx">Serie {i + 1}</span>
+                    {s.noGuardada ? <span className="tel-ses-noguardada">No guardada</span> : null}
                     {objetivoDeSerie(s) ? (
                       <span className="tel-ses-obj">Objetivo: {objetivoDeSerie(s)}</span>
                     ) : null}
@@ -458,7 +463,7 @@ const EstadoDelGuardado = ({ guardado }) => {
   if (status === 'error') {
     return (
       <span className="tel-ses-guardado tel-no" role="alert">
-        No se guardó
+        {textoDelFallo(guardado)}
         {guardado.onRetry ? (
           <button type="button" onClick={guardado.onRetry}>
             Reintentar

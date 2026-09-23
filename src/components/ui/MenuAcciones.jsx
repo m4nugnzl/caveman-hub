@@ -10,8 +10,14 @@ import { useDismissable } from '@/lib/useDismissable';
  *
  * Nació en la hoja de Entreno y es el menú de cualquier fila de mando: con
  * etiqueta es un botón silencioso con su flecha («+ comida ▾»); sin etiqueta
- * es el «···» de más acciones. Los ítems son `{ label, icon, danger, on, run }`;
- * un `null` en la lista pinta un separador.
+ * es el «···» de más acciones. Los ítems son
+ * `{ label, icon, danger, on, run, desactivado, titulo }`; un `null` en la
+ * lista pinta un separador.
+ *
+ * `desactivado` apaga el ítem sin retirarlo, con su porqué en el rótulo del
+ * ratón (`titulo`): un menú que cambia de ítems según el estado hay que volver
+ * a aprenderlo cada vez, y «no se puede, y por esto» informa donde la ausencia
+ * solo deja una duda. Lo estrenó «Quitar el bloque» con un único bloque.
  *
  * `on` (true/false) convierte el ítem en un AJUSTE que se marca: la casilla de
  * verificación va delante y el ítem se lee como «esto está puesto». Es la forma
@@ -112,6 +118,8 @@ export const MenuAcciones = ({
                 role={it.on === undefined ? 'menuitem' : 'menuitemcheckbox'}
                 aria-checked={it.on === undefined ? undefined : it.on}
                 className={`menu-item${it.danger ? ' menu-item-danger' : ''}${it.on === undefined ? '' : ' menu-item-toggle'}${it.on ? ' is-on' : ''}`}
+                disabled={it.desactivado || undefined}
+                {...(it.titulo ? { title: it.titulo } : {})}
                 onClick={() => {
                   setAbierto(false);
                   it.run();

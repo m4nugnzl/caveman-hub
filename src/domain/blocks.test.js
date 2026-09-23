@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MRV_GOALS } from './training';
+import { MRV_GOALS, devolverObjetivo, objetivoPautado, vaciarObjetivo } from './training';
+import { conLoRegistradoDeAhora, mismoPlan } from './deshacer';
 
 import {
   BLOCK_CHANGE,
@@ -57,16 +58,28 @@ import {
   removeBlockExerciseIn,
   restoreBlockExerciseIn,
   moveBlockExerciseIn,
+  setBlockExerciseSchemeIn,
   setBlockExerciseSetsIn,
+  setsDesdeTramos,
+  tramosDeSeries,
+  esquemaDicho,
   setBlockExerciseTargetIn,
   sheetVolumeByGroup,
   updatePlanDayIn,
+  updatePlanExercisesIn,
   proyectarPlanEnDias,
   abreSoloElCiclo,
   cicloPorAbrir,
   semanaDelCliente,
   clientCycleSlots,
   entrenaPorSuCuenta,
+  avisoDeRenombrar,
+  musculoDelNombre,
+  porQueNoSeRenombra,
+  renameBlockExerciseIn,
+  renamePlanExerciseIn,
+  renombrarEnLista,
+  sessionDiff,
 } from './blocks';
 
 const programa = (semanas, extra = {}) => ({
@@ -571,8 +584,8 @@ describe('el bloque en cifras', () => {
      parejas o tres perfectas y una en blanco, y eso es lo que dibuja la fila. */
   it('desglosa cada microciclo para poder dibujarlo', () => {
     expect(blockSummary(p, currentBlock(p)).microciclos).toEqual([
-      { semana: 1, hechas: 2, planificadas: 2 },
-      { semana: 2, hechas: 1, planificadas: 2 },
+      { semana: 1, hechas: 2, planificadas: 2, extra: 0 },
+      { semana: 2, hechas: 1, planificadas: 2, extra: 0 },
     ]);
   });
 
@@ -1086,6 +1099,57 @@ describe('editar los ejercicios de una hoja del bloque', () => {
     expect(hoja(p)[1].sets.every((s) => s.targetReps === '8-10')).toBe(true);
   });
 
+  /*
+    ══ EL ESQUEMA: «1 × 12, 3 × 6-8» ═══════════════════════════════════════
+    Lo que la rejilla del bloque no sabía decir, y que la obligaba a escribir
+    «varias» en la casilla de las repeticiones. Ver `tramosDeSeries`.
+  */
+  it('reparte las series en tramos y conserva lo escrito en cada una', () => {
+    /* Con kilos pautados distintos por serie, que es lo que no puede perderse:
+       repartir la pauta no es volver a escribir el ejercicio. */
+    const conKilos = {
+      ...ejercicio('a', 'Press banca', 4),
+      sets: [80, 85, 90, 90].map((kg) => ({ kg: '', reps: '', rir: '', targetKg: String(kg), targetReps: '8-10', targetRir: '' })),
+    };
+    const base = conPlan();
+    base.blocks[0].sessions[0].exercises[0] = conKilos;
+
+    const p = setBlockExerciseSchemeIn(base, 'b1', 'Push', 'a', [
+      { n: 1, reps: '12' },
+      { n: 3, reps: '6-8' },
+    ]);
+    const sets = hoja(p)[0].sets;
+    expect(sets.map((s) => s.targetReps)).toEqual(['12', '6-8', '6-8', '6-8']);
+    expect(sets.map((s) => s.targetKg)).toEqual(['80', '85', '90', '90']);
+    /* Y lo ven todos los microciclos: es el plan del bloque. */
+    expect(planOfDay(p, 2, 'Push').exercises[0].sets.map((s) => s.targetReps)).toEqual([
+      '12',
+      '6-8',
+      '6-8',
+      '6-8',
+    ]);
+  });
+
+  it('un tramo a cero se quita, y el esquema entero a cero no toca nada', () => {
+    const quitado = setBlockExerciseSchemeIn(conPlan(), 'b1', 'Push', 'a', [
+      { n: 0, reps: '12' },
+      { n: 2, reps: '6-8' },
+    ]);
+    expect(hoja(quitado)[0].sets.map((s) => s.targetReps)).toEqual(['6-8', '6-8']);
+
+    const nada = setBlockExerciseSchemeIn(conPlan(), 'b1', 'Push', 'a', [{ n: 0, reps: '12' }]);
+    expect(hoja(nada)[0].sets).toHaveLength(3);
+  });
+
+  it('el esquema no se pasa de doce series', () => {
+    const p = setBlockExerciseSchemeIn(conPlan(), 'b1', 'Push', 'a', [
+      { n: 9, reps: '12' },
+      { n: 9, reps: '6-8' },
+    ]);
+    expect(hoja(p)[0].sets).toHaveLength(12);
+    expect(hoja(p)[0].sets.filter((s) => s.targetReps === '12')).toHaveLength(9);
+  });
+
   it('lo escrito en el bloque NO pisa la excepción de un microciclo', () => {
     const o = buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', targetId: 'a', exercise: ejercicio('a2', 'Press inclinado'), sobre: 'Press banca' });
     const p = setBlockExerciseSetsIn(conPlan([o]), 'b1', 'Push', 'a', 6);
@@ -1093,6 +1157,68 @@ describe('editar los ejercicios de una hoja del bloque', () => {
     expect(planOfDay(p, 1, 'Push').exercises[0].sets).toHaveLength(6);
     /* El microciclo 2 sigue con lo suyo: para eso es una excepción. */
     expect(planOfDay(p, 2, 'Push').exercises[0].name).toBe('Press inclinado');
+  });
+});
+
+describe('la pauta en tramos', () => {
+  const conReps = (...reps) => ({ sets: reps.map((targetReps) => ({ targetReps })) });
+
+  it('agrupa las series seguidas que piden lo mismo', () => {
+    expect(tramosDeSeries(conReps('6-8', '6-8', '6-8'))).toEqual([{ n: 3, reps: '6-8' }]);
+    expect(tramosDeSeries(conReps('12', '6-8', '6-8', '6-8'))).toEqual([
+      { n: 1, reps: '12' },
+      { n: 3, reps: '6-8' },
+    ]);
+  });
+
+  /* Por POSICIÓN y no por valor: una pirámide que baja y vuelve a subir es lo
+     que está escrito, y agruparla por el número la reordenaría al guardar. */
+  it('no junta tramos iguales que no van seguidos', () => {
+    expect(tramosDeSeries(conReps('12', '6-8', '12'))).toEqual([
+      { n: 1, reps: '12' },
+      { n: 1, reps: '6-8' },
+      { n: 1, reps: '12' },
+    ]);
+  });
+
+  it('sin series no hay tramos', () => {
+    expect(tramosDeSeries({ sets: [] })).toEqual([]);
+    expect(tramosDeSeries(null)).toEqual([]);
+  });
+
+  it('se lee con el aspa pegada y separado por comas', () => {
+    expect(esquemaDicho([{ n: 4, reps: '6-8' }])).toBe('4×6-8');
+    expect(esquemaDicho([{ n: 2, reps: '12' }, { n: 3, reps: '6-8' }])).toBe('2×12, 3×6-8');
+  });
+
+  /* El «1×» repetido no dice nada que la lista no diga ya, y es lo que hacía
+     que una rampa no cupiera en un renglón. Con UN tramo sí se escribe: ahí no
+     hay lista que contar. */
+  it('calla el 1 cuando hay más de un tramo, y lo escribe cuando es el único', () => {
+    expect(esquemaDicho([{ n: 1, reps: '12' }, { n: 3, reps: '6-8' }])).toBe('12, 3×6-8');
+    expect(
+      esquemaDicho([{ n: 1, reps: '6-8' }, { n: 1, reps: '8-10' }, { n: 1, reps: '8-12' }])
+    ).toBe('6-8, 8-10, 8-12');
+    expect(esquemaDicho([{ n: 1, reps: '12' }])).toBe('1×12');
+  });
+
+  /* La vuelta: de tramos a series. Lo que va y vuelve sin perder nada es lo que
+     permite que la rejilla escriba el plan sin abrir la hoja. */
+  it('vuelve a series conservando por posición lo que ya había', () => {
+    const previos = [
+      { kg: '', reps: '', rir: '', targetKg: '80', targetReps: '8-10', targetRir: '2' },
+      { kg: '', reps: '', rir: '', targetKg: '85', targetReps: '8-10', targetRir: '1' },
+    ];
+    const sets = setsDesdeTramos([{ n: 1, reps: '12' }, { n: 2, reps: '6' }], previos);
+    expect(sets.map((s) => s.targetReps)).toEqual(['12', '6', '6']);
+    expect(sets.map((s) => s.targetKg)).toEqual(['80', '85', '85']);
+    /* La tercera nace de la última y sin lo que se anota al entrenar. */
+    expect(sets[2].kg).toBe('');
+  });
+
+  it('ida y vuelta no cambia nada', () => {
+    const ex = conReps('12', '6-8', '6-8');
+    expect(setsDesdeTramos(tramosDeSeries(ex), ex.sets)).toEqual(ex.sets);
   });
 });
 
@@ -1630,5 +1756,252 @@ describe('el ciclo de quien entrena por su cuenta', () => {
   it('rotativo sin día 1 no inventa la semana', () => {
     const client = soloDieta({ cycleType: 'rotating', cyclePattern: { train: 2, rest: 1 } });
     expect(semanaDelCliente(client, programaViejo, clientCycleSlots(client, null), '2026-09-11')).toBeNull();
+  });
+});
+
+/* ══ QUITAR UNA COLUMNA DESDE LA HOJA DE ENTRENO ═══════════════════════════
+   Vaciar el peso de toda la hoja es UNA escritura sobre el programa, y cada
+   ejercicio se escribe donde vive: el del bloque en el bloque, el que solo
+   existe en este microciclo en su excepción. */
+describe('updatePlanExercisesIn: varios ejercicios de la hoja de una vez', () => {
+  const conKg = (ex, kg) => ({ ...ex, sets: ex.sets.map((s) => ({ ...s, targetKg: kg })) });
+  const programa = () => {
+    const p = conPlan([
+      buildOverride({ fromWeek: 2, toWeek: 2, dayName: 'Push', exercise: conKg(ejercicio('c', 'Face pull'), '15') }),
+    ]);
+    const hoja = p.blocks[0].sessions[0];
+    hoja.exercises = [conKg(hoja.exercises[0], '100'), hoja.exercises[1]];
+    return p;
+  };
+
+  it('vacía el peso del bloque y el de la excepción en la misma escritura', () => {
+    const p = programa();
+    const antes = objetivoPautado(planOfDay(p, 2, 'Push').exercises, 'targetKg');
+    expect(Object.keys(antes).sort()).toEqual(['a', 'c']);
+
+    const vaciado = updatePlanExercisesIn(p, 2, 'Push', Object.keys(antes), (ex) => vaciarObjetivo(ex, 'targetKg'));
+    expect(objetivoPautado(planOfDay(vaciado, 2, 'Push').exercises, 'targetKg')).toEqual({});
+    /* El bloque vale para todos sus microciclos: el 1 tampoco pide peso ya. */
+    expect(objetivoPautado(planOfDay(vaciado, 1, 'Push').exercises, 'targetKg')).toEqual({});
+    /* Y lo demás de la serie sigue en su sitio. */
+    expect(planOfDay(vaciado, 2, 'Push').exercises[0].sets[0].targetReps).toBe('8-10');
+  });
+
+  it('el «Deshacer» devuelve el programa como estaba', () => {
+    const p = programa();
+    const antes = objetivoPautado(planOfDay(p, 2, 'Push').exercises, 'targetKg');
+    const ids = Object.keys(antes);
+    const vaciado = updatePlanExercisesIn(p, 2, 'Push', ids, (ex) => vaciarObjetivo(ex, 'targetKg'));
+    const deshecho = updatePlanExercisesIn(vaciado, 2, 'Push', ids, (ex) =>
+      devolverObjetivo(ex, 'targetKg', antes[ex.id])
+    );
+    expect(deshecho).toEqual(p);
+  });
+
+  it('sin ids no escribe nada', () => {
+    const p = programa();
+    expect(updatePlanExercisesIn(p, 2, 'Push', [], (ex) => vaciarObjetivo(ex, 'targetKg'))).toBe(p);
+  });
+});
+
+/* Renombrar un ejercicio ya añadido sin quitarlo: se queda todo lo que lleva
+   dentro, arrastra las excepciones de su hoja y no deja poner un nombre que
+   rompa la identidad por nombre de la casa. */
+describe('cambiar un ejercicio del bloque por otro, con su estructura', () => {
+  const hoja = (p) => blockSessionOf(blocksOf(p)[0], 'Push').exercises;
+  const conTodo = () => {
+    const p = conPlan();
+    p.blocks[0].sessions[0].exercises[0] = {
+      ...p.blocks[0].sessions[0].exercises[0],
+      coachNote: 'Codos a 45°',
+      enlazado: true,
+      restSeconds: 120,
+      sets: [
+        { kg: '', reps: '', rir: '', targetReps: '6-8', targetRir: '2', targetKg: '100' },
+        { kg: '', reps: '', rir: '', targetReps: '6-8', targetRir: '1', tecnica: { id: 'rest-pause' } },
+      ],
+    };
+    return p;
+  };
+
+  it('es otro ejercicio: id nuevo, y se queda con las series, la nota y la superserie', () => {
+    const antes = conTodo();
+    const p = renameBlockExerciseIn(antes, 'b1', 'Push', 'a', '  Press banca pausado ', { id: 'n1' });
+    const [ex] = hoja(p);
+    expect(ex).toEqual({ ...hoja(antes)[0], id: 'n1', name: 'Press banca pausado' });
+    /* Y lo ven todos los microciclos: es la línea base. */
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca pausado', 'Fondos']);
+  });
+
+  it('el músculo cambia solo si se pide', () => {
+    expect(hoja(renameBlockExerciseIn(conPlan(), 'b1', 'Push', 'a', 'Press plano'))[0].muscle).toBe('Pecho');
+    const p = renameBlockExerciseIn(conPlan(), 'b1', 'Push', 'a', 'Remo con barra', { muscle: 'Espalda' });
+    expect(hoja(p)[0]).toMatchObject({ name: 'Remo con barra', muscle: 'Espalda' });
+  });
+
+  it('las excepciones de esa hoja se arrastran: el mismo ejercicio retocado y su «en lugar de»', () => {
+    const retocado = buildOverride({
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a2', 'Press banca', 2),
+      sobre: 'Press banca',
+      fromWeek: 2,
+      toWeek: 2,
+    });
+    const quitado = buildOverride({ dayName: 'Push', targetId: 'a', exercise: null, sobre: 'Press banca', fromWeek: 3 });
+    const p = renameBlockExerciseIn(conPlan([retocado, quitado]), 'b1', 'Push', 'a', 'Press banca pausado', { id: 'n1' });
+    const [o1, o2] = blocksOf(p)[0].overrides;
+    /* Pasan a colgar del ejercicio nuevo. */
+    expect(o1).toMatchObject({ targetId: 'n1', sobre: 'Press banca pausado', exercise: { name: 'Press banca pausado' } });
+    /* Y el retocado también es otro ejercicio: no hereda el id de su registro. */
+    expect(o1.exercise.id).not.toBe('a2');
+    expect(o1.exercise.sets).toHaveLength(2);
+    expect(o2).toMatchObject({ targetId: 'n1', sobre: 'Press banca pausado', exercise: null });
+    /* El microciclo de la excepción enseña el nombre nuevo, no la errata. */
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press banca pausado', 'Fondos']);
+  });
+
+  it('una sustitución de verdad —otro ejercicio— se queda como está, con su «en lugar de» al día', () => {
+    const sustituto = buildOverride({
+      dayName: 'Push',
+      targetId: 'a',
+      exercise: ejercicio('a2', 'Press inclinado'),
+      sobre: 'Press banca',
+      fromWeek: 2,
+      toWeek: 2,
+    });
+    const p = renameBlockExerciseIn(conPlan([sustituto]), 'b1', 'Push', 'a', 'Press plano', { id: 'n1' });
+    expect(blocksOf(p)[0].overrides[0]).toMatchObject({
+      targetId: 'n1',
+      sobre: 'Press plano',
+      exercise: { id: 'a2', name: 'Press inclinado' },
+    });
+    /* Y sigue sustituyéndolo en su semana. */
+    expect(planOfDay(p, 2, 'Push').exercises.map((e) => e.name)).toEqual(['Press inclinado', 'Fondos']);
+  });
+
+  it('no toca las excepciones de otras hojas ni las de otros ejercicios', () => {
+    const otra = buildOverride({ dayName: 'Pull', targetId: 'a', exercise: null, sobre: 'Press banca', fromWeek: 2 });
+    const deFondos = buildOverride({ dayName: 'Push', targetId: 'b', exercise: null, sobre: 'Fondos', fromWeek: 2 });
+    const p = renameBlockExerciseIn(conPlan([otra, deFondos]), 'b1', 'Push', 'a', 'Press plano');
+    expect(blocksOf(p)[0].overrides).toEqual([otra, deFondos]);
+  });
+
+  it('rechaza un nombre vacío o uno que ya está en la hoja, y no escribe nada', () => {
+    const p = conPlan();
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'a', '   ')).toBe(p);
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'a', 'Fondos')).toBe(p);
+    /* Se compara como compara la casa: sin mayúsculas ni espacios de más. */
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'a', ' fondos ')).toBe(p);
+  });
+
+  it('el nombre de un alta de alguna semana en esa hoja también está cogido', () => {
+    const alta = buildOverride({ dayName: 'Push', exercise: ejercicio('c', 'Face pull'), fromWeek: 2, toWeek: 2 });
+    const p = conPlan([alta]);
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'a', 'Face pull')).toBe(p);
+  });
+
+  it('corregir solo las mayúsculas es el mismo ejercicio: vale y conserva su id', () => {
+    expect(hoja(renameBlockExerciseIn(conPlan(), 'b1', 'Push', 'a', 'PRESS BANCA', { id: 'n1' }))[0]).toMatchObject({
+      id: 'a',
+      name: 'PRESS BANCA',
+    });
+  });
+
+  it('lo anotado del ejercicio viejo no se cruza con el nuevo', () => {
+    const p = renameBlockExerciseIn(conPlan(), 'b1', 'Push', 'a', 'Remo con barra', { id: 'n1' });
+    /* Lo registrado apunta a «a», y el plan ya no lo tiene: no hay cruce. */
+    expect(planOfDay(p, 1, 'Push').exercises.map((e) => e.id)).toEqual(['n1', 'b']);
+  });
+
+  it('el mismo nombre, o un ejercicio que no está, no escriben', () => {
+    const p = conPlan();
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'a', 'Press banca')).toBe(p);
+    expect(renameBlockExerciseIn(p, 'b1', 'Push', 'zz', 'Otro')).toBe(p);
+  });
+
+  /* ⌘Z vuelve a la foto de antes con lo registrado de ahora: el renombrado es
+     UN paso, y deshacerlo no se lleva ninguna serie anotada entre medias. */
+  it('se deshace en un paso y lo registrado ni se reescribe ni se pierde', () => {
+    const antes = conPlan();
+    antes.microcycles = antes.microcycles.map((m) => ({ ...m, id: `m${m.weekNumber}` }));
+    const renombrado = renameBlockExerciseIn(antes, 'b1', 'Push', 'a', 'Press plano');
+    expect(mismoPlan(antes, renombrado)).toBe(false);
+
+    const sesion = {
+      id: 's1',
+      dayName: 'Push',
+      entries: [{ exerciseId: 'a', name: 'Press banca', muscle: 'Pecho', sets: [{ kg: '100', reps: '8', rir: '2' }] }],
+    };
+    const conRegistro = {
+      ...renombrado,
+      microcycles: renombrado.microcycles.map((m) => (m.weekNumber === 1 ? { ...m, sessions: [sesion] } : m)),
+    };
+    /* Lo registrado guarda la foto de su nombre: renombrar no la reescribe. */
+    expect(conRegistro.microcycles[0].sessions[0].entries[0].name).toBe('Press banca');
+
+    const deshecho = conLoRegistradoDeAhora(antes, conRegistro);
+    expect(hoja(deshecho).map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
+    expect(mismoPlan(antes, deshecho)).toBe(true);
+    expect(deshecho.microcycles[0].sessions).toEqual([sesion]);
+  });
+});
+
+describe('cambiar un ejercicio por otro desde la hoja de un microciclo', () => {
+  it('un ejercicio del bloque se renombra en el bloque', () => {
+    const p = renamePlanExerciseIn(conPlan(), 2, 'Push', 'a', 'Press plano', { id: 'n1' });
+    expect(planOfDay(p, 1, 'Push').exercises[0]).toMatchObject({ id: 'n1', name: 'Press plano' });
+  });
+
+  it('un alta de esa semana se renombra en su excepción y el bloque no se toca', () => {
+    const alta = buildOverride({ dayName: 'Push', exercise: ejercicio('c', 'Face pul'), fromWeek: 2, toWeek: 2 });
+    const p = renamePlanExerciseIn(conPlan([alta]), 2, 'Push', 'c', 'Face pull', { muscle: 'Hombro', id: 'c2' });
+    expect(blocksOf(p)[0].overrides[0].exercise).toMatchObject({ id: 'c2', name: 'Face pull', muscle: 'Hombro' });
+    expect(blockSessionOf(blocksOf(p)[0], 'Push').exercises.map((e) => e.name)).toEqual(['Press banca', 'Fondos']);
+  });
+
+  it('y tampoco deja repetir un nombre que esa semana ya enseña', () => {
+    const alta = buildOverride({ dayName: 'Push', exercise: ejercicio('c', 'Face pull'), fromWeek: 2, toWeek: 2 });
+    const p = conPlan([alta]);
+    expect(renamePlanExerciseIn(p, 2, 'Push', 'c', 'Fondos')).toBe(p);
+  });
+});
+
+describe('las piezas de cambiar un ejercicio por otro', () => {
+  const lista = [ejercicio('a', 'Press banca'), ejercicio('b', 'Fondos')];
+
+  it('porQueNoSeRenombra dice vacío, repetido o nada', () => {
+    expect(porQueNoSeRenombra(lista, 'a', '')).toBe('vacio');
+    expect(porQueNoSeRenombra(lista, 'a', 'FONDOS')).toBe('repetido');
+    expect(porQueNoSeRenombra(lista, 'a', 'press banca')).toBe(null);
+    expect(porQueNoSeRenombra(lista, 'a', 'Press plano')).toBe(null);
+    expect(avisoDeRenombrar('repetido', ' Fondos ')).toBe('Ya hay un «Fondos» en esta hoja: elige otro.');
+    expect(avisoDeRenombrar(null)).toBe('');
+  });
+
+  it('renombrarEnLista conserva el objeto y devuelve la misma lista si no vale', () => {
+    const nueva = renombrarEnLista(lista, 'a', 'Press plano');
+    expect(nueva[0]).toEqual({ ...lista[0], name: 'Press plano' });
+    expect(nueva[1]).toBe(lista[1]);
+    expect(renombrarEnLista(lista, 'a', 'Fondos')).toBe(lista);
+    expect(renombrarEnLista(lista, 'a', ' ')).toBe(lista);
+  });
+
+  it('el músculo sale de la biblioteca si el nombre está en ella', () => {
+    const biblioteca = [{ name: 'Remo con barra', muscle: 'Espalda' }];
+    expect(musculoDelNombre(biblioteca, ' remo con barra')).toBe('Espalda');
+    expect(musculoDelNombre(biblioteca, 'Press plano')).toBe(null);
+  });
+
+  it('el diario del compositor dice «renombrado», no «fuera» y «entra»', () => {
+    const antes = [{ dayName: 'Push', exercises: lista }];
+    const ahora = [{ dayName: 'Push', exercises: renombrarEnLista(lista, 'a', 'Press plano') }];
+    expect(sessionDiff(antes, ahora)).toEqual([{ hoja: 'Push', tipo: 'mas', texto: 'Press banca → Press plano' }]);
+  });
+
+  it('la bitácora lo cuenta en una línea', () => {
+    expect(describeBlockChange({ kind: BLOCK_CHANGE.NOMBRE, que: 'Press plano', de: 'Press banca', a: 'Press plano' })).toBe(
+      'Press banca → Press plano'
+    );
   });
 });

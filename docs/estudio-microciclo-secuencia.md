@@ -5,7 +5,8 @@ Estudio y plan aprobados el 22 sep 2026. Objetivo: admitir repartos asimétricos
 
 Estado: **F1 construida** (dominio y pruebas, sin UI y sin persistir) y **F2a
 construida** (apariciones y `previstoHasta`) y **F2b construida** (la secuencia
-se guarda en el bloque al escribir). F2c y F3 pendientes.
+se guarda en el bloque al escribir) y **F2c construida** (la tira del
+microciclo, sin commitear). F2d y F3 pendientes.
 
 ---
 
@@ -246,7 +247,9 @@ Semanal
   `vecesDeLaHoja` (blocks). Una hoja que no cae en ningún día cuenta una vez.
 - `cicloPorAbrir` y `blockSummary` (adherencia incluida) cuentan apariciones y
   reciben el cliente; una sesión de más no sube la adherencia; las de hojas que
-  ya no están en el plan cuentan como antes.
+  ya no están en el plan cuentan como antes. **Corregido el 22 sep:** esas
+  van a `extra` y no a `hechas`, porque la adherencia pasaba del 100 %
+  (Gustavo Dueñas, 4 de 1).
 - `proximaDelMicrociclo` recorre la secuencia; la «Próxima sesión» del teléfono
   (`ClientRoutineRoute`) la usa en vez de su propia búsqueda.
 - `previstoHasta` de `tramoDelBloque` mide con `duracionDe` (adelantado de F3).
@@ -265,9 +268,209 @@ Semanal
 - Ensayo (`npm run ensayo:microciclo`) con la copia del 22 sep: 44 programas,
   48 bloques (41 semanales, 7 rotativos), 0 diferencias, `weekly_split` intacto.
 
-*F2c — el editor.* La tira (§6), la regeneración mientras no se retoque, el
-aviso al añadir una hoja a una secuencia retocada, la reconciliación (§5) y el
-portapapeles. `CycleSettings` pierde tipo y patrón.
+*Antes de F2c — las hojas fantasma (HECHO).* Quitar o renombrar una hoja la
+dejaba como retirada en los `days` de todos los microciclos del bloque, se
+hubiera entrenado o no: fuera del plan y sin forma de editarla (56 hojas en 9
+clientes con la copia del 22 sep; 38 sin sesiones). `proyectarPlanEnDias` ya
+solo conserva una retirada donde tiene sesiones o kilos heredados, y las que
+hay se van en la siguiente escritura del plan. Ensayo (`npm run
+ensayo:fantasmas`): quita exactamente las 38 y deja las 18 con sesiones.
+El renombrado y la proyección hacia delante se decidieron después (abajo).
+
+*Antes de F2c — adherencia, renombrado y versiones viejas (HECHO, 22 sep).*
+- La adherencia no pasa del 100 %: las sesiones de hojas que el microciclo no
+  tiene en el plan van a `extra` en `blockSummary` (Gustavo Dueñas, 4 de 1).
+- Renombrar una hoja se lleva sus sesiones y su día en los microciclos de su
+  bloque (`renameBlockSessionIn`). El teléfono no relee el nombre de la sesión
+  que tiene abierta, así que con una sesión en curso de esa hoja (abierta y de
+  menos de 24 h, `sesionEnCursoDeLaHoja`) el lápiz se apaga y dice por qué.
+- Versiones viejas de la app: `lib/version.js` y `version.json` (aviso
+  «Hay una versión nueva · Recargar», que para los guardados del programa); la
+  cola apunta la versión de cada nota; la 0130 añade `workout_data.escrito_por`
+  y la 0131 rechaza un cambio del plan sin firma nueva.
+
+*Antes de publicar — series rechazadas y lo editado tras el aviso (HECHO, 22 sep).*
+- Una serie que el servidor rechaza ya no se pierde: se apunta aparte en el
+  navegador (`lib/seriesNoGuardadas`), cuenta en el indicador y sigue a la vista
+  tras recargar (`794434a`).
+- El teléfono vuelve a pedir su programa al volver a primer plano si hace más de
+  cinco minutos, con las series de la cola encima; si la hoja cambió de nombre
+  con la sesión abierta, la pantalla sigue a la sesión (`bc493b8`).
+- Una serie rechazada por un cambio del plan se recoloca: por su sesión si
+  existe, o por el único día de esa semana con ese ejercicio. Si no tiene sitio
+  se queda «No guardada», con su valor (`7fb2566`).
+- Cada no guardada se marca en su fila; el pie dice cuántas y por qué (`efb5422`).
+- El entrenador lo sabe: `report_unsaved_set` (0132) y una línea en la tarjeta
+  del entreno de su Revisión (`6883b21`).
+- Lo que el entrenador edita después del aviso «Hay una versión nueva» se aplica
+  con la versión nueva al recargar, con la guardia de la versión sobre la que se
+  hizo; si alguien escribió encima, pregunta (`45baf07`).
+
+*Publicar — lista completa y en orden.* La cabecera de la 0131 repite los
+pasos 1, 3, 4 y 5.
+
+Qué entra (rama `microciclo-f2`, que sale de `ddd690f`):
+
+| Qué | Commits | Migración |
+|---|---|---|
+| F1 y F2a (ya en master) | `67ea4d2`, `ddd690f` | — |
+| F2b y hojas fantasma | `4149cc3`, `61b078c` | — |
+| Adherencia y renombrado | `eedb761`, `ac05e52` | — |
+| Versiones viejas | `78cf236`, `c56980b`, `45baf07` | 0130, 0131 |
+| Series rechazadas | `794434a`, `bc493b8`, `7fb2566`, `efb5422`, `6883b21` | 0132 |
+| Estudio | `f089896` y el de esta lista | — |
+
+Orden:
+0. Unir la rama a master. En master: `npm run check` (salvo los tres ficheros
+   que fallan sin `copias/` ni `.env`), y `ensayo:microciclo` con una copia
+   nueva (`npm run backup`). `ensayo:fantasmas` ya no: mide la regla de
+   `61b078c`, que F2c deshizo.
+1. Aplicar la 0130: solo añade `escrito_por`. Lo que esté abierto sigue igual.
+2. Aplicar la 0132: tabla y función nuevas, no toca nada existente. Puede ir
+   después de publicar: hasta que exista, el teléfono no consigue avisar al
+   entrenador, lo apunta y lo vuelve a intentar en cada arranque.
+3. Publicar la app.
+4. Comprobar que firma: guardar un cambio del plan y ver que `escrito_por` de
+   esa fila ya no es NULL y empieza por el id de `/version.json`.
+5. Aplicar la 0131 cuando ya no escriba ninguna pestaña de antes del paso 3:
+   `select count(*) from workout_data where updated_at > '<hora del paso 3>'
+   and escrito_por is null` a 0 durante uno o dos días. Desde ahí, una pestaña
+   vieja recibe un error al guardar el plan en vez de pisarlo.
+
+   El error lleva el código 55000 y no P0001, a propósito (22 sep): la versión
+   publicada hoy trata P0001 como rechazo definitivo y BORRA la nota del
+   navegador, así que el «Recarga» del mensaje perdía lo editado. Con 55000 la
+   nota se queda, y al recargar la versión nueva la vuelve a aplicar
+   preguntando antes (no trae `base`).
+
+Pendiente de la sesión del roadmap: `tramoDelBloque` sigue sin commitear en
+el árbol compartido. Con él esperan la línea `hasta` de F1, el arreglo de
+`previstoHasta` de F2a y sus pruebas, que siguen solo en ese árbol. Entran en
+cuanto esa sesión haga su commit; no bloquean esta lista. Tampoco entran aquí
+las 0122–0125 que hay sin commitear en ese árbol, de otras sesiones.
+
+*F2c — el editor (HECHO el 22 sep, sin commitear en la rama).* Boceto aprobado
+con correcciones del dueño.
+- `EditorDelMicrociclo`, detrás del ritmo de la barra de arriba
+  (`RitmoDelMicrociclo`: SOLO los puntos, lleno entreno y hueco descanso,
+  agrupados por tanda), entre los microciclos y «+ hoja», en Entreno y en el
+  Compositor. Popover en el escritorio, hoja inferior en el teléfono. Nada fijo
+  en la página: como banda encima de la rejilla se comía la vista del bloque
+  (2.ª vuelta del dueño), que queda igual que en master. Orden: tipo → tandas →
+  días, en una sola cabecera. En el escritorio, UNA FILA POR TANDA: sus
+  entrenos (112 px fijos, para que el nombre entre en una línea) y, al final,
+  su descanso, que es una ranura estrecha. Se ven todas las vueltas, sin «×3»
+  ni filas plegadas. En el teléfono (< 640 px) es una lista tipo Ajustes, con
+  una caja por tanda. El descanso casi no se dibuja.
+- *4.ª vuelta del dueño (22 sep).* La pastilla decía dos veces lo mismo —los
+  puntos Y «2-1 2-1 2-1»—: la cadena escrita se va al editor, que es donde
+  además se escribe, y en la barra quedan los puntos solos. Y la cadena se
+  escribe CORTA cuando todas las tandas son iguales («2-1», no «2-1 2-1 2-1»
+  ni «2-1 ×3»), porque una tanda ya significa que se repite hasta colocar
+  todas las hojas; solo se deletrea cuando son distintas. Al escribir se
+  aceptan las dos formas y, como lo guardado es la secuencia, al releerla sale
+  siempre la corta (`cadenaDe`; la literal, para comparar secuencias, es
+  `cadenaLiteral`). La fila de la barra pasa de ceder dos cosas a ceder una
+  (`PASOS_DE_APRIETO`): el ritmo ya no tiene texto que ceder.
+- *5.ª vuelta del dueño (22 sep), ocho arreglos de diseño del editor.*
+  1. **El popover mide su contenido** (`width: max-content`, techo la ventana)
+     y se alinea por el canto DERECHO de la pastilla. Con 760 fijos y el canto
+     izquierdo, un rotativo de dos tandas dejaba media casilla de aire muerto
+     y el semanal acababa colgando lejos de su mando. Medido a 1440: rotativo
+     550 px, semanal 742, los dos con el canto derecho en el de la pastilla.
+  2. **El descanso casi no se dibuja.** En rotativo, ranura de 38 px SIN
+     rótulo —«D3» en un día que no se entrena no le sirve a nadie— y sin filo.
+     En semanal conserva su día, porque es calendario, pero pierde la caja:
+     con el filo alrededor parecía una casilla por rellenar. Los dos llevan un
+     trazo mínimo, que es lo que distingue el hueco de lo que falta.
+  3. **Una sola tipografía** para el rótulo del día: mandan las minúsculas
+     («Lun», «D1»), no las versales del semanal.
+  4. **Los nombres no se parten**: un renglón, y lo que no cabe se corta con
+     puntos; entero se lee en el menú y en el rótulo del ratón.
+  5. **Las ranuras de descanso caen en columna** entre filas, porque todas las
+     casillas miden lo mismo (112 px el entreno, 38 la ranura). Ese es el
+     motivo de la fila por tanda: tres tandas iguales salen idénticas y una
+     3-1 sobresale. Medido: las ranuras de dos tandas 2-1 en x = 740, la de la
+     3-1 en x = 858.
+  6. **Una sola cabecera**: «Semanal | Rotativo  Tandas 2-1 ›  9 días · 6
+     entrenos». Las tandas tenían su renglón aparte, y dos renglones de
+     etiqueta + valor se leen como dos secciones cuando son la misma cosa.
+  7. **El día en curso**, marcado en rotativo con un punto de acento
+     (`diaEnCursoDe`: cuenta desde la fecha del microciclo en curso; fuera de
+     la vuelta, nada). Es el único dato de la vuelta que no se deduce
+     mirándola —«D3» no es ningún día de la semana—. En semanal no hace falta:
+     lo dice el calendario.
+  8. **«+ día» del alto de una casilla** y callado (sin el filo discontinuo):
+     a media altura descuadraba la fila que cierra.
+  El semanal sigue siendo un renglón de siete, el teléfono una lista de días
+  y arrastrar sigue cruzando filas (`useArrastreOrden` decide por geometría).
+- Gestos: tocar un día abre un menú (escritorio) o la hoja inferior (teléfono).
+  Arrastrar intercambia en semanal y mueve en rotativo, y Alt + flechas hace lo
+  mismo. «+ día» es la única acción visible. Todo lleva Deshacer.
+- «Sin día»: tocar la hoja pregunta el día, y si está ocupado pregunta
+  nombrando la hoja que hay; también se arrastra.
+- El rótulo del día de cada columna («LUN», «D1») sigue siendo el mando de su
+  día, como «Cae el …», ahora sobre la secuencia (también en rotativo) y con
+  la misma pregunta si el día está ocupado (`useCambiosDelMicrociclo`). Se
+  van `updateWeeklySplit` y `cambiarCicloDelBloque`. `CycleSettings` pierde tipo y patrón. Si el
+  bloque ABIERTO cambia de tipo o de tandas, la ficha se pone igual: es una
+  copia para el portal y el panel (F3), como `weekly_split`.
+- Reconciliación (`seguirAlPlan`): lo generado se regenera; en lo demás, lo
+  quitado pasa a descanso y lo nuevo va a «Sin día», con aviso al añadirla.
+  Renombrar se lleva sus días. Al pegar o mandar un bloque, su secuencia
+  viaja (`microcicloParaLasHojas`).
+- Hojas fuera del plan: `61b078c` deshecho, y ninguna escritura las quita
+  sola. Quitar una hoja las suelta en el mismo gesto
+  (`soltarHojaSinEntrenar`). El aviso con «Colocar en un día» / «Archivar» se
+  decidió NO construirlo: las que ya hay se quedan donde están, y las hojas del
+  plan sin día salen solo en el editor, en «Sin día».
+
+**F2d — el plan de cada microciclo se congela al cerrarlo.** Aprobada el 22
+sep como fase aparte, después de F2c; no depende de F3. Hoy, tocar el plan del
+bloque reproyecta TODOS sus microciclos, también los cerrados: quitar una hoja
+la quita de lo previsto en semanas que ya pasaron. La regla nueva: un
+microciclo cerrado conserva las hojas y apariciones que tenía al cerrarse, y
+un cambio del bloque vale desde el microciclo abierto.
+
+*Qué cambiaría (copia del 22 sep).* 108 microciclos cerrados; 6 cambian de
+hojas previstas, todos con sesiones. Son mínimos: `block.log` existe desde el
+31 ago y no apunta los renombres.
+
+| Cliente | Microciclo | Diferencia | Adherencia (sesiones) hoy → congelada |
+|---|---|---|---|
+| Javier Bolaños | M1 | +TORSO, EMPUJE, TIRÓN · −TORSO B | 5/4 → 5/6 (83 %) |
+| Javier Bolaños | M2 | igual | 4/4 → 4/6 (67 %) |
+| Gustavo Dueñas | M1 · M2 · M4 | +Torso B, Pierna A, Torso A | 4/1 → 4/4 (100 %) |
+| Gustavo Dueñas | M3 | igual | 3/1 → 3/4 (75 %) |
+
+«Hoy» es antes del arreglo de `extra` (`eedb761`): con él, esas sesiones ya no
+suben la adherencia, y congelar las volvería a contar porque en su microciclo
+sí estaban previstas. Por eso lo de Javier y Gustavo no se arregla renombrando
+sesiones: sus sesiones no comparten ni un ejercicio con las hojas de hoy
+(Javier) o son hojas quitadas del bloque cerrado (Gustavo). Es esta fase. Aparte, 66 cambios de ejercicio de alcance «bloque»
+hechos después de un cierre tocan 16 microciclos cerrados.
+
+*De qué depende.* Hay dos capas que leen el plan de una semana pasada, y las
+dos tienen que cambiar a la vez o se contradicen:
+- A: `micro.days`, que escribe `proyectarPlanEnDias` (y lee
+  `log_session_set` y el resumen del servidor, 0110).
+- B: `resolvedMicrocycles` / `planOfWeek`, que leen el `block.sessions` de hoy
+  para cualquier semana.
+
+*Lo que se complica.*
+- Anotar tarde en un cerrado una hoja que se añadió después del cierre: el
+  servidor la rechaza, porque su día no está en ese microciclo.
+- Editar un bloque ya cerrado: ¿cuenta como «desde el abierto» si no tiene
+  microciclo abierto?
+- `vecesDeLaHoja` lee una secuencia por bloque; habría que guardarla por
+  microciclo o por tramo.
+- `weekSignals` y `untrainedWeeksOfDay` comparan semanas con el plan de hoy.
+- Importar sobre semanas cerradas (el importador) y los tres scripts de
+  reparación, que hoy reproyectan todo.
+
+*Lo que no depende de esto:* deshacer (guarda el programa entero), la
+comparativa y la progresión por ejercicio (leen sesiones) y el Compositor
+(trabaja sobre el bloque, no sobre semanas).
 
 **F3 — consumidores.** `hoy.js`/`hojas.js`, las tres cifras del panel, «D4» en
 `TiraDelPrograma`, retirar `CycleChain`, `PlanDelBloque`, `buildTape`.

@@ -100,7 +100,7 @@ export const TarjetaSensaciones = ({
               <h3 className="bloque-titulo">
                 Al cerrar la semana{cuando && <span className="cuando">{shortDate(cuando)}</span>}
               </h3>
-              <Subjetivo preguntas={preguntasSemana} answers={ultimas} onFila={onAbrirCuerpo} />
+              <Subjetivo semaforo preguntas={preguntasSemana} answers={ultimas} onFila={onAbrirCuerpo} />
             </section>
           )}
           {ultima && ultima.values.length > 0 && (
@@ -113,7 +113,7 @@ export const TarjetaSensaciones = ({
                   </span>
                 )}
               </h3>
-              <Subjetivo preguntas={preguntasSesion} answers={contestado} onFila={onAbrirEntreno} />
+              <Subjetivo semaforo preguntas={preguntasSesion} answers={contestado} onFila={onAbrirEntreno} />
               {respuestas && (
                 <p className="tarjeta-pie">
                   Contesta el {respuestas.pct} % de sus sesiones ({respuestas.answered} de {respuestas.sessions}).

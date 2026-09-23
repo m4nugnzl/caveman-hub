@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, ClipboardCheck, Layers, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { ArrowRight, ClipboardCheck, Layers, Pencil, Play, Plus, Trash2, Users } from 'lucide-react';
 
 import {
   BLOCK_INTENTS,
@@ -9,6 +9,7 @@ import {
   intentLabel,
   weeksOfBlock,
 } from '@/domain/blocks';
+import { borradoresDe, sePuedeEmpezar } from '@/domain/borradores';
 import { shortDate } from '@/lib/dates';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
@@ -78,7 +79,9 @@ const rangoDe = (r) => {
  */
 const BarraDeMicrociclos = ({ micros, abierto, semanaEnCurso, unidades }) => {
   if (micros.length === 0) return null;
-  const hechas = micros.filter((m) => m.hechas > 0).length;
+  /* «Con entrenos» es haber entrenado, esté o no en el plan: `extra` cuenta. */
+  const entrenado = (m) => m.hechas + (m.extra || 0) > 0;
+  const hechas = micros.filter(entrenado).length;
   return (
     <span
       className={`bl-micros${abierto ? ' is-abierto' : ''}`}
@@ -88,7 +91,7 @@ const BarraDeMicrociclos = ({ micros, abierto, semanaEnCurso, unidades }) => {
       {micros.map((m) => (
         <i
           key={m.semana}
-          className={`bl-micro${m.hechas > 0 ? ' is-hecha' : ''}${m.semana === semanaEnCurso ? ' is-aqui' : ''}`}
+          className={`bl-micro${entrenado(m) ? ' is-hecha' : ''}${m.semana === semanaEnCurso ? ' is-aqui' : ''}`}
           title={`${m.hechas} de ${m.planificadas || 0}`}
         />
       ))}
@@ -96,6 +99,57 @@ const BarraDeMicrociclos = ({ micros, abierto, semanaEnCurso, unidades }) => {
           sola se lee como un error de maquetación. */}
       {abierto && <span className="bl-micros-sigue">sigue abierto</span>}
     </span>
+  );
+};
+
+/* ══ UNA FILA DE LO PREVISTO ═══════════════════════════════════════════════
+   Un bloque en BORRADOR: no tiene semanas, ni fechas, ni cifras —no ha pasado
+   nada dentro—, así que su fila dice lo único que tiene: cuánto va a durar y
+   qué lleva escrito. Dos verbos: rellenarlo (que es entrar a componerlo) y
+   empezarlo, que solo ofrece el primero. Ver `domain/borradores`.   */
+
+const FilaBorrador = ({ b, unidad, unidades, sePuede, abierto, onRellenar, onEmpezar, onQuitar }) => {
+  const intent = intentLabel(blockTraits(b).intent);
+  const hojas = (b.sessions || []).length;
+  return (
+    <li className="bl-fila is-borrador">
+      <button
+        type="button"
+        className="task-hit"
+        onClick={() => onRellenar(b)}
+        aria-label={`Rellenar ${b.name}`}
+        title={`Rellenar ${b.name}`}
+      />
+      <div className="bl-say">
+        <div className="bl-nombre-fila">
+          <span className="bl-nombre">{b.name}</span>
+          <span className="bl-chapa">borrador</span>
+          {intent && <span className="bl-chapa">{intent}</span>}
+        </div>
+        <span className="bl-cuando">
+          {cuenta(b.plannedWeeks, unidad.toLowerCase(), unidades.toLowerCase())} ·{' '}
+          {hojas === 0 ? 'sin hojas todavía' : cuenta(hojas, 'hoja', 'hojas')}
+          {abierto ? ` · empieza cuando cierres «${abierto.name}»` : ''}
+        </span>
+        {blockTraits(b).note && <span className="bl-nota">{blockTraits(b).note}</span>}
+      </div>
+
+      <div className="bl-mandos">
+        {sePuede && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onEmpezar(b)}>
+            <Play size={13} aria-hidden="true" /> Empezar ahora
+          </button>
+        )}
+        <MenuAcciones
+          clase="btn btn-icon btn-icon-compact bl-menu"
+          ariaLabel={`Acciones de ${b.name}`}
+          items={[
+            { icon: Pencil, label: hojas === 0 ? 'Rellenarlo' : 'Seguir rellenándolo', run: () => onRellenar(b) },
+            onQuitar && { icon: Trash2, label: 'Quitar el borrador', danger: true, run: () => onQuitar(b) },
+          ].filter(Boolean)}
+        />
+      </div>
+    </li>
   );
 };
 
@@ -156,7 +210,8 @@ const Fila = ({ t, esEste, unidad, unidades, semanaEnCurso, onMandar, onGuardar,
           filas: así la lista se lee hacia abajo por una columna. */}
       <div className="bl-cifras">
         <span className="bl-cifra">
-          <b>{r.hechas}</b>
+          {/* Sin plan no hay «de N»: se cuentan todos los entrenos. */}
+          <b>{r.planificadas ? r.hechas : r.hechas + r.extra}</b>
           <small>{r.planificadas ? `de ${r.planificadas}` : 'entrenos'}</small>
         </span>
         <span className="bl-cifra">
@@ -253,6 +308,11 @@ export const ListaDeBloques = ({
   onRenombrarBloque,
   onQuitarBloque,
   onIntent,
+  /* Los bloques en BORRADOR, si esta pantalla los deja tocar. Sin manejadores
+     no se pintan: la lista de un sitio donde no se componen no los necesita. */
+  onRellenarBorrador,
+  onEmpezarBorrador,
+  onQuitarBorrador,
   /* El verbo de pegar un bloque copiado, ya montado. Llega como pieza y no como
      manejador porque su forma depende de cuántos bloques haya en la mano —uno
      es un botón, varios son una pregunta—, y eso lo sabe el portapapeles, no
@@ -262,6 +322,31 @@ export const ListaDeBloques = ({
   const [orden, setOrden] = useState('fecha');
 
   const bloques = blocksOf(program);
+  /* Lo previsto va ARRIBA: la lista se lee del último al primero, y un
+     borrador es lo que viene después del último. */
+  const borradores = onRellenarBorrador ? borradoresDe(program) : [];
+  const abierto = bloques[bloques.length - 1] || null;
+  const loPrevisto =
+    borradores.length > 0 ? (
+      <section className="bl-grupo">
+        <span className="section-label">Lo previsto</span>
+        <ul className="bl-lista">
+          {borradores.map((b) => (
+            <FilaBorrador
+              key={b.id}
+              b={b}
+              unidad={unidad}
+              unidades={unidades}
+              abierto={abierto}
+              sePuede={Boolean(onEmpezarBorrador) && sePuedeEmpezar(program, b.id)}
+              onRellenar={onRellenarBorrador}
+              onEmpezar={onEmpezarBorrador}
+              onQuitar={onQuitarBorrador}
+            />
+          ))}
+        </ul>
+      </section>
+    ) : null;
   /* Del último al primero: un programa se lee por donde va, no por donde
      empezó. `fromWeek` y no la fecha, que un microciclo puede no tenerla. */
   const tramos = useMemo(
@@ -277,8 +362,7 @@ export const ListaDeBloques = ({
       <div className="bl-pagina">
         <EmptyState
           icon={Layers}
-          title="Todavía no hay bloques"
-          message="Un bloque es la versión del plan que está puesta. Se abre uno y dura hasta que hay motivo para cambiarlo."
+          title="Sin bloques"
           action={
             onNuevoBloque ? (
               <button type="button" className="btn btn-primary" onClick={onNuevoBloque}>
@@ -337,6 +421,8 @@ export const ListaDeBloques = ({
           </button>
         )}
       </header>
+
+      {loPrevisto}
 
       {grupos.map(([titulo, suyos]) => (
         <section className="bl-grupo" key={titulo || 'todos'}>

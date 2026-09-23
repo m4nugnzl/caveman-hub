@@ -94,11 +94,16 @@ const estaArriba = (capa) => {
   }
 };
 
+/* `capaSuperior: false` coloca igual —fija, pegada a su botón, ceñida a la
+   ventana— pero NO sube al top layer. Es para una capa que a su vez abre un
+   diálogo de confirmación: en el top layer lo taparía, porque los diálogos de
+   la casa son un portal con `z-index` y no llegan ahí. Quien la usa la saca del
+   recorte con un portal y le pone su `z-index`, por debajo del diálogo. */
 export const useCapaFlotante = (
   montada,
   anclaRef,
   capaRef,
-  { alineado = 'derecha', hacia = 'abajo', igualarAncho = false } = {}
+  { alineado = 'derecha', hacia = 'abajo', igualarAncho = false, capaSuperior = true } = {}
 ) => {
   const [estilo, setEstilo] = useState(null);
   const arriba = hayTopLayer();
@@ -163,7 +168,7 @@ export const useCapaFlotante = (
      capa está montada: colgarlo también de `colocar` la bajaría y la volvería a
      subir cada vez que una prop cambia, y con ella la animación de entrada. */
   useLayoutEffect(() => {
-    if (!arriba || !montada) return undefined;
+    if (!arriba || !montada || !capaSuperior) return undefined;
     const capa = capaRef.current;
     if (!capa?.isConnected) return undefined;
 
@@ -185,7 +190,7 @@ export const useCapaFlotante = (
         /* Ya estaba cerrada. */
       }
     };
-  }, [arriba, montada, capaRef]);
+  }, [arriba, montada, capaRef, capaSuperior]);
 
   useLayoutEffect(() => {
     if (!arriba || !montada) return;
@@ -213,6 +218,6 @@ export const useCapaFlotante = (
     /* `manual` y no `auto`: el cierre al pulsar fuera y con Escape ya lo lleva
        `useClickOutside`, y dos mecanismos de cierre sobre el mismo elemento se
        pelean por el estado de React. */
-    atributos: arriba ? { popover: 'manual' } : {},
+    atributos: arriba && capaSuperior ? { popover: 'manual' } : {},
   };
 };

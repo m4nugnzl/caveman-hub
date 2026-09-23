@@ -11,7 +11,7 @@ import { dietaDeHoy } from '@/domain/nutrition';
 import { onboardingState } from '@/domain/onboardingState';
 import { weekFromStart } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
-import { effectiveGoal, phaseAt } from '@/domain/roadmap';
+import { anclaSiguiente, cuentaAtras, effectiveGoal, phaseAt } from '@/domain/roadmap';
 import {
   allSessions,
   minutosDeSesion,
@@ -99,6 +99,7 @@ export const ClientStart = () => {
     checkIns,
     nutrition,
     phases,
+    anchors,
     progressPhotos,
     discardSession,
     continueProgram,
@@ -603,6 +604,10 @@ export const ClientStart = () => {
   */
   const semanaDesdeAlta = activeClient.startDate ? weekFromStart(activeClient.startDate, todayISO()) : null;
   const fase = phaseAt(phases, todayISO());
+  /* Y hacia dónde va, si su entrenador le ha fijado un destino (0122): la
+     cuarta escala. «Nacional: faltan 14 semanas». */
+  const destino = anclaSiguiente(anchors, todayISO());
+  const cuenta = destino ? cuentaAtras(destino, todayISO()) : null;
   const nombrePila = String(activeClient.name || '').trim().split(/\s+/)[0] || '';
 
   /* Sin reparto por días, la semana del calendario con lo que entrenó: la fila
@@ -633,6 +638,7 @@ export const ClientStart = () => {
         semanaDesdeAlta ? `Semana ${semanaDesdeAlta}` : null,
         cuantos > 0 ? `${unidad} ${vaPor}` : null,
         fase?.title || null,
+        destino && cuenta ? `${destino.title}: ${cuenta.texto}` : null,
       ]
         .filter(Boolean)
         .join(' · ') || diaCorto,

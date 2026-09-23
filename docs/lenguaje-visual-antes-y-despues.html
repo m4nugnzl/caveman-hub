@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El lenguaje visual — antes y después (20 sep 2026)</title>
+<style>
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../public/fonts/geist-latin.woff2') format('woff2');
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #f1f5f9;
+  --hoja: #f8fafc;
+  --surface: #ffffff;
+  --surface-sunken: #f8fafc;
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-3: #64748b;
+  --edge-card: #e2e8f0;
+  --edge-fino: rgba(0, 0, 0, 0.06);
+  --hairline: #e5e7eb;
+  --fill: #f1f5f9;
+  --accent: #2b7ab8;
+  --accent-on: #fff;
+  --accent-soft: rgba(59, 141, 212, 0.08);
+
+  /* Los dos niveles nuevos */
+  --elev-1: 0 1px 2px -1px rgba(15, 23, 42, 0.06), 0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  --elev-2: 0 2px 4px -2px rgba(15, 23, 42, 0.10), 0 18px 44px -14px rgba(15, 23, 42, 0.22);
+
+  /* Los once de antes, con su valor literal de antes del cambio */
+  --old-xs: 0 1px 1px rgba(15, 23, 42, 0.05);
+  --old-sm: 0 1px 2px rgba(15, 23, 42, 0.06), 0 14px 30px -22px rgba(15, 23, 42, 0.55);
+  --old-md: 0 6px 20px -8px rgba(15, 23, 42, 0.16), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --old-lg: 0 24px 56px -28px rgba(15, 23, 42, 0.45), 0 3px 8px rgba(15, 23, 42, 0.08);
+  --old-tarjeta: 0 1px 3px rgba(15, 23, 42, 0.04);
+  --old-flotante: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --old-profunda: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  --old-float: 0 10px 28px -8px rgba(15, 23, 42, 0.22);
+  --old-tocada: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
+
+  /* Paleta de dato */
+  --d-blue: #1b6ea6;
+  --d-rose: #c0392b;
+  --d-teal: #0e7f73;
+  --d-amber: #96690a;
+  --d-violet: #7a34ad;
+  --d-pink: #a8306e;
+  --d-lime: #557d12;
+  --d-orange: #b3520f;
+  --d-slate: #656f7b;
+  --positive: #047857;
+  --warning: #c2410c;
+  --negative: #dc2626;
+
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-salida: cubic-bezier(0.4, 0, 1, 1);
+  --muelle: cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #090b0e;
+  --hoja: #090b0e;
+  --surface: #1c2027;
+  --surface-sunken: #14171c;
+  --text: #e9ecf2;
+  --text-2: #a2a9b7;
+  --text-3: #7f8796;
+  --edge-card: rgba(214, 224, 244, 0.14);
+  --edge-fino: rgba(255, 255, 255, 0.07);
+  --hairline: rgba(214, 224, 244, 0.08);
+  --fill: rgba(214, 224, 244, 0.085);
+  --accent: #5aa9e8;
+  --accent-on: #10131a;
+  --accent-soft: rgba(90, 169, 232, 0.14);
+
+  --elev-1: 0 1px 2px -1px rgba(0, 0, 0, 0.45), 0 8px 24px -12px rgba(0, 0, 0, 0.55);
+  --elev-2: 0 2px 4px -2px rgba(0, 0, 0, 0.55), 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+
+  --old-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --old-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --old-md: 0 4px 16px -4px rgba(0, 0, 0, 0.55);
+  --old-lg: 0 18px 44px -14px rgba(0, 0, 0, 0.7);
+  --old-tarjeta: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --old-flotante: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --old-profunda: 0 4px 24px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
+  --old-float: 0 14px 34px -10px rgba(0, 0, 0, 0.65);
+  --old-tocada: 0 4px 16px -2px rgba(0, 0, 0, 0.5);
+
+  --d-blue: #59b4e6;
+  --d-rose: #ee7368;
+  --d-teal: #47cdb8;
+  --d-amber: #e8bc55;
+  --d-violet: #c58ae6;
+  --d-pink: #ee8ab9;
+  --d-lime: #9fd45e;
+  --d-orange: #f2a362;
+  --d-slate: #9ba5b1;
+  --positive: #45c98c;
+  --warning: #f28d4a;
+  --negative: #ec6156;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 24px 88px;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: 'Geist', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1180px; margin: 0 auto; }
+
+h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 6px; }
+.lead { color: var(--text-2); max-width: 70ch; margin: 0 0 8px; }
+.nota { color: var(--text-3); font-size: 12px; max-width: 70ch; margin: 0; }
+
+h2 {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+  margin: 56px 0 4px; padding-top: 24px; border-top: 1px solid var(--hairline);
+}
+h2 > span { color: var(--text-3); font-weight: 500; font-size: 14px; letter-spacing: 0; margin-left: 8px; }
+h3 {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-3); margin: 28px 0 12px;
+}
+
+.rej { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr)); }
+.rej-2 { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); }
+
+.caja {
+  background: var(--surface);
+  border: 1px solid var(--edge-card);
+  border-radius: 18px;
+  padding: 18px 16px;
+  min-height: 108px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 2px;
+}
+.caja .k { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--text); }
+.caja .s { font-size: 12px; color: var(--text-3); }
+.caja.se-va { opacity: 0.55; }
+
+.marca {
+  display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 999px; margin-bottom: 6px;
+  align-self: flex-start;
+}
+.marca.uno { background: var(--accent-soft); color: var(--accent); }
+.marca.dos { background: var(--fill); color: var(--text-3); }
+
+/* ── Radios ── */
+.radio-fila { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.radio-m { text-align: center; }
+.radio-m > i {
+  display: block; width: 76px; height: 60px;
+  background: var(--surface); border: 1px solid var(--edge-card); box-shadow: var(--elev-1);
+}
+.radio-m > b { display: block; font-size: 12px; font-weight: 600; margin-top: 8px; }
+.radio-m > em { display: block; font-size: 11px; color: var(--text-3); font-style: normal; max-width: 92px; }
+
+/* ── Movimiento ── */
+.banco { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.btn {
+  height: 32px; padding: 0 12px; border: 0; border-radius: 8px;
+  background: var(--accent); color: var(--accent-on);
+  font: inherit; font-size: 14px; font-weight: 500; letter-spacing: -0.01em; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+.btn.nuevo { transition: transform 0.12s var(--muelle); }
+.btn.nuevo:active { transform: scale(0.975); }
+.btn.viejo { transition: transform 0.16s var(--ease); }
+.btn.viejo:active { transform: scale(0.975); }
+
+.tarjeta-gesto {
+  background: var(--surface); border: 1px solid var(--edge-card);
+  border-radius: 18px; padding: 16px; box-shadow: var(--elev-1); cursor: pointer;
+}
+.tarjeta-gesto.nuevo { transition: border-color 0.12s var(--muelle), box-shadow 0.12s var(--muelle), background-color 0.12s var(--muelle); }
+.tarjeta-gesto:hover { border-color: #94a3b8; box-shadow: var(--elev-2); background: var(--surface-sunken); }
+
+/* ── Paleta ── */
+.tinta { display: flex; align-items: center; gap: 10px; padding: 7px 0; }
+.tinta > i { width: 26px; height: 26px; border-radius: 999px; flex-shrink: 0; }
+.tinta > .n { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.tinta > .q { color: var(--text-3); font-size: 12px; margin-left: auto; text-align: right; }
+.tinta.fuera { opacity: 0.4; }
+.tinta.fuera .n { text-decoration: line-through; }
+
+.choque {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border: 1px solid var(--edge-card); border-radius: 12px; overflow: hidden; margin-top: 8px;
+}
+.choque > div { padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.choque > div + div { border-left: 1px solid var(--edge-card); }
+.choque .linea { width: 100%; height: 3px; border-radius: 2px; }
+.choque .chapa { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+.choque small { font-size: 11px; color: var(--text-3); }
+
+.serie { display: flex; gap: 3px; align-items: flex-end; height: 44px; }
+.serie > i { flex: 1; border-radius: 2px 2px 0 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 8px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+th { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+td code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+.va { color: var(--text-3); }
+
+.mando {
+  position: fixed; right: 20px; bottom: 20px; z-index: 5;
+  height: 36px; padding: 0 14px; border-radius: 12px;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--edge-card); box-shadow: var(--elev-2);
+  font: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.mando:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 639.98px) {
+  body { padding: 24px 20px 80px; }
+  .choque { grid-template-columns: 1fr; }
+  .choque > div + div { border-left: 0; border-top: 1px solid var(--edge-card); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition-duration: 0.01ms !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>El lenguaje visual: antes y después</h1>
+  <p class="lead">
+    Lo que cambió el 20 sep 2026. Los valores de esta página son literales —los de
+    antes y los de ahora, copiados de <code>tokens.css</code>— así que lo que ves
+    aquí es exactamente lo que hace la aplicación.
+  </p>
+  <p class="nota">Abajo a la derecha se cambia de tema. Las piezas con <b>hover</b> y <b>press</b> están vivas: púlsalas.</p>
+
+  <!-- ══ ELEVACIÓN ══ -->
+  <h2>1. Elevación <span>once sombras → dos niveles</span></h2>
+  <p class="lead">
+    Cuatro hacían el trabajo y seis nacieron para una pantalla cada una. Ahora hay
+    dos, y cada uno son dos capas: contacto corto + ambiental larga.
+  </p>
+
+  <h3>Antes — once, y ninguna sabía de las otras</h3>
+  <div class="rej">
+    <div class="caja" style="box-shadow: var(--old-xs)"><span class="marca dos">legado</span><span class="k">--shadow-xs</span><span class="s">18 usos · 1 capa</span></div>
+    <div class="caja" style="box-shadow: var(--old-sm)"><span class="marca dos">legado</span><span class="k">--shadow-sm</span><span class="s">37 usos · 2 capas</span></div>
+    <div class="caja" style="box-shadow: var(--old-md)"><span class="marca dos">legado</span><span class="k">--shadow-md</span><span class="s">14 usos · 2 capas</span></div>
+    <div class="caja" style="box-shadow: var(--old-lg)"><span class="marca dos">legado</span><span class="k">--shadow-lg</span><span class="s">14 usos · 2 capas</span></div>
+    <div class="caja se-va" style="box-shadow: var(--old-tarjeta)"><span class="marca dos">→ elev-1</span><span class="k">--shadow-tarjeta</span><span class="s">5 usos · 1 capa</span></div>
+    <div class="caja se-va" style="box-shadow: var(--old-flotante)"><span class="marca dos">→ elev-1</span><span class="k">--shadow-flotante</span><span class="s">1 uso · 1 capa</span></div>
+    <div class="caja se-va" style="box-shadow: var(--old-profunda)"><span class="marca dos">→ elev-1</span><span class="k">--shadow-profunda</span><span class="s">1 uso · 2 capas</span></div>
+    <div class="caja se-va" style="box-shadow: var(--old-float)"><span class="marca dos">→ elev-2</span><span class="k">--shadow-float</span><span class="s">6 usos · 1 capa</span></div>
+    <div class="caja se-va" style="box-shadow: var(--old-tocada)"><span class="marca dos">→ elev-2</span><span class="k">--shadow-tocada</span><span class="s">2 usos · 1 capa</span></div>
+  </div>
+
+  <h3>Ahora — dos, y se distinguen a un metro</h3>
+  <div class="rej-2">
+    <div class="caja" style="box-shadow: var(--elev-1); min-height: 132px">
+      <span class="marca uno">nivel 1 · posado</span>
+      <span class="k">--elev-1</span>
+      <span class="s">la tarjeta, la lista, la barra flotante, la cabecera de cristal</span>
+    </div>
+    <div class="caja" style="box-shadow: var(--elev-2); min-height: 132px">
+      <span class="marca uno">nivel 2 · flotando</span>
+      <span class="k">--elev-2</span>
+      <span class="s">el menú, el popover, el modal, y la tarjeta mientras la levantas</span>
+    </div>
+  </div>
+  <p class="nota" style="margin-top: 14px">
+    Las cinco de una pantalla ya apuntan a los dos niveles: eso <b>sí</b> cambia píxeles
+    hoy. Las cuatro veteranas conservan su valor hasta migrar sus 83 usos.
+  </p>
+
+  <!-- ══ RADIOS ══ -->
+  <h2>2. Radios <span>el mapa, que no existía escrito</span></h2>
+  <p class="lead">
+    No es «pequeño, mediano, grande»: es cuánto se parece la pieza a un instrumento.
+    Lo que se pulsa va cerrado; lo que contiene va abierto. Esa distancia es lo que
+    evita que una tarjeta se lea como un campo grande.
+  </p>
+  <div class="radio-fila">
+    <div class="radio-m"><i style="border-radius: 5px"></i><b>5</b><em>--r-xs<br>marca fina</em></div>
+    <div class="radio-m"><i style="border-radius: 8px"></i><b>8</b><em>--r-control<br>botón, campo</em></div>
+    <div class="radio-m"><i style="border-radius: 9px"></i><b>9</b><em>--r-sm<br>celda</em></div>
+    <div class="radio-m"><i style="border-radius: 10px"></i><b>10</b><em>--r-control-md<br>mando de barra</em></div>
+    <div class="radio-m"><i style="border-radius: 12px"></i><b>12</b><em>--r-tarjeta-sm<br>mini-tarjeta</em></div>
+    <div class="radio-m"><i style="border-radius: 14px"></i><b>14</b><em>--r-md<br>popover, hundido</em></div>
+    <div class="radio-m"><i style="border-radius: 18px"></i><b>18</b><em>--r-tarjeta<br>tarjeta de panel</em></div>
+    <div class="radio-m"><i style="border-radius: 20px"></i><b>20</b><em>--r-lg<br>.card, .list</em></div>
+    <div class="radio-m"><i style="border-radius: 26px"></i><b>26</b><em>--r-xl<br>modal</em></div>
+  </div>
+  <p class="nota" style="margin-top: 18px">
+    Lo único nuevo es el nombre <code>--r-tarjeta-sm</code>. Vale 12 px igual que
+    <code>--r-control-lg</code>, que es lo que las pantallas nuevas estaban usando
+    para vestir cajas: un radio que se llama «mando» puesto en una tarjeta es como
+    empieza la siguiente generación de valores sueltos.
+  </p>
+
+  <!-- ══ MOVIMIENTO ══ -->
+  <h2>3. Movimiento <span>un tiempo → tres, y dos curvas nuevas</span></h2>
+  <p class="lead">
+    <code>--fast</code> firmaba 447 de las 531 transiciones de la casa: abrir un panel,
+    encender un canto y cerrar una ventana duraban lo mismo.
+  </p>
+
+  <h3>Púlsalos — el muelle discreto contra la curva de siempre</h3>
+  <div class="banco">
+    <button class="btn nuevo">Ahora · --gesto</button>
+    <button class="btn viejo">Antes · --fast</button>
+    <span class="nota" style="max-width: 34ch">El nuevo pasa un pelo del valor final y vuelve. El de antes solo frena.</span>
+  </div>
+
+  <h3>Pasa el ratón — el hover de una tarjeta de panel</h3>
+  <div class="rej-2">
+    <div class="tarjeta-gesto nuevo">
+      <span class="marca uno">ahora</span>
+      <div><b>Con transición</b></div>
+      <div class="nota">El canto sube, la caja se levanta a nivel 2 y el fondo cede. Con muelle.</div>
+    </div>
+    <div class="tarjeta-gesto">
+      <span class="marca dos">antes</span>
+      <div><b>Sin transición</b></div>
+      <div class="nota">Los tres cambios de golpe: la tarjeta no se encendía, parpadeaba.</div>
+    </div>
+  </div>
+
+  <table>
+    <tr><th>Token</th><th>Duración</th><th>Para qué</th></tr>
+    <tr><td><code>--micro</code></td><td>0,12 s</td><td>lo que no se mueve de sitio: color, opacidad, un canto que se enciende</td></tr>
+    <tr><td><code>--entrada</code></td><td>0,26 s</td><td>lo que llega y ocupa sitio: ventana, panel, fila nueva</td></tr>
+    <tr><td><code>--salida</code></td><td>0,16 s</td><td>lo que se va. Siempre más rápido que la entrada, y con curva que acelera</td></tr>
+    <tr><td><code>--gesto</code></td><td>0,12 s + muelle</td><td>hover y press de una caja o un botón</td></tr>
+  </table>
+
+  <!-- ══ PALETA ══ -->
+  <h2>4. La paleta de dato <span>nueve tintas → seis + neutro</span></h2>
+
+  <div class="rej-2">
+    <div>
+      <h3 style="margin-top: 8px">Antes — nueve</h3>
+      <div class="tinta"><i style="background: var(--d-blue)"></i><span class="n">--data-blue</span><span class="q">peso, ritmo</span></div>
+      <div class="tinta"><i style="background: var(--d-rose)"></i><span class="n">--data-rose</span><span class="q">% graso</span></div>
+      <div class="tinta"><i style="background: var(--d-teal)"></i><span class="n">--data-teal</span><span class="q">series</span></div>
+      <div class="tinta"><i style="background: var(--d-amber)"></i><span class="n">--data-amber</span><span class="q">kcal, carbos</span></div>
+      <div class="tinta"><i style="background: var(--d-violet)"></i><span class="n">--data-violet</span><span class="q">tonelaje</span></div>
+      <div class="tinta"><i style="background: var(--d-pink)"></i><span class="n">--data-pink</span><span class="q">pasos, proteína</span></div>
+      <div class="tinta fuera"><i style="background: var(--d-lime)"></i><span class="n">--data-lime</span><span class="q">adherencia</span></div>
+      <div class="tinta fuera"><i style="background: var(--d-orange)"></i><span class="n">--data-orange</span><span class="q">cintura</span></div>
+      <div class="tinta"><i style="background: var(--d-slate)"></i><span class="n">--data-slate</span><span class="q">1RM</span></div>
+    </div>
+    <div>
+      <h3 style="margin-top: 8px">Ahora — seis, y el gris que siempre sobra</h3>
+      <div class="tinta"><i style="background: var(--d-blue)"></i><span class="n">--data-blue</span><span class="q">el cuerpo y su medida</span></div>
+      <div class="tinta"><i style="background: var(--d-rose)"></i><span class="n">--data-rose</span><span class="q">el cuerpo que cambia de forma</span></div>
+      <div class="tinta"><i style="background: var(--d-violet)"></i><span class="n">--data-violet</span><span class="q">la carga</span></div>
+      <div class="tinta"><i style="background: var(--d-teal)"></i><span class="n">--data-teal</span><span class="q">el trabajo hecho</span></div>
+      <div class="tinta"><i style="background: var(--d-amber)"></i><span class="n">--data-amber</span><span class="q">la comida</span></div>
+      <div class="tinta"><i style="background: var(--d-pink)"></i><span class="n">--data-pink</span><span class="q">lo que se cuenta a mano</span></div>
+      <div class="tinta" style="margin-top: 10px; border-top: 1px solid var(--hairline); padding-top: 14px">
+        <i style="background: var(--d-slate)"></i><span class="n">--data-slate</span><span class="q">la referencia — nunca una categoría</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Por qué se fue el naranja</h3>
+  <p class="lead" style="margin-bottom: 0">
+    Ocho grados de matiz separaban la serie de la advertencia. No eran parecidos:
+    eran el mismo naranja.
+  </p>
+  <div class="choque">
+    <div>
+      <div class="linea" style="background: var(--d-orange)"></div>
+      <span class="chapa" style="background: var(--d-orange); color: #fff">cintura</span>
+      <small><code>--data-orange</code> · #b3520f · 25°</small>
+    </div>
+    <div>
+      <div class="linea" style="background: var(--warning)"></div>
+      <span class="chapa" style="background: var(--warning); color: #fff">aviso</span>
+      <small><code>--warning</code> · #c2410c · 17°</small>
+    </div>
+  </div>
+
+  <h3>Y la regla que impide que vuelva a pasar</h3>
+  <p class="lead">
+    Retirar tintas no basta: el semáforo se queda el rojo, el naranja y el verde,
+    que son tres de las seis familias útiles. Así que el dato y el estado se separan
+    por <b>sitio</b>, no por matiz — como ya se hizo con el azul del acento.
+  </p>
+  <div class="rej-2">
+    <div class="caja" style="box-shadow: var(--elev-1); min-height: auto; justify-content: flex-start; gap: 10px">
+      <span class="marca uno">el dato</span>
+      <div class="serie">
+        <i style="background: var(--d-blue); height: 40%"></i>
+        <i style="background: var(--d-blue); height: 62%"></i>
+        <i style="background: var(--d-blue); height: 52%"></i>
+        <i style="background: var(--d-blue); height: 78%"></i>
+        <i style="background: var(--d-blue); height: 66%"></i>
+        <i style="background: var(--d-blue); height: 92%"></i>
+      </div>
+      <span class="s">Solo trazo, disco de leyenda o cifra de una serie.</span>
+    </div>
+    <div class="caja" style="box-shadow: var(--elev-1); min-height: auto; justify-content: flex-start; gap: 10px">
+      <span class="marca uno">el estado</span>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <span class="chapa" style="background: rgba(4,120,87,.12); color: var(--positive); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px">Al día</span>
+        <span class="chapa" style="background: rgba(194,65,12,.12); color: var(--warning); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px">Sin responder</span>
+        <span class="chapa" style="background: rgba(220,38,38,.12); color: var(--negative); font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 999px">En riesgo</span>
+      </div>
+      <span class="s">Solo relleno pegado a un juicio: una chapa, una barra, una flecha.</span>
+    </div>
+  </div>
+
+  <h3>Las diez reasignaciones</h3>
+  <table>
+    <tr><th>Dónde</th><th>Qué</th><th>De</th><th>A</th><th>Por qué</th></tr>
+    <tr><td><code>metrics</code></td><td>cintura</td><td class="va">naranja</td><td><b>rojo</b></td><td>con el % graso: las dos miden la forma, no la masa</td></tr>
+    <tr><td><code>metrics</code></td><td>adherencia (entreno)</td><td class="va">lima</td><td><b>teal</b></td><td>con las series efectivas</td></tr>
+    <tr><td><code>medidas</code></td><td>temperatura basal</td><td class="va">naranja</td><td><b>ámbar</b></td><td>la única libre de las cinco de fábrica</td></tr>
+    <tr><td><code>medidas</code></td><td>rueda de medidas propias</td><td class="va">—</td><td><b>las seis</b></td><td>entra el rojo, sale el lima</td></tr>
+    <tr><td><code>protocol</code></td><td>fatiga</td><td class="va">naranja</td><td><b>violeta</b></td><td>con el esfuerzo: la misma sesión medida dos veces</td></tr>
+    <tr><td><code>protocol</code></td><td>energía</td><td class="va">lima</td><td><b>teal</b></td><td>con el ánimo: el mismo eje</td></tr>
+    <tr><td><code>protocol</code></td><td>adherencia (dieta)</td><td class="va">lima</td><td><b>ámbar</b></td><td>con las digestiones</td></tr>
+    <tr><td><code>protocol</code></td><td>hambre</td><td class="va">naranja</td><td><b>rojo</b></td><td>con el dolor: los dos son avisos del cuerpo</td></tr>
+    <tr><td><code>protocol</code></td><td>ganas de seguir</td><td class="va">gris</td><td><b>violeta</b></td><td>el gris es la referencia y tiene que sobrar</td></tr>
+    <tr><td><code>protocol</code></td><td>rueda de preguntas propias</td><td class="va">—</td><td><b>las seis</b></td><td>salen el gris y el lima</td></tr>
+  </table>
+
+  <!-- ══ LO INVISIBLE ══ -->
+  <h2>5. Lo que cambió y no se ve <span>y es a propósito</span></h2>
+  <table>
+    <tr><th>Token</th><th>Qué sustituye</th><th>Se nota</th></tr>
+    <tr><td><code>--hueco-glifo</code> · 2 px<br><code>--hueco-renglon</code> · 6 px</td><td>188 <code>gap</code> a mano — la escala saltaba de 4 a 8</td><td class="va">Nada: mismo valor</td></tr>
+    <tr><td><code>--tracking-titular</code> · −0,02<br><code>--tracking-texto</code> · −0,01<br><code>--tracking-versal</code> · 0,04</td><td>20 valores literales de <code>letter-spacing</code></td><td class="va">Nada: mismo valor</td></tr>
+    <tr><td><code>--foco</code> · 2 px<br><code>--foco-sep</code> · 2 px</td><td>la regla global estaba en 2,5 px y las 79 de componente en 2</td><td><b>Medio píxel</b> en lo que no tiene regla propia. Tabula para verlo</td></tr>
+    <tr><td><code>--salida</code></td><td>los 12 <code>[data-state='closing']</code></td><td><b>La curva</b>: ahora acelera y se va en vez de frenar</td></tr>
+  </table>
+
+</div>
+
+<button class="mando" id="tema">Ver de noche</button>
+<script>
+  const raiz = document.documentElement;
+  const mando = document.getElementById('tema');
+  mando.addEventListener('click', () => {
+    const noche = raiz.dataset.theme === 'dark';
+    raiz.dataset.theme = noche ? 'light' : 'dark';
+    mando.textContent = noche ? 'Ver de noche' : 'Ver de día';
+  });
+</script>
+</body>
+</html>

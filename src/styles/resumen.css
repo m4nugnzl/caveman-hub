@@ -1,0 +1,452 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EL RESUMEN, A LO PANEL DE PRODUCTO (19 sep, tercera vuelta)
+   --------------------------------------------------------------------------
+   El dueño juzgó que las dos vueltas anteriores seguían pareciendo «una app
+   antigua limpia» y pidió el salto a la gramática de Linear o Vercel. Esta
+   hoja es ese salto, y va DESPUÉS de revision.css a propósito: lo que aquí se
+   escribe gana a lo de allí sin pelear por especificidad, y todo cuelga de
+   `.resumen-pagina` para no tocar las otras pantallas que usan las mismas
+   piezas (`Subjetivo` en la hoja de Entreno, `.tarjeta` en el portal).
+
+   Cuatro movimientos:
+
+     1. Arriba del todo, una FRANJA de mini-tarjetas con las cifras de «desde
+        que empezó» (`FranjaCifras`): rótulo micro en versales, cifra grande
+        en monoespaciada y, al lado, hacia dónde se mueve.
+     2. «El progreso» con una BARRA DE HERRAMIENTAS encima del dibujo, y un
+        dibujo más callado: trazo fino con degradado y el plan en escalón.
+     3. Titulares en seminegrita con el tracking cerrado (−0,02 em).
+     4. «El plan» y «Cómo lo lleva» en MICRO-TARJETAS de canto ultrafino
+        (`--edge-fino`, negro al 6 %), con barras de 4 px.
+
+   Lo que revierte, dicho en su sitio: la tira del pie de «El progreso» (se va
+   arriba), las columnas del plan (ahora raya) y las barras de 10 px del
+   semáforo (ahora 4 px; el semáforo se queda).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 1. LA FRANJA DE CIFRAS ────────────────────────────────────────────────
+   Una rejilla que envuelve sola: siete en fila en el PC, dos por fila en el
+   teléfono. Cada cifra es su caja blanca con canto fino y la sombra de
+   contacto de las tarjetas — es una tarjeta pequeña, no una baldosa hundida. */
+.kpis { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+.kpis-trabajo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(148px, 100%), 1fr));
+  gap: var(--s3);
+}
+/* Iba en dos celdas a plomo con las dos columnas —las cifras sobre «El
+   progreso» y la fase sobre «El plan»—. La fase es ahora la tarjeta «Roadmap»
+   de la columna (21 sep), y las cifras ocupan todo el ancho. */
+@container panel (max-width: 520px) {
+  .kpis-trabajo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+}
+.kpi {
+  display: flex; flex-direction: column; gap: var(--s1); min-width: 0;
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--edge-fino);
+  border-radius: var(--r-tarjeta-sm);
+  box-shadow: var(--shadow-tarjeta);
+  font: inherit; color: inherit; text-align: left;
+}
+/* El rótulo, micro y en versales: dice de qué es la cifra sin competir con
+   ella. 10 px con 0,05 em de aire es el mínimo que se lee en versales. */
+.kpi-k {
+  font-size: var(--fs-micro); font-weight: 600; line-height: 14px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kpi-fila { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+/* La cifra: monoespaciada y con dígitos tabulares, para que siete cifras con
+   signo y decimales se comparen en columna. La unidad baja a la letra de
+   texto y en gris: es contexto, no dato. */
+.kpi-v {
+  min-width: 0;
+  font-family: var(--font-mono); font-size: var(--fs-lg); font-weight: 600;
+  line-height: 1.1; letter-spacing: var(--tracking-titular);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kpi-v > small {
+  margin-left: 3px;
+  font-family: var(--font); font-size: var(--fs-xs); font-weight: 500;
+  letter-spacing: 0; color: var(--text-tertiary);
+}
+/* La fase es un NOMBRE, no una cifra: vuelve a la letra de texto y puede
+   partirse en dos renglones. */
+.kpi-v.is-texto {
+  font-family: var(--font); font-size: var(--fs-md); line-height: 1.25;
+  letter-spacing: -0.02em; white-space: normal;
+}
+.kpi-v.is-hueco { color: var(--accent); }
+/* La tendencia: una flecha en una pastilla de 20 px al lado de la cifra. Gris
+   cuando solo dice hacia dónde va; verde o rojo cuando hay un objetivo contra
+   el que juzgarlo (ver `tendencia` en `FranjaCifras`). */
+.kpi-tendencia {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: var(--r-pill);
+  background: var(--fill); color: var(--text-tertiary);
+}
+.kpi-tendencia.is-good { background: var(--positive-soft); color: var(--positive); }
+.kpi-tendencia.is-bad { background: var(--negative-soft); color: var(--negative); }
+.kpi-s {
+  font-size: var(--fs-xs); line-height: 16px; color: var(--text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* La que se pulsa: la fase. El canto se enciende en acento, como toda puerta
+   de la casa. */
+.kpi.is-puerta { cursor: pointer; transition: border-color var(--fast), background-color var(--fast); }
+.kpi.is-puerta:hover { border-color: var(--accent); background: var(--accent-soft); }
+.kpi.is-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+
+/* ── 2. LAS TARJETAS Y SUS TITULARES ───────────────────────────────────────
+   Canto fino en vez de canto de tarjeta, y al pasar el ratón solo se aviva
+   el canto: la sombra grande que levantaba la caja entera era un gesto de
+   escaparate, no de panel. */
+.resumen-pagina .tarjeta {
+  gap: var(--s4);
+  padding: var(--s5);
+  border-color: var(--edge-fino);
+}
+@media (hover: hover) {
+  .resumen-pagina .tarjeta:hover { border-color: var(--hairline-strong); box-shadow: var(--shadow-tarjeta); }
+}
+.resumen-pagina .tarjeta-cab { align-items: center; min-height: 24px; }
+.resumen-pagina .tarjeta-cab .section-label {
+  font-family: var(--font); font-size: var(--fs-base); font-weight: 600;
+  line-height: 24px; letter-spacing: -0.02em; text-transform: none;
+  color: var(--text);
+}
+.resumen-pagina .tarjeta-sub { letter-spacing: -0.005em; }
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   3. «EL PROGRESO»: LA BARRA Y EL DIBUJO (20 sep, vuelta del oficio)
+   --------------------------------------------------------------------------
+   Aquí vive ENTERA la gráfica del progreso. Estaba repartida entre esta hoja
+   y `revision.css`, pisándose a sí misma; el porqué de la mudanza está
+   escrito allí, donde estaba la mitad que se fue.
+
+   Lo que esta vuelta cambia, y contra qué queja:
+
+     · «El selector Calorías/Pasos arrastra a Sus fotos y Ver a fondo.» El
+       carril hundido que envolvía a los cuatro se va: el conmutador recupera
+       su píldora y las dos acciones pasan a enlace y a botón.
+     · «Las barras de calorías pesan demasiado para ser un dato de fondo.» Son
+       un ÁREA al 7 % con el canto a media luz, en el tercio de abajo.
+     · «La separación entre bloques es una línea dura con un rótulo flotante.»
+       Ahora es una banda de gris con su nombre encima, sin ninguna línea.
+     · «La leyenda tiene cuatro tratamientos distintos.» Cada muestra es un SVG
+       que usa las mismas clases que el dibujo: no puede desincronizarse.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 3.1 La barra: dos grupos con dos idiomas ──────────────────────────────
+   Sin carril, sin canto y sin fondo propio. Lo que separa los dos grupos es
+   el aire y la FORMA de cada mando, no una caja que los meta a todos en el
+   mismo saco. */
+.progreso-barra {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3) var(--s4); flex-wrap: wrap;
+}
+/* El conmutador, en la píldora de la casa (`controles.css`) y un punto más
+   pequeño: es una barra de herramientas, no un mando de pantalla. */
+.progreso-barra > .segmented { padding: 2px; border-radius: var(--r-control-md); }
+.progreso-barra .segmented-item {
+  padding: 3px var(--s3); border-radius: var(--r-control-sm);
+  font-size: var(--fs-control); font-weight: 500; line-height: 20px;
+  color: var(--text-tertiary);
+}
+.progreso-barra .segmented-item[aria-pressed='true'] { font-weight: 600; box-shadow: var(--shadow-xs); }
+.progreso-barra .segmented-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Las acciones, a la derecha aunque no haya conmutador a la izquierda. */
+.progreso-acciones { display: inline-flex; align-items: center; gap: var(--s3); margin-left: auto; }
+/* La que NAVEGA: enlace con su cheurón. Ni fondo ni canto — se va de aquí. */
+.progreso-enlace {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: var(--fs-control); font-weight: 500; line-height: 20px;
+  color: var(--text-secondary); text-decoration: none;
+  transition: color var(--fast);
+}
+.progreso-enlace > svg { color: var(--text-tertiary); transition: transform var(--fast), color var(--fast); }
+.progreso-enlace:hover { color: var(--text); }
+.progreso-enlace:hover > svg { transform: translateX(2px); color: var(--text-secondary); }
+.progreso-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: var(--r-control-sm); }
+/* La que ABRE UNA VENTANA: botón con su canto. Se queda en esta pantalla, y
+   por eso tiene cuerpo: hay algo que pulsar y algo que se despliega. */
+.progreso-puerta {
+  display: inline-flex; align-items: center;
+  height: 28px; padding: 0 var(--s3);
+  border: 1px solid var(--edge-control); border-radius: var(--r-control);
+  background: var(--surface); font: inherit;
+  font-size: var(--fs-control); font-weight: 500; line-height: 20px;
+  color: var(--text-secondary); cursor: pointer;
+  transition: background-color var(--fast), color var(--fast), border-color var(--fast);
+}
+.progreso-puerta:hover { background: var(--fill-subtle); color: var(--text); border-color: var(--hairline-strong); }
+.progreso-puerta:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── 3.2 El armazón del dibujo ─────────────────────────────────────────────
+   El SVG se mide a sí mismo (ver `GraficaDelProgreso`), así que aquí solo se
+   dice cómo se pinta cada trazo. `overflow: visible` porque el punto de hoy,
+   con su anillo, sobresale medio píxel del lienzo. */
+.progreso > .tarjeta-cuerpo { gap: var(--s4); }
+.progreso-grafica { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.progreso-lienzo { position: relative; min-width: 0; }
+.progreso-svg { display: block; width: 100%; overflow: visible; }
+/* La rejilla, casi invisible: está para poder leer una altura, no para verse. */
+.progreso-rejilla line { stroke: var(--fill); stroke-width: 1; }
+.progreso-eje-y text { fill: var(--text-tertiary); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; }
+
+/* ── 3.3 Las bandas de fase ────────────────────────────────────────────────
+   Gris de fondo alternando, y NINGUNA línea: el cambio de tinte es el canto.
+   El rótulo lleva el mismo tinte que su banda y se pega a ella por abajo, así
+   que el nombre y el tramo son un solo objeto. */
+.progreso-fases { display: grid; align-items: end; }
+.progreso-fase {
+  min-width: 0; padding: 3px var(--s2) var(--s1);
+  border-radius: var(--r-control-sm) var(--r-control-sm) 0 0;
+  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--text-tertiary); line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* La fase EN CURSO: la única que sube a tinta de texto. Es la mitad de la
+   pregunta que el dibujo contesta de un vistazo, y no lleva acento porque no
+   se pulsa — el azul invita, y esto solo informa. */
+.progreso-fase.is-actual { color: var(--text-secondary); }
+
+/* ── 3.4 La serie pautada, a FONDO REAL ────────────────────────────────────
+   Eran columnas en tinta al 8 % que llegaban a media altura, y pesaban más
+   que la curva. Ahora son terreno: un área al 7 % con el canto de arriba a
+   media luz, en el tercio de abajo del lienzo. Lo único que se lee de ella es
+   el ESCALÓN, y por eso el escalón sí está en tinta. */
+.progreso-fondo { fill-opacity: 0.07; }
+.progreso-fondo-borde { stroke-width: 1; stroke-opacity: 0.4; stroke-linejoin: miter; }
+.progreso-peldano { fill: var(--surface); stroke-width: 1.5; stroke-opacity: 0.85; }
+
+/* ── 3.5 El peso ───────────────────────────────────────────────────────────
+   Trazo fino con su degradado debajo, y un punto por pesaje: son medidas
+   tomadas los días que esa persona se subió a la báscula.
+
+   ── ESTA TINTA YA NO ES SOLO DE AQUÍ ────────────────────────────────────
+   `.progreso-trazo`, `-salto`, `-punto`, `-pesaje` y `-guia` los escribe
+   `roadmap/TrazoDelPeso`, que dibuja el peso real en los TRES sitios: esta
+   gráfica, las tiras de Revisiones y la línea del plan. Un cambio aquí se ve
+   en los tres, que es exactamente para lo que se juntaron. (Por sitio les
+   tocaría `piezas.css`; se quedan aquí para no mover el orden de la cascada
+   en la misma tanda que se unieron.) */
+.progreso-trazo { stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
+.progreso-area { pointer-events: none; }
+/* Los pesajes sueltos, en voz baja: el dato gordo es la media de la semana. */
+.progreso-pesaje { fill-opacity: 0.35; }
+/* El tramo que FALTA: la misma tinta, de puntos y apagada. Se ve que la línea
+   sigue ahí y se ve que nadie midió en medio. */
+.progreso-salto { stroke-width: 1.25; stroke-dasharray: 2 4; stroke-opacity: 0.35; }
+.progreso-punto { stroke: var(--surface); stroke-width: 1.5; transition: r var(--fast); }
+/* Hoy, el máximo y el mínimo: los tres puntos que las anotaciones nombran,
+   con el anillo más ancho. Es lo que los despega de la línea sin otra tinta. */
+.progreso-punto.is-hoy,
+.progreso-punto.is-extremo,
+.progreso-punto.is-activo { stroke-width: 2.5; }
+/* El objetivo, de PUNTOS: es lo único del dibujo que todavía no ha pasado. */
+.progreso-meta { stroke-width: 1.5; stroke-dasharray: 6 4; stroke-opacity: 0.7; fill: none; }
+/* El hilo de una anotación que ha tenido que apartarse de su punto. */
+.progreso-hilos line { stroke-width: 1; stroke-dasharray: 2 3; stroke-opacity: 0.45; }
+
+/* ── 3.6 Las anotaciones ancladas ──────────────────────────────────────────
+   Cuatro cifras en todo el dibujo, cada una pegada a su punto: de dónde
+   salió, el techo, dónde está hoy y adónde tiene que llegar. Ninguna recibe
+   el puntero —debajo está el dibujo— y todas se apagan mientras se lee el
+   globo, que es la lectura fina de una semana concreta. */
+.progreso-notas {
+  position: absolute; inset: 0; pointer-events: none;
+  transition: opacity var(--fast);
+}
+.progreso-notas > * { position: absolute; pointer-events: none; }
+.progreso-notas.is-apagado { opacity: 0.28; }
+/* La chapa: el rótulo de una cifra, en caja baja. El alto se cuenta en el JSX
+   (`ALTO_CHAPA`) para colgarla de su punto, así que el interlineado y el
+   relleno de aquí no se tocan sin tocar aquello. */
+.progreso-chapa {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  height: 22px; padding: 0 var(--s2); border-radius: var(--r-control-sm);
+  background: var(--surface-glass); border: 1px solid var(--edge);
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 20px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+  backdrop-filter: blur(3px);
+}
+.progreso-chapa > em {
+  font-style: normal; font-size: var(--fs-3xs); font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary);
+}
+/* El objetivo, en la tinta del PESO y con canto de puntos: es la misma raya
+   que cruza el dibujo, dicha con palabras. En acento parecería un mando. */
+.progreso-chapa.is-meta { background: var(--surface); border-style: dashed; }
+.progreso-chapa.is-meta > em { color: inherit; opacity: 0.75; }
+/* El máximo y el mínimo: sin caja. Son dos apuntes al margen de la curva, y
+   una caja los pondría al nivel de las dos cifras que sí son noticia. */
+.progreso-extremo {
+  display: inline-flex; align-items: baseline; gap: var(--s1);
+  height: 16px; padding: 0 2px;
+  font-size: var(--fs-2xs); font-weight: 700; line-height: 16px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.progreso-extremo > em {
+  font-style: normal; font-size: var(--fs-3xs); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+/* HOY es una tarjetita con sombra y no una chapa: es la cifra que se viene a
+   buscar, y la única del dibujo que se lee desde el otro lado de la mesa. */
+.progreso-hoy {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  height: 50px; padding: 0 var(--s3); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow-sm);
+}
+.progreso-hoy > em {
+  font-style: normal; font-size: var(--fs-3xs); font-weight: 700; line-height: 12px;
+  letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.progreso-hoy > b {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
+  letter-spacing: -0.012em; line-height: 24px; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.progreso-hoy > b > small {
+  font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary);
+}
+
+/* ── 3.7 Recorrer la serie: un disco por punto y UN globo ──────────────────
+   Fuera de los puntos el dibujo no reacciona al ratón. El disco es mayor que
+   el punto para que el dedo lo acierte. */
+.progreso-toques { position: absolute; inset: 0; pointer-events: none; }
+.progreso-toques:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: var(--r-sm); }
+.progreso-toque {
+  all: unset; position: absolute; border-radius: 50%; cursor: pointer; pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.progreso-guia { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+/* UN solo globo, con todo lo de esa semana: el peso, el cambio, lo pautado,
+   si esa semana lo cambiaste y a cuánto está del objetivo. */
+.progreso-globo {
+  position: absolute; z-index: 2; display: flex; flex-direction: column; gap: 3px;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  background: var(--surface-raised); border: 1px solid var(--edge); box-shadow: var(--shadow-md);
+  pointer-events: none;
+}
+.progreso-globo-cab {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.progreso-globo-marca {
+  margin-left: auto; padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--surface-sunken); color: var(--text-secondary); letter-spacing: 0.04em;
+}
+.progreso-globo > b {
+  font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700;
+  line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+.progreso-globo > b > small { font-family: var(--font); font-size: var(--fs-xs); font-weight: 500; color: var(--text-tertiary); }
+.progreso-globo-linea {
+  display: flex; align-items: center; gap: 6px;
+  font-size: var(--fs-2xs); color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+/* Las tres muestras del globo copian el trazo del que hablan: el fondo un
+   bloque apagado, el escalón un aro hueco, el objetivo una raya de puntos. */
+.progreso-globo-linea > i { flex-shrink: 0; width: 9px; height: 9px; border-radius: 2px; }
+.progreso-globo-linea > i.is-fondo { opacity: 0.4; }
+.progreso-globo-linea > i.is-escalon { background: none; border: 1.5px solid; border-radius: 50%; }
+.progreso-globo-linea > i.is-meta { height: 0; width: 14px; border-radius: 0; border-top: 1.5px dashed; opacity: 0.75; }
+.progreso-globo-nada { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── 3.8 El eje de semanas ─────────────────────────────────────────────────
+   Las mismas columnas del dibujo, para que la marca caiga bajo su punto. La
+   rejilla la pone el JSX con `gridTemplateColumns`. */
+.progreso-eje { display: grid; }
+.progreso-semana { font-size: var(--fs-2xs); color: var(--text-tertiary); text-align: center; overflow: hidden; }
+.progreso-semana.is-hoy { color: var(--text-secondary); font-weight: 700; }
+
+/* ── 3.9 La leyenda, dibujada con el mismo pincel ──────────────────────────
+   Cada muestra es un SVG diminuto que usa LAS MISMAS CLASES que el lienzo, así
+   que el grosor de la curva en la leyenda es literalmente el grosor de la
+   curva. Lo único que se le dice aquí es cuánto mide y que no se encoja. */
+.progreso-leyenda {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.progreso-leyenda > li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.progreso-leyenda > li > em { font-style: normal; color: var(--text-tertiary); opacity: 0.75; }
+.progreso-muestra { flex-shrink: 0; display: block; width: 24px; height: 12px; overflow: visible; }
+
+/* ── 3.10 Suelo de calidad ─────────────────────────────────────────────────
+   Quien pide menos movimiento no tiene por qué ver crecer un punto ni
+   apagarse una chapa. El dibujo no pierde nada: todo lo que dicen esas dos
+   transiciones lo dice también el estado final. */
+@media (prefers-reduced-motion: reduce) {
+  .progreso-punto,
+  .progreso-notas,
+  .progreso-enlace,
+  .progreso-enlace > svg { transition: none; }
+}
+
+
+/* ── 4. MICRO-TARJETAS: «EL PLAN» Y «CÓMO LO LLEVA» ────────────────────────
+   Cada fila deja de ser un renglón bajo un filete y pasa a ser su propia caja
+   de canto ultrafino, con el rótulo a la izquierda y la cifra a la derecha. */
+.resumen-pagina .plan .palancas { gap: var(--s2); }
+.resumen-pagina .plan .palancas > li > .palanca,
+.resumen-pagina .plan .palancas > li:first-child > .palanca {
+  margin-inline: 0;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--edge-fino);
+  border-radius: var(--r-control-md);
+  background: var(--surface);
+}
+.resumen-pagina .plan .palanca:not(.is-macros) > .palanca-k {
+  font-size: var(--fs-sm); font-weight: 500; letter-spacing: -0.01em; color: var(--text-secondary);
+}
+.resumen-pagina .plan .palanca:not(.is-macros) > .palanca-v {
+  font-size: var(--fs-sm); font-weight: 600; letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.resumen-pagina .plan .palanca:not(.is-macros) > .palanca-s { font-size: var(--fs-xs); }
+.resumen-pagina .plan .palanca.is-puerta { transition: background-color var(--fast), border-color var(--fast); }
+.resumen-pagina .plan .palanca.is-puerta:hover { background: var(--fill-subtle); border-color: var(--hairline-strong); }
+.resumen-pagina .plan .palanca.is-macros { gap: var(--s2); }
+.resumen-pagina .plan .palanca-macros { font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+.resumen-pagina .plan .macro-bar { height: 4px; border-radius: var(--r-pill); }
+.resumen-pagina .plan .macro-bar > * + * { box-shadow: inset 2px 0 0 var(--surface); }
+
+/* «Cómo lo lleva»: las micro-tarjetas de cada fila viven con el medidor, en
+   `medidor.css` (21 sep). */
+/* El rótulo de cada tramo, en frase y no en versales: lleva detrás su fecha
+   y el día («25 ago · Pull A»), y troquelado entero partía en dos líneas. */
+.resumen-pagina .lo-lleva .sensaciones-tramo .bloque-titulo {
+  font-size: var(--fs-xs); font-weight: 600; letter-spacing: -0.01em; color: var(--text-secondary);
+}
+
+
+/* ── 5. CIFRAS TABULARES EN TODO EL RESUMEN (19 sep, cuarta vuelta) ────────
+   Pesajes, calorías, series, tonelajes, el eje de la gráfica: todos los
+   dígitos del Resumen miden lo mismo, así que las columnas de cifras se leen
+   a plomo. Se hereda, y por eso basta con decirlo una vez aquí. Es la letra
+   de la casa con dígitos tabulares y no la monoespaciada entera: la
+   monoespaciada se queda para la cifra grande de la franja, que es donde se
+   pidió y donde una cifra sola la aguanta. */
+.resumen-pagina { font-variant-numeric: tabular-nums; }
+
+/* La raya del objetivo, en su línea del globo: la misma raya punteada que en
+   el dibujo, ahora que su chapa se ha ido. */
+.progreso-globo-linea > i.is-meta {
+  width: 10px; height: 0; border-radius: 0;
+  border-top: 1.5px dashed; background: none;
+}

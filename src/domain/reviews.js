@@ -139,6 +139,30 @@ const recorta = (foto) => {
   return out;
 };
 
+/**
+ * LA FOTO DE UNA VERSIÓN FECHADA de la pauta (`nutrition_plan_versions`, 0124).
+ *
+ * Las mismas cifras de cabecera que `planSnapshot` —la media del ciclo con los
+ * días de entreno de HOY, los pasos y el cardio— y nada más: la versión no
+ * trae menú, y el programa no es de la dieta. Así `nutritionTrack` compara una
+ * versión con una foto de revisión sin traducir nada.
+ *
+ * @param nutrition la pauta ya traducida (`mapNutritionFromDb(version.pauta)`).
+ */
+export const fotoDeVersion = ({ nutrition, program, client = null } = {}) => {
+  const ciclo = cycleFoto(nutrition, clientCycleSlots(client, program)) || {};
+  return {
+    kcals: ciclo.kcals ?? null,
+    protein: ciclo.protein ?? null,
+    carbs: ciclo.carbs ?? null,
+    fats: ciclo.fats ?? null,
+    de: ciclo.de ?? null,
+    reparto: ciclo.reparto ?? null,
+    steps: toNum(nutrition?.stepsGoal),
+    cardio: String(nutrition?.cardioGoal || '').trim().slice(0, 120) || null,
+  };
+};
+
 export const planSnapshot = ({ nutrition, program, client = null } = {}) => {
   /*
     ── Las cuatro cifras son las del CICLO, no las del primer día ────────────
@@ -831,14 +855,26 @@ export const queueWeek = ({ startDate = null, period = null } = {}) =>
  * ── Y la que entregó, por el mismo motivo ──────────────────────────────────
  * Un cliente puede entregar una semana que tú no montaste. Sin ella en la lista,
  * su entrega tampoco se podía abrir.
+ *
+ * ── Y las que tienen datos (`active`) ──────────────────────────────────────
+ * Con el roadmap en la revisión, la espina y el libro enseñan cada semana con
+ * su media. Una semana en la que se pesó o entregó, sin rutina montada —un
+ * cliente solo de dieta, o un bloque que no se desdobló en microciclos—, se
+ * veía y no se podía elegir. `active` son fechas: pesajes y entregas.
  */
 export const reviewableWeeks = ({
   programmed = [],
   startDate = null,
   submitted = null,
   period = null,
+  active = [],
 } = {}) => {
   const semanas = new Set(programmed.filter((w) => Number.isFinite(w) && w >= 1));
+
+  for (const fecha of active) {
+    const w = fecha ? weekFromStart(startDate, fecha) : null;
+    if (Number.isFinite(w) && w >= 1) semanas.add(w);
+  }
 
   const entregada = submitted?.weekStart ? weekFromStart(startDate, submitted.weekStart) : null;
   if (Number.isFinite(entregada) && entregada >= 1) semanas.add(entregada);

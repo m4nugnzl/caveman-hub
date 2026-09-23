@@ -4,10 +4,7 @@ import {
   ArrowDownNarrowWide,
   ArrowDownWideNarrow,
   ArrowLeft,
-  Cake,
   CalendarCheck,
-  PersonStanding,
-  Ruler,
   Search,
 } from 'lucide-react';
 
@@ -27,6 +24,7 @@ import {
   COACH_PRIMARY,
   COACH_TALLER,
   clientPath,
+  semanaPath,
   isSectionActive,
   sameSectionFor,
   sectionsFor,
@@ -189,7 +187,7 @@ export const CoachLayout = () => {
   const { clientId } = useParams();
 
   /* Si la barra va recogida a iconos —solo para pintarla así; quien lo manda
-     es el botón del ancho, en la esquina de la cinta (`ui/Pliegue`)— y por
+     es el mando del ancho, en la esquina de la propia barra (`ui/Pliegue`)— y por
      quién has pasado últimamente. Los dos aquí arriba con el resto de ganchos:
      más abajo hay retornos tempranos. */
   const [plegada] = useBarraPlegada();
@@ -679,19 +677,31 @@ export const CoachLayout = () => {
 
   return (
     <div className="shell">
-      {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══ */}
+      {/* ══ La barra lateral: solo existe en escritorio (ver EL CHASIS) ═══
+          En tinta (`barra-tinta`), como en producción. Estuvo clara del 19 al
+          23 sep y el dueño la devolvió a la tinta de antes. */}
       <aside className={`sidebar barra-tinta${plegada ? ' is-plegada' : ''}`}>
         {/*
-          ══ LA MARCA, Y NINGÚN MANDO ════════════════════════════════════════
-          Aquí estuvo el interruptor del pliegue, y duró una tarde: cromo del
-          chasis en la esquina donde el chasis no tiene que explicarse. El
-          pliegue no es una preferencia que se vaya a buscar, es la respuesta a
-          una pantalla que se queda estrecha, así que el mando se ha ido a esa
-          pantalla —«Ampliar», en la cabecera de Entreno— y la barra solo
-          obedece. El porqué entero, en `lib/barraPlegada`.
+          ══ EL MANDO DEL ANCHO, EN LA BARRA Y COMO CAPA ═════════════════════
+          Vuelve a la barra después de nueve sitios, y vuelve distinto: no está
+          EN el renglón de la marca, está ENCIMA de su esquina, fuera del flujo
+          y en reposo invisible. Ver el historial entero en `ui/Pliegue`.
+
+          Las dos objeciones de siempre se caen solas con eso. «Ahí le resta
+          presencia al logo»: en reposo no hay nada, la fila es del mark y su
+          rótulo. Y «se come espacio del lienzo»: no toca el lienzo, ni un
+          píxel, ni cuando aparece.
+
+          Por qué AQUÍ y no en la hoja, que es lo que costó entender: lo que
+          este mando hace es plegar ESTA columna. Un mando pertenece a la
+          superficie sobre la que actúa, y buscarlo es un gesto que empieza
+          mirando la barra. Además es la única superficie del chasis donde
+          sobra sitio: en la hoja, cualquier cosa permanente compite con el
+          trabajo, cueste 28 px o cueste 0.
         */}
         <div className="sidebar-brand">
           <Logo subtitle={null} />
+          <Pliegue />
         </div>
         {/* Buscar vive en la barra: es a donde se va, no un mueble aparte. */}
         <div className="sidebar-buscar">
@@ -964,7 +974,11 @@ export const CoachLayout = () => {
         </div>
       </aside>
 
-      <div className="shell-main">
+
+      {/* Dentro de un cliente, la columna de trabajo es UN lienzo: cabecera,
+          pestañas y la página entera sobre la misma hoja blanca, separadas
+          por filetes y no por huecos. Ver «EL LIENZO ÚNICO», en lienzo.css. */}
+      <div className={`shell-main${onClient && activeClient ? ' is-lienzo' : ''}`}>
         {/* El estado de la red, cuando tiene algo que decir. Entra en la columna
             de contenido y no encima del chasis: montada en `App` —donde la
             monta el portal— empujaba la barra lateral entera hacia abajo, que
@@ -996,10 +1010,14 @@ export const CoachLayout = () => {
                   destinos ya no cuelgan aquí en medio: tienen su raíl debajo. */}
               <div className="cliente-cab-linea">
               <div className="cliente-cab-quien">
-                {/* El ancho, EN CABEZA: la hoja crece hacia la izquierda —el
-                    canto derecho no se mueve— así que el mando va del lado que
-                    se abre. Ver `ui/Pliegue`. */}
-                <Pliegue />
+                {/* Aquí estuvo el mando del ancho, y con él la calle de 44 px
+                    que le reservaba la cabecera. Los dos se han ido a la fila
+                    de la marca, en la barra lateral: pliega la barra, no esta
+                    hoja, y mientras vivió aquí la fila de la identidad
+                    empezaba con una pieza que no era de la persona. Ahora la
+                    cara, el nombre y las pestañas arrancan todos en el mismo
+                    sangrado que la barra de bloques y las hojas del bloque
+                    (ver `--sangria-lienzo`, en `lienzo.css`). */}
                 <button
                   type="button"
                   className="btn btn-icon cliente-cab-volver"
@@ -1148,44 +1166,74 @@ export const CoachLayout = () => {
                       <div className="cliente-cab-selector">{selector}</div>
                     </div>
 
-                    {/* La línea de datos, DEBAJO del nombre y a plomo bajo él:
-                        quién es y por dónde va. La anatomía va en CHAPAS con su
-                        signo (Q-08
-                    del plan del acabado): tres medidas seguidas en texto
-                    corrido —«31 años · 168 cm · Mujer»— había que leerlas para
-                    saber cuál era cuál; el signo las cuenta de un vistazo. El
-                    microciclo NO es chapa: es por dónde va, no lo que mide, y
-                    queda en texto llano — la diferencia entre dato y estado se
-                    ve ahora en el dibujo.
+                    {/* ══ LA LÍNEA DE DATOS: UNA FRASE, UN SOLO RITMO ═══════
+                        Debajo del nombre y a plomo bajo él: quién es y por
+                        dónde va.
 
-                    «En curso» no es adorno: debajo, la revisión habla del
-                    microciclo que YA ha terminado —el 18 cuando aquí pone 19—,
-                    y dos números seguidos sin decir de qué son se leen como un
-                    fallo. Con esto cada uno dice lo suyo. */}
+                        ── Y SIN SIGNOS (20 sep, segunda vuelta) ─────────────
+                        Cada dato llevó su icono delante —tarta, regla,
+                        figura— con el argumento de que tres medidas seguidas
+                        en texto corrido hay que leerlas para saber cuál es
+                        cuál (Q-08 del plan del acabado). El dueño lo puso en
+                        duda —«cinco iconos distintos para cinco datos
+                        consecutivos es ruido»— y al mirarlo de cerca el
+                        argumento no se sostiene, por dos motivos:
+
+                          · NINGUNO dice nada que la palabra no diga. «24
+                            años» lleva la palabra «años»; «168 cm» lleva su
+                            unidad; «Mujer» ES la palabra. Un signo que repite
+                            lo que hay a su derecha no cuenta nada de un
+                            vistazo: dobla la pieza a leer.
+                          · Y eran la mitad del defecto de alineación. Con un
+                            icono dentro, cada dato era una caja `inline-flex`,
+                            y la línea base de una caja flex la marca su primer
+                            hijo: un SVG, que no tiene línea base, así que se
+                            alineaba por su BORDE INFERIOR. Medido: 6,5 px por
+                            debajo de la línea base de «Microciclo 9», que es
+                            justo lo que se veía torcido.
+
+                        Sin ellos cada dato es texto llano, se alinea como
+                        texto, y lo que separa una medida de la siguiente es el
+                        interpunto — que es como lo escribe el frame.
+
+                        ── Y TODOS SON HERMANOS DEL RENGLÓN (20 sep) ─────────
+                        La anatomía iba envuelta en una caja propia con su
+                        hueco, el microciclo llegaba después con un interpunto,
+                        y «en curso» venía pegado con un punto escrito a mano
+                        aquí dentro: tres separaciones distintas en una frase de
+                        cinco palabras, que es lo que el dueño ve como que «el
+                        ritmo cambia». Ahora cada pieza es un hijo directo de la
+                        línea y el punto lo pone el CSS entre dos hermanos
+                        cualesquiera, con el mismo aire siempre.
+
+                        ── Y SE VEN TAMBIÉN DENTRO DEL PERFIL ────────────────
+                        La anatomía se retiraba con `!enFicha` para no repetir
+                        lo que la ficha ya dice debajo. El precio era peor que
+                        lo que ahorraba: la misma cabecera decía cuatro cosas en
+                        cuatro pestañas y una en la quinta —«hay datos que en
+                        unas pantallas están y en otras no»—, así que al saltar
+                        al perfil el renglón se vaciaba y el bloque subía. Un
+                        dato repetido en voz baja no molesta; una cabecera que
+                        cambia de altura al cambiar de pestaña, sí.
+
+                        «En curso» se tiñe de verde. No es adorno: en este
+                        renglón todo son datos quietos —los años, los
+                        centímetros, el número de microciclo— y esto es lo único
+                        que dice que algo está PASANDO ahora mismo. Debajo, la
+                        revisión habla del microciclo que YA terminó —el 18
+                        cuando aquí pone 19—, y dos números seguidos sin decir
+                        de qué son se leen como un fallo. */}
                     <p className="cliente-cab-meta">
-                      {!enFicha && anatomia.length > 0 && (
-                        <span className="cliente-cab-anatomia">
-                          {anatomia.map((f) => {
-                            const Signo = { age: Cake, height: Ruler, gender: PersonStanding }[f.id];
-                            return (
-                              <span key={f.id} className="chapa-hecho" title={f.label}>
-                                {Signo && <Signo size={13} aria-hidden="true" />}
-                                {f.value}
-                              </span>
-                            );
-                          })}
+                      {anatomia.map((f) => (
+                        <span key={f.id} className="cliente-cab-dato" title={f.label}>
+                          {f.value}
                         </span>
-                      )}
-                      {/* «En curso» se tiñe de verde, como en el frame. No es
-                          adorno: en este renglón todo son datos quietos —los
-                          años, los centímetros, el número de microciclo— y esto
-                          es lo único que dice que algo está PASANDO ahora
-                          mismo. El verde es el de la casa (va, está bien), no
-                          un color nuevo. */}
+                      ))}
                       {semanaActiva && conPrograma && (
-                        <span>
-                          Microciclo {semanaActiva} · <em className="cliente-cab-vivo">en curso</em>
-                        </span>
+                        <>
+                          <span>Microciclo {semanaActiva}</span>
+                          <em className="cliente-cab-vivo">en curso</em>
+                        </>
                       )}
                     </p>
                   </div>
@@ -1221,7 +1269,7 @@ export const CoachLayout = () => {
                 {chapas}
                 {bandeja.esperando.has(activeClient.id) &&
                   !isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
-                    <Link className="btn btn-primary btn-sm" to={clientPath(clientId, 'semana')}>
+                    <Link className="btn btn-primary btn-sm" to={semanaPath(clientId, checkIns[clientId]?.weekStart)}>
                       <CalendarCheck size={15} aria-hidden="true" />
                       Revisar semana
                     </Link>

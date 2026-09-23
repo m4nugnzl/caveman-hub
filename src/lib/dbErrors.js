@@ -47,6 +47,8 @@ const FUNCION_MIGRACION = {
   review_check_in: '0042',
   create_client: '0032',
   delete_check_in: '0044',
+  fila_de_revision: '0134',
+  reabrir_revision: '0134',
 };
 
 /** El nombre de la función del que habla un PGRST202. */
@@ -187,6 +189,12 @@ export const traduceStorageError = (error, { cliente = false } = {}) => {
     return cliente
       ? 'No queda espacio para archivos en esta cuenta. Díselo a tu entrenador: puede liberar espacio o ampliarlo.'
       : 'Has llenado el espacio de fotos y vídeo de tu plan. Borra archivos que ya no necesites o cambia de plan en Ajustes → Plan.';
+  }
+
+  /* La subida no obtuvo respuesta: sin red, o el teléfono no dejó leer el
+     archivo. `supabase-js` pasa el texto del navegador tal cual, en inglés. */
+  if (/failed to fetch|networkerror|load failed/i.test(message)) {
+    return 'El archivo no llegó a enviarse: puede que se haya cortado la conexión.';
   }
 
   return null;

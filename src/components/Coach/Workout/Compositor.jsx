@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChevronRight,
   ClipboardPaste,
@@ -22,10 +22,13 @@ import {
   inheritedSessions,
   intentLabel,
   lastWeekNumber,
+  microcicloDelBloque,
   pautaHeredada,
   planExerciseView,
   planSessionView,
+  renombrarEnLista,
   sessionDiff,
+  setsDesdeTramos,
   structureOfBlock,
   volumeByGroup,
 } from '@/domain/blocks';
@@ -33,14 +36,28 @@ import { mergeCatalog } from '@/domain/catalog';
 import { comoLista } from '@/domain/cajon';
 import { clientProtocol, isModuleOn } from '@/domain/protocol';
 import {
+  TIPO_DEL_CICLO,
+  WEEK_DAYS,
   buildExercise,
+  cadenaDe,
   cloneExerciseAsTemplate,
+  copiaDeLaHoja,
   dayHasOwnDrills,
+  devolverObjetivo,
   drillsForDay,
+  generarSecuencia,
+  normalizePattern,
+  objetivoPautado,
+  renombrarEnMicrociclo,
+  secuenciaSemanal,
+  seguirAlPlan,
+  tandasDe,
   tecnicaOf,
   unitLabel,
+  vaciarObjetivo,
 } from '@/domain/training';
 import { guardarBorrador, leerBorrador, olvidarBorrador } from '@/lib/borradorDelBloque';
+import { borradorDe, esElSiguiente } from '@/domain/borradores';
 import { clampInt } from '@/lib/num';
 import { useAtajoDeDeshacer } from '@/lib/useAtajoDeDeshacer';
 import { usePilaDeCambios } from '@/lib/usePilaDeCambios';
@@ -56,6 +73,8 @@ import { ConditionsNote } from '@/components/conditions/ConditionsNote';
 import { BibliotecaDelCliente } from './BibliotecaDelCliente';
 import { ConjuntoDelBloque } from './ConjuntoDelBloque';
 import { EscribirHoja } from './EscribirHoja';
+import { avisoDeRetirar } from './TablaDeSeries';
+import { RitmoDelMicrociclo } from './RitmoDelMicrociclo';
 import { TarjetaVolumen } from './LecturasDelBloque';
 import { VolumenDeLaHoja } from './VolumenDeLaHoja';
 import { VolumenPopup } from './VolumenPopup';
@@ -139,9 +158,15 @@ export const Compositor = () => {
     catalogExercises,
     cajon,
     startBlockWithPlan,
+    anadirBorradorDelBloque,
+    cambiarBorradorDelBloque,
     upsertLibraryExercise,
   } = useApp();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  /* Componiendo un BLOQUE EN BORRADOR (`?borrador=<id>`): lo que se monta aquí
+     se guarda en él y no abre nada. Ver `domain/borradores`. */
+  const borradorId = params.get('borrador');
   const guardarEnPlantillas = useGuardarEnPlantillas();
   const toast = useToast();
   /*
@@ -151,7 +176,9 @@ export const Compositor = () => {
     en blanco y el bloque aparecería de golpe, que es exactamente el parpadeo
     que hace dudar de si se ha perdido algo. Ver `lib/borradorDelBloque`.
   */
-  const [borrador] = useState(() => leerBorrador(activeClient?.id));
+  /* Rellenando un borrador del servidor, la red del navegador no pinta nada:
+     lo que se compone es SUYO y se guarda en él (decisión del dueño, 22 sep). */
+  const [borrador] = useState(() => (borradorId ? null : leerBorrador(activeClient?.id)));
   /* Lo que se lleva en la mano, para poder ponerlo encima de una columna. */
   const hojasCopiadas = usePortapapeles(TIPO.HOJA);
 
@@ -170,15 +197,32 @@ export const Compositor = () => {
   const [previstos, setPrevistos] = useState(borrador?.previstos ?? null);
   const [nota, setNota] = useState(borrador?.nota ?? '');
   const [sesiones, setSesiones] = useState(borrador?.sesiones ?? []);
-  /* Dónde cae cada hoja. Es local por la misma razón que las hojas: el reparto
-     del bloque abierto vive en `program.weeklySplit` y este bloque todavía no
-     está abierto. Viaja entero en `startBlockWithPlan`. */
-  const [split, setSplit] = useState(borrador?.split ?? {});
+  /*
+    La tira del microciclo, si alguien la ha tocado: `{ microciclo, hojas }`,
+    con las hojas que había cuando se escribió, para que siga al plan igual que
+    la guardada (`seguirAlPlan`). `null` es «la de por defecto». Local por la
+    misma razón que las hojas, y viaja entera en `startBlockWithPlan`. Un
+    borrador de antes de F2c trae `split`: se lee como su semanal.
+  */
+  const [tira, setTira] = useState(() => {
+    if (borrador?.tira?.microciclo) return borrador.tira;
+    if (borrador?.split && Object.keys(borrador.split).length > 0) {
+      return {
+        microciclo: { tipo: 'semanal', dias: secuenciaSemanal(borrador.split) },
+        hojas: (borrador.sesiones || []).map((s) => s.dayName),
+      };
+    }
+    return null;
+  });
   const [abierta, setAbierta] = useState(borrador?.abierta ?? null);
   const [renombrando, setRenombrando] = useState(false);
   /* El alta de hoja desde el camino: `null` cerrada, cadena mientras se escribe
      el nombre. La misma pareja «+ hoja» / formulario en línea que Entreno. */
   const [nuevaHoja, setNuevaHoja] = useState(null);
+  /* La que acaba de salir de «Copia de…», hasta que la rejilla la pone a
+     renombrar. La misma pareja que Entreno (ver `duplicarHoja`). */
+  const [copiaPorNombrar, setCopiaPorNombrar] = useState(null);
+  const olvidarCopiaPorNombrar = useCallback(() => setCopiaPorNombrar(null), []);
 
   /* Qué hay en la mesa: el bloque entero o una de sus hojas. Los mismos dos
      nombres que Entreno, para que el camino se lea igual en las dos. */
@@ -221,15 +265,15 @@ export const Compositor = () => {
     hay que comprobar que la hoja abierta siga existiendo —deshacer un «+ hoja»
     la borra— o la mesa se queda mirando a una hoja que ya no está.
   */
-  const foto = useMemo(() => ({ sesiones, split }), [sesiones, split]);
+  const foto = useMemo(() => ({ sesiones, tira }), [sesiones, tira]);
   /* Se desmonta en sus cuatro piezas y no se usa como objeto: `pasos` cambia
      con cada gesto, y un `pila` entero en las dependencias de `empezarDeCero`
      recrearía el aviso de «seguimos donde lo dejaste» en cada render. */
   const { pasos: pasosDelBloque, deshacer, rehacer, olvidar: olvidarLaPila } = usePilaDeCambios({
     foto,
-    restaurar: ({ sesiones: ss, split: sp }) => {
+    restaurar: ({ sesiones: ss, tira: t }) => {
       setSesiones(ss);
-      setSplit(sp);
+      setTira(t);
       setAbierta((n) => (ss.some((s) => s.dayName === n) ? n : (ss[0]?.dayName ?? null)));
       if (ss.length === 0) setVista('bloque');
     },
@@ -239,7 +283,33 @@ export const Compositor = () => {
   const program = workoutData[activeClient?.id];
   const bloques = blocksOf(program);
   const anterior = bloques[bloques.length - 1];
-  const nombre = nombreEscrito ?? `Bloque ${bloques.length + 1}`;
+  const enBorrador = borradorId ? borradorDe(program, borradorId) : null;
+  const nombre = nombreEscrito ?? enBorrador?.name ?? `Bloque ${bloques.length + 1}`;
+
+  /*
+    ── LO QUE YA TIENE EL BORRADOR, UNA VEZ ──────────────────────────────────
+    No en el `useState` de arriba: el programa puede llegar después (carga
+    perezosa), y entonces el borrador se leería vacío. En cuanto aparece se
+    vuelca en los mismos estados que usa el alta normal, y a partir de ahí se
+    compone igual — la única diferencia es dónde se guarda.
+  */
+  const volcadoRef = useRef(false);
+  useEffect(() => {
+    if (!enBorrador || volcadoRef.current) return;
+    volcadoRef.current = true;
+    setOrigen({ tipo: 'borrador' });
+    setNombreEscrito(enBorrador.name);
+    setIntencion(enBorrador.intent ?? null);
+    setPrevistos(enBorrador.plannedWeeks ?? null);
+    setNota(enBorrador.note ?? '');
+    setSesiones(enBorrador.sessions || []);
+    setTira(
+      enBorrador.microciclo
+        ? { microciclo: enBorrador.microciclo, hojas: (enBorrador.sessions || []).map((x) => x.dayName) }
+        : null
+    );
+    setAbierta(enBorrador.sessions?.[0]?.dayName ?? null);
+  }, [enBorrador]);
   /* Tus días guardados. Desde la 0112 salen del CAJÓN —la tabla del equipo— y
      no de `preferences`, con la misma forma plana de siempre. Ver
      `domain/cajon` y `docs/replanteamiento-lo-guardado.md`. */
@@ -275,11 +345,11 @@ export const Compositor = () => {
       previstos,
       nota,
       sesiones,
-      split,
+      tira,
       abierta,
       vista,
     }),
-    [origen, nombreEscrito, intencion, previstos, nota, sesiones, split, abierta, vista]
+    [origen, nombreEscrito, intencion, previstos, nota, sesiones, tira, abierta, vista]
   );
 
   useEffect(() => {
@@ -299,7 +369,7 @@ export const Compositor = () => {
     setPrevistos(null);
     setNota('');
     setSesiones([]);
-    setSplit({});
+    setTira(null);
     setAbierta(null);
     setVista('bloque');
   }, [clienteId, olvidarLaPila]);
@@ -369,8 +439,8 @@ export const Compositor = () => {
       <div className="compositor-pagina">
         <EmptyState
           icon={Layers}
-          title="Todavía no hay rutina que continuar"
-          message="Un bloque nuevo se abre detrás del anterior. Empieza la rutina desde la pantalla de Entreno —escribiéndola o trayendo el fichero— y vuelve aquí para el siguiente."
+          title="Sin rutina"
+          message="Empieza la rutina en Entreno y vuelve para el siguiente bloque."
           action={
             <button type="button" className="btn btn-primary btn-sm" onClick={() => aLaRutina()}>
               Ir a la rutina
@@ -383,6 +453,33 @@ export const Compositor = () => {
 
   const ultima = lastWeekNumber(program.microcycles);
   const estructuraAnterior = structureOfBlock(program, anterior);
+
+  /*
+    ── LA TIRA QUE SE VE ──────────────────────────────────────────────────────
+    La escrita, siguiendo a las hojas de ahora (`seguirAlPlan`); o, si nadie la
+    ha tocado, la de por defecto: del mismo tipo que la del bloque anterior
+    —semanal en blanco, o rotativo con su cadena y las hojas nuevas—. Sin
+    bloque anterior, la del tipo de la ficha.
+  */
+  const nombresDeHoja = sesiones.map((s) => s.dayName);
+  const tiraPorDefecto = () => {
+    const suya = anterior ? microcicloDelBloque(program, anterior, activeClient) : null;
+    const tipo = suya?.tipo || TIPO_DEL_CICLO[activeClient?.cycleType || 'weekly'] || 'semanal';
+    if (tipo === 'semanal') return { tipo, dias: WEEK_DAYS.map(() => ({ descanso: true })) };
+    const patron = normalizePattern(activeClient?.cyclePattern);
+    const tandas = suya ? tandasDe(suya.dias) : [];
+    /* Una sola tanda repetida se relee como varias («2-1 2-1 2-1»), con la
+       última a veces corta: entonces se regenera con la primera sola. */
+    const repetida = tandas.slice(0, -1).every((t) => t.entreno === tandas[0].entreno && t.descanso === tandas[0].descanso);
+    const cadena =
+      tandas.length === 0
+        ? `${patron.train}-${patron.rest}`
+        : repetida
+          ? `${tandas[0].entreno}-${tandas[0].descanso}`
+          : cadenaDe(suya.dias);
+    return { tipo, dias: generarSecuencia(cadena, nombresDeHoja) || [{ descanso: true }] };
+  };
+  const microciclo = tira ? seguirAlPlan(tira.microciclo, tira.hojas, nombresDeHoja) : tiraPorDefecto();
   const drills = estructuraAnterior.mobilityDrills || [];
   const hereda = origen?.tipo === 'herencia';
   const cambios = hereda ? sessionDiff(heredadas, sesiones) : [];
@@ -408,12 +505,15 @@ export const Compositor = () => {
     setAbierta(arranque[0]?.dayName ?? null);
     setVista('bloque');
     /*
-      Heredar un bloque es heredar TAMBIÉN dónde caen sus hojas: los nombres
-      son los mismos, así que el reparto sigue valiendo y volver a repartirlo a
-      mano sería trabajo que ya estaba hecho. El bloque en blanco y el que nace
-      de una pieza empiezan sin reparto: sus hojas no existían.
+      Heredar un bloque es heredar TAMBIÉN su microciclo: los nombres son los
+      mismos, así que la tira sigue valiendo. El bloque en blanco y el que nace
+      de una pieza empiezan con la de por defecto (`tiraPorDefecto`).
     */
-    setSplit(nuevo.tipo === 'herencia' ? { ...(estructuraAnterior.weeklySplit || {}) } : {});
+    setTira(
+      nuevo.tipo === 'herencia' && anterior
+        ? { microciclo: microcicloDelBloque(program, anterior, activeClient), hojas: arranque.map((s) => s.dayName) }
+        : null
+    );
   };
 
   /* ── Escribir sobre las hojas de aquí, que aún no están guardadas ─────── */
@@ -444,6 +544,15 @@ export const Compositor = () => {
 
   const quitarEjercicio = (dayName, name) =>
     conEjercicios(dayName, (lista) => lista.filter((ex) => !porNombre(name)(ex)));
+
+  /* Cambiar un ejercicio por otro con su estructura: series, nota y superserie.
+     Un paso en la pila de aquí, como todo lo demás. La regla
+     —vacío o repetido en la hoja no valen— es la del bloque abierto. */
+  const renombrarEjercicio = (dayName, name, nuevo, { muscle = null } = {}) =>
+    conEjercicios(dayName, (lista) => {
+      const suyo = lista.find(porNombre(name));
+      return suyo ? renombrarEnLista(lista, suyo.id, nuevo, { muscle }) : lista;
+    });
 
   /* `delta` y no destino: es lo que manda la rejilla al soltar, y lo que manda
      Alt + ↑/↓. Mover fuera de la lista no hace nada. */
@@ -507,6 +616,15 @@ export const Compositor = () => {
      ella sigue siendo un verbo suyo, y aquí es un caso del de arriba. */
   const reps = (dayName, name, valor) => todas(dayName, name, 'targetReps', valor);
 
+  /* Y el esquema entero, cuando las series no piden lo mismo: «1 × 12, 3 × 6-8».
+     Es el mismo gesto de la rejilla del bloque abierto, y el mismo reparto
+     (`setsDesdeTramos`), así que un bloque se compone con la pauta que va a
+     tener y no con una aproximación que haya que arreglar después. */
+  const esquema = (dayName, name, tramos) =>
+    conEjercicios(dayName, (lista) =>
+      lista.map((ex) => (!porNombre(name)(ex) ? ex : { ...ex, sets: setsDesdeTramos(tramos, ex.sets || []) }))
+    );
+
   /* La gramática de serie —enlazar, remate, descanso— es plan, y aquí el plan
      es este estado. `undefined` borra la clave, como en el dominio. */
   const gramatica = (dayName, name, campos) =>
@@ -537,6 +655,29 @@ export const Compositor = () => {
   /** Un objetivo —`targetKg`, `targetReps`, `targetRir`— de UNA serie. */
   const serie = (dayName, name, indice, campo, valor) =>
     conSets(dayName, name, (sets) => sets.map((s, i) => (i === indice ? { ...s, [campo]: valor } : s)));
+
+  /*
+    Quitar la columna de kilos o de RIR de una hoja: ese objetivo, vacío en
+    todas sus series de una vez —un paso en la pila, un «Deshacer»—. Es lo mismo
+    que hace la hoja con el bloque abierto; aquí el plan es este estado.
+  */
+  const retirarObjetivo = (dayName, campo) => {
+    const hoja = sesiones.find((s) => s.dayName === dayName);
+    const antes = objetivoPautado(hoja?.exercises || [], campo);
+    const cuantos = Object.keys(antes).length;
+    if (cuantos === 0) return;
+    conEjercicios(dayName, (lista) => lista.map((ex) => vaciarObjetivo(ex, campo)));
+    toast({
+      text: avisoDeRetirar(campo, cuantos),
+      action: {
+        label: 'Deshacer',
+        onClick: () =>
+          conEjercicios(dayName, (lista) =>
+            lista.map((ex) => (antes[ex.id] ? devolverObjetivo(ex, campo, antes[ex.id]) : ex))
+          ),
+      },
+    });
+  };
 
   const anadirSerie = (dayName, name) => conSets(dayName, name, (sets) => [...sets, serieSiguiente(sets)]);
 
@@ -607,10 +748,12 @@ export const Compositor = () => {
     const limpio = String(a).trim();
     if (!limpio || limpio === de || sesiones.some((s) => s.dayName === limpio)) return;
     setSesiones((ss) => ss.map((s) => (s.dayName === de ? { ...s, dayName: limpio } : s)));
-    /* El reparto apunta a las hojas POR NOMBRE: sin esto, renombrar «Push A»
-       dejaría el lunes apuntando a una hoja que ya no existe y el día se
-       quedaría en blanco sin que nadie lo hubiera soltado. */
-    setSplit((s) => Object.fromEntries(Object.entries(s).map(([d, v]) => [d, v === de ? limpio : v])));
+    /* La tira apunta a las hojas POR NOMBRE: sin esto, renombrar «Push A»
+       dejaría su día como descanso sin que nadie lo hubiera soltado. */
+    setTira({
+      microciclo: renombrarEnMicrociclo(microciclo, de, limpio),
+      hojas: nombresDeHoja.map((n) => (n === de ? limpio : n)),
+    });
     setAbierta((n) => (n === de ? limpio : n));
   };
 
@@ -621,8 +764,7 @@ export const Compositor = () => {
       if (restantes.length === 0) setVista('bloque');
       return restantes;
     });
-    /* Y su día se queda libre, no apuntando a un fantasma. */
-    setSplit((s) => Object.fromEntries(Object.entries(s).filter(([, v]) => v !== dayName)));
+    /* Su día se queda libre solo: `seguirAlPlan` lo pasa a descanso. */
   };
 
   const moverHoja = (desde, hasta) =>
@@ -634,13 +776,16 @@ export const Compositor = () => {
       return copia;
     });
 
-  /** «Copia de "Empuje"»: media semana se escribe así. */
+  /** «Copia de "Empuje"»: media semana se escribe así. La copia es la misma
+      que con el bloque abierto (`copiaDeLaHoja`: todo lo que es plan, ids
+      nuevos) y sale con el nombre seleccionado para escribir el suyo. */
   const duplicarHoja = (dayName) => {
     const hoja = sesiones.find((s) => s.dayName === dayName);
     if (!hoja) return;
     const n = nombreLibre(dayName, new Set(sesiones.map((s) => s.dayName)));
-    setSesiones((ss) => [...ss, { dayName: n, exercises: (hoja.exercises || []).map(cloneExerciseAsTemplate) }]);
+    setSesiones((ss) => [...ss, copiaDeLaHoja(hoja, n)]);
     setAbierta(n);
+    setCopiaPorNombrar({ hoja: n });
   };
 
   const ponerPieza = (pieza) => {
@@ -702,16 +847,45 @@ export const Compositor = () => {
     }));
   };
 
+  /* Lo que se ha compuesto, en las claves con las que lo guarda el dominio. */
+  const loCompuesto = () => ({
+    name: nombre.trim() || null,
+    sessions: sesiones,
+    mobilityDrills: drills,
+    plannedWeeks: previstos,
+    intent: intencion,
+    note: nota,
+    /* La tira del microciclo, tal como se ve. */
+    microciclo,
+  });
+
+  /*
+    ── RELLENAR NO ES EMPEZAR ────────────────────────────────────────────────
+    Guardar el borrador escribe lo compuesto en `draftBlocks` y no abre nada:
+    el bloque de esta persona sigue siendo el que era. Empezarlo es el otro
+    botón, y va por el camino de abajo.
+  */
+  const guardarElBorrador = () => {
+    cambiarBorradorDelBloque(activeClient.id, borradorId, { ...loCompuesto(), name: nombre.trim() || enBorrador?.name });
+    toast({ text: `«${nombre}» se queda como borrador, detrás del bloque abierto.` });
+    aLaRutina();
+  };
+
+  /* Guardar como borrador lo que se estaba montando para abrir: mismo trabajo,
+     otro destino. Solo con duración prevista — sin ella no cae en el tiempo. */
+  const guardarComoBorrador = () => {
+    const nuevo = anadirBorradorDelBloque(activeClient.id, loCompuesto());
+    olvidarBorrador(clienteId);
+    toast({ text: `«${nuevo?.name ?? nombre}» se guarda como borrador. No ha empezado: lo abres cuando toque.` });
+    aLaRutina();
+  };
+
   const guardar = () => {
     const semana = startBlockWithPlan(activeClient.id, {
-      name: nombre.trim() || null,
-      sessions: sesiones,
-      mobilityDrills: drills,
-      plannedWeeks: previstos,
-      intent: intencion,
-      note: nota,
-      /* Solo si se ha repartido algo: `null` deja el reparto que hubiera. */
-      weeklySplit: Object.keys(split).length > 0 ? split : null,
+      ...loCompuesto(),
+      /* Con el id del borrador, el bloque que nace es ÉL: se abre y sale de
+         los borradores en la misma escritura (`domain/borradores`). */
+      ...(borradorId ? { id: borradorId } : {}),
     });
     /* Ya está escrito donde tiene que estar: la red sobra y dejarla
        resucitaría el bloque la próxima vez que se entre a componer. */
@@ -836,7 +1010,7 @@ export const Compositor = () => {
                 type="button"
                 className="tira-miga"
                 onClick={() => setVista('bloque')}
-                title={`Ver «${nombre}» entero: todas sus hojas · Esc`}
+                title={`Ver «${nombre}» entero (Esc)`}
               >
                 <Layers size={13} aria-hidden="true" />
                 {nombre}
@@ -888,6 +1062,14 @@ export const Compositor = () => {
                 que llevas en la mano primero, que es la ley del reposo— en vez
                 de crear una hoja en blanco sin preguntar.
               */}
+              {/* El ritmo del microciclo, antes de «+ hoja», como en Entreno:
+                  el bloque que se compone también tiene sus días. */}
+              <RitmoDelMicrociclo
+                microciclo={microciclo}
+                hojas={nombresDeHoja}
+                onCambiar={(nuevo) => setTira({ microciclo: nuevo, hojas: nombresDeHoja })}
+                onQuitarHoja={quitarHoja}
+              />
               {nuevaHoja === null ? (
                 <BotonMas
                   palabra="hoja"
@@ -959,10 +1141,37 @@ export const Compositor = () => {
           {/* En el paso 1 no está: un bloque sin una sola hoja no se puede
               abrir, y una oferta que no se puede aceptar es mobiliario (la ley
               del reposo). Aparece en cuanto hay algo que abrir. */}
-          {origen !== null && sesiones.length > 0 && (
-            <button type="button" className="btn btn-primary btn-sm" onClick={guardar}>
-              Cerrar «{anterior.name}» y abrir este
-            </button>
+          {/* Rellenando un borrador: guardarlo es lo normal, y abrirlo es la
+              excepción — por eso el primario es «Guardar el borrador». Empezar
+              solo el PRIMERO: es el que va detrás del abierto (la ley del
+              reposo: una oferta que no se puede aceptar no se pinta). */}
+          {enBorrador ? (
+            <>
+              {sesiones.length > 0 && esElSiguiente(program, borradorId) && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={guardar}>
+                  Empezar ahora
+                </button>
+              )}
+              <button type="button" className="btn btn-primary btn-sm" onClick={guardarElBorrador}>
+                Guardar el borrador
+              </button>
+            </>
+          ) : (
+            origen !== null &&
+            sesiones.length > 0 && (
+              <>
+                {/* Sin duración prevista no hay borrador: no sabría cuándo cae.
+                    Se pide en el paso 1 y por eso el botón aparece con ella. */}
+                {previstos !== null && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={guardarComoBorrador}>
+                    Guardar como borrador
+                  </button>
+                )}
+                <button type="button" className="btn btn-primary btn-sm" onClick={guardar}>
+                  Cerrar «{anterior.name}» y abrir este
+                </button>
+              </>
+            )
           )}
         </div>
       </div>
@@ -1211,7 +1420,7 @@ export const Compositor = () => {
         type="button"
         className="compositor-ficha-caja"
         onClick={() => setOrigen(null)}
-        title="Volver al paso 1: el nombre, a qué juega, cuánto dura y qué se persigue"
+        title="Volver al paso 1"
       >
         {decidido.length > 0 && <span className="compositor-ficha-dicho">{dicho}</span>}
         <span className="compositor-ficha-verbo">
@@ -1373,6 +1582,7 @@ export const Compositor = () => {
           conNotas={isModuleOn(protocol, 'coachNote')}
           onAdd={(exercise) => anadirEjercicio(hoja.dayName, exercise)}
           onQuitar={quitarEjercicio}
+          onRenombrar={renombrarEjercicio}
           /* El mismo `delta` que la rejilla: reordenar dentro de la hoja abierta
              es el mismo movimiento que arrastrar en la columna del bloque. */
           onMover={moverEjercicio}
@@ -1388,6 +1598,7 @@ export const Compositor = () => {
           onAnadirSerie={anadirSerie}
           onQuitarSerie={quitarSerie}
           onTecnica={rematarSerie}
+          onRetirarObjetivo={retirarObjetivo}
           showRir={isModuleOn(protocol, 'rir')}
           onRecordar={upsertLibraryExercise}
         />
@@ -1399,7 +1610,7 @@ export const Compositor = () => {
           /* La costura: el plan va inyectado y no hay bloque del que leerlo. */
           plan={plan}
           nombre={nombre}
-          split={split}
+          microciclo={microciclo}
           hojaEnMano={hojasCopiadas[0] || null}
           onAbrirHoja={(dayName) => {
             setAbierta(dayName);
@@ -1407,28 +1618,23 @@ export const Compositor = () => {
           }}
           onAnadirEjercicio={anadirEjercicio}
           onQuitarEjercicio={quitarEjercicio}
+          onRenombrarEjercicio={renombrarEjercicio}
           onMoverEjercicio={moverEjercicio}
           onSeries={series}
           onReps={reps}
+          onEsquema={esquema}
           onAnadirHoja={anadirHoja}
           onRenombrarHoja={renombrarHoja}
+          renombrarPrimero={copiaPorNombrar}
+          onRenombrarVisto={olvidarCopiaPorNombrar}
           onCopiarHoja={copiarHoja}
           onGuardarPieza={guardarPieza}
           onSustituirHoja={sustituirHoja}
           onQuitarHoja={quitarHoja}
           onMoverHoja={moverHoja}
           onRecordarEjercicio={upsertLibraryExercise}
-          onSplit={(dia, valor) =>
-            setSplit((s) => {
-              /* «Descanso» es soltar el día, no ocuparlo con una hoja que no
-                 existe: se borra la clave en vez de guardar la palabra. */
-              if (valor === 'Descanso') {
-                const { [dia]: _fuera, ...resto } = s;
-                return resto;
-              }
-              return { ...s, [dia]: valor };
-            })
-          }
+          /* El rótulo del día de cada columna, como en Entreno. */
+          onMicrociclo={(nuevo) => setTira({ microciclo: nuevo, hojas: nombresDeHoja })}
           /* Aquí no hay semanas a las que ir: sin `difieren`, el verbo que la
              usaría no llega a pintarse. */
           onIrSemana={() => {}}

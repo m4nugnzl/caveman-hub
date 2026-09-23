@@ -66,11 +66,14 @@ const insertados = () => {
 };
 
 /* Los que la 0115 borra, leídos de su propia lista de pares para que no haya
-   dos versiones de la misma verdad. */
+   dos versiones de la misma verdad. La lista es el `WITH duplicados (…) AS
+   (VALUES …)` y acaba en el `)` que abre renglón; si cambia de forma, la
+   prueba lo dice en vez de leer una lista vacía. */
 const borrados = () => {
   const sql = readFileSync('supabase/migrations/0115_el_catalogo_sin_duplicados.sql', 'utf8');
-  const pares = /INSERT INTO duplicados[\s\S]*?;/.exec(sql)?.[0] ?? '';
-  return new Set([...pares.matchAll(/,\s*'([^']+)'\)/g)].map((m) => m[1]));
+  const pares = /WITH duplicados\s*\([^)]*\)\s*AS\s*\(\s*VALUES([\s\S]*?)\r?\n\)/.exec(sql)?.[1];
+  if (!pares) throw new Error('La 0115 ya no tiene la lista `WITH duplicados … AS (VALUES …)`');
+  return new Set([...pares.matchAll(/,\s*'([^']+)'(?:::text)?\s*\)/g)].map((m) => m[1]));
 };
 
 const elCatalogo = () => {

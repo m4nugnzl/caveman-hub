@@ -78,12 +78,12 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    relleno vertical, que es lo que la dejaba en 39 px mientras el campo medía 41
    y el `btn-sm` 32. Ver `--h-control-lg` en tokens. */
 .btn {
-  font-family: inherit; font-size: var(--fs-sm); font-weight: 500; letter-spacing: -0.01em;
+  font-family: inherit; font-size: var(--fs-sm); font-weight: 500; letter-spacing: var(--tracking-texto);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   height: var(--h-control); padding: 0 var(--s3);
   border-radius: var(--r-control); border: 0;
   background: var(--fill); color: var(--text); cursor: pointer;
-  transition: background-color var(--fast), transform var(--fast), opacity var(--fast), box-shadow var(--fast);
+  transition: background-color var(--micro), transform var(--gesto), opacity var(--micro), box-shadow var(--micro);
   white-space: nowrap; -webkit-tap-highlight-color: transparent;
   /* Un botón nunca va subrayado, sea `<button>` o `<a>`. Hasta la portada todos
      eran `<button>` y el navegador no subrayaba nada; el primer `<Link className="btn">`
@@ -1392,7 +1392,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 }
 @keyframes panel-entra { from { transform: translateX(24px); opacity: 0; } }
 .modal-backdrop.is-side[data-state='closing'] > .modal-side {
-  animation: panel-sale var(--fast) both;
+  animation: panel-sale var(--salida) both;
 }
 @keyframes panel-sale { to { transform: translateX(24px); opacity: 0; } }
 
@@ -1402,7 +1402,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   .modal-side {
     max-width: 100%; height: auto; max-height: 88vh; max-height: 88svh;
     border-radius: var(--r-xl) var(--r-xl) 0 0; border: 1px solid var(--edge);
-    animation: modal-sube var(--normal) var(--ease) both;
+    animation: modal-sube var(--entrada) both;
   }
   .modal-backdrop.is-side { place-items: end stretch; }
   /* Y se va por donde vino. Salía con `panel-sale` —un deslizamiento hacia la
@@ -1410,7 +1410,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
      declaró fuera de cualquier ancho: el panel entraba desde abajo como hoja y
      se marchaba de lado como cajón. */
   .modal-backdrop.is-side[data-state='closing'] > .modal-side {
-    animation: hoja-baja var(--fast) var(--ease) both;
+    animation: hoja-baja var(--salida) both;
   }
   .modal-side > .modal-grip { display: block; }
 }
@@ -1456,7 +1456,7 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   width: 40px; height: 40px; border-radius: var(--r-md);
   background: var(--accent-soft); color: var(--accent);
 }
-.modal-rotulo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.modal-rotulo { display: flex; flex-direction: column; gap: var(--hueco-glifo); min-width: 0; }
 /* Con signo y frase, el titular sube al cuerpo de sección (22, el del frame):
    una ventana con cabecera de tres piezas es una PANTALLA pequeña, no un
    aviso, y a 18 el titular se quedaba por debajo de su propia placa. */
@@ -1553,9 +1553,9 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
 @keyframes hoja-baja { to { transform: translateY(100%); } }
 @keyframes pop-sale { to { opacity: 0; transform: scale(0.97); } }
 
-.modal-backdrop[data-state='closing'] { animation: fade-sale var(--fast) both; }
-.modal-backdrop[data-state='closing'] > .modal { animation: modal-sale var(--fast) both; }
-.popover[data-state='closing'] { animation: pop-sale var(--fast) both; }
+.modal-backdrop[data-state='closing'] { animation: fade-sale var(--salida) both; }
+.modal-backdrop[data-state='closing'] > .modal { animation: modal-sale var(--salida) both; }
+.popover[data-state='closing'] { animation: pop-sale var(--salida) both; }
 
 .menu-item {
   font-family: inherit; width: 100%;
@@ -1566,6 +1566,10 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   transition: background-color var(--fast);
 }
 .menu-item:hover { background: var(--fill-subtle); }
+/* Apagado pero presente: el ítem que ahora no se puede pulsar se queda en su
+   sitio con su porqué en el título (ver `desactivado`, en `MenuAcciones`). */
+.menu-item:disabled { opacity: 0.45; cursor: default; }
+.menu-item:disabled:hover { background: transparent; }
 .menu-item-danger { color: var(--negative); }
 /* El dato que acompaña al nombre cuando el menú NAVEGA en vez de actuar: las
    fechas de un bloque, los entrenamientos de un microciclo. Al canto derecho y

@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 import { mmss } from '@/context/SesionEnCurso';
 import { miles, shortDate } from '@/lib/dates';
-import { objetivoDeSerie, serieEnCorto, siguientePorHacer } from '../sesion';
+import { objetivoDeSerie, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
 import { Boton } from './Piezas';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { ComparativaEjercicio } from '@/components/Coach/Workout/ComparativaEjercicio';
@@ -160,11 +160,18 @@ export const PantallaSesion = ({ datos }) => {
                 {e.series.map((s, i) => (
                   <div
                     key={i}
-                    className={`pc-puesto-fila${s.hecha ? ' pc-hecha' : i === viva ? ' pc-viva' : ' pc-pendiente'}`}
+                    className={`pc-puesto-fila${s.hecha ? ' pc-hecha' : i === viva ? ' pc-viva' : ' pc-pendiente'}${s.noGuardada ? ' pc-no-guardada' : ''}`}
                   >
                     <span className="pc-puesto-s">
                       {i + 1}
-                      {s.hecha ? <span aria-label="hecha"> ✓</span> : null}
+                      {s.noGuardada ? (
+                        <span title="No guardada" aria-label="no guardada">
+                          {' '}
+                          ✕
+                        </span>
+                      ) : s.hecha ? (
+                        <span aria-label="hecha"> ✓</span>
+                      ) : null}
                     </span>
                     <span className="pc-puesto-obj">{objetivoDeSerie(s) || '—'}</span>
                     <input
@@ -292,7 +299,7 @@ const EstadoDelGuardado = ({ guardado }) => {
   if (status === 'error') {
     return (
       <p className="pc-puesto-guardado pc-no" role="alert">
-        No se guardó.{' '}
+        {textoDelFallo(guardado)}.{' '}
         <button type="button" onClick={guardado.onRetry}>
           Reintentar
         </button>

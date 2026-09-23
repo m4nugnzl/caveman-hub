@@ -18,7 +18,6 @@ import {
 import { useApp } from '@/context/AppContext';
 import { Nube } from '@/components/ui/EstadoDeRed';
 import { Cinta } from '@/components/ui/Cinta';
-import { Pliegue } from '@/components/ui/Pliegue';
 import { traeALaVista } from '@/lib/motion';
 import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio, filtrosUtiles } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
@@ -1223,9 +1222,9 @@ export const ClientPortfolio = () => {
                 renglón, y el 18 sep el dueño la devolvió a la de las demás
                 páginas: la cabecera es la misma en toda la app. */}
             <div className="cartera-cab-linea">
-              {/* El ancho, en cabeza y del lado por el que crece la hoja. Ver
-                  `ui/Pliegue`. */}
-              <Pliegue />
+              {/* Aquí estuvo el mando del ancho. Vive ahora en la fila de la marca
+                  de la barra lateral, montado una sola vez para toda la
+                  aplicación. Ver `ui/Pliegue`. */}
               <h1 className="cartera-cab-titulo">Clientes</h1>
               {/* La nube va con el título en las tres cintas de la casa, no en
                   la esquina de los verbos. Ver `ui/EstadoDeRed`. */}

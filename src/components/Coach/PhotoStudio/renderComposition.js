@@ -10,7 +10,7 @@
 
 import { coverFit, cssFilter, denormalizePoint, slotRects, spacing } from '@/domain/photoLayout';
 import { fmt } from '@/lib/num';
-import { angleLabel } from '@/domain/photos';
+import { etiquetaDeLaFoto } from '@/domain/photos';
 
 const BG = '#0b0f19';
 const CAPTION_BG = 'rgba(0, 0, 0, 0.62)';
@@ -84,12 +84,12 @@ const drawCaption = (ctx, rect, photo, size) => {
     .filter(Boolean)
     .join('  ·  ');
 
-  ctx.fillText(title || angleLabel(photo.angle), rect.x + padX, y + rect.captionH * 0.18);
+  ctx.fillText(title || etiquetaDeLaFoto(photo), rect.x + padX, y + rect.captionH * 0.18);
 
   ctx.fillStyle = 'rgba(255,255,255,0.66)';
   ctx.font = `600 ${metaSize}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillText(
-    [photo.date, angleLabel(photo.angle)].filter(Boolean).join('  ·  '),
+    [photo.date, etiquetaDeLaFoto(photo)].filter(Boolean).join('  ·  '),
     rect.x + padX,
     y + rect.captionH * 0.58
   );

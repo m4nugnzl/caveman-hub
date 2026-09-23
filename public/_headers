@@ -93,3 +93,9 @@
 # que aplican los navegadores). Lo genera el build (`scripts/sw.mjs`).
 /sw.js
   Cache-Control: no-cache
+
+# Qué versión está publicada: lo pregunta cada pestaña abierta para saber si la
+# suya es vieja (`scripts/version.mjs`, `lib/version.js`). Cacheado, una
+# pestaña vieja se creería al día.
+/version.json
+  Cache-Control: no-store

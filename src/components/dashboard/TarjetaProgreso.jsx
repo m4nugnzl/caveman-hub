@@ -1,24 +1,18 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CircleHelp, Target, TriangleAlert } from 'lucide-react';
+import { Check, ChevronRight, CircleHelp, Target, TriangleAlert } from 'lucide-react';
 
 import { metricPoints } from '@/domain/analytics';
-import { perimeterSeries, seriesDelta, weightSeries } from '@/domain/anthropometry';
 import { blocksOf } from '@/domain/blocks';
 import { GOAL_DIRECTIONS } from '@/domain/goals';
-import { metricColor } from '@/domain/metrics';
-import { phaseProgress, phaseProjection } from '@/domain/roadmap';
-import { allSessions } from '@/domain/sessions';
-import { trainingDayCount } from '@/domain/training';
-import { daysBetween, localeNumber, shortDate } from '@/lib/dates';
+import { phaseProjection } from '@/domain/roadmap';
+import { addDays, localeNumber } from '@/lib/dates';
 import { fmt } from '@/lib/num';
-import { Delta } from '@/components/ui/metrics';
 import { useOculto } from '@/components/Client/Oculto';
 import { GraficaDelProgreso } from './GraficaDelProgreso';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
 const MARCA = { good: Check, warn: TriangleAlert, bad: TriangleAlert, unknown: CircleHelp };
-const signo = (v, decimals = 1) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${fmt(Math.abs(v), { decimals })}`;
 
 /** El ritmo, con dos decimales y el signo menos de verdad (−, no el guion). */
 const ritmoDicho = (perWeek) =>
@@ -44,7 +38,7 @@ const ritmoDicho = (perWeek) =>
  *
  *     El progreso        [En rumbo −0,45 kg/sem]  [Calorías|Pasos]  a fondo →
  *     ┌──────────────────────────────────────────────────────────────────┐
- *     │  la gráfica: el peso en puntos sobre las columnas del plan       │
+ *     │  la gráfica: el peso en puntos sobre el fondo del plan           │
  *     └──────────────────────────────────────────────────────────────────┘
  *     ─────────────────────────────────────────────────────────────────────
  *     PESO TOTAL −3,8 kg   CINTURA −2,8 cm   ENTRENOS 47   FASE Definición
@@ -63,6 +57,14 @@ const ritmoDicho = (perWeek) =>
  * peso, y su proyección la dicen ahora la chapa del objetivo y el veredicto. La
  * fase se queda al pie, como sexta cifra, y sigue abriendo sus fases. Las dos
  * ventanas «a fondo» —el cuerpo y las fotos— siguen en la cabecera.
+ *
+ * ══ Y la tira se va arriba del todo (19 sep, tercera vuelta) ══════════════
+ * Las cifras del pie salen de esta tarjeta y pasan a ser la franja de
+ * mini-tarjetas que abre el Resumen (`FranjaCifras`). Lo que queda aquí es el
+ * dibujo y su barra de herramientas: con qué se compara (calorías o pasos) y
+ * las dos puertas, en una fila encima de la gráfica y no mezcladas con el
+ * título. A quien le ocultan el peso esta tarjeta ya no tiene nada que decir
+ * —era solo la tira— y no se pinta.
  */
 export const TarjetaProgreso = ({
   // ── el dibujo ──
@@ -74,8 +76,6 @@ export const TarjetaProgreso = ({
   onBanda,
   hayPasos,
   // ── la lectura ──
-  pesoWow,
-  checkIn,
   trend,
   veredicto,
   goal,
@@ -84,29 +84,24 @@ export const TarjetaProgreso = ({
   fases,
   hoy,
   history,
-  microcycles,
-  startDate,
   // ── quién mira y por dónde sale ──
   isClient = false,
   onAbrir,
-  onAbrirFases,
   aFotos = null,
   aPesaje = null,
 }) => {
   /*
     ══ Lo que su entrenador le oculta A ÉL ════════════════════════════════════
-    Con las calorías ocultas, las columnas del plan son exactamente la cifra que
-    no debe volverle —y encima con su historia entera—, así que se pasan a pasos;
-    si no le pones pasos, no hay columnas y queda la curva sola. Ver `Oculto`.
+    Con las calorías ocultas, el fondo del dibujo es exactamente la cifra que no
+    debe volverle —y encima con su historia entera—, así que se pasa a pasos; si
+    no le pones pasos, no hay fondo y queda la curva sola. Ver `Oculto`.
   */
   const oculto = useOculto();
   /*
-    ══ Y A QUIEN LE OCULTAN EL PESO, esta tarjeta es solo la tira ════════════
-    Toda la mitad de arriba —la chapa, el dibujo, los hitos— es el peso, y a
-    medias no se le enseña: se retira entera. Lo que queda es lo que sí puede
-    leer, que son las cifras del pie sin la del peso (cintura, entrenos,
-    semanas) y su fase. Antes esto era la tarjeta «Desde que empezó», y se
-    llama igual para que siga diciendo de qué es. Ver `Oculto.jsx`.
+    ══ Y A QUIEN LE OCULTAN EL PESO, esta tarjeta no existe ══════════════════
+    Toda ella —la chapa, el dibujo, los hitos— es el peso, y a medias no se le
+    enseña: se retira entera. Lo que sí puede leer (cintura, entrenos, semanas
+    y su fase) lo dice la franja de cifras de arriba. Ver `Oculto.jsx`.
   */
   const soloCifras = oculto.weight;
   const conBandas = conAjustes && hayPasos && !oculto.nutrition;
@@ -114,7 +109,6 @@ export const TarjetaProgreso = ({
   const bandaVista = oculto.nutrition ? 'steps' : banda;
 
   const fase = fases?.current || null;
-  const progreso = fase ? phaseProgress(fase, hoy) : null;
   const proyeccion = fase
     ? phaseProjection({ phase: fase, history, perWeek: trend?.ok ? trend.perWeek : null, goal, date: hoy })
     : null;
@@ -150,7 +144,7 @@ export const TarjetaProgreso = ({
   /*
     ══ LAS SEMANAS DEL DIBUJO ════════════════════════════════════════════════
     Con historia de revisiones, las filas del `track`: llevan el peso Y lo que le
-    tenías puesto esa semana, que es lo que dibuja las columnas. Sin ella, la
+    tenías puesto esa semana, que es lo que dibuja el fondo. Sin ella, la
     serie semanal a secas — el peso solo, sin plan detrás. Se numeran por su
     semana de programa, que es lo que dice el eje.
   */
@@ -166,128 +160,93 @@ export const TarjetaProgreso = ({
       .filter((f) => f.weight !== null && f.weight !== undefined);
   }, [conPlan, track, serie]);
 
-  /* TODOS los bloques, el primero incluido: la cinta de encima del dibujo dice
-     el nombre de cada tramo, y el del primero hace falta para leer la raya. */
-  const cambios = useMemo(
-    () => (conPlan ? blocksOf(program).map((b) => ({ week: b.fromWeek, name: b.name, id: b.id })) : []),
-    [conPlan, program]
-  );
+  /*
+    ══ LAS BANDAS DEL DIBUJO: PRIMERO LAS FASES, Y SI NO LOS BLOQUES ═════════
+
+    El dibujo tiene que contestar «¿en qué fase está?» sin que haya que leer
+    nada más, y eso lo dice la FASE —«Definición», «Volumen»—, no el número de
+    bloque: un bloque es una unidad de la rutina, y saber que va por el tercero
+    no dice hacia dónde está yendo el cuerpo.
+
+    Así que si el cliente tiene roadmap, las bandas son sus fases. Y si no lo
+    tiene —una cartera entera puede no tener ni una, ver `roadmap.js`—, los
+    bloques del programa, que es el único reparto del tiempo que queda. Un solo
+    sistema de bandas en el dibujo y no dos superpuestos.
+
+    Se traducen aquí, en índices de `semanas`, y no dentro de la gráfica: el
+    dibujo no tiene por qué saber qué es una fase ni cómo se compara una fecha
+    con el lunes de una semana.
+  */
+  const tramos = useMemo(() => {
+    const porFase = new Map();
+    for (const fase of fases?.all || []) {
+      if (!fase?.startsOn) continue;
+      semanas.forEach((f, i) => {
+        if (!f.weekStart) return;
+        const domingo = addDays(f.weekStart, 6);
+        /* Se solapan si la fase empieza antes de que acabe la semana y acaba
+           después de que empiece: una fase que arranca un miércoles cuenta ya
+           esa semana, que es como se lee un calendario. */
+        if (fase.startsOn > domingo) return;
+        if (fase.endsOn && fase.endsOn < f.weekStart) return;
+        const t = porFase.get(fase.id) || { desde: i, hasta: i, name: fase.title, id: fase.id };
+        t.hasta = i;
+        porFase.set(fase.id, t);
+      });
+    }
+    if (porFase.size > 0) return [...porFase.values()].sort((a, b) => a.desde - b.desde);
+
+    if (!conPlan) return [];
+    /* TODOS los bloques, el primero incluido: una banda sin nombre no separa
+       nada, y el del primero hace falta para leer la del segundo. */
+    const bloques = blocksOf(program);
+    return bloques
+      .map((b, k) => {
+        const siguiente = bloques[k + 1];
+        let desde = -1;
+        let hasta = -1;
+        semanas.forEach((f, i) => {
+          if (f.week >= b.fromWeek && (!siguiente || f.week < siguiente.fromWeek)) {
+            if (desde < 0) desde = i;
+            hasta = i;
+          }
+        });
+        return desde < 0 ? null : { desde, hasta, name: b.name, id: b.id };
+      })
+      .filter(Boolean);
+  }, [fases, semanas, conPlan, program]);
   const pesajes = metricPoints(serie, 'weight').length;
 
-  /*
-    ══ LA TIRA DEL PIE: lo que ha cambiado desde el primer día ═══════════════
-    Es «Desde que empezó», con la fase añadida. Sigue siendo una lista variable:
-    la cintura no existe hasta que hay dos perímetros, y a quien tiene el peso
-    oculto se le retira la suya —las otras siguen, porque cuánto ha cambiado no
-    es solo la báscula—.
-  */
-  const cifras = useMemo(() => {
-    const out = [];
+  /* Sin peso que enseñar no queda tarjeta: lo que sí puede leer —cintura,
+     entrenos, semanas, fase— ya está en la franja de arriba. */
+  if (soloCifras) return null;
 
-    const pesos = weightSeries(history);
-    const peso = seriesDelta(pesos);
-    if (peso && pesos.length > 1 && !oculto.weight) {
-      out.push({ id: 'peso', k: 'Peso total', v: `${signo(peso.delta)} kg`, color: metricColor('weight') });
-    }
-
-    const cintura = perimeterSeries(history, 'ombligo');
-    const dc = seriesDelta(cintura);
-    if (dc && cintura.length > 1) {
-      out.push({ id: 'cintura', k: 'Cintura', v: `${signo(dc.delta)} cm`, color: metricColor('waist') });
-    }
-
-    const sesiones = allSessions(microcycles).length;
-    if (sesiones > 0) {
-      const dias = program?.weeklySplit ? trainingDayCount(program.weeklySplit) : null;
-      out.push({
-        id: 'sesiones',
-        k: 'Entrenos',
-        v: `${sesiones} ${sesiones === 1 ? 'sesión' : 'ses.'}`,
-        s: dias ? `${dias} a la semana` : null,
-      });
-    }
-
-    const semanasVividas = startDate
-      ? Math.max(1, Math.floor((daysBetween(startDate, hoy) ?? 0) / 7) + 1)
-      : null;
-    if (semanasVividas) {
-      out.push({
-        id: 'tiempo',
-        k: 'Semanas',
-        v: `${semanasVividas} sem.`,
-        s: `desde el ${shortDate(startDate)}`,
-      });
-    }
-
-    if (checkIn && pesajes > 0) {
-      out.push({
-        id: 'pesajes',
-        k: 'Pesajes',
-        v: checkIn.asked ? `${checkIn.count} de ${checkIn.target}` : `${checkIn.count}`,
-        s: 'esta semana',
-      });
-    }
-
-    return out;
-  }, [history, microcycles, program, startDate, hoy, oculto.weight, checkIn, pesajes]);
-
-  const vacio = soloCifras ? cifras.length === 0 : semanas.length < 2;
+  const vacio = semanas.length < 2;
+  const conBarra = !vacio && (conBandas || aFotos || onAbrir);
 
   return (
     <Tarjeta
-      rotulo={
-        soloCifras
-          ? isClient
-            ? 'Desde que empezaste'
-            : 'Desde que empezó'
-          : isClient
-            ? 'Tu progreso'
-            : 'El progreso'
-      }
+      rotulo={isClient ? 'Tu progreso' : 'El progreso'}
       span={12}
       className="progreso"
       vacia={vacio}
       accion={
-        <div className="progreso-mandos">
-          {!soloCifras && chapa && !pideObjetivo && (
-            <span className={`progreso-chip${tono ? ` is-${tono}` : ' is-neutro'}`}>
-              {!isClient && (
-                <i aria-hidden="true">
-                  <Icono size={13} strokeWidth={2.5} />
-                </i>
-              )}
-              {chapa.texto}
-            </span>
-          )}
-          {!soloCifras && conBandas && (
-            <div className="rail-wrap" role="group" aria-label="Contra qué se compara el peso">
-              <button type="button" className="chip" aria-pressed={banda === 'kcals'} onClick={() => onBanda('kcals')}>
-                Calorías
-              </button>
-              <button type="button" className="chip" aria-pressed={banda === 'steps'} onClick={() => onBanda('steps')}>
-                Pasos
-              </button>
-            </div>
-          )}
-          <div className="tarjeta-acciones">
-            {aFotos && (
-              <Link className="cab-accion is-puerta" to={aFotos}>
-                {isClient ? 'Tus fotos' : 'Sus fotos'}
-              </Link>
+        chapa && !pideObjetivo ? (
+          <span className={`progreso-chip${tono ? ` is-${tono}` : ' is-neutro'}`}>
+            {!isClient && (
+              <i aria-hidden="true">
+                <Icono size={13} strokeWidth={2.5} />
+              </i>
             )}
-            {!soloCifras && (
-              <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={onAbrir}>
-                Ver a fondo
-              </button>
-            )}
-          </div>
-        </div>
+            {chapa.texto}
+          </span>
+        ) : null
       }
     >
       {/* Sin objetivo, lo único que hay que hacer: ponerlo. Los tres chips aquí
           mismo y no en una pantalla de ajustes, porque es lo que desbloquea la
           lectura del panel entero. */}
-      {pideObjetivo && !soloCifras && (
+      {pideObjetivo && (
         <div className="goal-set" role="group" aria-label="Objetivo del cliente">
           <Target size={13} />
           <span className="k">¿Qué busca?</span>
@@ -298,17 +257,61 @@ export const TarjetaProgreso = ({
           ))}
         </div>
       )}
-      {!pideObjetivo && !soloCifras && chapa?.detalle && <p className="progreso-dicho">{chapa.detalle}</p>}
+      {!pideObjetivo && chapa?.detalle && <p className="progreso-dicho">{chapa.detalle}</p>}
 
-      {soloCifras ? (
-        cifras.length === 0 && (
-          <TarjetaVacia>
-            {isClient
-              ? 'Con tus primeras medidas y sesiones, aquí verás cuánto has cambiado.'
-              : 'Con dos medidas o dos sesiones, aquí se cuenta cuánto ha cambiado.'}
-          </TarjetaVacia>
-        )
-      ) : vacio ? (
+      {/* ── LA BARRA DEL DIBUJO ──────────────────────────────────────────────
+          Dos grupos, y NO uno.
+
+          Estaban los cuatro mandos dentro de un mismo carril hundido con
+          canto, y con la misma letra y el mismo fantasma: el conmutador se
+          extendía y se llevaba dentro a «Sus fotos» y «Ver a fondo», que no
+          son alternativas de la misma serie — una navega a otra pantalla y la
+          otra abre una ventana. Un control segmentado dice «esto o lo otro, y
+          ahora mismo estás en esto»; decir eso de una puerta es mentira.
+
+          A la izquierda, LA SERIE DE FONDO: un conmutador de verdad, con su
+          píldora hundida, donde una opción está pulsada y la otra no. A la
+          derecha, LAS ACCIONES: la que navega en forma de enlace y la que abre
+          la ventana en forma de botón. Tres idiomas, tres formas. */}
+      {conBarra && (
+        <div className="progreso-barra">
+          {conBandas && (
+            /* Es UNA elección entre dos, así que va en el conmutador de la casa
+               y no en dos chips sueltos. */
+            <div className="segmented" role="group" aria-label="Qué serie se dibuja de fondo">
+              <button
+                type="button"
+                className="segmented-item"
+                aria-pressed={banda === 'kcals'}
+                onClick={() => onBanda('kcals')}
+              >
+                Calorías
+              </button>
+              <button
+                type="button"
+                className="segmented-item"
+                aria-pressed={banda === 'steps'}
+                onClick={() => onBanda('steps')}
+              >
+                Pasos
+              </button>
+            </div>
+          )}
+          <div className="progreso-acciones">
+            {aFotos && (
+              <Link className="progreso-enlace" to={aFotos}>
+                {isClient ? 'Tus fotos' : 'Sus fotos'}
+                <ChevronRight size={13} aria-hidden="true" />
+              </Link>
+            )}
+            <button type="button" className="progreso-puerta" aria-haspopup="dialog" onClick={onAbrir}>
+              Ver a fondo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {vacio ? (
         /* El vacío con su verbo: la curva empieza con el primer pesaje, y
            anotarlo está a un clic. */
         <TarjetaVacia
@@ -329,60 +332,10 @@ export const TarjetaProgreso = ({
         <GraficaDelProgreso
           semanas={semanas}
           banda={bandaVista}
-          cambios={cambios}
+          tramos={tramos}
           objetivo={proyeccion?.objetivo ?? null}
           ariaLabel={`Su peso de la semana ${semanas[0].week} a la ${semanas[semanas.length - 1].week}`}
         />
-      )}
-
-      {cifras.length > 0 && (
-        <div className="progreso-cifras">
-          {cifras.map((c) => (
-            <span className="progreso-cifra" key={c.id} title={c.s || undefined}>
-              <span className="k">{c.k}</span>
-              <span className="v" style={c.color ? { color: c.color } : undefined}>
-                {c.v}
-              </span>
-            </span>
-          ))}
-          {/* La fase es la única cifra que además es una PUERTA: es el criterio
-              con el que se juzga todo lo de arriba, y se decide en su ventana. */}
-          {fase && (
-            <button
-              type="button"
-              className="progreso-cifra is-puerta"
-              aria-haspopup="dialog"
-              onClick={onAbrirFases}
-            >
-              <span className="k">Fase</span>
-              <span className="v">
-                {fase.title}
-                {progreso?.total ? (
-                  <small>
-                    {' '}
-                    S{Math.ceil(progreso.elapsed / 7)}/{Math.ceil(progreso.total / 7)}
-                  </small>
-                ) : null}
-              </span>
-            </button>
-          )}
-          {!fase && (
-            <button type="button" className="progreso-cifra is-puerta" aria-haspopup="dialog" onClick={onAbrirFases}>
-              <span className="k">Fase</span>
-              <span className="v is-hueco">{isClient ? 'Sin fase' : 'Ponle una fase'}</span>
-            </button>
-          )}
-          {/* La variación de la semana, al final de la tira: es la cifra que se
-              lee justo después del último punto del dibujo. */}
-          {pesoWow?.delta !== null && pesoWow?.delta !== undefined && !oculto.weight && (
-            <span className="progreso-cifra">
-              <span className="k">Esta semana</span>
-              <span className="v">
-                <Delta value={pesoWow.delta} unit=" kg" lowerIsBetter />
-              </span>
-            </span>
-          )}
-        </div>
       )}
     </Tarjeta>
   );

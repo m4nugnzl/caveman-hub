@@ -4,14 +4,12 @@ import { migrateBlockPlans } from './blocksMigration';
 import {
   addBlockSessionIn,
   blocksOf,
-  conCicloDelCliente,
   conRepartoDelAbierto,
-  cadenaQueLaGenera,
   materializarMicrociclos,
   microcicloDelBloque,
   moveBlockSessionIn,
   openNextBlock,
-  ponerDiaSemanal,
+  ponerMicrociclo,
   proyectarPlanEnDias,
   removeBlockSessionFrom,
   renameBlockSessionIn,
@@ -97,11 +95,10 @@ describe('guardada, se lee igual que derivada', () => {
     expect(blocksOf(final).map((b) => b.microciclo.dias.length)).toEqual([5, 3]);
   });
 
-  it('semanal: las hojas no mueven los días; el reparto del Compositor, sí', () => {
+  it('semanal: añadir una hoja no mueve los días; el reparto del Compositor, sí', () => {
     const split = { Lunes: 'A', Martes: 'Descanso', Miércoles: 'B', Jueves: '', Viernes: 'C', Sábado: 'Descanso', Domingo: 'Descanso' };
     const final = recorrer(programa(['A', 'B', 'C'], split), SEMANAL, [
       (p) => addBlockSessionIn(p, 'b_1', 'D'),
-      (p) => renameBlockSessionIn(p, 'b_1', 'A', 'Torso'),
       abrirBloque({ ...split, Martes: 'Pull' }, ['Push', 'Pull']),
     ]);
     const [cerrado, abierto] = blocksOf(final);
@@ -122,7 +119,6 @@ describe('seguirALasHojas', () => {
     /* Fuera del orden de las hojas: ninguna cadena la da. */
     const retocada = { tipo: 'rotativo', dias: [{ hoja: 'B' }, { descanso: true }, { hoja: 'A' }, { hoja: 'C' }, { descanso: true }] };
     const p = { ...programa(['A', 'B', 'C']), blocks: [{ ...programa(['A', 'B', 'C']).blocks[0], microciclo: retocada }] };
-    expect(cadenaQueLaGenera(retocada, ['A', 'B', 'C'], ROTATIVO)).toBeNull();
     const despues = seguirALasHojas(p, addBlockSessionIn(p, 'b_1', 'D'), ROTATIVO);
     expect(blocksOf(despues)[0].microciclo).toBe(retocada);
   });
@@ -143,47 +139,67 @@ describe('seguirALasHojas', () => {
   });
 });
 
-describe('«Cae el …» y la copia de weekly_split', () => {
+describe('la tira escribe la secuencia y weekly_split la copia', () => {
   const SPLIT = { Lunes: 'A', Martes: '', Miércoles: 'B', Jueves: 'Descanso', Viernes: 'A', Sábado: 'Descanso', Domingo: 'Descanso' };
+  const semanalCon = (p, cambio) => {
+    const dias = blocksOf(p)[0].microciclo.dias.map((d, i) => (i in cambio ? cambio[i] : d));
+    return ponerMicrociclo(p, 'b_1', { tipo: 'semanal', dias });
+  };
 
   it('el día se escribe en la secuencia y el reparto la copia', () => {
     const p = materializarMicrociclos(programa(['A', 'B'], SPLIT), SEMANAL);
-    const q = conRepartoDelAbierto(ponerDiaSemanal(p, 'Jueves', 'B'));
+    const q = conRepartoDelAbierto(semanalCon(p, { 3: { hoja: 'B' } }));
     expect(blocksOf(q)[0].microciclo.dias[3]).toEqual({ hoja: 'B' });
     expect(q.weeklySplit).toEqual({ ...SPLIT, Jueves: 'B' });
     /* El «» del martes se queda: ya decía descanso. */
     expect(q.weeklySplit.Martes).toBe('');
   });
 
-  it('si el reparto ya dice lo mismo, no se toca', () => {
+  it('si no cambia nada, el mismo programa', () => {
     const p = materializarMicrociclos(programa(['A', 'B'], SPLIT), SEMANAL);
+    expect(semanalCon(p, {})).toBe(p);
     expect(conRepartoDelAbierto(p)).toBe(p);
-    expect(conRepartoDelAbierto(materializarMicrociclos(programa(['A']), SEMANAL))).toEqual(
-      materializarMicrociclos(programa(['A']), SEMANAL)
-    );
+    expect(ponerMicrociclo(p, 'b_1', { tipo: 'raro', dias: [] })).toBe(p);
   });
 
-  it('en un rotativo no hay día que poner, y el reparto no se copia', () => {
+  it('en un rotativo el reparto no se copia', () => {
     const p = materializarMicrociclos(programa(['A', 'B'], SPLIT), ROTATIVO);
-    expect(ponerDiaSemanal(p, 'Jueves', 'B')).toBeNull();
     expect(conRepartoDelAbierto(p)).toBe(p);
   });
 });
 
-describe('el ciclo de la ficha cambia el bloque abierto', () => {
-  it('semanal → rotativo: el abierto se lee como se derivaría; el cerrado se queda', () => {
-    const base = abrirBloque(null, ['X', 'Y', 'Z'])(programa(['A', 'B'], { Lunes: 'A', Jueves: 'B' }));
-    const p = materializarMicrociclos(base, SEMANAL);
-    const q = conCicloDelCliente(p, ROTATIVO);
-    const [cerrado, abierto] = blocksOf(q);
-    expect(cerrado.microciclo).toBe(blocksOf(p)[0].microciclo);
-    expect(abierto.microciclo).toEqual(microcicloDelBloque(base, blocksOf(base)[1], ROTATIVO));
+describe('la secuencia sigue al plan (§5)', () => {
+  const SPLIT = { Lunes: 'A', Martes: 'B', Miércoles: 'Descanso', Jueves: 'C', Viernes: 'A', Sábado: 'Descanso', Domingo: 'Descanso' };
+  const escribir = (client) => (program, updater) => {
+    const antes = materializarMicrociclos(migrateBlockPlans(program).program, client);
+    return conRepartoDelAbierto(proyectarPlanEnDias(seguirALasHojas(antes, updater(antes), client)));
+  };
+
+  it('semanal: renombrar cambia el nombre en sus días; quitar deja descanso', () => {
+    const w = escribir(SEMANAL);
+    const renombrado = w(programa(['A', 'B', 'C'], SPLIT), (p) => renameBlockSessionIn(p, 'b_1', 'A', 'Torso'));
+    expect(renombrado.weeklySplit).toMatchObject({ Lunes: 'Torso', Viernes: 'Torso' });
+    const quitado = w(renombrado, (p) => removeBlockSessionFrom(p, 'b_1', 'B'));
+    expect(blocksOf(quitado)[0].microciclo.dias[1]).toEqual({ descanso: true });
+    expect(quitado.weeklySplit.Martes).toBe('Descanso');
   });
 
-  it('otro patrón: 2-1 → 3-1', () => {
-    const p = materializarMicrociclos(programa(['A', 'B', 'C']), ROTATIVO);
-    const q = conCicloDelCliente(p, { ...ROTATIVO, cyclePattern: { train: 3, rest: 1 } });
-    expect(blocksOf(q)[0].microciclo.dias).toHaveLength(4);
-    expect(conCicloDelCliente(q, { ...ROTATIVO, cyclePattern: { train: 3, rest: 1 } })).toBe(q);
+  it('semanal: una hoja nueva no entra en ningún día', () => {
+    const q = escribir(SEMANAL)(programa(['A', 'B', 'C'], SPLIT), (p) => addBlockSessionIn(p, 'b_1', 'D'));
+    expect(blocksOf(q)[0].microciclo.dias.some((d) => d.hoja === 'D')).toBe(false);
+  });
+
+  it('rotativo retocado: quitar deja descanso y la longitud no cambia', () => {
+    const retocada = { tipo: 'rotativo', dias: [{ hoja: 'B' }, { descanso: true }, { hoja: 'A' }, { hoja: 'C' }, { descanso: true }] };
+    const p = { ...programa(['A', 'B', 'C']), blocks: [{ ...programa(['A', 'B', 'C']).blocks[0], microciclo: retocada }] };
+    const q = escribir(ROTATIVO)(p, (x) => removeBlockSessionFrom(x, 'b_1', 'A'));
+    expect(blocksOf(q)[0].microciclo.dias).toEqual([{ hoja: 'B' }, { descanso: true }, { descanso: true }, { hoja: 'C' }, { descanso: true }]);
+  });
+
+  it('rotativo de varias tandas, sin retocar: se regenera con las hojas nuevas', () => {
+    const cadena = [{ hoja: 'A' }, { hoja: 'B' }, { descanso: true }, { hoja: 'C' }, { descanso: true }, { hoja: 'A' }, { hoja: 'B' }, { hoja: 'C' }, { descanso: true }];
+    const p = { ...programa(['A', 'B', 'C']), blocks: [{ ...programa(['A', 'B', 'C']).blocks[0], microciclo: { tipo: 'rotativo', dias: cadena } }] };
+    const q = escribir(ROTATIVO)(p, (x) => moveBlockSessionIn(x, 'b_1', 0, 2));
+    expect(blocksOf(q)[0].microciclo.dias.filter((d) => d.hoja).map((d) => d.hoja)).toEqual(['B', 'C', 'A', 'B', 'C', 'A']);
   });
 });

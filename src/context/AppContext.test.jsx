@@ -113,7 +113,7 @@ describe('AppProvider', () => {
     sitio o la pierde al refactorizar, el recuento cambia y hay que mirarlo.
     Actualizar el número es una línea y obliga a pasar por aquí.
   */
-  it('el reparto conserva las 287 claves', () => {
+  it('el reparto conserva las 293 claves', () => {
     montar();
     // 195 desde «Quién eres» en el alta del cliente (0091): `saveClientIdentity`,
     // el segundo camino por el que el CLIENTE escribe en su ficha. Va aparte de
@@ -442,10 +442,70 @@ describe('AppProvider', () => {
     // porque en el teléfono la revisión se hace por pasos sueltos y se entrega
     // al final con un botón aparte.
     //
-    // Y 292 desde que EL MICROCICLO SE GUARDA EN EL BLOQUE (F2b):
+    // Y 292 desde EL ESQUEMA DE SERIES: `setBlockExerciseScheme` escribe la
+    // pauta de un ejercicio del bloque cuando sus series no piden lo mismo
+    // («1 × 12, 3 × 6-8»). No es `setBlockExerciseSets` con otro argumento:
+    // aquellas dos dicen cuántas series hay y qué piden TODAS, y esta dice
+    // cómo se reparten. Ver `setsDesdeTramos`.
+    //
+    // Y 293 desde QUITAR UNA COLUMNA DE LA HOJA: `updatePlanExercises` escribe
+    // varios ejercicios del plan en un solo paso —el «×» del rótulo «kg» vacía
+    // el peso de toda la hoja con un único «Deshacer»—. Es `updatePlanExercise`
+    // para una lista, cada ejercicio donde vive. Ver `updatePlanExercisesIn`.
+    //
+    // Y 295 desde RENOMBRAR UN EJERCICIO SIN QUITARLO: `renameBlockExercise`
+    // (la rejilla del bloque, por nombre) y `renamePlanExercise` (la hoja de un
+    // microciclo, por id, donde el ejercicio vive). Conservan el objeto entero
+    // y arrastran las excepciones de su hoja. Ver `renameBlockExerciseIn`.
+    //
+    // Y 296 desde DUPLICAR UNA HOJA EN UNA ESCRITURA: `duplicateBlockSheet`.
+    // Antes eran `addBlockSheet` y un `addBlockExercise` por ejercicio, y la
+    // copia perdía por el camino las notas, la indicación y el calentamiento.
+    // Ver `duplicateBlockSessionIn`.
+    //
+    // Y 300 desde EL PLAN APUNTA A UNA FECHA (0122): el dato `anchors` —los
+    // eventos a los que apunta su plan— y sus tres acciones: `saveAnchor`
+    // (fijarlo o moverlo), `removeAnchor` (quitar la marca, no el evento) y
+    // `shiftFuturePhases`, que mueve las fases que aún no han empezado SOLO
+    // cuando el entrenador marca la casilla. Ver `docs/eje-temporal.md`.
+    //
+    // Y 304 desde EL ROADMAP SEMANA A SEMANA (0123, 0124): los datos `hechos`
+    // —competiciones, vacaciones, refeeds y diet breaks del plan— y
+    // `dietVersions` —la pauta fechada—, y dos acciones: `igualar` y
+    // `quitarReplanteo`. Ver `docs/roadmap-replanteo.md`.
+    //
+    // Y 305 desde EL LADO DE LAS LATERALES ANTIGUAS: `declararLadoAntiguo`
+    // escribe, de una vez por cliente, el lado de las fotos que se subieron
+    // cuando había una sola lateral. Ver `lateralesAntiguas`.
+    //
+    // Y 306 desde que EL MICROCICLO SE GUARDA EN EL BLOQUE (F2b):
     // `cambiarCicloDelBloque` lleva el tipo y el patrón de la ficha al bloque
     // abierto, que ya no los lee de la ficha.
-    expect(Object.keys(visto.app).length).toBe(292);
+    //
+    // Y 305 con EL MICROCICLO COMO SECUENCIA (F2c): se van `updateWeeklySplit`
+    // («Cae el …» escribía `weekly_split`) y `cambiarCicloDelBloque` (el tipo
+    // en los ajustes), y entra `ponerMicrocicloDelBloque`, que escribe la
+    // secuencia entera de un bloque.
+    //
+    // Y 307 con LAS SERIES QUE NO SE GUARDARON: `seriesNoGuardadas` son las que
+    // el servidor rechazó (su hoja se renombró o se quitó con el teléfono
+    // abierto), apuntadas en el navegador para que no desaparezcan, y
+    // `leerSeriesNoGuardadas` las cuenta al entrenador (0132), que las lee en la
+    // tarjeta del entreno de su Revisión.
+    //
+    // Y 312 con LOS BLOQUES EN BORRADOR (0133): `anadirBorradorDelBloque`,
+    // `cambiarBorradorDelBloque` (rellenarlo, sin empezarlo),
+    // `quitarBorradorDelBloque` y `devolverBorradorDelBloque` (su Deshacer), y
+    // `empezarBorradorDelBloque`, que lo pasa a bloque con su id.
+    //
+    // Y 313 con LA LENTE DE ENTRENO: `ponerReferenciasDelBloque` guarda qué
+    // ejercicios quiere seguir el entrenador en cada bloque. Es la misma forma
+    // —`{ ejercicioId?, nombre }`— que ya llevaban los borradores.
+    //
+    // Y 315 con LAS REVISIONES PASADAS (0134): `filaDeRevision` crea la fila de
+    // una semana sin entregarla —el cierre de quien no entregó— y
+    // `reabrirRevision` le abre al cliente una pasada hasta una fecha.
+    expect(Object.keys(visto.app).length).toBe(315);
   });
 
   /*

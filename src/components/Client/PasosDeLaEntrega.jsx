@@ -58,6 +58,9 @@ export const PasosDeLaEntrega = ({
   yaEntregada = false,
   entregadaEl = null,
   cerrada = false,
+  /* Una revisión PASADA que se completa: el verbo nombra ESA semana, y lo que
+     se dice debajo es su plazo o por qué ya no se puede. */
+  pasada = null,
 }) => (
   <div className="pasos-entrega col gap-3">
     {/* El rótulo va fuera de la superficie, como en cualquier grupo del portal. */}
@@ -122,7 +125,11 @@ export const PasosDeLaEntrega = ({
       decir que está cerrada.
     */}
     {cerrada ? (
-      <span className="t-xs t-tertiary">Tu entrenador ya la ha revisado.</span>
+      <span className="t-xs t-tertiary">
+        {pasada?.motivo === 'Fuera de plazo'
+          ? 'Ya no se puede completar. Si la necesitas, pídele a tu entrenador que te la abra.'
+          : 'Tu entrenador ya la ha revisado.'}
+      </span>
     ) : (
     <div className="decide-verbo col gap-2">
       <button
@@ -131,12 +138,14 @@ export const PasosDeLaEntrega = ({
         onClick={onEntregar}
         disabled={enviando}
       >
-        <Send size={15} /> {yaEntregada ? 'Volver a entregar' : 'Entregar mi semana'}
+        <Send size={15} /> {yaEntregada ? 'Volver a entregar' : pasada ? 'Entregar esta semana' : 'Entregar mi semana'}
       </button>
       <span className="t-xs t-tertiary">
         {yaEntregada
           ? `${entregadaEl ? `La mandaste el ${shortDate(entregadaEl)}. ` : ''}Tu entrenador la está mirando; puedes corregirla hasta que la revise.`
-          : /* «Cuando estén, se la mandas y te contesta» decía lo que el botón
+          : pasada
+            ? `Tu entrenador verá que la entregaste tarde${pasada.plazo ? `; ${pasada.plazo}` : ''}.`
+            : /* «Cuando estén, se la mandas y te contesta» decía lo que el botón
                que tiene encima ya dice, y dejaba la línea en dos renglones. Lo
                único que esta frase aporta —y que no dice nadie más— es la
                ventana de gracia. Ver `ventana-de-gracia-de-la-entrega`. */

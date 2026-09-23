@@ -51,6 +51,46 @@ valorar, reordenar y detectar fallos, y las **gráficas de volumen**.
 
 ---
 
+## El borrador, construido (22 sep 2026)
+
+Hecho en la rama `borrador-del-bloque`, sin commitear. **Migración 0133**, que
+se aplica ANTES de publicar: añade `workout_data.draft_blocks` (jsonb, `[]` por
+defecto, con un CHECK de que es una lista). Una versión anterior de la app no
+conoce la columna, así que ni la manda ni la pisa.
+
+| Pieza | Dónde |
+|---|---|
+| El modelo y sus reglas | `src/domain/borradores.js` (17 pruebas en `borradores.test.js`) |
+| La frontera con la base | `mapWorkoutFromDb` / `mapWorkoutToDb`: la clave solo viaja si la fila la trae |
+| Las acciones | `useWorkout`: añadir, cambiar (rellenar), quitar, devolver y empezar |
+| Rellenar | El Compositor con `?borrador=<id>`: «Guardar el borrador» |
+| Empezar | «Empezar ahora», en el Compositor y en la lista de bloques |
+| Dónde se ven | `ListaDeBloques`, sección «Lo previsto» |
+| Contra la base | `supabase/tests/bloques-en-borrador.test.js` (4 pruebas) |
+
+**La forma**: `{id, name, plannedWeeks, intent?, note?, sessions?,
+mobilityDrills?, microciclo?, referencias?}`. El orden del array es el orden en
+el tiempo y no lleva fechas: su sitio sale del final previsto del abierto.
+`plannedWeeks` cuenta MICROCICLOS —en un rotativo de 10 días, 4 son 40 días
+(`diasDelBorrador`)—.
+
+**Rellenar no es empezar.** Guardar el borrador escribe en `draft_blocks` y no
+abre nada. «Empezar ahora» cierra el bloque abierto y abre este con **el mismo
+id** en UNA escritura (`openNextBlock` acepta `id`, y el borrador sale de la
+lista en el mismo paso). Solo se ofrece en el primero, con al menos una hoja
+(`sePuedeEmpezar`).
+
+**Qué pasa con lo que ya existe.** Nada: un programa sin borradores se lee y se
+escribe como siempre. Los borradores viajan al replicar un cliente
+(`replicateClient`), no se pintan en el portal, y `continue_program` y
+`training_summaries` siguen leyendo solo `blocks`. Quitar un borrador se
+deshace, y cualquier cambio en ellos es un paso de ⌘Z (`mismoPlan`).
+
+**Lo que falta** (su fase): el creador del plan —donde se crean y se ordenan en
+la barra segmentada—, la vista de temporada y la lente. Hoy un borrador nace
+desde el Compositor («Guardar como borrador», con duración prevista) y se
+ordena por cómo se creó.
+
 ## Estado de construcción (7 sep 2026)
 
 | Tanda | Estado |

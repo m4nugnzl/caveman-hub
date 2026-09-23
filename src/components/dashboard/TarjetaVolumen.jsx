@@ -2,10 +2,9 @@ import { Suspense, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { blockPlan, blockPlannedVolume, currentBlock } from '@/domain/blocks';
-import { metricColor } from '@/domain/metrics';
 import { MRV_GOALS, unitLabel } from '@/domain/training';
-import { localeNumber } from '@/lib/dates';
 import { lazyRoute } from '@/lib/lazyRoute';
+import { BarrasDeVolumen } from '@/components/ui/BarrasDeVolumen';
 import { MapaMuscular } from '@/components/ui/MapaMuscular';
 import { Tarjeta, TarjetaVacia } from './Tarjeta';
 
@@ -55,8 +54,9 @@ const MAX_GRUPOS = 6;
  * ── Y el color sigue siendo el del dato ────────────────────────────────────
  * El frame pinta cada barra de un color distinto (azul, violeta, verde) y eso
  * aquí no significa nada: el color es del DATO —las series son verdes en todo el
- * producto— y solo cambia cuando hay algo que decir, o sea cuando se pasa del
- * MRV. Cuatro colores por fila serían cuatro señales que no señalan.
+ * producto—. Cuatro colores por fila serían cuatro señales que no señalan. Y
+ * desde el 21 sep ni siquiera pasarse del MRV le cambia el color a la barra:
+ * el juicio va en la cifra, en rojo.
  */
 export const TarjetaVolumen = ({ program, cycleType, isClient = false, aRutina = null }) => {
   const unit = unitLabel(cycleType);
@@ -73,9 +73,6 @@ export const TarjetaVolumen = ({ program, cycleType, isClient = false, aRutina =
         .sort((a, b) => b.media - a.media),
     [pautado]
   );
-  /* El tope de las barras: el MRV del grupo, y para los que no lo tienen, el
-     mayor de la lista, para que sigan siendo comparables entre sí. */
-  const topeSinMrv = Math.max(1, ...musculos.map((m) => m.mrv || m.media));
   const vistos = musculos.slice(0, MAX_GRUPOS);
   const resto = musculos.length - vistos.length;
 
@@ -105,35 +102,11 @@ export const TarjetaVolumen = ({ program, cycleType, isClient = false, aRutina =
       ) : (
         <div className="grupos-par">
           <MapaMuscular musculos={musculos} />
-          <div className="grupos-lista">
-            {vistos.map((m) => {
-              const tope = m.mrv || topeSinMrv;
-              const pasado = Boolean(m.mrv) && m.media > m.mrv;
-              return (
-                <div
-                  className="grupos-fila"
-                  key={m.name}
-                  title={m.mrv ? `${m.name}: ${m.media} series de un MRV de ${m.mrv}` : m.name}
-                >
-                  <span className="grupos-k">{m.name}</span>
-                  <span className="grupos-v" style={pasado ? { color: 'var(--negative)' } : undefined}>
-                    {/* Con coma: la media de un bloque sale con decimales
-                        («11,1») y el punto decía «11.1» al lado de «de 20». */}
-                    {localeNumber(m.media, { maximumFractionDigits: 1 })} series
-                    {m.mrv && <small> de {m.mrv}</small>}
-                  </span>
-                  <span className="grupos-barra" aria-hidden="true">
-                    <i
-                      style={{
-                        width: `${Math.min(100, (m.media / tope) * 100)}%`,
-                        background: pasado ? 'var(--negative)' : metricColor('sets'),
-                      }}
-                    />
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {/* Las mismas barras que el costado de Entreno: es el mismo dato
+              —series por grupo contra su MRV— y tenía su tercera forma de
+              dibujarse. El rojo en la cifra al pasarse del MRV, ver
+              `BarrasDeVolumen`. */}
+          <BarrasDeVolumen grupos={vistos.map((m) => ({ name: m.name, valor: m.media, mrv: m.mrv }))} />
         </div>
       )}
 

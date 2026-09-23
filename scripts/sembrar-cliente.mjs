@@ -28,7 +28,11 @@ const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) { console.error('Faltan VITE_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY'); process.exit(1); }
 if (!CLIENTE) { console.error('Falta el id del cliente'); process.exit(1); }
 
-const db = createClient(url, key, { auth: { persistSession: false } });
+/* `x-sin-versiones`: la dieta sembrada no es un cambio de pauta de hoy (0124). */
+const db = createClient(url, key, {
+  auth: { persistSession: false },
+  global: { headers: { 'x-sin-versiones': '1' } },
+});
 
 // ── Fechas, todas en UTC y a partir del lunes ──────────────────────────────
 const DIA = 86400000;

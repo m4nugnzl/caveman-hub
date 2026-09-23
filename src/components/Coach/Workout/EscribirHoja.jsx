@@ -10,7 +10,6 @@ import {
   supersetLabels,
   tecnicaDeLaSerie,
   tecnicaFrase,
-  tecnicaSpec,
 } from '@/domain/training';
 import { clampInt } from '@/lib/num';
 import { useArrastreOrden } from '@/lib/useArrastreOrden';
@@ -18,8 +17,9 @@ import { Autocomplete } from '@/components/ui/Autocomplete';
 import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
 import { FichaEjercicio } from '@/components/Coach/Taller/FichaEjercicio';
-import { RemateDeLaSerie } from './RemateDeLaSerie';
-import { camposDeLaHoja } from './TablaDeSeries';
+import { CambiarEjercicio } from './CambiarEjercicio';
+import { LineaDelRemate, RemateDeLaSerie } from './RemateDeLaSerie';
+import { AnadirObjetivo, QuitarColumna, abrirAMano, camposDeLaHoja, esPautable } from './TablaDeSeries';
 
 /**
  * ESCRIBIR UNA HOJA: el banco donde se le meten los ejercicios.
@@ -137,6 +137,9 @@ export const EscribirHoja = ({
      flechas, que es la ley del reposo. */
   onMover = null,
   onSeries,
+  /* Cambiar el ejercicio por otro, con su estructura: `(dayName, name, nuevo, { muscle })`.
+     Sin él, el nombre se lee y no se toca. */
+  onRenombrar = null,
   /*
     `onTodas(dayName, name, campo, valor)` escribe un objetivo —`targetKg`,
     `targetReps`, `targetRir`— en TODAS las series del ejercicio. Es el verbo de
@@ -159,6 +162,9 @@ export const EscribirHoja = ({
   onAnadirSerie = null,
   onQuitarSerie = null,
   onTecnica = null,
+  /* Quitar la columna de un objetivo de la hoja entera, `(dayName, key)`: el
+     reverso de «+ kg». Sin él, el rótulo de la columna no lleva «×». */
+  onRetirarObjetivo = null,
   /* Si el protocolo de esta persona programa por RIR, su columna sale puesta
      aunque esté vacía. Igual que en la hoja de Entreno: lo que hace es dejarla
      de entrada, nunca impedir que se pauten las otras. */
@@ -209,7 +215,20 @@ export const EscribirHoja = ({
      tercer ejercicio y la del cuarto tienen que cuadrar. Misma lectura que en
      Entreno, y por eso vive en el dominio de la tabla. */
   const conSeries = Boolean(onSerie && onAnadirSerie && onQuitarSerie);
-  const { campos, porPautar } = camposDeLaHoja(exercises, { showRir, aMano });
+  /* `aMano` va POR EJERCICIO (`camposDeLaHoja`): el «+ kg» de una fila abre el
+     peso en ese ejercicio o en todos, según se elija al añadirlo. */
+  const { campos, delEjercicio, faltanEn, retirables } = camposDeLaHoja(exercises, { showRir, aMano });
+  /* Quitar una columna: lo escrito lo vacía quien llama; aquí se cierra lo
+     abierto a mano, que si no la dejaría puesta y vacía. Igual que en Entreno. */
+  const retirar = (key) => {
+    setAMano((v) => abrirAMano(v, null, key, false));
+    onRetirarObjetivo(dayName, key);
+  };
+  /* Escribir un kilo o un RIR lo deja abierto en su ejercicio: borrar la única
+     cifra no puede llevarse la casilla con el cursor dentro. */
+  const sostener = (ex, key) => {
+    if (esPautable(key) && !aMano[ex.id]?.[key]) setAMano((m) => abrirAMano(m, [ex.id], key));
+  };
   /* La banda de cifras, de izquierda a derecha. Los objetivos van en el mismo
      orden que en la hoja de Entreno —kg, reps, rir— para que las dos superficies
      se lean igual; quien programa mira las dos el mismo rato. */
@@ -297,7 +316,7 @@ export const EscribirHoja = ({
             .join(' · ')
         }
         onPick={(item) => setForm((f) => ({ ...f, name: item.name, muscle: item.muscle || f.muscle }))}
-        placeholder="Busca un ejercicio o escribe uno nuevo"
+        placeholder="Buscar o crear ejercicio"
         inputProps={{
           autoFocus: conTeclado && (altaPuesta || exercises.length === 0),
           'aria-label': `Nombre del ejercicio nuevo de ${dayName}`,
@@ -351,27 +370,11 @@ export const EscribirHoja = ({
         <div className="escribir-cab">
           <span className="section-label">En la hoja</span>
           {/*
-            ── «+ kg» Y «+ rir» SON DE LA HOJA, NO DE UNA FILA ────────────────
-            Estaban dentro de la fila desplegada, así que para decidir algo de
-            las seis había que abrir una. Su lectura siempre fue de la hoja
-            entera (`camposDeLaHoja`): es una tabla, y sus ejercicios han de
-            cuadrar. Desaparecen en cuanto la columna existe.
+            «+ kg» y «+ rir» vivieron aquí, para la hoja entera. Ahora están en
+            cada fila y preguntan «solo en este ejercicio / en todos los de la
+            hoja» (`AnadirObjetivo`): un sitio y una decisión, en vez de dos
+            botones iguales con distinto alcance.
           */}
-          {conSeries && porPautar.length > 0 && (
-            <span className="escribir-columnas">
-              {porPautar.map((c) => (
-                <button
-                  key={c.key}
-                  type="button"
-                  className="hoja-chapa"
-                  title={`Pautar ${c.label === 'kg' ? 'el peso' : 'el RIR'} de cada serie en esta hoja`}
-                  onClick={() => setAMano((v) => ({ ...v, [c.key]: true }))}
-                >
-                  + {c.label}
-                </button>
-              ))}
-            </span>
-          )}
           <span className="escribir-cuenta t-xs t-tertiary tnum">
             {exercises.length === 0
               ? 'nada todavía'
@@ -393,15 +396,23 @@ export const EscribirHoja = ({
               cada ejercicio cayendo debajo, así que el rótulo se dice una vez y
               cada fila recupera catorce píxeles de alto.
 
-              `aria-hidden` a propósito: cada casilla ya se nombra entera («kg
-              que pides en todas las series de Press banca»), y una cabecera
-              leída además sería el mismo dato dos veces.
+              Los rótulos van con `aria-hidden` a propósito: cada casilla ya se
+              nombra entera («kg que pides en todas las series de Press banca»),
+              y una cabecera leída además sería el mismo dato dos veces. El «×»
+              que quita una columna sí se lee: es un mando, no un rótulo.
             */}
-            <div className="escribir-head" aria-hidden="true">
-              <span />
-              <span className="escribir-head-ej">Ejercicio</span>
+            <div className="escribir-head">
+              <span aria-hidden="true" />
+              <span className="escribir-head-ej" aria-hidden="true">
+                Ejercicio
+              </span>
               {columnas.map((c) => (
-                <span key={c.key}>{c.label}</span>
+                <span key={c.key}>
+                  <span aria-hidden="true">{c.label}</span>
+                  {onRetirarObjetivo && retirables.includes(c.key) && (
+                    <QuitarColumna campo={c} onQuitar={retirar} />
+                  )}
+                </span>
               ))}
             </div>
 
@@ -438,8 +449,9 @@ export const EscribirHoja = ({
                         className="hoja-asa escribir-asa"
                         {...orden.asa(i)}
                         onKeyDown={conFlechas(i)}
-                        aria-label={`Reordenar ${ex.name}. Alt y flechas para moverlo.`}
-                        title="Arrastra para moverlo de sitio (o Alt + ↑/↓)"
+                        aria-label={`Mover ${ex.name}`}
+                        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                        title="Mover"
                       >
                         <GripVertical size={13} />
                       </button>
@@ -450,7 +462,17 @@ export const EscribirHoja = ({
                     </span>
 
                     <span className="escribir-say">
-                      <span className="escribir-nombre">{ex.name}</span>
+                      {onRenombrar ? (
+                        <CambiarEjercicio
+                          ejercicio={ex}
+                          vecinos={exercises}
+                          library={library}
+                          className="escribir-nombre"
+                          onCambiar={(nombre, opciones) => onRenombrar(dayName, ex.name, nombre, opciones)}
+                        />
+                      ) : (
+                        <span className="escribir-nombre">{ex.name}</span>
+                      )}
                       <span className="escribir-musculo">
                         {ex.muscle}
                         {remates.length > 0 && (
@@ -483,14 +505,28 @@ export const EscribirHoja = ({
                             }
                             title={
                               abierta
-                                ? 'Plegar las series'
-                                : 'Pautar cada serie por separado: kilos, reps, RIR y remate'
+                                ? 'Plegar'
+                                : 'Serie a serie'
                             }
                             onClick={() => setSeriesAbiertas((v) => ({ ...v, [ex.id]: !abierta }))}
                           >
                             {abierta ? 'plegar' : 'serie a serie'}
                           </button>
                         )}
+                        {/* «+ kg» de este ejercicio: pregunta si es para él o
+                            para toda la hoja (`AnadirObjetivo`). Mismo verbo en
+                            azul que «serie a serie». */}
+                        {conSeries &&
+                          delEjercicio(ex).porPautar.map((c) => (
+                            <AnadirObjetivo
+                              key={c.key}
+                              campo={c}
+                              ex={ex}
+                              faltan={faltanEn(c.key)}
+                              clase="escribir-abrir"
+                              onAbrir={(ids) => setAMano((v) => abrirAMano(v, ids, c.key))}
+                            />
+                          ))}
                       </span>
                     </span>
 
@@ -550,10 +586,31 @@ export const EscribirHoja = ({
                         de una pirámide, y «varias» donde un rango sería mentira:
                         entre «8-10» y «5» no hay término medio.
                       */
+                      /* Una columna de la hoja que este ejercicio no pauta:
+                         su hueco, sin casilla. Se abre con su «+ kg». */
+                      if (!delEjercicio(ex).activos.includes(col.key)) {
+                        return <span key={col.key} aria-hidden="true" />;
+                      }
                       const comun = pautaComun(ex, col.key);
                       const vacia = comun === '' && col.opcional;
-                      const dispar =
-                        col.mode === 'text' ? 'varias' : rangoPautado(ex, col.key) || 'varias';
+                      /*
+                        ── PAUTADO EN ALGUNAS, NO EN TODAS ─────────────────
+                        Un peso o un RIR puesto solo en la serie 3 se resumía
+                        con su cifra —«100»—, que es justo lo que diría esta
+                        casilla si lo pidieran las cuatro. Cuando el objetivo
+                        va en unas series y no en otras, la casilla cuenta en
+                        cuántas; la cifra está en su fila, «serie a serie».
+                      */
+                      const total = (ex.sets || []).length;
+                      const pautadas = (ex.sets || []).filter(
+                        (s) => String(s?.[col.key] ?? '').trim() !== ''
+                      ).length;
+                      const parcial = col.opcional && pautadas > 0 && pautadas < total;
+                      const dispar = parcial
+                        ? `${pautadas} de ${total}`
+                        : col.mode === 'text'
+                          ? 'varias'
+                          : rangoPautado(ex, col.key) || 'varias';
                       return (
                         <input
                           key={`${col.key}-${comun ?? dispar}`}
@@ -561,10 +618,16 @@ export const EscribirHoja = ({
                           inputMode={col.mode}
                           defaultValue={comun ?? ''}
                           placeholder={comun === null ? dispar : col.pista}
-                          aria-label={`${col.label} de todas las series de ${ex.name}`}
+                          title={
+                            parcial
+                              ? `${col.label} en ${pautadas} de ${total} series. Lo que escribas aquí va a todas.`
+                              : undefined
+                          }
+                          aria-label={`${col.label} de todas las series de ${ex.name}${parcial ? `, ahora en ${pautadas} de ${total}` : ''}`}
                           onBlur={(e) => {
                             const v = e.target.value.trim();
                             if (v === (comun ?? '')) return;
+                            sostener(ex, col.key);
                             onTodas(dayName, ex.name, col.key, v);
                           }}
                         />
@@ -591,8 +654,8 @@ export const EscribirHoja = ({
                             aria-pressed={Boolean(ex.enlazado)}
                             title={
                               ex.enlazado
-                                ? `Soltar la superserie: ${ex.name} deja de ir enlazado con el anterior`
-                                : `Enlazar ${ex.name} con el anterior en superserie`
+                                ? 'Soltar superserie'
+                                : 'Superserie con el anterior'
                             }
                             aria-label={
                               ex.enlazado
@@ -615,8 +678,8 @@ export const EscribirHoja = ({
                           <button
                             type="button"
                             className="btn btn-icon btn-icon-compact"
-                            title={`Escribirle una nota al cliente sobre ${ex.name}`}
-                            aria-label={`Escribirle una nota al cliente sobre ${ex.name}`}
+                            title="Nota"
+                            aria-label={`Nota de ${ex.name}`}
                             onClick={() => setNotaAbierta(ex.id)}
                           >
                             <Quote size={15} />
@@ -628,8 +691,8 @@ export const EscribirHoja = ({
                         <button
                           type="button"
                           className="btn btn-icon btn-icon-compact"
-                          title={`Ponerle tu vídeo y tus pautas a ${ex.name}`}
-                          aria-label={`Ponerle tu vídeo y tus pautas a ${ex.name}`}
+                          title="Ficha del ejercicio"
+                          aria-label={`Ficha de ${ex.name}`}
                           onClick={() => setFichaEditando(ex.name)}
                         >
                           <Video size={15} />
@@ -668,8 +731,8 @@ export const EscribirHoja = ({
                         <button
                           type="button"
                           className="btn btn-icon btn-icon-compact btn-icon-danger"
-                          title={`Quitar ${ex.name} de la hoja`}
-                          aria-label={`Quitar ${ex.name} de la hoja`}
+                          title="Quitar"
+                          aria-label={`Quitar ${ex.name}`}
                           onClick={() => onQuitar(dayName, ex.name)}
                         >
                           <Trash2 size={15} />
@@ -688,7 +751,7 @@ export const EscribirHoja = ({
                           className="textarea"
                           rows={2}
                           autoFocus={notaAbierta === ex.id && notaDelEj.length === 0}
-                          placeholder="La verá junto al ejercicio. Ej: el codo pegado al cuerpo."
+                          placeholder="Nota para tu cliente"
                           value={notaDelEj}
                           onChange={(e) =>
                             onGramatica(dayName, ex.name, { coachNote: e.target.value }, { immediate: false })
@@ -717,7 +780,9 @@ export const EscribirHoja = ({
                                 <span aria-hidden="true" />
                                 <span className="escribir-serie-n">serie {s + 1}</span>
                                 {columnas.map((col) =>
-                                  col.key === 'series' || col.key === 'restSeconds' ? (
+                                  col.key === 'series' ||
+                                  col.key === 'restSeconds' ||
+                                  !delEjercicio(ex).activos.includes(col.key) ? (
                                     /* Ni las series ni el descanso son de una
                                        serie: su columna se queda vacía aquí, y
                                        ese hueco es lo que lo dice. */
@@ -731,7 +796,10 @@ export const EscribirHoja = ({
                                       value={serie[col.key] ?? ''}
                                       placeholder={col.pista}
                                       aria-label={`${etiqueta}: ${col.label} que pides`}
-                                      onChange={(e) => onSerie(dayName, ex.name, s, col.key, e.target.value)}
+                                      onChange={(e) => {
+                                        sostener(ex, col.key);
+                                        onSerie(dayName, ex.name, s, col.key, e.target.value);
+                                      }}
                                     />
                                   )
                                 )}
@@ -758,12 +826,7 @@ export const EscribirHoja = ({
                               {/* El remate se dibuja donde pasa: colgando de su
                                   serie, con sus números y las mismas palabras
                                   que verá el cliente. */}
-                              {remate && (
-                                <p className="hoja-remate escribir-remate" title={tecnicaSpec(remate.id)?.ayuda}>
-                                  <span className="hoja-remate-corchete" aria-hidden="true" />
-                                  {tecnicaFrase(remate)}
-                                </p>
-                              )}
+                              {remate && <LineaDelRemate tecnica={remate} className="escribir-remate" />}
                             </Fragment>
                           );
                         })}

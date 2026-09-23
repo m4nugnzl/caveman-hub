@@ -170,6 +170,45 @@ export const useProgressPhotos = ({ clientsRef, isCoachRef }) => {
     [photosRef, setProgressPhotos]
   );
 
+  /**
+   * EL LADO DE SUS LATERALES ANTIGUAS, declarado de una vez (22 sep 2026).
+   *
+   * Cuando se pedía una sola lateral la instrucción era «mismo lado siempre»,
+   * así que un cliente tiene todas sus laterales antiguas del mismo lado y basta
+   * con decirlo una vez. Se escribe en cada foto que sigue siendo `lateral` como
+   * `lado` dentro de `tag` —el mismo JSON que ya lleva ángulo, peso y notas—:
+   * sin columna nueva, y sin tocar el ángulo ni la ruta, así que `lado: null`
+   * deja las fotos exactamente como estaban.
+   *
+   * Una escritura por foto, porque `tag` es distinto en cada una. Si alguna
+   * falla, las que sí se guardaron se quedan —son ciertas— y se devuelve el
+   * error: el estado local solo recoge las guardadas.
+   */
+  const declararLadoAntiguo = useCallback(
+    async (clientId, lado) => {
+      const valor = lado === 'izquierdo' || lado === 'derecho' ? lado : null;
+      const fotos = photosRef.current.filter((p) => p.clientId === clientId && p.angle === 'lateral');
+      if (fotos.length === 0) return { ok: true };
+
+      const resultados = await Promise.all(
+        fotos.map(async (foto) => {
+          const nueva = { ...foto, lado: valor };
+          const { error } = await supabase
+            .from('progress_photos')
+            .update({ tag: mapPhotoToDb(nueva).tag })
+            .eq('id', foto.id);
+          return { foto: nueva, error };
+        })
+      );
+
+      const guardadas = new Map(resultados.filter((r) => !r.error).map((r) => [r.foto.id, r.foto]));
+      setProgressPhotos(photosRef.current.map((p) => guardadas.get(p.id) || p));
+      const fallo = resultados.find((r) => r.error)?.error;
+      return fallo ? { ok: false, error: fallo.message } : { ok: true };
+    },
+    [photosRef, setProgressPhotos]
+  );
+
   /** Vuelve a firmar las URLs (por si alguna expiró durante la sesión). */
   const refreshPhotoUrls = useCallback(async () => {
     const cleared = photosRef.current.map((p) => (p.path ? { ...p, url: null } : p));
@@ -184,6 +223,7 @@ export const useProgressPhotos = ({ clientsRef, isCoachRef }) => {
     uploadProgressPhoto,
     deleteProgressPhoto,
     updateProgressPhoto,
+    declararLadoAntiguo,
     refreshPhotoUrls,
   };
 };

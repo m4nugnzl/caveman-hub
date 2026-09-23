@@ -70,3 +70,11 @@
 /* El pie: volver a la lista a un lado, recorrer las semanas al otro. */
 .rastro-pie { display: flex; align-items: center; gap: var(--s2); width: 100%; }
 .rastro-pie-pasos { display: flex; gap: var(--s2); margin-left: auto; }
+
+/* Completar una revisión pasada: el verbo, arriba, y en una línea qué hace.
+   Es lo único que se puede HACER en la ventana; lo demás se lee. */
+.rastro-completar {
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--s2);
+  padding-bottom: var(--s4); border-bottom: 1px solid var(--hairline);
+}
+.rastro-completar p { margin: 0; color: var(--text-secondary); font-size: var(--fs-xs); }

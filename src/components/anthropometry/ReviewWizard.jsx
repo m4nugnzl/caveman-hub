@@ -105,6 +105,12 @@ import { useOculto } from '@/components/Client/Oculto';
  *   revisión es una lista de pasos que se guardan sueltos y se entrega con un
  *   botón aparte, así que este asistente solo toma las medidas —pliegues,
  *   perímetros, aparatos— y guarda sin entregar. Ver `ClientRevisionRoute`.
+ * @param fechas  UNA REVISIÓN PASADA que se completa (`{ desde, hasta }`, 23 sep
+ *   2026). Cambia tres cosas: la fecha de lo que se mide solo puede caer en
+ *   sus días —y sale siempre, también en el teléfono, porque hoy no es uno de
+ *   ellos—; no hay paso de peso, porque sus pesajes se apuntan día a día y
+ *   confirmar una media aquí la escribiría encima del pesaje de ese día; y lo
+ *   medido no se sella a otra semana: su fecha ya es la de la revisión.
  * @param respuestasIniciales  Lo que ya estaba contestado: el borrador que el
  *   teléfono guarda en la fila de la semana (migración 0121). Sin esto el
  *   cuestionario del monitor empezaría en blanco encima de algo ya contestado.
@@ -127,6 +133,7 @@ export const ReviewWizard = ({
   ensayo = false,
   soloMedidas = false,
   respuestasIniciales = null,
+  fechas = null,
   onClose,
 }) => {
   const isClient = audience === 'client';
@@ -172,7 +179,7 @@ export const ReviewWizard = ({
     pintar el botón de entregar.
   */
   const oculto = useOculto();
-  const sinPeso = isClient && oculto.weight;
+  const sinPeso = (isClient && oculto.weight) || Boolean(fechas);
 
   /* Los pasos que de verdad tiene ESTE cliente. El peso salvo que esté oculto;
      los demás, solo si hay algo que rellenar en ellos. */
@@ -263,7 +270,7 @@ export const ReviewWizard = ({
   const paso = pasos[indice];
   const ultimo = indice === pasos.length - 1;
 
-  const [date, setDate] = useState(todayISO);
+  const [date, setDate] = useState(() => fechas?.hasta || todayISO());
   const [weight, setWeight] = useState('');
   const [folds, setFolds] = useState(emptyFolds);
   const [perimeters, setPerimeters] = useState(emptyPerimeters);
@@ -307,7 +314,7 @@ export const ReviewWizard = ({
      guarda ENTERO (`addAnthropometryLog` sustituye la fila de la fecha): lleva
      el peso que ya hubiera apuntado ese día, o se lo borraría. */
   const pesoDelDia = history.find((h) => h.date === date)?.weight;
-  const pesoEfectivo = soloMedidas
+  const pesoEfectivo = soloMedidas || fechas
     ? pesoDelDia === null || pesoDelDia === undefined
       ? ''
       : String(pesoDelDia)
@@ -521,7 +528,7 @@ export const ReviewWizard = ({
         para el entrenador, que cierra la semana pasada un miércoles. Ver
         `selloDelPeriodo`.
       */
-      semana: selloDelPeriodo({ start: weekStart, everyWeeks: weeks }, date),
+      semana: fechas ? null : selloDelPeriodo({ start: weekStart, everyWeeks: weeks }, date),
       /* Foto de las kcal y macros vigentes, para poder cruzar después dieta con
          evolución de peso: la tabla de nutrición no guarda histórico. Llega
          HECHA (`cycleFoto`): en un ciclado, la cifra que significa algo es la
@@ -529,7 +536,10 @@ export const ReviewWizard = ({
          sabe la pantalla, no este asistente. */
       nutritionFoto,
     });
-    if (registro.weight !== null || registro.skinFolds || registro.perimeters || registro.medidas) {
+    /* En una pasada solo se escribe si se ha medido algo: el peso de ese día ya
+       estaba, y reescribir su registro por nada lo daría por apuntado hoy. */
+    const conPeso = !fechas && registro.weight !== null;
+    if (conPeso || registro.skinFolds || registro.perimeters || registro.medidas) {
       onAdd(registro);
     }
 
@@ -563,7 +573,9 @@ export const ReviewWizard = ({
 
       const res = await onSubmitWeek({
         weekStart,
-        weight: toNum(pesoEfectivo),
+        /* Una pasada entrega la media de sus pesajes: `pesoEfectivo` es el
+           del día elegido para las medidas, no el de la semana. */
+        weight: fechas ? suggestedWeight : toNum(pesoEfectivo),
         answers: Object.keys(dadas).length > 0 ? dadas : null,
       });
 
@@ -750,6 +762,10 @@ export const ReviewWizard = ({
                         {...props}
                         type="date"
                         value={date}
+                        /* El cliente, dentro del periodo que entrega: una semana
+                           revisada la rechaza la base (0134) y el guardado
+                           entero se quedaría sin mandar. */
+                        min={isClient && weekStart ? weekStart : undefined}
                         max={todayISO()}
                         onChange={(e) => setDate(e.target.value)}
                         required
@@ -778,6 +794,30 @@ export const ReviewWizard = ({
                 </p>
               )}
             </>
+          )}
+
+          {/* EL DÍA DE LA MEDICIÓN, en una pasada: sin paso de peso no tendría
+              dónde salir, y hoy no es un día de esa semana. Va en el primero
+              de los pasos de medir y solo ahí. */}
+          {fechas && paso.id === pasos.find((p) => ['pliegues', 'perimetros', 'aparatos'].includes(p.id))?.id && (
+            <Field label="Día en que te mediste" className="campo-fecha">
+              {(props) => (
+                <span className="placa placa-fecha">
+                  <input
+                    {...props}
+                    type="date"
+                    value={date}
+                    min={fechas.desde}
+                    max={fechas.hasta}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v && v >= fechas.desde && v <= fechas.hasta) setDate(v);
+                    }}
+                    required
+                  />
+                </span>
+              )}
+            </Field>
           )}
 
           {paso.id === 'pliegues' && (

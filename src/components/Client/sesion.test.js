@@ -8,6 +8,7 @@ import {
   recordsDeLaSesion,
   serieEnCorto,
   siguientePorHacer,
+  textoDelFallo,
 } from './sesion';
 import { tiraDeLaSemana } from './hoy';
 
@@ -187,5 +188,17 @@ describe('tiraDeLaSemana', () => {
 
   it('y sin programa tampoco inventa siete casillas', () => {
     expect(tiraDeLaSemana({ client: { cycleType: 'weekly' }, program: null })).toBeNull();
+  });
+});
+
+describe('textoDelFallo', () => {
+  it('sin series rechazadas, lo de siempre', () => {
+    expect(textoDelFallo({})).toBe('No se guardó');
+  });
+  it('cuenta las series y dice por qué si es un cambio de la hoja', () => {
+    expect(textoDelFallo({ noGuardadas: 1, motivo: 'plan' })).toBe(
+      '1 serie no se guardó: tu entrenador cambió la hoja mientras entrenabas'
+    );
+    expect(textoDelFallo({ noGuardadas: 3 })).toBe('3 series no se guardaron');
   });
 });

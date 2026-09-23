@@ -1,7 +1,7 @@
 import { ArrowLeftRight, FlipHorizontal, RotateCcw, RotateCw, Sparkles, Trash2, ZoomIn } from 'lucide-react';
 
 import { fmt } from '@/lib/num';
-import { angleLabel } from '@/domain/photos';
+import { etiquetaDeLaFoto } from '@/domain/photos';
 // Sin `Panel`: este bloque se pinta dentro de `StudioPanel`, que ya es la tarjeta.
 
 /** Fila etiqueta + deslizador + valor, usada por encuadre y ajustes de luz. */
@@ -71,7 +71,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
               onClick={() => onSelectSlot(index)}
             >
               {index + 1}
-              {p ? ` · ${p.week != null ? `S${p.week}` : angleLabel(p.angle).slice(0, 3)}` : ' · vacío'}
+              {p ? ` · ${p.week != null ? `S${p.week}` : etiquetaDeLaFoto(p).slice(0, 3)}` : ' · vacío'}
             </button>
           );
         })}
@@ -103,7 +103,7 @@ export const SlotControls = ({ slots, activeSlot, photoOf, layout, maxGridSlots,
         <>
           <div className="card-inset col gap-1">
             <span className="t-sm" style={{ fontWeight: 700 }}>
-              {photo.week != null ? `Semana ${photo.week}` : 'Semana sin determinar'} · {angleLabel(photo.angle)}
+              {photo.week != null ? `Semana ${photo.week}` : 'Semana sin determinar'} · {etiquetaDeLaFoto(photo)}
             </span>
             <span className="t-xs t-secondary">
               {photo.date}

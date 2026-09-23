@@ -510,6 +510,252 @@ navegación** (Mi progreso / Análisis) → cabecera de bloque con su botón.
 > el **1RM estimado**: es una estimación y presentarla con la misma cara que un
 > tonelaje medido invita a leerla como un dato.
 
+> **Enmienda (21 de septiembre de 2026): el plan apunta a una fecha.**
+>
+> Diseñar sesiones lo hace cualquier hoja de cálculo. Lo que no hace es el mapa
+> temporal: dónde está el atleta, hacia dónde va, qué viene después y qué
+> veníamos haciendo. Las piezas ya existían —fases con fechas (0028), cruces
+> (0073), bloques con intención y duración prevista, competiciones y objetivos
+> en el calendario (0009)—, pero sueltas. Esta enmienda las conecta sin tabla
+> nueva de objetivos ni de temporadas. El razonamiento entero, con los datos de
+> la demo, está en `docs/eje-temporal.md`.
+>
+> | Pieza | Dónde vive | Qué hace |
+> |---|---|---|
+> | **El destino** | `client_events.ancla` (0122), un evento `race` o `goal` marcado | la fecha contra la que se mide el plan, con su cuenta atrás |
+> | **La competición** | `client_events.competicion` (jsonb) | federación, categoría, sede y, si la categoría es por peso, el peso LÍMITE |
+> | **La temporada** | se deriva: las fases entre un destino y el siguiente | se llama como su destino; no hay tabla |
+> | **El eje** | `roadmap/EjeTemporal`, dentro de Sus fases | fases y bloques en dos carriles sobre las mismas fechas, con hoy y el destino |
+>
+> Las reglas que no se negocian:
+>
+> - **Fase y bloque no se anidan.** La fase es la dirección del cuerpo y va por
+>   fechas; el bloque es la estructura del entreno y va por microciclos. Se
+>   dibujan en paralelo. El bloque llega al calendario por la fecha de sus
+>   microciclos (`tramoDelBloque`), **nunca** por `weekStartOfProgramWeek`,
+>   que en la demo se equivocaba entre 3 y 21 semanas en cuatro de seis
+>   clientes.
+> - **Las fases no se enlazan con el destino: se miden contra él.** El tramo
+>   hacia un destino son las fases que empiezan antes que él y después del
+>   anterior. Llega si la última acaba la víspera o el mismo día; si no, el
+>   hueco o el exceso **se dibujan**, rayados en tinta. No es un error de
+>   validación ni un veredicto.
+> - **Mover el destino no mueve las fases.** El diálogo dice qué pasa y ofrece
+>   una casilla desmarcada para mover las que aún no han empezado
+>   (`shift_future_phases`, todo o nada). Las pasadas y la de hoy no se tocan
+>   nunca: cambiaría cómo se juzgó cada semana vivida. Estirarlas no se ofrece.
+> - **Solo el entrenador toca un destino.** El cliente lo ve y no puede
+>   moverlo, marcarlo hecho ni borrarlo (RLS, 0122). Puede apuntar su carrera,
+>   y si su entrenador la marca como destino, a partir de ahí es del entrenador.
+> - **El peso objetivo es uno y del cliente.** No hay peso por fase: el destino
+>   de una fase ya es su arranque + ritmo × semanas. `effectiveGoal` lo conserva
+>   también cuando manda una fase (antes se perdía y el portal dejaba de
+>   enseñarlo).
+> - **La app enseña, no reajusta.** No propone fases para tapar un hueco, no
+>   reparte un exceso, no avisa y no sincroniza con federaciones. Cualquiera de
+>   esas tres cosas se propone aparte, cuando se haya visto cómo se usa esto.
+>
+> Dónde se ve: el destino y el eje, en **Sus fases**; la cuenta atrás, debajo de
+> la fase en la franja del **Resumen** y en la cabecera del **Inicio** del
+> cliente; el calendario marca el evento como «destino del plan». Se fija en
+> Sus fases y no en el calendario: es una decisión sobre el plan, y el plan se
+> decide en un solo sitio.
+>
+> Lo que queda abierto: de dónde saldría el calendario de las federaciones
+> naturales (`docs/eje-temporal.md` §6), y el desfase de
+> `weekStartOfProgramWeek` en la cartera, la revisión y la línea de tiempo, que
+> merece un encargo propio.
+
+> **Enmienda (21 de septiembre de 2026): el roadmap es una línea, una tabla y el replanteo.**
+>
+> Con el destino puesto, falta ver el camino. El roadmap son tres cosas sobre las
+> mismas fechas: la **línea** de la temporada (el peso real contra el esperado,
+> con las fases de fondo), la **tabla** con una fila por semana, pasadas y
+> futuras, con lo pautado y lo que pasó, y el **replanteo**: el entrenador toma
+> el peso real de una semana como base nueva y sigue desde ahí. Todo se enlaza
+> por fecha y se deriva; el único enlace explícito sigue siendo el destino. El
+> razonamiento entero, con los números de la demo, está en
+> `docs/roadmap-replanteo.md`.
+>
+> | Pieza | Dónde vive | Qué hace |
+> |---|---|---|
+> | **El replanteo** | `client_phases.replanteos` (0123), una lista jsonb en la fase | semana (lunes), peso base guardado como número, ritmo en %, nota y cuándo se decidió |
+> | **La expectativa** | se deriva: `expectativaDeFase`, una recta por tramos | cada semana compara su media con el esperado del **jueves**: media contra media |
+> | **Las intervenciones** | eventos `refeed` y `diet_break` (0123), con `hasta` y `kcal` | se enlazan con la fase por fecha; las vacaciones son `rest` con `hasta` |
+> | **La tabla** | se deriva: una fila por **semana natural** | fase, peso medio, esperado, desviación, dieta pautada, bloque, intervenciones, replanteo, revisión |
+>
+> Las reglas que no se negocian:
+>
+> - **El sistema enseña la desviación; no sugiere replanteos, no reajusta solo,
+>   no avisa.** La tabla no destaca qué semana convendría igualar ni colorea la
+>   desviación como alarma: enseña el número con su signo.
+> - **El replanteo es explícito y fechado.** Lo hace el entrenador desde una
+>   fila pasada con media («Igualar aquí»). Uno por semana; se puede quitar. Un
+>   replanteo que se queda fuera de su fase al acortarla se ignora al leer y no
+>   se borra.
+> - **La expectativa original no se pierde.** Se sigue calculando desde el
+>   arranque de la fase y se dibuja como fantasma hasta su final; la desviación
+>   se lee contra la vigente y contra la original. Las intermedias no se
+>   prolongan.
+> - **`phaseProjection` solo crece.** Sin replanteos devuelve lo mismo que antes;
+>   con ellos, `objetivo` es el vigente y aparecen `objetivoOriginal`,
+>   `desvioOriginal`, `base` y `replanteo`.
+> - **El veredicto semanal juzga contra el ritmo del replanteo.** `phaseGoal(fase,
+>   fecha)` devuelve el ritmo del último replanteo hasta esa fecha; la forma de
+>   `effectiveGoal` no cambia. Si no, la tarjeta diría «Por debajo del ritmo» de
+>   quien va justo al ritmo que se acaba de poner.
+> - **El ritmo se guarda en % y se enseña también en kg/semana**, calculados
+>   sobre la base **del tramo**, nunca sobre el peso de hoy: «0,6 % · −0,49
+>   kg/sem». «Mismo ritmo» en un replanteo es el mismo %.
+> - **Una intervención no mueve la recta.** Un diet break en mitad de una
+>   definición se marca en la tabla y se sombrea en la línea; si después hay que
+>   igualar, se iguala a mano.
+> - **Refeed y diet break los escribe solo el entrenador** (RLS, 0123); el
+>   cliente los ve. Las vacaciones siguen siendo de los dos. Las kcal se ocultan
+>   con `useOculto()` a quien no las ve.
+> - **La descarga no es un evento.** Es la intención `descarga` del bloque, o un
+>   `rest` si es una semana suelta. Dos sitios para decirlo acabarían diciendo
+>   cosas distintas.
+> - **La tabla va por semana natural** y no se construye con `reviewTimeline`
+>   (semana de programa). La dieta pautada sale de las revisiones cerradas y no
+>   se proyecta más allá de la semana actual. Las semanas sin fase son filas, no
+>   un error.
+>
+> El cliente lee sus fases enteras (0028), así que sus replanteos le llegan;
+> enseñarle el fantasma es una decisión de pantalla.
+>
+> Lo que queda abierto: dónde se ven la línea y la tabla, y su diseño; y si la
+> base original debe salir de la media de su semana en vez de un pesaje suelto,
+> que movería cifras que ya se enseñan.
+
+> **Enmienda (21 de septiembre de 2026): el roadmap vive en Revisiones.**
+>
+> Se probó como pestaña de la ficha, con dos vistas, y se retiró el mismo día.
+> Duplicaba lo que ya hacía la revisión: la espina de Revisiones es el selector
+> de semana, el contexto histórico y el mapa del proceso, que es justo el papel
+> del roadmap. Así que la espina crece hasta ser la línea del roadmap y no hay
+> pantalla aparte.
+>
+> | Pieza | Dónde | Qué hace |
+> |---|---|---|
+> | **La espina plegada** (por defecto) | arriba de Revisiones (`review/TimelineSpine`) | la banda de fase, el esperado, la media, hoy y la marca del cruce o del destino; sin eje de kilos; señalar una semana la elige para toda la pantalla |
+> | **La espina desplegada** | el mismo sitio | la línea entera: fases, esperado por tramos, fantasmas de igualado, caminos del cruce, hechos, escalera de kcal con hilos y zoom Temporada / Fase |
+> | **Revisión** (por defecto, debajo) | el conmutador bajo la espina | la revisión de la semana elegida, que es el detalle de una semana del roadmap |
+> | **Semanas** | el mismo conmutador | el libro (`roadmap/LibroDelPlan`): una fila por semana, pasadas y futuras, agrupadas por fase; pulsar una fila la elige y vuelve a Revisión |
+> | **Igualar aquí** | la barra de cierre (`ReviewDecision`), junto a los cambios de pauta | se decide al cerrar la semana, y antes de confirmar enseña la línea con el antes y el después; en ningún otro sitio |
+> | **El plan** | una ventana (`roadmap/PlanDelRoadmap`) | se edita: el destino y el peso objetivo arriba del todo, y debajo las fases, el cruce con su pregunta y «Elegir»; se abre desde la banda de fase de la espina y desde la tarjeta del Resumen |
+> | **La tarjeta del Resumen** | `dashboard/TarjetaRoadmap` | fase y semana N de M, el desvío o los días sin pesar y los días al cruce o al destino; lleva a Revisiones con la espina desplegada en la semana de hoy (`?espina=abierta&en=hoy`) |
+>
+> Reglas que se añaden:
+>
+> - **Alto fijo.** La línea no se estira a lo ancho de la pantalla: con más
+>   ancho se alarga hasta un tope (1.280 px) y no se aplana.
+> - **La espina recuerda su estado**, en ese aparato, **pero abre plegada si
+>   hay una revisión pendiente**: desplegada, en un portátil de 1.366 px, empuja
+>   la revisión por debajo del pliegue. Desde el Resumen se pide desplegada, y
+>   eso manda.
+> - **El libro se lee a su ancho**: columnas fijas y juntas, nunca repartidas a
+>   pantalla completa. Dos grupos con cabecera ligera, «Pauta» (kcal, pasos,
+>   cardio) y «Peso» (media, esperado, desvío), más los hechos; cada fase con
+>   la cabecera de bloque de Historial.
+> - **Se puede abrir cualquier semana con datos**, además de las que tienen
+>   rutina montada: las semanas en las que se pesó o entregó
+>   (`reviewableWeeks`, `active`). Si no, la espina y el libro enseñaban semanas
+>   que no se podían elegir.
+> - **El cliente ve su línea en su revisión**, plegada y encima de «Tus
+>   semanas» (`Client/TuRoadmap`). Solo se mira: no elige semana ni abre el
+>   plan. Sin los fantasmas ni la marca del igualado: ve el esperado vigente,
+>   no cómo se ajustó. La nota de un igualado no se enseña en ningún sitio. Su
+>   pantalla `/mi/roadmap` se retira.
+>
+> Siguen valiendo las reglas que trajo la pestaña:
+>
+> - **Un dato viejo no se disfraza de actual.** Si el último pesaje tiene más de
+>   siete días, se dice «sin pesajes desde el …» en vez de una cifra.
+> - **Un carril vacío no se dibuja.** Sin hechos no hay columna ni franja de
+>   hechos; sin bloques, no hay columna de bloque; sin kcal pautadas, no hay
+>   escalera.
+> - **El bloque de una semana lo decide su jueves**, como la fase. Cuando el
+>   bloque acaba (o acaban sus semanas previstas) y no hay otro, la semana dice
+>   «Sin bloque».
+> - **El cruce tiene una pregunta** (`client_phases.next_question`, 0125), y
+>   sus caminos son las respuestas: «¿Llega al Nacional con margen?» → «Sí, con
+>   margen» → Transición. La pregunta se escribe con los caminos y se borra con
+>   ellos. Si un cruce de antes no la tiene, el plan la pide en su sitio.
+>
+> `dashboard/FasesPopup` se retira, y con la pestaña se van su tira del Resumen
+> y el detalle de semana: lo que hacían lo hacen la tarjeta, la espina y el
+> modo Revisión.
+
+> **Enmienda (22 de septiembre de 2026): primero las semanas, después la revisión.**
+>
+> Supera a la de ayer en la portada y en el libro. Revisiones giraba alrededor
+> del formulario de una semana, y desde fuera no se sabía en qué semana estaba
+> el cliente ni cuál tocaba. Ahora se entra por el MAPA de sus semanas, y la
+> revisión es el detalle de una de ellas, con su propia dirección.
+>
+> | Pieza | Dónde | Qué hace |
+> |---|---|---|
+> | **La portada** | `/c/:id/semana` (`review/PortadaDeSemanas`) | una frase arriba si hay algo que revisar («Te toca revisar la S11 · del 14 sept · Entregó»); debajo, cada fase es una tira con la cabecera de Historial: la gráfica de peso arriba (pesajes tenues por día, la media unida a sus vecinas, el esperado discontinuo) y sus casillas debajo, columna a columna; las pasadas plegadas, la actual abierta, las futuras debajo; dos lentes, **Nutrición** y **Entreno** |
+> | **La lente de Entreno** | la portada, con el conmutador (`review/PortadaDeEntreno`) | las mismas semanas agrupadas por **BLOQUE**, con la fase como banda fina de fondo: columnas de tonelaje sobre las casillas —un solo color y un solo tope para todos los bloques—, una hilera de puntos bajo la columna **solo en las semanas incompletas** (●●●●○), las casillas con lo que levantó, y debajo los **ejercicios de referencia** del bloque con su línea (los elige el entrenador; por defecto, los tres con más series). Un bloque en borrador se ve solo en contorno, sin columnas. Datos, no veredictos |
+> | **La casilla** | la portada | cinco estados por su FORMA, planos, sin sombra: revisada (tinte y tic), pendiente (la única rellena, de azul), en curso (canto azul), sin check-in (canto discontinuo), futura (punteada, con el esperado); sin verde ni rojo (`domain/estadosDeSemana`) |
+> | **La semana** | `/c/:id/semana/<lunes>` (`Coach/WeekReview`) | peso contra esperado con la semana por dentro, de lunes a domingo, y la anterior en gris (`review/SemanaPorDias`); pauta vigente y qué cambió, entreno, fotos y lo que contestó; ‹ › a la de al lado |
+> | **Las fotos** | la tarjeta del cuerpo (`review/ComparaFotos`) | los cuatro ángulos de dos semanas en parejas de antes y ahora; por defecto el inicio de la fase contra ahora; se pulsa una semana de la cabecera y se elige su casilla (atajos: inicio de la fase, inicio); hueco «Sin foto» si falta un ángulo; la lateral antigua se empareja cuando se declara su lado, una vez por cliente; la pareja se abre con cortinilla |
+> | **El plan** | la misma ventana (`roadmap/PlanDelRoadmap`), en dos pestañas | se abre desde la cabecera de la portada y desde la tarjeta del Resumen, por **Temporada**: la temporada entera dibujada (`roadmap/VistaDeTemporada`) —fases de fondo, peso real contra lo esperado, fantasmas de igualado, el cruce con sus dos caminos, los hechos en su franja y la escalera de kcal con sus hilos—, con zoom Temporada / Fase; señalar una semana enseña su globo y pulsarla lleva a su revisión y cierra la ventana. La pestaña **Plan** es la de siempre (`roadmap/RoadmapPanel`): ahí se edita. El lado del cliente no lleva pestañas |
+>
+> Reglas que se añaden:
+>
+> - **Una semana pide los entrenos que dice la secuencia de su bloque.** La
+>   cuenta es la MISMA que reparte la dieta del cliente —`(días desde el ancla)
+>   mod (número de casillas)`, ver `semanaDelCliente`— para que lente y dieta no
+>   den dos respuestas distintas, con el ancla del bloque de cada semana y no la
+>   del que corre hoy. En un rotativo unas semanas piden cinco y otras cuatro, y
+>   la hilera lo enseña. Sin secuencia escrita no hay hilera: «0 de 0» sería
+>   inventarse que ese bloque no pedía entrenar. El día saltado sigue aparcado
+>   (`docs/estudio-microciclo-secuencia.md` §1.4).
+>
+> - **Los ejercicios de referencia se guardan como `{ ejercicioId?, nombre }`,**
+>   la misma forma que ya llevaba un bloque en borrador, y la lente junta los
+>   registros del nombre guardado con los del nombre actual de ese id: renombrar
+>   un ejercicio no parte su línea en dos. La propuesta no se escribe hasta que
+>   el entrenador cambia algo.
+>
+> - **La temporada y las tiras son el MISMO dibujo a distinto zoom.** Una sola
+>   escala de kilos con sus dos modos (`roadmap/escalaDePeso`: por ventana, con
+>   8 % de aire y mínimo de dos kilos; o por fase, compartiendo píxeles por kilo
+>   entre tiras), un solo día-a-píxel con sus dos modos (`roadmap/geometria`:
+>   `escalaX` por fecha, `escalaPorColumnas` por semanas) y un solo trazo del
+>   peso (`roadmap/TrazoDelPeso`: pesajes en su día, media unida, hueco
+>   punteado), con la tinta `.progreso-*` que ya usaba la gráfica del Resumen.
+>   Ninguno de los dos modos manda sobre el otro: quien dibuja elige.
+>
+> - **Pendiente es lo que pide la cola de Inicio** (`reviewState` en `ready` o
+>   `missing`), con una sola forma; el texto distingue «Entregó» de «Sin
+>   subir». Una entrega vieja sin contestar también es pendiente, y la frase la
+>   cuenta («y 1 más sin contestar»).
+> - **La barra de cierre solo sale en la pendiente.** Cerrar, ajustar e igualar
+>   son la respuesta a la semana que toca. La revisada se LEE (lo que decidiste
+>   y lo que le dijiste); la futura enseña lo planificado; la de sin check-in lo
+>   dice en una línea y enseña lo que sí hay.
+> - **Cada semana se nombra por su lunes**, no por su número: las revisiones se
+>   guardan por (cliente, lunes) y el número depende de la fecha de alta.
+>   «Revisar» en Inicio aterriza en la pendiente (`row.review.weekStart`);
+>   `?en=hoy` redirige al lunes de hoy; `?espina=abierta` se retira.
+> - **Quincenal: un periodo, una pieza.** Las casillas de un mismo periodo van
+>   pegadas y con un solo estado (`periodStartOf`, exportado de `calendar`).
+> - **La misma proporción, no el mismo rango.** Todas las tiras de un cliente
+>   usan los mismos píxeles por kilo, y cada una se recorta a su fase. La
+>   columna sale de lo que cabe en la casilla (80 px completa, 52 compacta, sin
+>   unidad ni fecha); si no cabe, la tira se parte antes: nunca desplazamiento
+>   lateral. En el teléfono, de cinco en cinco como mucho.
+>
+> Se retiran de Revisiones la espina (`review/TimelineSpine`), el conmutador
+> Revisión / Semanas y el libro (`roadmap/LibroDelPlan`): la portada hace lo que
+> hacían los tres. La espina sigue viva en la revisión del cliente
+> (`Client/TuRoadmap`). No cambia el dominio de la revisión: ni
+> `reviewableWeeks`, ni el cierre, ni `planSnapshot`. La versión del cliente
+> (`/mi/evolucion/semanas[/:lunes]`) está propuesta y sin construir.
+
 ### 5.6 La lista corta de lo prohibido
 
 Para poder revisar un diff sin discutir:

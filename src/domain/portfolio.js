@@ -545,6 +545,9 @@ export const clientStatus = (
         reviewedAt: submitted.reviewedAt,
         pending: Boolean(submitted.submittedAt) && !submitted.reviewedAt,
         id: submitted.id,
+        /* El lunes de la semana que espera: lo que abre «Revisar» desde Inicio
+           (`/c/:id/semana/<lunes>`). No cambia ninguna regla de la cola. */
+        weekStart: submitted.weekStart || null,
         /* Lo que contestó al cuestionario de la semana (migración 0060). Viaja
            con la fila porque es lo que la cola de revisiones enseña para que se
            note, sin entrar, que esta semana trae algo nuevo. */
@@ -560,6 +563,9 @@ export const clientStatus = (
            aproxima nada. */
         pending: checkIn.asked && checkIn.complete && hasWeekPhoto,
         id: null,
+        /* Sin fila, la semana por la que pregunta la cola es la del periodo
+           vigente (`queueWeek`), o la natural de hoy sin pauta. */
+        weekStart: currentCheckInPeriod(client.preferences, client.startDate, today)?.start || checkIn.weekStart || null,
         answers: null,
       };
 

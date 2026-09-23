@@ -8,6 +8,8 @@ import {
   currentCheckInPeriod,
   entregaDelPeriodo,
   estadoDeLaEntrega,
+  eventsByDate,
+  kindMeta,
   moveCheckIn,
   monthGrid,
   nextCheckIn,
@@ -502,6 +504,31 @@ describe('entregaDelPeriodo', () => {
   it('sin fila o sin periodo no hay nada', () => {
     expect(entregaDelPeriodo(null, '2026-09-14')).toBeNull();
     expect(entregaDelPeriodo(fila('2026-09-14'), null)).toBeNull();
+  });
+});
+
+/* Las intervenciones (0123): un evento de varios días está en cada uno. */
+describe('eventsByDate con eventos de varios días', () => {
+  it('reparte unas vacaciones por sus siete días, extremos incluidos', () => {
+    const mapa = eventsByDate([
+      { id: 'v', date: '2026-12-07', hasta: '2026-12-13', kind: 'rest', title: 'Vacaciones' },
+      { id: 'c', date: '2026-12-10', kind: 'appointment', title: 'Cita' },
+    ]);
+
+    expect([...mapa.keys()].sort()).toEqual([
+      '2026-12-07', '2026-12-08', '2026-12-09', '2026-12-10', '2026-12-11', '2026-12-12', '2026-12-13',
+    ]);
+    expect(mapa.get('2026-12-10').map((e) => e.id)).toEqual(['c', 'v']);
+  });
+
+  it('un `hasta` anterior a la fecha no multiplica nada', () => {
+    const mapa = eventsByDate([{ id: 'r', date: '2026-10-31', hasta: '2026-10-01', kind: 'refeed', title: 'Refeed' }]);
+    expect([...mapa.keys()]).toEqual(['2026-10-31']);
+  });
+
+  it('un tipo desconocido se lee como una nota, no como el último de la lista', () => {
+    expect(kindMeta('inventado').id).toBe('note');
+    expect(kindMeta('refeed').soloEntrenador).toBe(true);
   });
 });
 

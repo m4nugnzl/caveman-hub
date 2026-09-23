@@ -43,7 +43,7 @@ export const useCloseReview = () => {
     reviewCheckIn,
     unreviewCheckIn,
     deleteCheckIn,
-    submitCheckIn,
+    filaDeRevision,
     createReviewUrl,
     uploadReview,
     createReviewLink,
@@ -62,10 +62,14 @@ export const useCloseReview = () => {
     async ({ clientId, name, checkInId = null, weekStart, notes = SIN_CAMBIOS, restantes = null }) => {
       /* Sin la entrega del cliente no existe fila en `check_ins`, pero la cola sí
          lo da por listo. Se crea y se marca revisada en el mismo gesto: si has
-         mirado su semana, esa semana existe — la haya entregado él o no. */
+         mirado su semana, esa semana existe — la haya entregado él o no.
+
+         Se crea SIN entregar (`fila_de_revision`, 0134). Con `submitCheckIn` la
+         fila nacía con `submitted_at` y el cliente veía «entregada · revisada»
+         en una semana que nunca mandó; ahora ve «Cerrada por tu entrenador». */
       let id = checkInId;
       if (!id) {
-        const creada = await submitCheckIn(clientId, { weekStart });
+        const creada = await filaDeRevision(clientId, weekStart);
         if (!creada.ok) return creada;
         id = creada.id;
       }
@@ -103,7 +107,7 @@ export const useCloseReview = () => {
       return { ok: true, id };
     },
     [
-      submitCheckIn,
+      filaDeRevision,
       reviewCheckIn,
       unreviewCheckIn,
       deleteCheckIn,

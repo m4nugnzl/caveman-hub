@@ -124,7 +124,7 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
         <select
           className="select select-sm"
           aria-label="Músculo principal"
-          title="Músculo principal: es con el que cuenta en el volumen por grupo"
+          title="Músculo principal"
           value={form.muscle}
           onChange={(e) => set('muscle', e.target.value)}
         >
@@ -194,7 +194,7 @@ export const AddExerciseForm = ({ library, onAdd, onRememberExercise, enHoja = f
             type="submit"
             className="btn btn-primary btn-sm"
             disabled={!form.name.trim()}
-            title="Añadir (Enter). La línea se queda lista para el siguiente."
+            title="Añadir (Enter)"
           >
             Añadir
           </button>

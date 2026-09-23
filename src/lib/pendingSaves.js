@@ -62,12 +62,24 @@ const escribirIndice = (userId, claves) => {
  *
  * Se construye con el id del usuario y se descarta al cerrar sesión. Devuelve
  * las tres operaciones que la cola necesita y ninguna más.
+ *
+ * ── Cada nota lleva la versión que la escribió ─────────────────────────────
+ * `build` es el id del bundle (`lib/version`). Quien reenvía decide con él: un
+ * programa entero apuntado por otra versión no se reenvía tal cual, se vuelve a
+ * aplicar con la versión de ahora (ver el reenvío en `AppContext`). Las notas de
+ * antes de que existiera la etiqueta se leen con `build: null`.
+ *
+ * `meta` va al lado del payload. Para el programa lleva `base`: la versión del
+ * servidor (`updated_at`) sobre la que se hizo el cambio, para poder saber al
+ * volver si alguien ha escrito encima desde entonces.
  */
-export const pendingStore = (userId) => ({
-  save(key, payload) {
+const ENVUELTA = '__pendiente';
+
+export const pendingStore = (userId, build = null) => ({
+  save(key, payload, meta = null) {
     let texto;
     try {
-      texto = JSON.stringify(payload);
+      texto = JSON.stringify({ [ENVUELTA]: 1, build, ...(meta || {}), payload });
     } catch {
       // Un payload con referencias circulares no es guardable ni enviable; que
       // reviente al mandarlo, no aquí.
@@ -103,7 +115,11 @@ export const pendingStore = (userId) => ({
       .map((key) => {
         try {
           const raw = localStorage.getItem(`${prefijo(userId)}:${key}`);
-          return raw === null ? null : { key, payload: JSON.parse(raw) };
+          if (raw === null) return null;
+          const nota = JSON.parse(raw);
+          return nota && typeof nota === 'object' && nota[ENVUELTA] === 1
+            ? { key, payload: nota.payload, build: nota.build ?? null, base: nota.base }
+            : { key, payload: nota, build: null };
         } catch {
           return null;
         }

@@ -1,6 +1,6 @@
 import { Trash2, X } from 'lucide-react';
 
-import { toExerciseDraft } from '@/domain/routineSheet';
+import { leerPorSerie, seriesVisibles, toExerciseDraft } from '@/domain/routineSheet';
 import { MUSCLE_GROUPS } from '@/domain/training';
 import { Field, NumberInput } from '@/components/ui/primitives';
 
@@ -54,15 +54,27 @@ export const toEditableDays = (days, targetIndex = 0) =>
       /* Un objetivo por serie: la hoja puede pedir 6-8 en la primera y 8-10 en
          las demás, y eso no se puede aplanar sin perderlo. */
       targets: ex.targetOptions[targetIndex] || ex.targetOptions[0] || [],
-      rir: ex.rir || '',
+      /* El RIR de cada serie, escrito como el objetivo: «0 · 2×2». */
+      rir: ex.rirs ? seriesVisibles(ex.rirs) : ex.rir || '',
       note: ex.note || '',
     })),
   }));
 
 export const contarSeries = (dia) => dia.exercises.reduce((n, e) => n + (Number(e.sets) || 0), 0);
 
-/** «6-8 · 8-10» cuando las series piden cosas distintas; «8-10» cuando no. */
-const objetivoVisible = (ex) => [...new Set(ex.targets)].join(' · ');
+/*
+  «6-8 · 2×8-10» cuando las series piden cosas distintas; «8-10» cuando no.
+
+  Antes era la lista sin repetidos —«7-9 · 10-12» para un top set, un back-off
+  a 7-9 y otro a 10-12—, que se lee bien y no se puede volver a desplegar: al
+  escribir encima, ese texto entero pasaba a ser el objetivo de las tres series.
+  Con el recuento delante lo que se ve es exactamente lo que se guarda.
+
+  Mientras se escribe se enseña lo escrito (`objetivoTexto`) y no lo deducido:
+  «6-8 · 2×» a medio teclear no es nada todavía, y sin esto el campo lo
+  «corregiría» a cada pulsación.
+*/
+const objetivoVisible = (ex) => ex.objetivoTexto ?? seriesVisibles(ex.targets);
 
 const redimensionar = (targets, largo) =>
   Array.from({ length: largo }, (_, i) => targets[i] ?? targets[targets.length - 1] ?? '');
@@ -75,10 +87,18 @@ export const aplicarCambio = (ex, patch) => {
        después: así de la tabla no puede salir nunca un ejercicio de 0 series. */
     if (!Number.isFinite(n)) return ex;
     const sets = Math.max(1, Math.min(12, n));
-    return { ...ex, sets, targets: redimensionar(ex.targets, sets) };
+    return { ...ex, sets, targets: redimensionar(ex.targets, sets), objetivoTexto: undefined };
   }
   if ('objetivo' in patch) {
-    return { ...ex, targets: Array.from({ length: Math.max(1, ex.sets) }, () => patch.objetivo) };
+    /* «6-8 · 2×8-10» es una serie a 6-8 y dos a 8-10, y manda sobre el número
+       de series; un valor solo vale para todas. */
+    const porSerie = leerPorSerie(patch.objetivo);
+    if (porSerie) return { ...ex, sets: porSerie.length, targets: porSerie, objetivoTexto: patch.objetivo };
+    return {
+      ...ex,
+      targets: Array.from({ length: Math.max(1, ex.sets) }, () => patch.objetivo.trim()),
+      objetivoTexto: patch.objetivo,
+    };
   }
   return { ...ex, ...patch };
 };
@@ -169,7 +189,7 @@ export const RoutinePreview = ({ days, onRenameDay, onRemoveDay, onChangeExercis
                   <td className="num">
                     <input
                       className="input input-sm input-center"
-                      style={{ width: 84 }}
+                      style={{ width: 120 }}
                       aria-label={`Objetivo de repeticiones de ${ex.name}`}
                       value={objetivoVisible(ex)}
                       onChange={(e) => onChangeExercise(di, ei, { objetivo: e.target.value })}
@@ -178,7 +198,7 @@ export const RoutinePreview = ({ days, onRenameDay, onRemoveDay, onChangeExercis
                   <td className="num">
                     <input
                       className="input input-sm input-center"
-                      style={{ width: 52 }}
+                      style={{ width: 72 }}
                       aria-label={`RIR de ${ex.name}`}
                       value={ex.rir}
                       onChange={(e) => onChangeExercise(di, ei, { rir: e.target.value })}

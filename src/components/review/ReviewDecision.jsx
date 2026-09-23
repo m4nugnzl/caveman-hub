@@ -14,9 +14,11 @@ import {
 import { useApp } from '@/context/AppContext';
 import { planSnapshot, snapshotChanges, structureChanges } from '@/domain/reviews';
 import { dayMonthMaybeYear } from '@/lib/dates';
-import { clientPath } from '@/routes';
+import { semanaPath } from '@/routes';
 import { BotonAccion, Notice } from '@/components/ui/primitives';
 import { PlanChanges } from './PlanChanges';
+import { IgualarAqui } from '@/components/roadmap/IgualarAqui';
+import { ritmoTexto } from '@/domain/semanasDelPlan';
 import { ReviewTake } from './ReviewTake';
 import { SIN_CAMBIOS, useCloseReview } from './useCloseReview';
 
@@ -107,6 +109,10 @@ const MODOS = [
  *                     decisión tomada a sabiendas.
  * @param onClosed     Para releer el historial: la revisión recién cerrada pasa a
  *                     ser la nueva base y el diff tiene que volver a cero.
+ * @param semanaDelPlan La semana que se cierra, en el roadmap (`semanasDelPlan`).
+ *                     Es lo que ofrece «Igualar aquí», junto a los cambios de
+ *                     pauta: igualar se decide al cerrar la semana.
+ * @param revisiones   Las revisiones cerradas, para la vista previa del igualado.
  */
 export const ReviewDecision = ({
   client,
@@ -120,8 +126,12 @@ export const ReviewDecision = ({
   restantes = null,
   aviso = null,
   onClosed = () => {},
+  semanaDelPlan = null,
+  revisiones = [],
 }) => {
-  const { nutrition, workoutData, unreviewCheckIn } = useApp();
+  const { nutrition, workoutData, unreviewCheckIn, quitarReplanteo } = useApp();
+  /* «Igualar aquí» abierto, con su vista previa. */
+  const [igualando, setIgualando] = useState(false);
   const { close, closeWithVideo, closeWithRecording } = useCloseReview();
   const navigate = useNavigate();
 
@@ -235,7 +245,7 @@ export const ReviewDecision = ({
     setVerCambios(false);
     onClosed();
 
-    if (siguiente) navigate(clientPath(siguiente.client.id, 'semana'));
+    if (siguiente) navigate(semanaPath(siguiente.client.id, siguiente.checkIn?.weekStart));
   };
 
   /*
@@ -373,6 +383,11 @@ export const ReviewDecision = ({
           no debajo: la barra crece hacia el contenido, así que abrir el detalle
           nunca mueve el botón de cerrar de donde estaba.
         */}
+        {igualando && semanaDelPlan && (
+          <div className="cierre-detalle is-igualar">
+            <IgualarAqui semana={semanaDelPlan} reviews={revisiones} onCerrar={() => setIgualando(false)} />
+          </div>
+        )}
         {verCambios && (
           <div className="cierre-detalle">
             <PlanChanges
@@ -405,13 +420,53 @@ export const ReviewDecision = ({
                   type="button"
                   className="cierre-resumen"
                   aria-expanded={verCambios}
-                  onClick={() => setVerCambios((v) => !v)}
+                  onClick={() => {
+                    setIgualando(false);
+                    setVerCambios((v) => !v);
+                  }}
                 >
                   <span className="n">{cuantos}</span>
                   {cuantos === 1 ? 'cambio en su plan' : 'cambios en su plan'}
                   <ChevronUp size={15} className="chevron" aria-hidden="true" />
                 </button>
               ))}
+
+            {/* Lo esperado, igualado a esta semana: otra decisión sobre el
+                plan, junto a los cambios de pauta. Solo se ofrece; nada lo
+                anuncia ni lo sugiere. */}
+            {semanaDelPlan?.fase &&
+              (semanaDelPlan.replanteo ? (
+                <span className="cierre-igualada">
+                  Igualada a{' '}
+                  {ritmoTexto(semanaDelPlan.fase.direction, semanaDelPlan.replanteo.ratePct)}
+                  <button
+                    type="button"
+                    className="btn btn-plain btn-sm"
+                    disabled={enviando}
+                    onClick={async () => {
+                      setEnviando(true);
+                      const res = await quitarReplanteo(semanaDelPlan.fase, semanaDelPlan.lunes);
+                      setEnviando(false);
+                      if (!res?.ok) setError(res?.error || 'No se ha podido quitar el igualado.');
+                    }}
+                  >
+                    Quitar
+                  </button>
+                </span>
+              ) : semanaDelPlan.igualable ? (
+                <button
+                  type="button"
+                  className="cierre-resumen"
+                  aria-expanded={igualando}
+                  onClick={() => {
+                    setVerCambios(false);
+                    setIgualando((v) => !v);
+                  }}
+                >
+                  Igualar aquí
+                  <ChevronUp size={15} className="chevron" aria-hidden="true" />
+                </button>
+              ) : null)}
           </div>
 
           {/* ── 2 · LE DICES: un COMPOSITOR ──────────────────────────────

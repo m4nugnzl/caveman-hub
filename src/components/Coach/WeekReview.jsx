@@ -1,11 +1,13 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
+import { kindMeta } from '@/domain/calendar';
+import { metricColor } from '@/domain/metrics';
 import { resolvedMicrocycles } from '@/domain/blocks';
 import { buildWeeklySeries, metricPoints } from '@/domain/analytics';
-import { currentCheckInPeriod } from '@/domain/calendar';
+import { currentCheckInPeriod, periodoQueEmpieza } from '@/domain/calendar';
 import { groupByWeek, weekComparison } from '@/domain/photos';
 import {
   checkinQuestions,
@@ -23,16 +25,12 @@ import {
   pendingReviews,
   planSnapshot,
   reviewableWeeks,
-  queueWeek,
-  weekToReview,
 } from '@/domain/reviews';
 import { nutritionTrack, reviewTimeline, timelineSummary } from '@/domain/timeline';
-import { clientWeek, exerciseHistory, latestActiveWeek } from '@/domain/week';
-import { localeNumber, shortDate, todayISO } from '@/lib/dates';
+import { clientWeek, exerciseHistory } from '@/domain/week';
+import { addDays, daysBetween, localeNumber, shortDate, todayISO, weekStart } from '@/lib/dates';
 import { modifierKey } from '@/lib/platform';
-import { useElementWidth } from '@/lib/useElementWidth';
 import { lazyRoute } from '@/lib/lazyRoute';
-import { Delta } from '@/components/ui/metrics';
 /* Las tarjetas se declaran con la clase `card` y no con `Panel`: `Panel` monta
    además su propia cabecera de rótulo en versalita, y aquí cada bloque lleva un
    TÍTULO de verdad con su frase debajo — que es media corrección de esta
@@ -43,18 +41,20 @@ import { Mando } from '@/components/ui/Mando';
 import { Avatar } from '@/components/ui/Avatar';
 import { Modal } from '@/components/ui/Modal';
 import { Tarjeta } from '@/components/dashboard/Tarjeta';
-import { Gallery } from '@/components/photos/Gallery';
-import { useTimelineWindow } from '@/components/review/useTimelineWindow';
 import { useReviewTrack } from '@/components/review/useReviewTrack';
 import { BodyCard } from '@/components/review/BodyCard';
 import { TrainingCard } from '@/components/review/TrainingCard';
 import { NutritionCard } from '@/components/review/NutritionCard';
 import { ReviewDecision } from '@/components/review/ReviewDecision';
 import { fmt } from '@/lib/num';
-import { clientPath } from '@/routes';
+import { clientPath, semanaPath } from '@/routes';
 import { Anteriores } from '@/components/review/Anteriores';
 import { useReviewRows } from '@/components/review/useReviewRows';
+import { useSemanasDeRevision } from '@/components/review/useSemanasDeRevision';
+import { SemanaPorDias } from '@/components/review/SemanaPorDias';
 import { ReviewHistory } from '@/components/ReviewHistory';
+import { EntregaFueraDePlazo } from '@/components/review/EntregaFueraDePlazo';
+import { comoLlego } from '@/domain/revisionesPasadas';
 
 /* La ventana del cuerpo a fondo es la MISMA del Resumen: se difiere igual. */
 const PanelCuerpo = lazyRoute(() => import('@/components/dashboard/PanelCuerpo').then((m) => ({ default: m.PanelCuerpo })));
@@ -152,6 +152,22 @@ const PanelCuerpo = lazyRoute(() => import('@/components/dashboard/PanelCuerpo')
  */
 const TONO_BADGE = { good: 'badge-ok', warn: 'badge-warn', bad: 'badge-bad' };
 
+/*
+  La chapa de la semana, por el estado de su casilla (`estadosDeSemana`). La
+  pendiente es la única en azul: es la que te toca. Las demás van en voz
+  baja, sin semáforo: dicen en qué punto está la revisión, no si fue bien.
+*/
+const CHAPA = {
+  revisada: 'Revisada',
+  curso: 'En curso',
+  sin: 'Sin check-in',
+  futura: 'Planificada',
+};
+
+const kg1 = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const conSigno = (v) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${kg1(Math.abs(v))}`;
+const esLunesISO = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) && weekStart(v) === v;
+
 /**
  * Un cambio del plan, dicho en corto para la línea de «tras tu último cierre»:
  * «−150 kcal», «+2.000 pasos». Los que estrenan o pierden valor no tienen dos
@@ -244,27 +260,25 @@ export const WeekReview = () => {
   );
 
   /*
-    La semana elegida es estado LOCAL y arranca en la última con actividad. No
-    viaja en la URL a propósito: es un sitio donde se está MIRANDO, no un sitio
-    donde se está. Lo que se comparte de alguien es su ficha, no el instante
-    concreto de su historial en el que estaba otra persona.
+    ══ LA SEMANA VIAJA EN LA URL, por su lunes (22 sep 2026) ═══════════════════
 
-    ── Y guarda de QUIÉN es esa semana ──────────────────────────────────────
-    Cambiar de cliente desde el selector no desmonta esta pantalla: React Router
-    solo cambia un parámetro de la ruta, así que un `useState` a secas se
-    quedaría pegado y al pasar de alguien con ocho semanas a alguien con dos se
-    vería «Semana 6» de una persona que no la tiene. Guardando el cliente al lado
-    del número, la elección caduca sola al cambiar de persona —sin ningún efecto
-    que la limpie, que es de donde salen las selecciones rancias—.
+    Fue estado local a propósito —«es un sitio donde se está MIRANDO, no un
+    sitio donde se está»— y el argumento se cayó con la portada de Revisiones:
+    primero las semanas, después la revisión. Cada semana es ahora un sitio con
+    su dirección (`/c/:id/semana/<lunes>`): se abre desde su casilla, se pasa
+    con ‹ ›, «Revisar» en Inicio aterriza en la que espera y un enlace
+    compartido abre la misma semana. Se nombra por su LUNES y no por su número
+    porque las revisiones se guardan por (cliente, lunes) y el número depende
+    de la fecha de alta: si la alta cambia, el enlace no se rompe.
+
+    Cambiar de cliente ya no deja una semana rancia: `sameSectionFor` lleva a la
+    portada del otro, cuyas semanas son otras.
   */
-  const [elegida, setElegida] = useState(null);
+  const { lunes: lunesDeLaURL } = useParams();
+  const lunes = esLunesISO(lunesDeLaURL) ? lunesDeLaURL : null;
 
-  /* Qué foto de la tira se está mirando a pantalla completa, o `null`. */
-  const [verFotos, setVerFotos] = useState(null);
   /* La ventana abierta: el histórico completo, o ninguna. */
   const [ventana, setVentana] = useState(null);
-
-  const setSemanaElegida = (week) => setElegida({ clientId: activeClient?.id, week });
 
   /*
     El periodo de check-in vigente. Va delante de todo lo demás porque decide dos
@@ -274,7 +288,6 @@ export const WeekReview = () => {
     () => currentCheckInPeriod(activeClient?.preferences, activeClient?.startDate, todayISO()),
     [activeClient?.preferences, activeClient?.startDate]
   );
-  const semanaDeLaCola = queueWeek({ startDate: activeClient?.startDate, period: periodo });
 
   /*
     ══ Las semanas que se pueden abrir, y no solo las que montaste ═══════════
@@ -283,6 +296,11 @@ export const WeekReview = () => {
     pantalla. El calendario de check-ins no espera a que la montes: avanza con la
     cadencia. Ver `reviewableWeeks` para el callejón sin salida que eso creaba.
   */
+  /* Y las que tienen datos: los días que se pesó y las semanas que entregó. */
+  const conDatos = useMemo(
+    () => [...history.map((h) => h.date), ...entregas.map((c) => c.weekStart)].filter(Boolean),
+    [history, entregas]
+  );
   const semanas = useMemo(
     () =>
       reviewableWeeks({
@@ -290,48 +308,28 @@ export const WeekReview = () => {
         startDate: activeClient?.startDate,
         submitted: checkIns[activeClient?.id],
         period: periodo,
+        active: conDatos,
       }),
-    [microcycles, activeClient?.startDate, activeClient?.id, checkIns, periodo]
+    [microcycles, activeClient?.startDate, activeClient?.id, checkIns, periodo, conDatos]
   );
 
   /*
-    ══ POR QUÉ SEMANA SE ABRE ════════════════════════════════════════════════
+    ══ Semana de programa y semana natural ═══════════════════════════════════
+    La revisión cuenta semanas de programa y el roadmap, lunes. Se casan por
+    `weekStartOfProgramWeek`, que es con lo que se guarda cada revisión
+    cerrada: la semana 15 es la del lunes que dice ahí.
 
-    Tres reglas, y la que faltaba era la tercera:
-
-      1. La que ENTREGÓ y espera respuesta. Es la razón por la que se entra aquí
-         desde «Hoy»: sin ella, la pantalla hablaba de otra semana y el bloque de
-         respuesta decía «cuando entregue su check-in» debajo de un aviso que
-         acababa de decir lo contrario.
-      2. La que LA PASADA está pidiendo — el periodo de check-in vigente.
-      3. Y si no le toca nada, la última con actividad.
-
-    La 2 no estaba, y de ahí salía un fallo que desde fuera era «le doy a cerrar
-    y no pasa nada»: `buildPortfolio` descarta cualquier entrega ANTERIOR a
-    `periodo.start` antes de mirar si está revisada, así que cerrar una semana
-    vieja no quita al cliente de la lista. La escritura era correcta —el
-    histórico se actualizaba y el recuento de cambios volvía a cero— pero se
-    guardaba bajo la semana equivocada.
-
-    La regla vive en `weekToReview` porque es una REGLA y no una maqueta, y
-    porque una regla escrita dentro de un componente de setecientas líneas no se
-    puede probar — que es exactamente por lo que esto llegó a producción.
+    Qué semana se abre ya no lo decide esta pantalla (`weekToReview`): lo
+    decide quien enlaza, con el lunes. Inicio y la cabecera del cliente llevan
+    a la que espera respuesta (`row.review.weekStart`); la portada, a la
+    casilla que se pulsa.
   */
-  const suya = elegida?.clientId === activeClient?.id && semanas.includes(elegida.week);
-  const semana = suya
-    ? elegida.week
-    : weekToReview({
-        weeks: semanas,
-        startDate: activeClient?.startDate,
-        submitted: checkIns[activeClient?.id],
-        period: periodo,
-        fallback: latestActiveWeek({
-          microcycles,
-          history,
-          photos,
-          startDate: activeClient?.startDate,
-        }),
-      });
+  const semanaDe = (l) => {
+    const inicio = weekStart(activeClient?.startDate);
+    const dias = inicio && l ? daysBetween(inicio, l) : null;
+    return dias === null ? null : Math.round(dias / 7) + 1;
+  };
+  const semana = lunes ? semanaDe(lunes) : null;
 
   /* Los pesajes que TÚ le pides. Sin número pedido, la semana no se califica por
      cuántos hizo: ver `weighInsTarget` en `domain/protocol`. */
@@ -391,40 +389,23 @@ export const WeekReview = () => {
     fotos— vive en `domain/timeline.js`, que es donde se puede probar; aquí solo
     se le pasa lo que ya está cargado.
   */
+  /* Con la semana abierta dentro aunque no tenga datos: la URL puede abrir
+     cualquiera, y su dieta y su «tras tu último cierre» se leen de esta línea. */
+  const semanasDeLaLinea = useMemo(
+    () => [...new Set([...semanas, semana].filter((w) => Number.isFinite(w) && w >= 1))].sort((a, b) => a - b),
+    [semanas, semana]
+  );
   const linea = useMemo(
     () =>
       reviewTimeline({
-        weeks: semanas,
+        weeks: semanasDeLaLinea,
         startDate: activeClient?.startDate,
         series: serie,
         reviews: revisiones,
         photoGroups: porSemana,
       }),
-    [semanas, serie, revisiones, porSemana, activeClient?.startDate]
+    [semanasDeLaLinea, serie, revisiones, porSemana, activeClient?.startDate]
   );
-
-  /*
-    ══ Cuál de los dos estados se escribe en las pastillas ═════════════════════
-
-    La regla de la tira ya estaba bien pensada: solo habla lo que tiene algo que
-    decir, porque «catorce cerrada seguidas no informan; una sin cerrar sí». Lo
-    que le faltaba era el caso en que la excepción NO es excepción.
-
-    Con alguien que no tiene ni una semana cerrada —el que acaba de empezar, o el
-    que llevabas sin atender— la condición se cumple en todas, y la tira sale con
-    quince «sin cerrar» seguidas. Quince repeticiones de lo mismo informan
-    exactamente igual que las catorce «cerrada» que la regla evitaba: nada. Y
-    encima parten la tira en dos renglones y la convierten en la pieza más pesada
-    de la tarjeta, por delante de la cifra.
-
-    Así que la regla se aplica a sí misma: se etiqueta SIEMPRE la minoría. Si la
-    mayoría está sin cerrar, lo que informa es cuál sí lo está.
-  */
-  const marcaMinoria = useMemo(() => {
-    const sinCerrar = linea.filter((f) => !f.reviewed && f.week < semanaDeLaCola).length;
-    const cerradas = linea.filter((f) => f.reviewed).length;
-    return sinCerrar <= cerradas ? 'sin-cerrar' : 'cerrada';
-  }, [linea, semanaDeLaCola]);
 
   /* Lo que pesa esta semana, lo que se ha movido y lo que lleva acumulado. Sale
      de la propia línea: con el peso de todas las semanas delante, «desde el
@@ -439,6 +420,24 @@ export const WeekReview = () => {
     la mitad de la sensación de que las dos pestañas se pisan.
   */
   const track = useReviewTrack(revisiones);
+
+  /* Sus semanas con el estado de cada casilla: la MISMA cuenta que la
+     portada, para que la semana sepa si es la que te toca. */
+  const { plan: planDelRoadmap, estados } = useSemanasDeRevision({ revisiones, entregas });
+  const fila = (lunes && estados?.porLunes.get(lunes)) || null;
+  /* Mientras llega su historial no se sabe en qué punto está: sin estado, ni
+     chapa ni barra. Si no, la semana que espera respuesta se anunciaba un
+     instante como «Sin check-in». */
+  const estado = cargandoRevisiones
+    ? null
+    : fila?.revision5 ?? (lunes && lunes > weekStart(todayISO()) ? 'futura' : 'sin');
+  const filaPrevia = (lunes && planDelRoadmap?.semanas.find((s) => s.lunes === addDays(lunes, -7))) || null;
+  /* Las semanas de al lado, dentro del plan: las flechas no llevan a una
+     semana que la portada no enseña. */
+  const primerLunes = estados?.semanas[0]?.lunes || null;
+  const ultimoLunes = estados?.semanas[estados.semanas.length - 1]?.lunes || null;
+  const anterior = lunes && primerLunes && addDays(lunes, -7) >= primerLunes ? addDays(lunes, -7) : null;
+  const posterior = lunes && ultimoLunes && addDays(lunes, 7) <= ultimoLunes ? addDays(lunes, 7) : null;
   const protocolo = useMemo(() => clientProtocol(activeClient?.preferences), [activeClient?.preferences]);
   const pesoActual = metricPoints(serie, 'weight').slice(-1)[0]?.value ?? null;
   const trend = useMemo(() => weightTrend(serie), [serie]);
@@ -500,45 +499,7 @@ export const WeekReview = () => {
     [linea, revisiones, planDeHoy]
   );
 
-  /*
-    ══ LA VENTANA: qué trozo de la línea se mira de cerca ════════════════════
-
-    Estado compartido entre la espina —que dibuja la banda— y los apartados —que
-    dibujan el trozo—. Vive en un gancho porque las dos piezas no se contienen la
-    una a la otra: la espina está fuera de los apartados. Ver `useTimelineWindow`.
-
-    El ancho se mide AQUÍ y no dentro de cada apartado: dos de ellos dibujan la
-    ventana y solo uno está montado cada vez, así que el que está oculto mediría
-    cero y la ventana cambiaría de tamaño al cambiar de pestaña.
-  */
-  const [refAncho, ancho] = useElementWidth();
-  const { visibles, elegir, vecina } = useTimelineWindow({
-    weeks: linea,
-    selected: semana,
-    ancho,
-  });
-
-  const irA = (week) => elegir(week, setSemanaElegida);
-  const paso = (n) => {
-    const week = vecina(n);
-    if (week !== null) irA(week);
-  };
-
-  /* Lo que recorre el visor cuando se abre desde la tira: las mismas fotos y en
-     el mismo orden. Si «la siguiente» no fuera la de al lado, pasar fotos
-     dejaría de tener sentido. */
-  const album = useMemo(
-    () =>
-      linea
-        .filter((s) => s.photo)
-        .map((s) => ({
-          id: s.photo.id ?? s.photo.path,
-          url: s.photo.url,
-          week: s.week,
-          caption: `Semana ${s.week}${s.photo.date ? ` · ${shortDate(s.photo.date)}` : ''}`,
-        })),
-    [linea]
-  );
+  const navigate = useNavigate();
 
   /*
     ══ QUÉ HA LEVANTADO: sus series, esta semana y la anterior ═══════════════
@@ -614,28 +575,29 @@ export const WeekReview = () => {
   }, [resumen, fiabilidad]);
 
   /*
-    La entrega que espera respuesta, si la hay. `checkIns` guarda solo la última
-    de cada cliente (ver `AppContext`), así que contestar desde aquí vale para la
-    semana que está esperando —que es por lo que se abre esta pantalla— y no para
-    reabrir una de hace dos meses. Para eso está el histórico del final.
+    ══ La entrega de ESTA semana ═══════════════════════════════════════════════
+
+    Era `checkIns[id]`, la ÚLTIMA de cada cliente, así que solo se podía
+    contestar la más reciente y había que comparar su `weekStart` en cada uso
+    para no pintar respuestas de otra semana. Ahora sale de la casilla
+    (`estadosDeSemana`), que la busca en todas sus entregas por PERIODO: una
+    entrega vieja sin contestar se abre y se cierra en su propia semana.
   */
-  const entrega = checkIns[activeClient?.id] || null;
-  const pendiente = entrega && !entrega.reviewedAt ? entrega : null;
-
-  /*
-    ══ Y si ESTA semana ya está cerrada ══════════════════════════════════════
-
-    La barra preguntaba «¿qué le cambias?» y ofrecía «Cerrar la semana» estuviera
-    cerrada o no, así que después de contestar la pantalla seguía pareciendo que
-    quedaba trabajo por hacer. Una revisión cerrada está cerrada: lo que queda es
-    verla, y reabrirla si te has equivocado.
-
-    Se compara `weekStart` y no basta con `reviewedAt`: `checkIns` guarda una sola
-    entrega por cliente —la última— así que sin la comparación, mirar una semana
-    vieja de alguien que cerró la de esta semana la daría por cerrada también.
-  */
-  const cerrada =
-    entrega && entrega.reviewedAt && entrega.weekStart === datos.weekStart ? entrega : null;
+  const entrega = fila?.entrega || null;
+  const pendiente = estado === 'pendiente' && entrega?.submittedAt && !entrega.reviewedAt ? entrega : null;
+  /* El lunes con el que se archiva: el del periodo, que con cadencia quincenal
+     no es el de la semana abierta si es la segunda. */
+  const lunesDelCierre = pendiente?.weekStart || fila?.periodo?.inicio || datos.weekStart;
+  /* La revisión cerrada de esta semana, para leer lo que decidiste. */
+  const revisionCerrada = useMemo(
+    () =>
+      estado === 'revisada' && fila
+        ? revisiones.find(
+            (r) => r.weekStart >= fila.periodo.inicio && r.weekStart < addDays(fila.periodo.inicio, fila.periodo.semanas * 7)
+          ) || null
+        : null,
+    [estado, fila, revisiones]
+  );
 
   /*
     ══ LO QUE LE ESTÁS CAMBIANDO: la BASE contra la que se mide ══════════════
@@ -648,21 +610,11 @@ export const WeekReview = () => {
   const base = revisiones[0]?.snapshot || null;
 
   /*
-    ══ Y si lo que vas a cerrar NO es lo que «Hoy» te está pidiendo ═══════════
-
-    Pasa en dos casos legítimos: una semana vieja elegida a mano en la gráfica, y
-    una semana del periodo vigente que nunca llegaste a programar (y por tanto no
-    está en la línea). En los dos, cerrar hace exactamente lo que dice —guarda la
-    revisión de la semana que estás mirando— pero el cliente sigue en la pasada,
-    porque allí se pregunta por el periodo de ahora.
-
-    Eso, sin avisar, se lee como «le doy a cerrar y no pasa nada». Avisado, es una
-    decisión: o cierras la que toca, o sabes que ésta no te lo quita de encima.
+    Aquí vivía el aviso de «cierras la semana 12 y la pendiente es la 14»: se
+    podía cerrar cualquier semana elegida a mano. Desde el 22 sep la barra de
+    cierre solo sale en la semana PENDIENTE, que es la que pide la cola, así que
+    lo que se cierra siempre saca al cliente de la pasada.
   */
-  const aviso =
-    !pendiente && semanaDeLaCola !== null && semana !== semanaDeLaCola
-      ? `Cierras la semana ${semana}. La que tienes pendiente es la ${semanaDeLaCola}, y seguirá en tu pasada.`
-      : null;
 
   /*
     ══ EL VEREDICTO ══════════════════════════════════════════════════════════
@@ -767,7 +719,6 @@ export const WeekReview = () => {
   */
   const pasada = useMemo(() => pendingReviews({ clients, checkIns }), [clients, checkIns]);
   const siguiente = pasada.find((p) => p.client.id !== activeClient?.id) || null;
-  const navigate = useNavigate();
   const idxPasada = pasada.findIndex((p) => p.client.id === activeClient?.id);
 
   /*
@@ -791,7 +742,7 @@ export const WeekReview = () => {
         if (pasada.length < 2) return;
         const paso = e.key === 'j' ? 1 : -1;
         const destino = pasada[(idxPasada + paso + pasada.length) % pasada.length];
-        if (destino) { e.preventDefault(); navigate(clientPath(destino.client.id, 'semana')); }
+        if (destino) { e.preventDefault(); navigate(semanaPath(destino.client.id, destino.checkIn?.weekStart)); }
       } else if (e.key === 'r') {
         const caja = document.querySelector('.cierre textarea');
         if (caja) { e.preventDefault(); caja.focus(); }
@@ -811,12 +762,10 @@ export const WeekReview = () => {
   );
 
   /*
-    Lo que contestó al entregar ESTA semana. La comparación de `weekStart` no
-    sobra: `checkIns` guarda solo la última entrega de cada cliente, así que sin
-    ella las respuestas de la semana pasada se pintarían debajo del carril puesto
-    en la semana 3 como si fueran de la 3.
+    Lo que contestó al entregar ESTA semana: la entrega de su periodo, que ya
+    viene buscada entre todas (`estadosDeSemana`). Sin entrega, nada.
   */
-  const respuestas = entrega?.weekStart === datos.weekStart ? entrega.answers || {} : {};
+  const respuestas = entrega?.answers || {};
 
   /*
     ══ Y cómo ha ido cambiando lo que te cuenta ═══════════════════════════════
@@ -852,20 +801,25 @@ export const WeekReview = () => {
 
   if (!activeClient) return null;
 
-  if (semanas.length === 0) {
+  /* Una dirección que no es un lunes se corrige a su lunes; una que no es
+     fecha, a la portada. */
+  if (!lunes) {
+    const suyo = /^\d{4}-\d{2}-\d{2}$/.test(String(lunesDeLaURL || '')) ? weekStart(lunesDeLaURL) : null;
+    return <Navigate to={semanaPath(activeClient.id, suyo)} replace />;
+  }
+
+  /* Las semanas de programa se cuentan desde el alta: sin ella no hay «semana
+     11» que abrir. El vacío lleva el verbo que lo resuelve. */
+  if (semana === null) {
     return (
-      /* Sin la fila de mando: su única línea era «Todavía no tiene ninguna
-         semana montada», la misma frase que el vacío dice justo debajo. Y el
-         vacío lleva el verbo que lo resuelve, no solo el nombre de la pestaña
-         donde se resuelve. */
       <div className="stack">
         <EmptyState
           icon={ClipboardCheck}
-          title="Aún no hay ninguna semana que cerrar"
-          message="Cuando entrene su primera semana, aquí verás lo que hizo, lo que entregó y el sitio para contestarle."
+          title="Sus semanas se cuentan desde la fecha de alta"
+          message="Ponle la fecha en la que empezó y aquí verás cada semana, lo que hizo y lo que te entregó."
           action={
-            <Link className="btn btn-primary" to={clientPath(activeClient.id, 'rutina')}>
-              Montar su semana
+            <Link className="btn btn-primary" to={clientPath(activeClient.id, 'ficha')}>
+              Poner la fecha de alta
             </Link>
           }
         />
@@ -873,69 +827,84 @@ export const WeekReview = () => {
     );
   }
 
-  /* La semana de al lado, para las flechas del mando. `vecina` devuelve null en
-     los extremos, y ahí la flecha no se pinta: un botón apagado en una fila de
-     mando es ruido. */
-  const anterior = vecina(-1);
-  const posterior = vecina(1);
+  const color = metricColor('weight');
+  const media = fila?.media ?? null;
+  const esperado = fila?.esperado ?? null;
+  const desvio = media !== null && esperado !== null ? media - esperado : null;
+  const nPesajes = fila?.pesajes?.length || 0;
+  const revisadaEl = revisionCerrada?.reviewedAt || entrega?.reviewedAt || null;
+  /* Una entrega RECUPERADA —completada cuando su ventana ya se había cerrado—
+     no se confunde con una a tiempo: la chapa lo dice. El detalle, en «La
+     entrega». */
+  const recuperada =
+    pendiente &&
+    comoLlego({
+      entrega: pendiente,
+      periodo: periodoQueEmpieza(activeClient.preferences, pendiente.weekStart),
+      siguiente: periodoQueEmpieza(
+        activeClient.preferences,
+        addDays(pendiente.weekStart, (fila?.periodo?.semanas || 1) * 7)
+      ),
+    })?.tipo === 'recuperada';
+  const chapa =
+    estado === 'pendiente'
+      ? pendiente
+        ? recuperada
+          ? 'Recuperada · espera tu respuesta'
+          : 'Entregó · espera tu respuesta'
+        : 'Sin subir · te toca revisarla'
+      : estado === 'revisada' && revisadaEl
+        ? `Revisada el ${shortDate(revisadaEl)}`
+        : CHAPA[estado] || null;
+  const irA = (l) => navigate(semanaPath(activeClient.id, l));
+  const nombreDe = (l) => {
+    const n = semanaDe(l);
+    return n && n >= 1 ? `S${n}` : shortDate(l);
+  };
 
   return (
     <div className="revision-pagina cascada">
       {/*
-        La fila de mando, la misma que en Entreno y Dieta: a la izquierda qué
-        semana es y en voz baja de cuándo, contra qué etapa y si espera
-        respuesta; a la derecha las flechas para pasar de semana —que es el
-        gesto más frecuente de esta pantalla y hasta ahora solo estaba en el
-        teclado y en el eje de la gráfica— y por dónde vas en la pasada.
-
-        El veredicto de cómo va ÉL no va aquí: es un juicio sobre la curva y
-        vive pegado a la cifra que juzga.
+        La fila de mando, la misma que en Entreno y Dieta: qué semana es, en qué
+        punto está su revisión (la chapa, que es la casilla dicha en palabras),
+        de cuándo y contra qué fase. A la derecha, la vuelta a todas sus
+        semanas y las flechas para pasar a la de al lado.
       */}
       <Mando
-        /* «Semana 15» a secas competía con el «Semana 16 · en curso» de la
-           cabecera del cliente: dos cifras de semana, una encima de otra, sin
-           nada que dijera que una es la del programa y la otra la que tienes
-           abierta. El verbo lo resuelve sin añadir una línea. */
-        titulo={`Revisando la semana ${semana}`}
-        contexto={[
-          datos.weekStart && `del ${shortDate(datos.weekStart)}`,
-          bloque,
-          pendiente ? 'entregó y espera tu respuesta' : 'sin nada pendiente por tu parte',
-        ]
-          .filter(Boolean)
-          .join(' · ')}
+        titulo={`Semana ${semana}`}
+        contexto={[`del ${shortDate(lunes)}`, bloque].filter(Boolean).join(' · ')}
         acciones={
           <>
-            {/* Aquí iba «{posicion} de {pasada.length}». Se ha quitado porque lo
-                dice ya la bandeja de treinta píxeles más abajo, y mejor: cuenta
-                sobre `pasada`, la MISMA lista, y las dos se pintan bajo la misma
-                condición (`pasada.length > 1`), así que la chapa nunca aparecía
-                sin la bandeja debajo. Además engañaba de sitio: vivía pegada a
-                las flechas, que cambian de SEMANA, mientras ella contaba
-                PERSONAS — dos ejes distintos en el mismo rincón. */}
+            <Link className="cab-accion" to={semanaPath(activeClient.id)}>
+              Todas sus semanas
+            </Link>
             <div className="revision-paso" role="group" aria-label="Cambiar de semana">
               <button
                 type="button"
                 className="btn btn-icon"
-                aria-label={anterior !== null ? `Semana ${anterior}` : 'No hay semana anterior'}
-                disabled={anterior === null}
-                onClick={() => paso(-1)}
+                aria-label={anterior ? `Semana ${nombreDe(anterior)}` : 'No hay semana anterior'}
+                title={anterior ? nombreDe(anterior) : undefined}
+                disabled={!anterior}
+                onClick={() => irA(anterior)}
               >
                 <ChevronLeft size={15} />
               </button>
               <button
                 type="button"
                 className="btn btn-icon"
-                aria-label={posterior !== null ? `Semana ${posterior}` : 'No hay semana posterior'}
-                disabled={posterior === null}
-                onClick={() => paso(1)}
+                aria-label={posterior ? `Semana ${nombreDe(posterior)}` : 'No hay semana posterior'}
+                title={posterior ? nombreDe(posterior) : undefined}
+                disabled={!posterior}
+                onClick={() => irA(posterior)}
               >
                 <ChevronRight size={15} />
               </button>
             </div>
           </>
         }
-      />
+      >
+        {chapa && <span className={`badge${estado === 'pendiente' ? ' badge-info' : ''}`}>{chapa}</span>}
+      </Mando>
 
       {/* La bandeja: quién más espera respuesta, con la persona abierta marcada.
           Es la lista de un correo, tumbada. Solo se pinta con dos o más. */}
@@ -946,7 +915,7 @@ export const WeekReview = () => {
               <li key={p.client.id}>
                 <Link
                   className={`bandeja-persona${p.client.id === activeClient.id ? ' is-abierta' : ''}`}
-                  to={clientPath(p.client.id, 'semana')}
+                  to={semanaPath(p.client.id, p.checkIn?.weekStart)}
                   aria-current={p.client.id === activeClient.id ? 'page' : undefined}
                 >
                   <Avatar name={p.client.name} src={p.client.avatar} size="xs" />
@@ -959,257 +928,284 @@ export const WeekReview = () => {
           </ul>
           <span className="bandeja-teclas" aria-hidden="true">
             {/* La modificadora, según el sistema: `⌘` en Apple y `Ctrl` en el
-                resto (`lib/platform.js`). Estaba escrita a mano como «⌘↵», así
-                que en Windows la aplicación anunciaba una tecla que ese teclado
-                no tiene — el atajo funcionaba con Ctrl desde el principio, lo
-                que mentía era el rótulo. */}
+                resto (`lib/platform.js`). */}
             <kbd className="kbd">J</kbd><kbd className="kbd">K</kbd> siguiente · <kbd className="kbd">R</kbd> responder · <kbd className="kbd">{modifierKey()} ↵</kbd> cerrar
           </span>
         </nav>
       )}
 
-      {/*
-        ══ DOS COLUMNAS, como Entreno, Dieta y Resumen ══════════════════════
-        A la izquierda lo que PASÓ esa semana —cómo va, qué te cuenta y cómo se
-        ve, qué levantó—, que es lo que se lee. A la derecha lo que le tenías
-        PUESTO y lo que decidiste las semanas anteriores, que es lo que se
-        consulta mientras decides. Antes eran cinco tarjetas apiladas a lo
-        ancho y el plan —cinco cifras— ocupaba una tarjeta entera de ancho de
-        página; el histórico, catorce filas más.
-      */}
-      <div className="revision">
-        <div className="revision-trabajo">
-          {/*
-            ══ CÓMO VA: la cifra y la gráfica, en la misma tarjeta ═══════════
-            La cifra ES la lectura de un punto de esa curva. Y la gráfica es el
-            MANDO: se pulsa una semana y todo lo demás pasa a hablar de ella.
-
-            El mapa del proceso entero que iba al pie (`TimelineSpine`) se ha
-            quitado: era una segunda curva del mismo peso debajo de la primera,
-            y para el salto largo están las flechas del mando y las del teclado.
-            El proceso entero, además, ya está dibujado en «Resumen».
-          */}
-          <Tarjeta
-            rotulo="Cómo va"
-            span={12}
-            /* `lumbre-dato`: la luz que sale del último dato, en el hero que
-               lee. Una por pantalla; de día no pinta nada (superficies.css). */
-            className="revision-hero lumbre-dato"
-            accion={
-              <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
-                Ver a fondo
-              </button>
-            }
-          >
-            <div className="revision-hero-say">
-              <p className="revision-hero-cifra">
-                {/* En español: «77,3» y no «77.267». */}
-                <span className="v">
-                  {resumen?.weight === null || resumen?.weight === undefined
-                    ? '—'
-                    : localeNumber(resumen.weight, { maximumFractionDigits: 1 })}
-                </span>
-                {resumen?.weight !== null && resumen?.weight !== undefined && (
-                  <span className="u">kg</span>
-                )}
-                {resumen?.delta !== null && resumen?.delta !== undefined && (
-                  <Delta value={resumen.delta} unit=" kg" lowerIsBetter />
-                )}
-                {/* El veredicto, EN la línea de la cifra que juzga, y calculado
-                    igual que en la lista de clientes para que los dos sitios no
-                    puedan discrepar de la misma persona. */}
-                {veredicto && (
-                  <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>
-                    {veredicto.text}
-                  </span>
-                )}
-              </p>
-              <p className="revision-hero-meta">{contexto}</p>
-
-              {/*
-                ══ EL DESTINO, si está puesto ════════════════════════════════
-                Empezó → hoy → objetivo en una sola figura. Solo con las tres
-                cifras de verdad: sin peso objetivo, o sin un primer pesaje del
-                que venir, no hay camino que dibujar y no se dibuja nada.
-              */}
-              {(() => {
-                const meta = destino?.targetWeightKg ?? null;
-                const actual = resumen?.weight ?? pesoActual;
-                if (meta === null || primerPeso === null || actual === null) return null;
-                const total = primerPeso - meta;
-                if (Math.abs(total) < 0.1) return null;
-                const pct = Math.max(0, Math.min(100, ((primerPeso - actual) / total) * 100));
-                return (
-                  <div
-                    className="revision-destino"
-                    role="img"
-                    aria-label={`Empezó en ${localeNumber(primerPeso, { maximumFractionDigits: 1 })} kg, hoy ${localeNumber(actual, { maximumFractionDigits: 1 })}, objetivo ${localeNumber(meta, { maximumFractionDigits: 1 })}`}
-                  >
-                    <div className="destino-via">
-                      <span className="destino-lleno" style={{ width: `${pct}%` }} />
-                      <span className="destino-hoy" style={{ left: `${pct}%` }} />
-                    </div>
-                    <div className="destino-cifras">
-                      <span>
-                        Empezó
-                        <b>{localeNumber(primerPeso, { maximumFractionDigits: 1 })}</b>
-                      </span>
-                      <span className="es-hoy">
-                        Hoy
-                        <b>{localeNumber(actual, { maximumFractionDigits: 1 })}</b>
-                      </span>
-                      <span className="es-meta">
-                        Objetivo
-                        <b>{localeNumber(meta, { maximumFractionDigits: 1 })}</b>
-                      </span>
-                    </div>
+      {estado === 'futura' ? (
+        /*
+          ══ LA FUTURA: lo planificado para ella ══════════════════════════════
+          Todavía no ha pasado nada, así que no hay peso, ni fotos, ni barra. Lo
+          que sí hay es el plan: el peso que se espera, en qué semana de la fase
+          y del bloque cae, y lo que tiene marcado. La pauta no se proyecta
+          (`semanasDelPlan`): será la que tenga ese lunes.
+        */
+        <div className="revision">
+          <div className="revision-trabajo">
+            <Tarjeta rotulo="Planificado" span={12}>
+              <dl className="semana-cifras">
+                {esperado !== null && (
+                  <div>
+                    <dt>Esperado</dt>
+                    <dd>
+                      {kg1(esperado)}
+                      <small> kg</small>
+                    </dd>
                   </div>
-                );
-              })()}
-
-              {/* Su meta, escrita. Contexto delante de la decisión, no juicio:
-                  la frase es de la ficha (`goal.note`) y aquí solo se lee. */}
-              {destino?.note && <p className="revision-meta-frase">«{destino.note}»</p>}
-
-              {/*
-                ══ LO QUE PASÓ CON LO QUE CAMBIASTE ══════════════════════════
-                El tramo del bucle que faltaba: el diff de tu último cierre y
-                la respuesta del peso desde entonces, un hecho al lado del
-                otro. Sin pesajes posteriores se dice — inventar un cero sería
-                afirmar que no se movió.
-              */}
-              {tras && (
-                <p className="revision-tras">
-                  Tras tu último cierre (
-                  {[
-                    ...tras.changes.map(cambioEnCorto),
-                    tras.otherCount > 0
-                      ? `${tras.otherCount} ${tras.otherCount === 1 ? 'cambio más' : 'cambios más'} en el plan`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                  ):{' '}
-                  {tras.delta === null ? (
-                    'aún sin pesajes desde entonces'
-                  ) : tras.delta === 0 ? (
-                    'el peso no se ha movido desde entonces'
-                  ) : (
-                    <b>{`${tras.delta > 0 ? '+' : '−'}${localeNumber(Math.abs(tras.delta))} kg desde entonces`}</b>
-                  )}
-                  .
-                </p>
-              )}
-
-              {/* Las señales: hasta tres hechos que cualifican al veredicto.
-                  Solo la racha lleva semáforo — se juzga contra el objetivo
-                  que puso el entrenador; el resto son datos sin juicio. */}
-              {senales.length > 0 && (
-                <p className="revision-senales">
-                  {senales.map((s) => (
-                    <span key={s.id} className={s.tone !== 'unknown' ? `is-${s.tone}` : undefined}>
-                      {s.text}
-                    </span>
-                  ))}
-                </p>
-              )}
-            </div>
+                )}
+                {fila?.fase && fila.semanaFase && (
+                  <div>
+                    <dt>{fila.fase.title}</dt>
+                    <dd>
+                      {fila.semanaFase}.ª{fila.totalFase && <small> de {fila.totalFase}</small>}
+                    </dd>
+                  </div>
+                )}
+                {fila?.bloque && (
+                  <div>
+                    <dt>{fila.bloque.nombre}</dt>
+                    <dd>
+                      {fila.bloque.semana}.ª<small> de {fila.bloque.total}</small>
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <dl className="semana-filas">
+                {(fila?.hechos || []).map((h) => (
+                  <div key={h.id || `${h.kind}-${h.date}`}>
+                    <dt>{kindMeta(h.kind).label}</dt>
+                    <dd>{h.hasta && h.hasta !== h.date ? `${shortDate(h.date)} – ${shortDate(h.hasta)}` : shortDate(h.date)}</dd>
+                  </div>
+                ))}
+                <div>
+                  <dt>Pauta</dt>
+                  <dd className="is-suave">La que tenga vigente ese lunes</dd>
+                </div>
+                {planDelRoadmap?.destino && (
+                  <div>
+                    <dt>{planDelRoadmap.destino.title}</dt>
+                    <dd>{shortDate(planDelRoadmap.destino.date)}</dd>
+                  </div>
+                )}
+              </dl>
+            </Tarjeta>
+          </div>
+        </div>
+      ) : (
+        <div className="revision">
+          <div className="revision-trabajo">
+            {/* Cómo llegó, lo que llegó después y reabrirla. Solo cuando hay
+                algo que decir: una entrega a tiempo no lo necesita. */}
+            <EntregaFueraDePlazo
+              lunes={lunes}
+              entregas={entregas}
+              history={history}
+              photos={photos}
+              recargar={recargar}
+            />
 
             {/*
-              ══ EL SELECTOR DE SEMANA: pastillas, como en Entreno ══════════════
-              Era una gráfica del peso con las calorías debajo cuyo eje se
-              pulsaba. La gráfica es la del Resumen —se dibujaba dos veces en dos
-              pestañas contiguas— y como mando obligaba a apuntar a una marca de
-              cincuenta píxeles. Las pastillas son el mismo control con el que se
-              cambia de semana en la hoja de Entreno, y dicen además cuáles ya
-              están cerradas y cuál es la que la pasada está pidiendo.
+              ══ LA REVISADA se lee: lo que decidiste y lo que le dijiste ══════
+              Es la fila de su histórico, desplegada: los cambios del plan
+              contra la anterior y la nota o el vídeo que le llegó.
             */}
-            <div className="hoja-semanas revision-semanas" role="tablist" aria-label="Semanas" ref={refAncho}>
-              {linea.map((fila) => (
-                <button
-                  key={fila.week}
-                  type="button"
-                  role="tab"
-                  aria-selected={fila.week === semana}
-                  /* `is-hecha` la ponía la tira gemela de Entreno
-                     (`WorkoutLogEditor`) y aquí no, aunque las dos pintan la
-                     misma pastilla y el CSS ya tenía el estado escrito. Con la
-                     marca, una semana cerrada se reconoce por el color aunque no
-                     lleve palabra. */
-                  className={`hoja-semana${fila.week === semana ? ' is-on' : ''}${
-                    fila.week === semanaDeLaCola ? ' is-curso' : fila.reviewed ? ' is-hecha' : ''
-                  }`}
-                  onClick={() => irA(fila.week)}
-                >
-                  <span className="hoja-semana-n">S{fila.week}</span>
-                  {/* Solo habla la minoría (ver `marcaMinoria`): la que la pasada
-                      pide, y después o las cerradas o las que no lo están, las
-                      que sean menos. Repetir el mismo estado quince veces no
-                      informa más que repetirlo catorce. */}
-                  {fila.week === semanaDeLaCola ? (
-                    <span className="hoja-semana-estado">pendiente</span>
-                  ) : marcaMinoria === 'sin-cerrar' && !fila.reviewed && fila.week < semanaDeLaCola ? (
-                    <span className="hoja-semana-estado">sin cerrar</span>
-                  ) : marcaMinoria === 'cerrada' && fila.reviewed ? (
-                    <span className="hoja-semana-estado">cerrada</span>
-                  ) : null}
+            {revisionCerrada && (
+              <Tarjeta rotulo="Lo que decidiste" span={12}>
+                <ReviewHistory
+                  plain
+                  client={activeClient}
+                  audience="coach"
+                  rows={[revisionCerrada]}
+                  abierta={revisionCerrada.id}
+                  recargar={recargar}
+                />
+              </Tarjeta>
+            )}
+
+            {/*
+              ══ PESO CONTRA ESPERADO, y la semana por dentro ══════════════════
+              La media, lo esperado y el desvío, y debajo los días de lunes a
+              domingo (`SemanaPorDias`). Las medias semanales están en la
+              portada; aquí se ve lo que forma la de esta semana.
+            */}
+            <Tarjeta
+              rotulo="Peso contra esperado"
+              span={12}
+              className="revision-hero"
+              accion={
+                <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={() => setVentana('cuerpo')}>
+                  Ver a fondo
                 </button>
-              ))}
-            </div>
-          </Tarjeta>
+              }
+            >
+              <div className="revision-hero-say">
+                <div className="row between wrap gap-3">
+                  <dl className="semana-cifras">
+                    <div>
+                      <dt>{nPesajes ? `Media · ${nPesajes} ${nPesajes === 1 ? 'pesaje' : 'pesajes'}` : 'Media'}</dt>
+                      <dd>
+                        {media === null ? '—' : kg1(media)}
+                        {media !== null && <small> kg</small>}
+                      </dd>
+                    </div>
+                    {esperado !== null && (
+                      <div>
+                        <dt>Esperado</dt>
+                        <dd>
+                          {kg1(esperado)}
+                          <small> kg</small>
+                        </dd>
+                      </div>
+                    )}
+                    {desvio !== null && (
+                      <div>
+                        <dt>Desvío</dt>
+                        <dd>
+                          {conSigno(desvio)}
+                          <small> kg</small>
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {/* El veredicto es de HOY (se calcula igual que en la
+                      cartera), así que solo va en la semana que se decide. */}
+                  {veredicto && (estado === 'pendiente' || estado === 'curso') && (
+                    <span className={`badge ${TONO_BADGE[veredicto.tone] || ''}`}>{veredicto.text}</span>
+                  )}
+                </div>
 
-          <BodyCard
-            weeks={visibles}
-            selected={semana}
-            onSelect={irA}
-            onPhoto={(s) => setVerFotos(Math.max(0, album.findIndex((f) => f.week === s.week)))}
-            comparativa={comparativa}
-            history={history}
-            groups={porSemana}
-            preguntas={preguntas}
-            respuestas={respuestas}
-            tendencia={tendencia}
-            textos={textos}
-            marcadas={marcadas}
-            client={activeClient}
-          />
+                {/* Sin check-in se dice en una línea, y lo que sí hay se enseña
+                    igual: una semana sin entrega no es un hueco. */}
+                {estado === 'sin' && <p className="semana-linea">No entregó el check-in esta semana.</p>}
 
-          <TrainingCard
-            dias={datos.days}
-            porDia={porDia}
-            semana={semana}
-            microcycles={microcycles}
-            sesiones={datos.sessions}
-            client={activeClient}
-          />
+                <SemanaPorDias
+                  lunes={lunes}
+                  pesajes={fila?.pesajes || []}
+                  previos={filaPrevia?.pesajes || []}
+                  nPrevia={semana > 1 ? semana - 1 : null}
+                  media={media}
+                  esperado={esperado}
+                  color={color}
+                />
+                {contexto && <p className="revision-hero-meta">{contexto}</p>}
+
+                {estado === 'pendiente' && (() => {
+                  /* EL DESTINO, si está puesto: empezó → hoy → objetivo. Solo
+                     con las tres cifras de verdad. */
+                  const meta = destino?.targetWeightKg ?? null;
+                  const actual = resumen?.weight ?? pesoActual;
+                  if (meta === null || primerPeso === null || actual === null) return null;
+                  const total = primerPeso - meta;
+                  if (Math.abs(total) < 0.1) return null;
+                  const pct = Math.max(0, Math.min(100, ((primerPeso - actual) / total) * 100));
+                  return (
+                    <div
+                      className="revision-destino"
+                      role="img"
+                      aria-label={`Empezó en ${localeNumber(primerPeso, { maximumFractionDigits: 1 })} kg, hoy ${localeNumber(actual, { maximumFractionDigits: 1 })}, objetivo ${localeNumber(meta, { maximumFractionDigits: 1 })}`}
+                    >
+                      <div className="destino-via">
+                        <span className="destino-lleno" style={{ width: `${pct}%` }} />
+                        <span className="destino-hoy" style={{ left: `${pct}%` }} />
+                      </div>
+                      <div className="destino-cifras">
+                        <span>
+                          Empezó
+                          <b>{localeNumber(primerPeso, { maximumFractionDigits: 1 })}</b>
+                        </span>
+                        <span className="es-hoy">
+                          Hoy
+                          <b>{localeNumber(actual, { maximumFractionDigits: 1 })}</b>
+                        </span>
+                        <span className="es-meta">
+                          Objetivo
+                          <b>{localeNumber(meta, { maximumFractionDigits: 1 })}</b>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {estado === 'pendiente' && destino?.note && <p className="revision-meta-frase">«{destino.note}»</p>}
+
+                {/* LO QUE PASÓ CON LO QUE CAMBIASTE: el diff de tu último cierre
+                    y la respuesta del peso desde entonces, un hecho al lado del
+                    otro. Se queda en la semana que se decide. */}
+                {estado === 'pendiente' && tras && (
+                  <p className="revision-tras">
+                    Tras tu último cierre (
+                    {[
+                      ...tras.changes.map(cambioEnCorto),
+                      tras.otherCount > 0
+                        ? `${tras.otherCount} ${tras.otherCount === 1 ? 'cambio más' : 'cambios más'} en el plan`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    ):{' '}
+                    {tras.delta === null ? (
+                      'aún sin pesajes desde entonces'
+                    ) : tras.delta === 0 ? (
+                      'el peso no se ha movido desde entonces'
+                    ) : (
+                      <b>{`${tras.delta > 0 ? '+' : '−'}${localeNumber(Math.abs(tras.delta))} kg desde entonces`}</b>
+                    )}
+                    .
+                  </p>
+                )}
+
+                {/* Las señales: hasta tres hechos que cualifican al veredicto.
+                    Solo la racha lleva semáforo. */}
+                {estado === 'pendiente' && senales.length > 0 && (
+                  <p className="revision-senales">
+                    {senales.map((s) => (
+                      <span key={s.id} className={s.tone !== 'unknown' ? `is-${s.tone}` : undefined}>
+                        {s.text}
+                      </span>
+                    ))}
+                  </p>
+                )}
+              </div>
+            </Tarjeta>
+
+            <BodyCard
+              selected={semana}
+              comparativa={comparativa}
+              history={history}
+              groups={porSemana}
+              preguntas={preguntas}
+              respuestas={respuestas}
+              tendencia={tendencia}
+              textos={textos}
+              marcadas={marcadas}
+              phases={phases}
+              client={activeClient}
+            />
+
+            <TrainingCard
+              dias={datos.days}
+              porDia={porDia}
+              semana={semana}
+              microcycles={microcycles}
+              sesiones={datos.sessions}
+              tonelaje={datos.tonnage}
+              client={activeClient}
+            />
+          </div>
+
+          <aside className="revision-lado">
+            <NutritionCard track={nutricion} selected={semana} client={activeClient} />
+            <Anteriores
+              rows={revisiones}
+              onVerTodas={() => setVentana('historial')}
+              onAbrir={(r) => setVentana({ revision: r.id })}
+            />
+          </aside>
         </div>
-
-        <aside className="revision-lado">
-          <NutritionCard track={nutricion} selected={semana} client={activeClient} />
-          <Anteriores
-            rows={revisiones}
-            onVerTodas={() => setVentana('historial')}
-            onAbrir={(fila) => setVentana({ revision: fila.id })}
-          />
-        </aside>
-      </div>
-
-      {/* Todas sus fotos, a pantalla completa y pasando con el dedo. */}
-      {verFotos !== null && album.length > 0 && (
-        <Gallery
-          items={album}
-          index={verFotos}
-          onIndex={setVerFotos}
-          onClose={() => setVerFotos(null)}
-        />
       )}
 
-      {/*
-        El archivo de las otras semanas, en una ventana grande —la misma que
-        abre el bloque de Entreno y el cuerpo «a fondo» del Resumen—. En la
-        página eran catorce filas a lo ancho debajo de la revisión, y el
-        histórico se usa al revés: se busca UNA cosa y se vuelve.
-      */}
       <Suspense fallback={null}>
         {ventana === 'cuerpo' && (
           <PanelCuerpo
@@ -1227,6 +1223,10 @@ export const WeekReview = () => {
         )}
       </Suspense>
 
+      {/*
+        El archivo de las otras semanas, en una ventana grande —la misma que
+        abre el bloque de Entreno y el cuerpo «a fondo» del Resumen—.
+      */}
       {ventana !== null && ventana !== 'cuerpo' && (
         <Modal
           size="lg"
@@ -1241,8 +1241,6 @@ export const WeekReview = () => {
             plain
             client={activeClient}
             audience="coach"
-            /* Una sola, desplegada, cuando se llega desde su fila; todas cuando
-               se pide el archivo entero. */
             rows={ventana === 'historial' ? revisiones : revisiones.filter((r) => r.id === ventana.revision)}
             abierta={ventana === 'historial' ? null : ventana.revision}
             recargar={recargar}
@@ -1251,46 +1249,34 @@ export const WeekReview = () => {
       )}
 
       {/*
-        Y la barra con la que se cierra. Va la ÚLTIMA del flujo a propósito: al
-        ser el último hijo, se queda pegada al canto de abajo mientras se recorre
-        la revisión y ATERRIZA en su sitio al llegar al final, en vez de flotar
-        para siempre encima del último bloque. Ver `review/ReviewDecision.jsx`.
+        ══ LA BARRA DE CIERRE, solo en la PENDIENTE ═════════════════════════════
+        Cerrar, ajustar e igualar son la respuesta a la semana que te toca, así
+        que solo salen en ella (22 sep 2026). La revisada se lee arriba; la
+        futura y la de sin check-in no tienen nada que cerrar. Va la última del
+        flujo: se pega al canto de abajo y aterriza en su sitio al final. Ver
+        `review/ReviewDecision.jsx`.
+
+        Una pendiente sin nada subido también se cierra: que no haya subido nada
+        es la respuesta de esa semana, y cerrarla deja constancia de que la
+        miraste.
       */}
-      <ReviewDecision
-        client={activeClient}
-        pendiente={pendiente}
-        weekStart={pendiente?.weekStart || datos.weekStart}
-        /*
-          ══ Y la semana que la pasada pide se cierra AUNQUE no haya subido nada ══
-
-          Esto era `pendiente || pesajes || fotos`, o sea «hay algo que mirar». Y
-          entonces el cliente que no sube nada —que es justo el que más veces
-          aparece en la pasada— entraba a una barra que decía «nada que cerrar» y
-          se quedaba en la lista para siempre: la única salida era el recordatorio
-          por WhatsApp, que no cierra nada.
-
-          Que no haya subido nada no es un motivo para no poder contestarle: es
-          LA respuesta de esa semana, y cerrarla deja constancia de que la miraste.
-          El acuse ya dice lo que se guarda —«seguimos igual»— y el histórico lo
-          registra igual que cualquier otra.
-        */
-        hayQueRevisar={
-          Boolean(pendiente) ||
-          Boolean(datos.checkIn?.count) ||
-          datos.photos.length > 0 ||
-          semana === semanaDeLaCola
-        }
-        cerrada={cerrada}
-        base={base}
-        cargandoBase={cargandoRevisiones}
-        siguiente={siguiente}
-        /* Los que quedarán en la pasada tras cerrar a este: si él está en la
-           lista se descuenta; si entraste a una semana fuera de la cola, la
-           pasada no cambia. */
-        restantes={Math.max(0, pasada.length - (idxPasada >= 0 ? 1 : 0))}
-        aviso={aviso}
-        onClosed={recargar}
-      />
+      {estado === 'pendiente' && (
+        <ReviewDecision
+          client={activeClient}
+          pendiente={pendiente}
+          weekStart={lunesDelCierre}
+          hayQueRevisar
+          cerrada={null}
+          base={base}
+          cargandoBase={cargandoRevisiones}
+          siguiente={siguiente}
+          /* Los que quedarán en la pasada tras cerrar a este. */
+          restantes={Math.max(0, pasada.length - (idxPasada >= 0 ? 1 : 0))}
+          onClosed={recargar}
+          semanaDelPlan={fila}
+          revisiones={revisiones}
+        />
+      )}
     </div>
   );
 };

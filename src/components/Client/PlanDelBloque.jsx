@@ -1,4 +1,4 @@
-import { blockPlan, untrainedWeeksOfDay, weeksOfBlock } from '@/domain/blocks';
+import { blockPlan, esquemaDicho, tramosDeSeries, untrainedWeeksOfDay, weeksOfBlock } from '@/domain/blocks';
 import { WEEK_DAYS, rotatingSlots } from '@/domain/training';
 
 /**
@@ -102,20 +102,33 @@ export const PlanDelBloque = ({ program, bloque, cliente, unidad, unidades, onAb
               </header>
 
               <ol className="plan-ejs">
-                {hoja.exercises.map((ex) => (
-                  <li className="plan-ej" key={ex.id}>
-                    <span className="plan-ej-nombre" title={ex.name}>
-                      {ex.name}
-                    </span>
-                    <span className="plan-ej-pauta">
-                      <span className="plan-series is-lectura">{ex.series}</span>
-                      <span className="plan-por" aria-hidden="true">
-                        ×
+                {hoja.exercises.map((ex) => {
+                  /* La pauta entera, también aquí: cuando las series no piden
+                     lo mismo esta casilla decía «varias», que es tanto como no
+                     decir nada sobre su propia rutina. Si la primera va a 12,
+                     su plan dice que va a 12. Ver `tramosDeSeries`. */
+                  const tramos = tramosDeSeries(ex);
+                  return (
+                    <li className="plan-ej" key={ex.id}>
+                      <span className="plan-ej-nombre" title={ex.name}>
+                        {ex.name}
                       </span>
-                      <span className="plan-reps is-lectura">{ex.targetReps ?? 'varias'}</span>
-                    </span>
-                  </li>
-                ))}
+                      <span className="plan-ej-pauta">
+                        {tramos.length > 1 ? (
+                          <span className="plan-esquema is-lectura">{esquemaDicho(tramos)}</span>
+                        ) : (
+                          <>
+                            <span className="plan-series is-lectura">{ex.series}</span>
+                            <span className="plan-por" aria-hidden="true">
+                              ×
+                            </span>
+                            <span className="plan-reps is-lectura">{ex.targetReps || '—'}</span>
+                          </>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
               </ol>
 
               <div className="plan-col-pie">

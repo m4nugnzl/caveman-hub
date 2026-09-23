@@ -109,7 +109,7 @@ export const resumenDeHoja = (hoja) => {
     const { meals, foods } = dietSummary(hoja.dieta);
     partes.push(`${meals} comidas · ${foods} alimentos`);
   } else if (hoja.dieta?.format === 'macros') {
-    partes.push('el objetivo de macros');
+    partes.push(hoja.dieta.targetsByVariant ? 'los macros de entreno y de descanso' : 'el objetivo de macros');
   }
   if (!partes.length) partes.push('nada que sepa leer');
   if (hoja.hidden) partes.push('oculta en Excel');
@@ -296,7 +296,13 @@ export const PastePlanDialog = ({
       else partes.push(`crear ${dias.length} ${unaSolaHoja ? 'día' : 'días'}`);
     }
     if ((hayDieta || hayMacros) && traer.dieta) {
-      partes.push(hayDieta ? `la dieta (${totalComidas} comidas)` : 'el objetivo de macros');
+      partes.push(
+        hayDieta
+          ? `la dieta (${totalComidas} comidas)`
+          : dieta.targetsByVariant
+            ? 'los macros de entreno y descanso'
+            : 'el objetivo de macros'
+      );
     }
     if (!partes.length) return 'Traer';
     const frase = partes.join(' y ');
@@ -317,7 +323,9 @@ export const PastePlanDialog = ({
     if ((hayDieta || hayMacros) && traer.dieta) {
       const resolver = resolverCon(valores);
       onImportDiet?.(
-        aPlanDeDieta(hayDieta ? variants : [], resolver, dieta),
+        /* Sin menú, siguen yendo las variantes que traen su objetivo: son el
+           día de entreno y el de descanso de una pestaña de macros. */
+        aPlanDeDieta(hayDieta ? variants : variants.filter((v) => v.targets), resolver, dieta),
         alimentosNuevos(valores, resolver)
       );
     }

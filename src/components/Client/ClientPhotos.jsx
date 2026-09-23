@@ -1,7 +1,15 @@
 import { useMemo } from 'react';
 import { Camera } from 'lucide-react';
 
-import { ANGLES, angleLabel, groupByWeek, photoWeight, suggestPair, weightDelta } from '@/domain/photos';
+import {
+  ANGLES,
+  celdaDeLaFoto,
+  etiquetaDeLaFoto,
+  groupByWeek,
+  photoWeight,
+  suggestPair,
+  weightDelta,
+} from '@/domain/photos';
 import { fmt } from '@/lib/num';
 import { metricColor } from '@/domain/metrics';
 import { EmptyState, Notice, Panel, SectionTitle, StatCard } from '@/components/ui/primitives';
@@ -104,7 +112,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
           <div className="comparison-grid">
             {[pair.before, pair.after].map((photo, index) => (
               <figure className="photo-card" key={photo.id}>
-                {photo.url && <img src={photo.url} alt={`${angleLabel(photo.angle)} del ${photo.date}`} />}
+                {photo.url && <img src={photo.url} alt={`${etiquetaDeLaFoto(photo)} del ${photo.date}`} />}
                 <figcaption
                   className="photo-label"
                   style={
@@ -129,7 +137,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
                   color={metricColor('weight')}
                 />
               )}
-              <StatCard label="Ángulo comparado" value={angleLabel(pair.after.angle)} />
+              <StatCard label="Ángulo comparado" value={etiquetaDeLaFoto(pair.after)} />
             </div>
           )}
         </Panel>
@@ -153,7 +161,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
             {group.photos.map((photo) => (
               <figure className="photo-card" key={photo.id}>
                 {photo.url ? (
-                  <Thumb url={photo.url} width={320} alt={`${angleLabel(photo.angle)} del ${photo.date}`} />
+                  <Thumb url={photo.url} width={320} alt={`${etiquetaDeLaFoto(photo)} del ${photo.date}`} />
                 ) : (
                   <span className="row center t-xs t-tertiary" style={{ height: '100%' }}>
                     sin vista previa
@@ -162,7 +170,7 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
                 {/* `--fs-xs` y no 0.68rem: por debajo de 11 px el gris deja de
                     leerse en un móvil con el brillo bajo. */}
                 <figcaption className="photo-label" style={{ fontSize: 'var(--fs-xs)', padding: '4px 8px' }}>
-                  {angleLabel(photo.angle)}
+                  {etiquetaDeLaFoto(photo)}
                   {photo.derivedWeight != null ? ` · ${fmt(photo.derivedWeight, { decimals: 1 })} kg` : ''}
                 </figcaption>
               </figure>
@@ -171,10 +179,10 @@ export const ClientPhotos = ({ client, photos: rawPhotos, history = [], onGoToCh
         </Panel>
       ))}
 
-      {ANGLES.some((angle) => !photos.some((p) => p.angle === angle.id)) && (
+      {ANGLES.some((angle) => !photos.some((p) => celdaDeLaFoto(p) === angle.id)) && (
         <Notice tone="warn">
           Te faltan ángulos por cubrir:{' '}
-          {ANGLES.filter((angle) => !photos.some((p) => p.angle === angle.id))
+          {ANGLES.filter((angle) => !photos.some((p) => celdaDeLaFoto(p) === angle.id))
             .map((a) => a.label.toLowerCase())
             .join(', ')}
           . Con los {ANGLES.length} tu entrenador ve mucho mejor los cambios.

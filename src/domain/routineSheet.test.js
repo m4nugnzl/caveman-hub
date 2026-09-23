@@ -2,9 +2,12 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
+  esquemaDeSeries,
+  leerPorSerie,
   mergeSheetReadings,
   parseRoutineSheet,
   pendingMuscles,
+  seriesVisibles,
   toDayDrafts,
   toExerciseDraft,
 } from './routineSheet';
@@ -559,6 +562,156 @@ describe('mergeSheetReadings · un libro con una pestaña por día', () => {
       { name: 'Plan', reading: dos },
     ]);
     expect(r.targetChoices).toBe(2);
+  });
+});
+
+/* ══ Series que no son todas iguales ═══════════════════════════════════════
+   Top sets, back-offs y pirámides. Hasta aquí solo se entendían las series
+   lineales: una columna por serie se leía como una ALTERNATIVA entera (seis
+   «columnas de objetivo» para un top set con dos back-offs), y un esquema
+   escrito en la celda —«1 x 6-8 / 1 x 8-10»— dejaba las series vacías. */
+
+describe('hoja real · top set y back-offs, una columna de repeticiones y RIR por serie', () => {
+  const { days, targetChoices } = parseRoutineSheet(fixture('rutina-top-set-back-off.tsv'));
+  const ejercicio = (dia, nombre) =>
+    days.find((d) => d.name === dia).exercises.find((e) => e.name.startsWith(nombre));
+
+  it('cada columna es una serie, no una alternativa: no hay nada que elegir', () => {
+    expect(targetChoices).toBe(1);
+    const remo = ejercicio('PULL A', 'Remo en T');
+    expect(remo.sets).toBe(3);
+    expect(remo.targetOptions).toEqual([['7-9', '7-9', '10-12']]);
+    expect(ejercicio('PUSH A', 'Press inclinado').targetOptions).toEqual([['5-7', '8-10']]);
+  });
+
+  it('trae el RIR de cada serie, que vive en la sub-cabecera y no en la cabecera', () => {
+    expect(ejercicio('PULL A', 'Remo en T').rirs).toEqual(['0', '0', '0']);
+    expect(ejercicio('PULL A', 'Remo en T').rir).toBe('0');
+  });
+
+  it('el RIR de la serie no se cuela como objetivo cuando la serie no pide repeticiones', () => {
+    /* Elevaciones de piernas: al fallo, sin rango, con RIR 0. Antes el «0» del
+       RIR salía como objetivo de repeticiones. */
+    const elevaciones = ejercicio('PULL A', 'Elevaciones');
+    expect(elevaciones.targetOptions).toEqual([['', '']]);
+    expect(elevaciones.rir).toBe('0');
+  });
+
+  it('un hueco en la columna de una serie repite la de antes', () => {
+    expect(ejercicio('PUSH A', 'Press militar').targetOptions).toEqual([['8-10', '8-10']]);
+  });
+
+  it('nombra cada día aunque a su derecha empiece el registro semanal', () => {
+    expect(days.map((d) => d.name)).toEqual(['PULL A', 'PUSH A', 'LEGS A']);
+  });
+
+  it('la columna NOTAS del registro es del cliente: no entra como indicación', () => {
+    expect(ejercicio('PULL A', 'Elevaciones').note).toBe('');
+    expect(ejercicio('PULL A', 'Pull over').note).toBe('Top Set · Parciales.');
+    /* «Serie Lineal» no dice nada que no diga ya el plan. */
+    expect(ejercicio('PULL A', 'Curl scott').note).toBe('');
+  });
+
+  it('las series salen hacia la aplicación una a una', () => {
+    const [pull] = toDayDrafts(days);
+    const remo = pull.exercises.find((e) => e.name.startsWith('Remo en T'));
+    expect(remo.sets.map((s) => s.targetReps)).toEqual(['7-9', '7-9', '10-12']);
+    expect(remo.sets.map((s) => s.targetRir)).toEqual(['0', '0', '0']);
+  });
+});
+
+describe('hoja real · el esquema de series escrito en la celda', () => {
+  const { days } = parseRoutineSheet(fixture('rutina-esquema-en-celda.tsv'));
+  const ejercicio = (nombre) => days.flatMap((d) => d.exercises).find((e) => e.name.startsWith(nombre));
+
+  it('solo ve las sesiones, no la distribución del microciclo ni las instrucciones', () => {
+    expect(days.map((d) => d.name)).toEqual(['PUSH A', 'LEGS A']);
+    expect(days.flatMap((d) => d.exercises)).toHaveLength(6);
+  });
+
+  it('«1 x 8-10 / 2 x 10-13» son tres series con su objetivo cada una', () => {
+    expect(ejercicio('Curl de bíceps bayesian').targetOptions).toEqual([['8-10', '10-13', '10-13']]);
+    expect(ejercicio('Press plano').targetOptions).toEqual([['6-8', '8-10']]);
+    expect(ejercicio('Sentadilla').targetOptions).toEqual([['11-13', '8-10', '6-8']]);
+  });
+
+  it('las series lineales siguen como siempre', () => {
+    expect(ejercicio('Crunch').targetOptions).toEqual([['9-12', '9-12', '9-12']]);
+  });
+
+  it('la indicación son los tips, no «Serie recta»', () => {
+    expect(ejercicio('Crunch').note).toBe('Foco en la flexión y extensión de la columna.');
+  });
+});
+
+describe('esquemaDeSeries', () => {
+  const objetivos = (celda) => esquemaDeSeries(celda)?.map((s) => s.target) ?? null;
+
+  it('despliega los tramos, se separen como se separen', () => {
+    expect(objetivos('1 x 6-8 / 2 x 8-10')).toEqual(['6-8', '8-10', '8-10']);
+    expect(objetivos('1x6-8 + 2x8-10')).toEqual(['6-8', '8-10', '8-10']);
+    expect(objetivos('Top set 1x5, back off 3x8')).toEqual(['5', '8', '8', '8']);
+    expect(objetivos('3x8-10')).toEqual(['8-10', '8-10', '8-10']);
+  });
+
+  it('se queda con el RIR de cada tramo', () => {
+    expect(esquemaDeSeries('1x6-8 @0 / 2x8-10 RIR 2').map((s) => s.rir)).toEqual(['0', '2', '2']);
+  });
+
+  it('no confunde un registro de kilos con un esquema', () => {
+    expect(esquemaDeSeries('12,5x8/10x10')).toBeNull();
+    expect(esquemaDeSeries('Parciales en todas las series')).toBeNull();
+    expect(esquemaDeSeries('8-10')).toBeNull();
+  });
+});
+
+describe('seriesVisibles y leerPorSerie', () => {
+  it('dice la lista corta, y lo que dice se vuelve a desplegar igual', () => {
+    const lista = ['7-9', '7-9', '10-12'];
+    expect(seriesVisibles(lista)).toBe('2×7-9 · 10-12');
+    expect(leerPorSerie(seriesVisibles(lista))).toEqual(lista);
+    expect(seriesVisibles(['8-10', '8-10'])).toBe('8-10');
+    expect(leerPorSerie('8-10')).toBeNull();
+  });
+});
+
+describe('una rutina escrita con cada serie en su renglón', () => {
+  it('junta el nombre con las series que tiene debajo', () => {
+    const { days } = parseRoutineSheet(
+      [
+        'Día 1 · Pierna',
+        'Sentadilla',
+        'Aproximación: 2 x 5',
+        'Top set: 1 x 4-6 @1',
+        'Back off: 2 x 8-10 @2',
+        'Pull over',
+        'Serie 1: 10-12 reps',
+        'Serie 2: 12-15 reps',
+        'Prensa 1x8-10 / 2x12-15 RIR 1',
+      ].join('\n')
+    );
+    const [sentadilla, pullover, prensa] = days[0].exercises;
+    expect(days[0].name).toBe('Pierna');
+    /* El calentamiento no es una serie del plan. */
+    expect(sentadilla).toMatchObject({ name: 'Sentadilla', sets: 3, rirs: ['1', '2', '2'] });
+    expect(sentadilla.targetOptions).toEqual([['4-6', '8-10', '8-10']]);
+    /* «Pull over» suena a «Pull» —un día— y es un ejercicio: lo dicen sus series. */
+    expect(pullover).toMatchObject({ name: 'Pull over', sets: 2 });
+    expect(pullover.targetOptions).toEqual([['10-12', '12-15']]);
+    expect(prensa).toMatchObject({ name: 'Prensa', sets: 3, rir: '1' });
+    expect(prensa.targetOptions).toEqual([['8-10', '12-15', '12-15']]);
+  });
+
+  it('un renglón de registro no es un ejercicio de 55 series', () => {
+    expect(parseRoutineSheet('Remo en T 55x8* 50x9*\nJalón 12,5x8').days).toEqual([]);
+  });
+});
+
+describe('toExerciseDraft', () => {
+  it('pone el RIR de cada serie cuando la hoja lo da, o lo lee como la revisión lo escribe', () => {
+    const base = { name: 'Remo', muscle: 'Dorsal', sets: 3, targetOptions: [['7-9', '7-9', '10-12']], note: '' };
+    expect(toExerciseDraft({ ...base, rir: '0', rirs: ['0', '1', '2'] }).sets.map((s) => s.targetRir)).toEqual(['0', '1', '2']);
+    expect(toExerciseDraft({ ...base, rir: '0 · 2×2' }).sets.map((s) => s.targetRir)).toEqual(['0', '2', '2']);
   });
 });
 

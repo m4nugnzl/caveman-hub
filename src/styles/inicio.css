@@ -27,7 +27,7 @@
 
 /* ── La hoja ──────────────────────────────────────────────────────────────── */
 @media (min-width: 1024px) {
-  .shell-main:has(.ini) { background: var(--surface-sunken); }
+  .shell-main:has(.ini) { background: var(--hoja); } /* el lienzo de la aplicación (19 sep) */
 }
 
 .ini {

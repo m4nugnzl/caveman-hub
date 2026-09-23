@@ -6,6 +6,7 @@ import {
   cicloPorAbrir,
   currentBlock,
   microcicloDeLaSemana,
+  tramoDelBloque,
   vecesDeLaHoja,
 } from './blocks';
 import { vecesDeCadaHoja } from './training';
@@ -90,7 +91,7 @@ describe('semanal con Push el lunes y el jueves', () => {
     expect(r.planificadas).toBe(4);
     expect(r.hechas).toBe(3);
     expect(r.adherencia).toBe(75);
-    expect(r.microciclos).toEqual([{ semana: 1, hechas: 3, planificadas: 4 }]);
+    expect(r.microciclos).toEqual([{ semana: 1, hechas: 3, planificadas: 4, extra: 0 }]);
 
     const demas = semanal([
       sesion('Push', '2026-09-14'),
@@ -101,9 +102,9 @@ describe('semanal con Push el lunes y el jueves', () => {
     expect(blockSummary(demas, currentBlock(demas), SEMANAL)).toMatchObject({ hechas: 3, planificadas: 4, adherencia: 75 });
   });
 
-  it('las sesiones de una hoja que ya no está en el plan cuentan como antes', () => {
+  it('las sesiones de una hoja que no está en el plan van a «extra», no a «hechas»', () => {
     const p = semanal([sesion('Push', '2026-09-14'), sesion('Brazos', '2026-09-16')]);
-    expect(blockSummary(p, currentBlock(p), SEMANAL)).toMatchObject({ hechas: 2, planificadas: 4 });
+    expect(blockSummary(p, currentBlock(p), SEMANAL)).toMatchObject({ hechas: 1, extra: 1, planificadas: 4, adherencia: 25 });
   });
 
   it('proximaDelMicrociclo: el segundo Push toca aunque el primero esté hecho', () => {
@@ -206,3 +207,72 @@ describe('rotativo', () => {
   });
 });
 
+/* ── Lo previsto de un bloque ──────────────────────────────────────────────── */
+
+describe('previstoHasta mide cada semana que falta con la secuencia entera', () => {
+  const SEIS = ['Legs A', 'Push A', 'Pull A', 'Legs B', 'Push B', 'Pull B'];
+  const cuatro = [0, 9, 18, 27].map((d, i) =>
+    micro(i + 1, new Date(Date.UTC(2026, 7, 1 + d)).toISOString().slice(0, 10), SEIS)
+  );
+
+  it('rotativo 2-1 con seis hojas: nueve días por semana, no tres', () => {
+    const p = {
+      weeklySplit: {},
+      mobilityDrills: [],
+      microcycles: cuatro,
+      blocks: [{ id: 'b_1', name: 'Bloque 1', fromWeek: 1, toWeek: null, plannedWeeks: 6, sessions: SEIS.map(dia) }],
+    };
+    const tramo = tramoDelBloque(p, currentBlock(p), ROTATIVO);
+    expect(tramo.hasta).toBe('2026-09-05');
+    expect(tramo.previstoHasta).toBe('2026-09-23'); // 5 sep + 2 × 9; antes, 11 sep
+  });
+
+  it('semanal: siete días por semana, como antes', () => {
+    const p = {
+      weeklySplit: SPLIT,
+      mobilityDrills: [],
+      microcycles: [micro(1, '2026-09-14', HOJAS), micro(2, '2026-09-21', HOJAS)],
+      blocks: [{ id: 'b_1', name: 'Bloque 1', fromWeek: 1, toWeek: null, plannedWeeks: 4 }],
+    };
+    const tramo = tramoDelBloque(p, currentBlock(p), SEMANAL);
+    expect(tramo.hasta).toBe('2026-09-27');
+    expect(tramo.previstoHasta).toBe('2026-10-11');
+  });
+});
+
+/* ── La adherencia no pasa del 100 % (22 sep) ──────────────────────────────
+   Casos de la copia del 22 sep: las sesiones de hojas que ya no están en el
+   plan sumaban a «hechas» sin sumar a «planificadas». */
+
+/** Un bloque con plan, un microciclo por cada lista de sesiones. */
+const conPlan = (hojas, semanas) => ({
+  weeklySplit: {},
+  mobilityDrills: [],
+  microcycles: semanas.map((ses, i) => micro(i + 1, `2026-08-${String(3 + 7 * i).padStart(2, '0')}`, hojas, ses)),
+  blocks: [{ id: 'b_1', name: 'Bloque 1', fromWeek: 1, toWeek: null, sessions: hojas.map(dia) }],
+});
+
+describe('adherencia con hojas fuera del plan', () => {
+  it('Gustavo Dueñas: le quitaron tres hojas ya entrenadas; 4 de 1 (400 %) pasa a 1 de 1 y 3 extra', () => {
+    const cuatro = (f) => ['Torso A', 'Pierna A', 'Torso B', 'Pierna B'].map((h, i) => sesion(h, `2026-08-0${f + i}`));
+    const p = conPlan(['Pierna B'], [cuatro(3)]);
+    const r = blockSummary(p, currentBlock(p));
+    expect(r).toMatchObject({ hechas: 1, extra: 3, planificadas: 1, adherencia: 100 });
+    expect(r.microciclos).toEqual([{ semana: 1, hechas: 1, planificadas: 1, extra: 3 }]);
+  });
+
+  it('Javier Bolaños: hojas renombradas; 5 de 4 (125 %) pasa a 2 de 4 y 3 extra', () => {
+    const ses = ['TORSO', 'PIERNA B', 'EMPUJE', 'TIRÓN', 'PIERNA A'].map((h, i) => sesion(h, `2026-08-0${3 + i}`));
+    const p = conPlan(['TORSO A', 'PIERNA A', 'TORSO B', 'PIERNA B'], [ses]);
+    expect(blockSummary(p, currentBlock(p))).toMatchObject({ hechas: 2, extra: 3, planificadas: 4, adherencia: 50 });
+  });
+
+  it('ningún microciclo pasa de lo planificado', () => {
+    const ses = ['A', 'B', 'X', 'Y', 'Z'].map((h, i) => sesion(h, `2026-08-0${3 + i}`));
+    const p = conPlan(['A', 'B'], [ses, ses]);
+    const r = blockSummary(p, currentBlock(p));
+    for (const m of r.microciclos) expect(m.hechas).toBeLessThanOrEqual(m.planificadas);
+    expect(r.adherencia).toBe(100);
+    expect(r.extra).toBe(6);
+  });
+});

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Images, Ruler } from 'lucide-react';
+import { Ruler } from 'lucide-react';
 
 import { clientPath } from '@/routes';
 import { Fold } from '@/components/ui/primitives';
@@ -10,8 +10,7 @@ import { Delta } from '@/components/ui/metrics';
    todavía no se ha llenado, no como algo que ha fallado. */
 import { Tarjeta, TarjetaVacia } from '@/components/dashboard/Tarjeta';
 import { ComparisonData } from '@/components/review/ComparisonData';
-import { PhotoContactSheet } from '@/components/review/PhotoContactSheet';
-import { PhotoStrip } from '@/components/review/PhotoStrip';
+import { ComparaFotos } from '@/components/review/ComparaFotos';
 import { SessionFeedback } from '@/components/Coach/Workout/SessionFeedback';
 import { hayRespuesta } from '@/domain/protocol';
 
@@ -34,13 +33,11 @@ import { hayRespuesta } from '@/domain/protocol';
  *   · **Sus escalas**, solo las que contestó. Salían las cinco con una raya y
  *     un «igual que antes» debajo cuando no había contestado ninguna: cinco
  *     casillas para decir «nada», que es lo que ahora dice una línea.
- *   · **La tira de fotos**, solo de las semanas que tienen foto. Una columna
- *     vacía por semana sin foto convertía la tira en once rectángulos de puntos
- *     y una foto; la ventana de la gráfica ya dice qué semanas hay.
+ *   · **Sus fotos**, los cuatro ángulos de dos semanas en parejas.
  *
- * Lo que se pliega es lo que se CONSULTA cuando ya sospechas algo: la hoja de
- * contactos a tamaño de comparar y la tabla de perímetros y pliegues. Y llevan
- * su resumen en el rótulo, así que se sabe qué hay dentro sin abrirlo.
+ * Lo que se pliega es lo que se CONSULTA cuando ya sospechas algo: la tabla de
+ * perímetros y pliegues. Y lleva su resumen en el rótulo, así que se sabe qué
+ * hay dentro sin abrirlo.
  *
  * ── Sin puertas en la cabecera ─────────────────────────────────────────────
  * Tuvo «Sus fotos →» y «Pesajes y medidas →». La primera es el archivo del
@@ -72,10 +69,7 @@ const Escala = ({ fila }) => (
 );
 
 export const BodyCard = ({
-  weeks = [],
   selected,
-  onSelect,
-  onPhoto,
   comparativa,
   history = [],
   groups = [],
@@ -85,32 +79,12 @@ export const BodyCard = ({
   textos = [],
   /* Lo que contestó marcando —sí/no, opciones, zonas—. Ver el tramo 1. */
   marcadas = [],
+  /* Sus fases: el Antes por defecto de las fotos es el inicio de la fase. */
+  phases = [],
   client,
 }) => {
-  const deEstaSemana = groups.find((g) => g.week === selected)?.photos.length || 0;
-  /* Solo las semanas con foto: la tira enseña cómo SE VE, y una semana sin foto
-     no enseña nada. */
-  const conFoto = weeks.filter((s) => s.photo);
-  /*
-    ── La historia en tres fotos ──────────────────────────────────────────────
-    Con historial largo, la tira entera son diez miniaturas del mismo tamaño:
-    una enumeración, no una historia. Se cura a la narrativa del progreso —la
-    PRIMERA, la MITAD y la ÚLTIMA— que es como se cuenta un cambio físico; el
-    archivo completo sigue a un pliegue («Compararlas de cerca») y en «Sus
-    fotos». La semana que se está revisando, si tiene foto, no puede quedarse
-    fuera: ocupa el sitio de la mitad.
-  */
-  const tresFotos = (() => {
-    if (conFoto.length <= 4) return conFoto;
-    const primera = conFoto[0];
-    const ultima = conFoto[conFoto.length - 1];
-    const elegida = conFoto.find((s) => s.week === selected);
-    const mitad =
-      elegida && elegida !== primera && elegida !== ultima
-        ? elegida
-        : conFoto[Math.floor(conFoto.length / 2)];
-    return [primera, mitad, ultima];
-  })();
+  /* Las semanas con alguna foto: sin ninguna no hay nada que comparar. */
+  const conFoto = groups.filter((g) => g.week !== null && g.photos?.length);
 
   /* Lo que escribió, ya contestado. Una pregunta sin respuesta no abre cita: una
      cita vacía dice que no dijo nada, y lo que pasó es que no le preguntaste. */
@@ -197,59 +171,32 @@ export const BodyCard = ({
       </div>
 
       {/* ── 2 · CÓMO SE VE ──────────────────────────────────────────────────
-          La tira, siempre a la vista: una foto se juzga mirándola, no decidiendo
-          si merece la pena abrirla. Lo que se pliega es la hoja de contactos —los
-          tres ángulos a tamaño de comparar—, que es lo que se abre cuando ya
-          sospechas algo. */}
+          Los cuatro ángulos de dos semanas a la vez, con una sola cabecera que
+          dice cuáles y cuánto pesaba en cada una (`ComparaFotos`, 22 sep). Por
+          defecto, el inicio de la fase contra ahora. */}
       <div className="cuerpo-tramo">
-        <div className="row between wrap gap-3">
-          <span className="section-label">Cómo se ve</span>
-          <span className="t-xs t-tertiary">
-            {tresFotos.length < conFoto.length
-              ? `la primera, la mitad y la última de sus ${conFoto.length} semanas con foto`
-              : deEstaSemana > 0
-                ? `${deEstaSemana} de esta semana`
-                : 'esta semana no ha subido ninguna'}
-          </span>
-        </div>
-
         {conFoto.length > 0 ? (
           <>
-            <div className="tira-marco">
-              <PhotoStrip weeks={tresFotos} selected={selected} onSelect={onSelect} onPhoto={onPhoto} />
-            </div>
-
-            <Fold
-              icon={Images}
-              title="Compararlas de cerca"
-              /* Sin nombrar una semana concreta: desde que el par se abre en
-                 grande, contra cuál se compara se elige ahí dentro (ver
-                 `PhotoContactSheet`), y un rótulo que dijera «contra la semana
-                 3» quedaría afirmando lo que ya no es. */
-              summary={
-                comparativa
-                  ? 'cada ángulo contra la semana que elijas'
-                  : 'los tres ángulos, grandes'
-              }
-            >
-              <div className="col gap-4">
-                <PhotoContactSheet groups={groups} weekNumber={selected} history={history} />
-                <div className="row between wrap gap-3">
-                  <span className="t-xs t-tertiary">
-                    El collage y el vídeo de comparación son del estudio.
-                  </span>
-                  <Link className="cab-accion is-puerta" to={clientPath(client?.id, 'revision/estudio')}>
-                    El estudio
-                  </Link>
-                </div>
-              </div>
-            </Fold>
+            <ComparaFotos
+              groups={groups}
+              semana={selected}
+              history={history}
+              startDate={client?.startDate}
+              phases={phases}
+              clientId={client?.id}
+            />
+            <Link className="cab-accion is-puerta fotos-estudio" to={clientPath(client?.id, 'revision/estudio')}>
+              Collage y vídeo en el estudio
+            </Link>
           </>
         ) : (
-          <TarjetaVacia>
-            Todavía no ha subido ninguna foto. Sin ellas, la báscula decide sola — y no distingue
-            un estancamiento de una recomposición.
-          </TarjetaVacia>
+          <>
+            <span className="section-label">Cómo se ve</span>
+            <TarjetaVacia>
+              Todavía no ha subido ninguna foto. Sin ellas, la báscula decide sola — y no distingue
+              un estancamiento de una recomposición.
+            </TarjetaVacia>
+          </>
         )}
       </div>
 

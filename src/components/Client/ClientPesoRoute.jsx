@@ -5,6 +5,9 @@ import { useApp } from '@/context/AppContext';
 import { buildWeightLog, weekDates, weightSeries } from '@/domain/anthropometry';
 import { clientCycleSlots, inicialDelDia } from '@/domain/blocks';
 import { selloDelPeriodo } from '@/domain/calendar';
+import { semanaDelRegistro } from '@/domain/anthropometry';
+import { puedeTocarLaSemana } from '@/domain/revisionesPasadas';
+import { useReviewRows } from '@/components/review/useReviewRows';
 import { cycleFoto } from '@/domain/nutrition';
 import { effectiveGoal } from '@/domain/roadmap';
 import { addDays, localeNumber, shortDate, todayISO, weekStart } from '@/lib/dates';
@@ -85,7 +88,10 @@ export const ClientPesoRoute = () => {
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   /* La revisión que se debe: la misma cuenta que hace su pantalla, para que las
      dos hablen del mismo periodo. Ver `useSemanaDeEntrega`. */
-  const { periodo, semana, semanasDelPeriodo } = useSemanaDeEntrega();
+  const { periodo, semana, semanasDelPeriodo, revision } = useSemanaDeEntrega();
+  /* Sus entregas, para saber qué días ya no se pueden tocar: los de una semana
+     revisada o fuera de plazo (0134). Sin vídeos: aquí no se pintan. */
+  const { checkIns: entregas } = useReviewRows(activeClient?.id, { conEnlaces: false });
 
   const history = useMemo(
     () => anthropometry?.[activeClient?.id]?.history || [],
@@ -115,8 +121,21 @@ export const ClientPesoRoute = () => {
     deja lo demás en pie. `addAnthropometryLog` sustituye el día entero, que es
     lo correcto para una revisión y se llevaría por delante unas medidas aquí.
   */
+  /* ¿Se puede tocar ese día? Por la semana para la que CUENTA su registro, si ya
+     lo tiene: lo que la base rechazaría no se ofrece. */
+  const cerradoElDia = (fecha) => {
+    const log = history.find((h) => h.date === fecha);
+    return !puedeTocarLaSemana({
+      fecha: log ? semanaDelRegistro(log) : fecha,
+      entregas,
+      preferences: activeClient.preferences,
+      startDate: activeClient.startDate,
+      hoy,
+    });
+  };
+
   const apuntar = (peso, fecha = hoy) => {
-    if (fecha > hoy) return;
+    if (fecha > hoy || cerradoElDia(fecha)) return;
     /* Para qué revisión cuenta. `null` cuando la fecha ya cae dentro del
        periodo abierto, que es lo normal; el lunes de ese periodo cuando se
        apunta desde la ventana de gracia. Ver `selloDelPeriodo`. */
@@ -147,11 +166,15 @@ export const ClientPesoRoute = () => {
     de su periodo. Los que no han llegado se pintan pero no se pueden tocar.
   */
   const lunes = weekStart(hoy);
+  /* Una PASADA que se completa: sus días, y la semana de hoy no. */
+  const soloPasada = revision
+    ? Array.from({ length: Math.max(1, semanasDelPeriodo) }, (_, i) => weekDates(addDays(semana, i * 7))).flat()
+    : null;
   const delPeriodo =
     periodo?.tarde && semana < lunes
       ? Array.from({ length: Math.max(1, semanasDelPeriodo) }, (_, i) => weekDates(addDays(semana, i * 7))).flat()
       : [];
-  const dias = [...delPeriodo, ...weekDates(lunes)]
+  const dias = (soloPasada || [...delPeriodo, ...weekDates(lunes)])
     .filter((fecha, i, lista) => lista.indexOf(fecha) === i)
     .map((fecha) => {
       const log = history.find((h) => h.date === fecha);
@@ -162,6 +185,8 @@ export const ClientPesoRoute = () => {
         peso: Number.isFinite(valor) ? valor : null,
         esHoy: fecha === hoy,
         futuro: fecha > hoy,
+        /* Revisada o fuera de plazo: se pinta y no responde, como el futuro. */
+        cerrado: fecha <= hoy && cerradoElDia(fecha),
         /* Si lo que se escriba ahí cuenta para la revisión que se debe y no
            para la semana de su fecha. Es lo que la pantalla dice en voz alta:
            un pesaje que cambia de semana sin avisar es el fallo de antes con el
@@ -186,6 +211,8 @@ export const ClientPesoRoute = () => {
     /* La revisión que se debe, para poder decir a cuál va lo que se apunta
        fuera de su semana. `null` cuando no se debe ninguna de antes. */
     revision: periodo?.tarde ? `tu revisión del ${shortDate(periodo.dueOn || semana)}` : null,
+    pasada: revision ? `semana del ${shortDate(semana)}` : null,
+    diaInicial: soloPasada ? soloPasada.filter((f) => f <= hoy && !cerradoElDia(f)).pop() || soloPasada[0] : null,
     /*
       QUE UN GUARDADO NO SE PIERDA CALLADO. Esta pantalla decía «Guardado» en
       cuanto se pulsaba y no volvía a hablar: si la escritura se quedaba en la

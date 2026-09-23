@@ -7,6 +7,7 @@ import { groupByWeek } from '@/domain/photos';
 import { planSnapshot, reviewableWeeks } from '@/domain/reviews';
 import { nutritionTrack, reviewTimeline } from '@/domain/timeline';
 import { todayISO } from '@/lib/dates';
+import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
 
 /**
  * LA HISTORIA DE UN CLIENTE, SEMANA A SEMANA: su peso y lo que le pusiste.
@@ -40,7 +41,7 @@ import { todayISO } from '@/lib/dates';
  *
  * No elige semana ni guarda nada. Devuelve la historia; quién la señala y para
  * qué es de cada pantalla: la revisión la usa como mando y «Progreso» solo la
- * mira (`soloLectura` en `ReviewChart`).
+ * mira.
  *
  * Las revisiones se le pasan de fuera —`rows` de `useReviewRows`— porque son una
  * consulta, y quién y cuándo la lanza es decisión de la pantalla que la monta.
@@ -74,8 +75,10 @@ export const useReviewTrack = (revisiones = []) => {
         startDate,
         submitted: checkIns[clientId],
         period: periodo,
+        /* Las mismas que la revisión: también las que tienen pesajes o entrega. */
+        active: [...history.map((h) => h.date), ...revisiones.map((r) => r.weekStart)].filter(Boolean),
       }),
-    [microcycles, startDate, clientId, checkIns, periodo]
+    [microcycles, startDate, clientId, checkIns, periodo, history, revisiones]
   );
 
   const serie = useMemo(
@@ -103,9 +106,14 @@ export const useReviewTrack = (revisiones = []) => {
     [nutrition, workoutData, clientId, activeClient]
   );
 
+  /* La pauta fechada (0124): con versiones, el escalón cae en la semana en que
+     se cambió la dieta, no en la de la revisión siguiente. Es la misma fuente
+     que lee el roadmap (`semanasDelPlan`). */
+  const versiones = usePautaFechada();
+
   const track = useMemo(
-    () => nutritionTrack({ rows: linea, reviews: revisiones, plan: planDeHoy }),
-    [linea, revisiones, planDeHoy]
+    () => nutritionTrack({ rows: linea, reviews: revisiones, plan: planDeHoy, versions: versiones, hoy: todayISO() }),
+    [linea, revisiones, planDeHoy, versiones]
   );
 
   return track;

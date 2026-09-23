@@ -408,7 +408,7 @@ export const SetCell = ({
               value={set.targetRir ?? ''}
               onChange={(e) => onChange('targetRir', e.target.value)}
               aria-label={`${label}: RIR objetivo`}
-              title="Repeticiones que debe dejarse en el depósito"
+              title="Repeticiones en reserva"
             />
           </span>
         )}

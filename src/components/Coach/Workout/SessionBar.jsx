@@ -89,7 +89,7 @@ export const SessionBar = ({ sessions, activeId, day, onSelect, onCreate, onChan
               value={active.date || ''}
               max={todayISO()}
               onChange={(e) => onChangeDate(active.id, e.target.value)}
-              title="La fecha real del entrenamiento. Es la que usa toda la analítica."
+              title="Fecha del entreno"
             />
           </label>
         ) : (

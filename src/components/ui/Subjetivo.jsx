@@ -1,3 +1,6 @@
+import { tonoDeEscala } from '@/domain/protocol';
+import { Medidor, Medidores, useFormaDeEscala } from '@/components/ui/Medidor';
+
 /**
  * Una tanda de respuestas de escala, como barras.
  *
@@ -22,6 +25,23 @@
  * panel de la semana, la progresión de un ejercicio y el bloque de evolución
  * del resumen usan esta misma pieza. Estaba dentro de `Workout/`, que es lo que
  * habría llevado a dibujar unas barras nuevas para el check-in.
+ *
+ * ── Salvo donde se pide el semáforo (19 sep) ────────────────────────────────
+ * En «Cómo lo lleva» del resumen el dueño quiere el juicio a la vista: la barra
+ * y la cifra en verde, ámbar o rojo según lo bien que esté la respuesta. Es
+ * `semaforo`, y el juicio es `tonoDeEscala` —el mismo de las barritas del
+ * portal—, que ya sabe qué preguntas van al revés (`lowerIsBetter`). Las
+ * `neutral` (el RPE: un 9 puede ser lo previsto) no se juzgan y siguen en tinta.
+ * Fuera de esa tarjeta las filas se quedan como estaban.
+ *
+ * ── Y se dibuja con el medidor de la casa (21 sep) ──────────────────────────
+ * La fila ya no es suya: es `ui/Medidor`, la misma pieza del volumen y de las
+ * fases, con el tamaño de producción. Barra continua; `?medidor=segmentado`
+ * la parte en casillas, una por punto de la escala, para compararlas.
+ *
+ * El largo se mide ahora contra el TOPE y no contra el recorrido: con `min: 1`,
+ * un 4 de 5 salía al 75 % mientras la cifra decía «4/5». Es además la cuenta
+ * de `tonoDeEscala`, así que barra, cifra y semáforo dicen lo mismo.
  */
 /**
  * @param onFila  Con destino, cada fila es una PUERTA a la tendencia de esa
@@ -29,41 +49,35 @@
  *   caja se enciende, nada de teñir la barra — el color es del dato) y al
  *   pulsar recibe la pregunta. Sin él, las filas son lectura, como siempre.
  */
-export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null, onFila = null }) => {
+export const Subjetivo = ({ preguntas = [], answers = {}, titulo = null, onFila = null, semaforo = false }) => {
+  const forma = useFormaDeEscala();
   const filas = preguntas
     .map((q) => ({ q, valor: Number(answers?.[q.id]) }))
     .filter(({ valor }) => Number.isFinite(valor));
   if (filas.length === 0) return null;
 
-  const Fila = onFila ? 'button' : 'div';
-
   return (
-    <div className="subjetivo">
+    <Medidores>
       {titulo && <span className="section-label">{titulo}</span>}
-      {filas.map(({ q, valor }) => {
+      {filas.map(({ q, valor }, i) => {
         const max = q.max || 10;
-        const min = q.min ?? 0;
-        const pct = Math.max(0, Math.min(100, ((valor - min) / (max - min)) * 100));
+        const tono = semaforo && !q.neutral ? tonoDeEscala(valor, max, q) : null;
         return (
-          <Fila
+          <Medidor
             key={q.id}
-            className={`subjetivo-fila${onFila ? ' is-puerta' : ''}`}
+            indice={i}
+            etiqueta={q.short || q.label}
+            valor={valor}
+            techo={max}
+            de={`/${max}`}
+            segmentos={forma === 'segmentado' ? max : null}
+            tono={tono}
+            tintaCifra={q.color}
             title={onFila ? `${q.label} · ver su tendencia` : q.label}
-            {...(onFila
-              ? { type: 'button', onClick: () => onFila(q), 'aria-haspopup': 'dialog' }
-              : {})}
-          >
-            <span className="subjetivo-k">{q.short || q.label}</span>
-            <span className="subjetivo-barra" aria-hidden="true">
-              <span className="subjetivo-relleno" style={{ width: `${pct}%` }} />
-            </span>
-            <span className="subjetivo-v" style={q.color ? { color: q.color } : undefined}>
-              {valor}
-              <small>/{max}</small>
-            </span>
-          </Fila>
+            {...(onFila ? { onClick: () => onFila(q), 'aria-haspopup': 'dialog' } : {})}
+          />
         );
       })}
-    </div>
+    </Medidores>
   );
 };

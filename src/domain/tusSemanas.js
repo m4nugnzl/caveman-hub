@@ -65,6 +65,12 @@ const medidasDe = (log, catalogo) => {
  *   startDate?: string|null su alta: ancla las fotos a su semana
  *   catalogo?: object[],    las medidas de su protocolo, para nombrarlas
  *   hoy: string,            ISO; marca la semana en curso
+ *   revisionDe?: (lunes) => object|null  `estadoDeRevision` de la semana: su
+ *                           estado se cuenta por PERIODO (con cadencia
+ *                           quincenal, las dos semanas son una entrega) y
+ *                           dice si todavía se puede completar
+ *   extras?: string[]       lunes que salen aunque no tengan nada: las
+ *                           revisiones que todavía se pueden completar
  * }} datos
  */
 export const semanasDelRastro = ({
@@ -75,6 +81,8 @@ export const semanasDelRastro = ({
   startDate = null,
   catalogo = [],
   hoy,
+  revisionDe = null,
+  extras = [],
 }) => {
   const semanas = new Map();
   const de = (lunes) => {
@@ -110,6 +118,9 @@ export const semanasDelRastro = ({
   /* Una entrega entregada o revisada es parte del rastro aunque esa semana no
      tenga nada más: es lo que se le mandó a su entrenador. */
   for (const c of checkIns) if (c.submittedAt || c.reviewedAt) de(c.weekStart);
+  /* Una revisión que se puede completar sale aunque esa semana no apuntara
+     nada: se le olvidó entrar, pero tiene los pesos en su báscula. */
+  for (const lunes of extras) if (lunes) de(lunes);
 
   const actual = weekStart(hoy);
   const orden = [...semanas.values()].sort((a, b) => a.semana.localeCompare(b.semana));
@@ -121,8 +132,11 @@ export const semanasDelRastro = ({
     /* Las medidas de la semana son las del ÚLTIMO registro que las trae: si se
        midió dos veces, la buena es la segunda, como en la báscula. */
     const ultimoConMedidas = [...s.registrosConMedidas].sort((a, b) => a.date.localeCompare(b.date)).pop();
-    const entrega = entregas.get(s.semana) || null;
-    const cerrada = cerradas.get(s.semana) || null;
+    const revision = revisionDe ? revisionDe(s.semana) : null;
+    /* Por PERIODO cuando se sabe: el lunes exacto dejaba la segunda semana de
+       una quincenal «sin entregar» con la entrega hecha. */
+    const entrega = revision ? revision.entrega : entregas.get(s.semana) || null;
+    const cerrada = cerradas.get(revision?.lunes || s.semana) || null;
 
     const fila = {
       semana: s.semana,
@@ -138,9 +152,16 @@ export const semanasDelRastro = ({
         ? 'revisada'
         : entrega?.submittedAt
           ? 'entregada'
-          : s.semana < actual
-            ? 'sin entregar'
-            : null,
+          : revision?.estado === 'pendiente'
+            ? s.semana < actual
+              ? 'por entregar'
+              : null
+            : s.semana < actual
+              ? 'sin entregar'
+              : null,
+      /* La revisión entera (`estadoDeRevision`): si se puede completar, hasta
+         cuándo, y por qué no cuando no. `null` sin pauta de revisión. */
+      revision,
       respuesta:
         cerrada && (cerrada.coachNotes || cerrada.video)
           ? { texto: cerrada.coachNotes || '', cuando: cerrada.reviewedAt, video: cerrada.video?.url || null }

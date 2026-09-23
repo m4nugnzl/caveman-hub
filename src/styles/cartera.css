@@ -50,7 +50,7 @@
   background: none; border: 0; border-radius: 0; box-shadow: none;
 }
 @media (min-width: 1024px) {
-  .shell-main:has(.cartera) { background: var(--surface-sunken); }
+  .shell-main:has(.cartera) { background: var(--hoja); } /* el lienzo de la aplicación (19 sep) */
 }
 
 .cartera > .cartera-cuerpo > .cartera-barra,

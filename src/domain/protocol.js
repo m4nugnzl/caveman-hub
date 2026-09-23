@@ -907,7 +907,13 @@ export const SESSION_QUESTIONS = [
     max: 10,
     anclas: ['Entero', 'Vacío'],
     lowerIsBetter: true,
-    color: 'var(--data-orange)',
+    /* ── Violeta, con el esfuerzo (20 sep) ─────────────────────────────────
+       Era `--data-orange`, tinta retirada por confundirse con el naranja del
+       aviso. De las ocho preguntas medibles de la sesión y las seis tintas
+       categóricas, dos parejas tienen que compartir; ésta es la más obvia: el
+       esfuerzo y la fatiga son LA MISMA sesión medida dos veces —lo que costó
+       y cómo acabaste—, igual que el peso y su ritmo en `metrics.js`. */
+    color: 'var(--data-violet)',
   },
   {
     id: 'pain',
@@ -957,7 +963,10 @@ export const SESSION_QUESTIONS = [
     min: 1,
     max: 5,
     anclas: ['Por los suelos', 'A tope'],
-    color: 'var(--data-lime)',
+    /* Teal, con las sensaciones generales: la segunda pareja de la sesión (ver
+       «Fatiga»). Energía y ánimo son el mismo eje —cómo estás— y de hecho se
+       preguntan seguidas. Era `--data-lime`, que se retira. */
+    color: 'var(--data-teal)',
   },
   {
     id: 'soreness',
@@ -999,6 +1008,26 @@ export const SESSION_QUESTIONS = [
     kind: 'text',
   },
 ];
+
+/**
+ * EL JUICIO DE UNA RESPUESTA DE ESCALA, para el color de su barrita: es el
+ * semáforo de la casa («el semáforo juzga»), y aquí sí hay de qué juzgar porque
+ * la pregunta dice hacia dónde es mejor (`lowerIsBetter`). La fatiga y el dolor
+ * no lo llevan escrito en los protocolos viejos y se leen como en
+ * `PanelEntreno`: menos es mejor.
+ *
+ * Vive aquí y no en el portal desde que la usan dos pantallas: las barritas de
+ * «Hoy» del cliente y las de «Cómo lo lleva» del resumen (19 sep). Un solo
+ * juicio, o el mismo hambre sale verde en una y naranja en la otra.
+ *
+ * @returns {'bien'|'medio'|'mal'}
+ */
+export const tonoDeEscala = (valor, max, q) => {
+  const menosEsMejor = q.lowerIsBetter ?? (q.id === 'fatigue' || q.id === 'pain');
+  const parte = max > 0 ? Math.min(1, Math.max(0, valor / max)) : 0;
+  const bueno = menosEsMejor ? 1 - parte : parte;
+  return bueno >= 0.7 ? 'bien' : bueno > 0.4 ? 'medio' : 'mal';
+};
 
 /* ==========================================================================
    El cuestionario del check-in
@@ -1053,7 +1082,15 @@ export const CHECKIN_QUESTIONS = [
     min: 1,
     max: 5,
     anclas: ['Nada', 'Clavada'],
-    color: 'var(--data-lime)',
+    /* ── El ámbar de la comida (20 sep) ────────────────────────────────────
+       Era `--data-lime`, tinta retirada. Va con las digestiones, que es su
+       consecuencia: cumplir la dieta y cómo te sienta son la misma pregunta
+       en dos momentos.
+
+       Ojo: ésta es la adherencia a la DIETA. La del entrenamiento vive en
+       `metrics.js` y va en teal con las series efectivas. Dos preguntas
+       distintas con el mismo nombre y, por eso mismo, con tinta distinta. */
+    color: 'var(--data-amber)',
   },
   {
     id: 'hunger',
@@ -1064,7 +1101,12 @@ export const CHECKIN_QUESTIONS = [
     max: 10,
     anclas: ['Nada', 'Muchísima'],
     lowerIsBetter: true,
-    color: 'var(--data-orange)',
+    /* Rojo, con el dolor de la semana: era `--data-orange`, tinta retirada.
+       La semana tiene NUEVE preguntas medibles y la paleta seis tintas, así
+       que tres parejas comparten; ésta es la tercera. Hambre y dolor van
+       juntas porque las dos son lo mismo para quien lee la semana: avisos del
+       cuerpo, y las dos se leen para decidir si el plan aguanta otra semana. */
+    color: 'var(--data-rose)',
   },
   {
     id: 'training_done',
@@ -1131,7 +1173,16 @@ export const CHECKIN_QUESTIONS = [
     min: 1,
     max: 5,
     anclas: ['Ninguna', 'Muchas'],
-    color: 'var(--data-slate)',
+    /* ── Y el gris deja de ser una categoría (20 sep) ──────────────────────
+       Era `--data-slate`, y ése es justo el que no puede usarse aquí: el gris
+       es LA REFERENCIA —lo comparado, el fantasma, lo que no lleva color— y es
+       lo que contesta `readiness.js` cuando una pregunta no dice tinta. Si una
+       de las nueve se lo queda, deja de significar «esto no tiene color».
+
+       Violeta, con los entrenos completados: la segunda pareja de la semana.
+       Las ganas de seguir y lo que de verdad has entrenado son la misma cosa
+       mirada desde dentro y desde fuera. */
+    color: 'var(--data-violet)',
   },
   /*
     ── El dolor, que no estaba ───────────────────────────────────────────────
@@ -1216,14 +1267,26 @@ export const catalogQuestionById = (id) => (id ? CATALOGO.find((q) => q.id === i
  */
 export const MAX_CUSTOM = 6;
 
-/** Color de las preguntas propias: rotan por la paleta de datos. */
+/**
+ * Color de las preguntas propias: rotan por la paleta de datos.
+ *
+ * Desde el 20 sep son las SEIS tintas categóricas de la casa y nada más, en el
+ * mismo orden que la rueda de las medidas propias (`domain/medidas.js`) — para
+ * que la tercera pregunta inventada y la tercera medida inventada no salgan de
+ * dos colores según qué pantalla las pinte.
+ *
+ * Se van el gris y el lima. El gris porque es la referencia y tiene que sobrar
+ * (ver «Ganas de seguir» más arriba); el lima porque la paleta se cerró en seis
+ * (ver `docs/lenguaje-visual.md` §7.3). Que sean seis y `MAX_CUSTOM` también
+ * es lo que garantiza que dos preguntas propias nunca compartan tinta.
+ */
 const CUSTOM_COLORS = [
-  'var(--data-slate)',
-  'var(--data-teal)',
+  'var(--data-rose)',
   'var(--data-blue)',
-  'var(--data-violet)',
-  'var(--data-lime)',
   'var(--data-pink)',
+  'var(--data-amber)',
+  'var(--data-violet)',
+  'var(--data-teal)',
 ];
 
 // ── Perfiles ───────────────────────────────────────────────────────────────

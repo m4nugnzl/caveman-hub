@@ -314,7 +314,9 @@ export const useNutrition = ({ nutritionRef, setNutrition, persist }) => {
         for (let i = 0; i < variantes.length; i += 1) {
           if (planDays(next).length <= i) next = addDietDay(next, { name: variantes[i].label || null });
           const dia = planDays(next)[i];
-          next = setDayMeals(next, dia.id, variantes[i].meals || []);
+          /* `meals: null` es una variante de solo objetivo —la pestaña de macros
+             de entreno y descanso—: se ponen sus cifras y el menú no se toca. */
+          if (variantes[i].meals) next = setDayMeals(next, dia.id, variantes[i].meals);
           if (variantes[i].targets) {
             next = setDayTargets(next, dia.id, toTargetFields(variantes[i].targets));
           }
