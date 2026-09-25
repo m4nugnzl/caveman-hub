@@ -104,6 +104,10 @@ const ORDEN = [
   'progress_photos',
   'check_ins',
   'client_events',
+  /* Lo que el entrenador piensa de cada intervención (0143): el motivo y la
+     valoración. Después de client_events, nutrition_plan_versions y
+     workout_data, que es de donde cuelga. */
+  'client_interventions',
   'client_phases',
   /* Lo mandado y lo contestado (0105). Después de `clients`, que es de quien
      cuelga por clave foránea. */

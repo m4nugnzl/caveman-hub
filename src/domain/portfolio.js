@@ -154,6 +154,8 @@ export const clientStatus = (
     mandadoCount = 0,
     /** Y cuántas te ha contestado que todavía no has leído (0108, ídem). */
     contestadoCount = 0,
+    /** Lo que ha atrasado sin que lo hayas visto, ya dicho (0138, ver `lineasDeAtrasos`). */
+    atrasoLinea = null,
   },
   today = todayISO()
 ) => {
@@ -302,6 +304,15 @@ export const clientStatus = (
         : `Te ha contestado ${contestadoCount} cosas sin leer`,
       'De lo que le mandaste suelto.'
     );
+  }
+
+  /*
+    Ha atrasado sesiones y no lo has visto (0138). Es un aviso y no un juicio:
+    atrasar es algo que el cliente puede hacer, y lo único que se pide es que
+    lo sepas. Se va al abrir su Entreno o al descartarlo.
+  */
+  if (atrasoLinea) {
+    add('atrasado', 'baja', atrasoLinea, 'Ha movido sus sesiones hacia delante.');
   }
 
   const sinceTraining = daysSince(lastTraining, today);
@@ -794,6 +805,9 @@ export const buildPortfolio = (
     /* Y cuántas respuestas suyas te faltan por leer (0108). Misma forma y mismo
        motivo: la regla de qué cuenta vive en `domain/envios.js`. */
     contestadoCounts = {},
+    /* Y lo que ha atrasado sin que lo hayas visto, una línea por cliente. La
+       regla vive en `domain/planDeSesiones` (`lineasDeAtrasos`). */
+    atrasoLineas = {},
   },
   today = todayISO()
 ) => {
@@ -815,6 +829,7 @@ export const buildPortfolio = (
         equipmentCount: equipmentCounts[client.id] || 0,
         mandadoCount: mandadoCounts[client.id] || 0,
         contestadoCount: contestadoCounts[client.id] || 0,
+        atrasoLinea: atrasoLineas[client.id] || null,
         // El check-in de LA SEMANA EN CURSO. Los anteriores no dicen nada del
         // estado de hoy, y mezclarlos haría que un cliente pareciera pendiente
         // por algo que entregó en marzo.
@@ -1186,6 +1201,17 @@ export const INBOX_TASKS = [
     why: (row) => row.alerts.find((a) => a.id === 'contestado_nuevo')?.label || '',
   },
   {
+    /* Ha atrasado sesiones (0138). Lleva al Entreno, que es donde se ve qué
+       movió; y se puede descartar aquí, si ya te lo dijo por otro lado. */
+    id: 'atrasado',
+    seccion: 'rutina',
+    label: 'Han atrasado entrenos',
+    hint: 'Han movido sus sesiones hacia delante',
+    tone: 'info',
+    match: (row) => row.alerts.some((a) => a.id === 'atrasado'),
+    why: (row) => row.alerts.find((a) => a.id === 'atrasado')?.label || '',
+  },
+  {
     id: 'mandado',
     seccion: 'protocolo',
     label: 'Les falta lo que les mandaste',
@@ -1380,6 +1406,19 @@ export const COLAS_INICIO = [
     verbo: 'Leer',
     seccion: 'protocolo',
     tasks: ['contestado'],
+  },
+  {
+    /*
+      Al lado de «Sin leer» porque es lo mismo en otro sitio: algo que ha hecho
+      el cliente y que tienes que saber (0138).
+    */
+    id: 'atrasos',
+    label: 'Han atrasado',
+    alDia: 'atrasos',
+    sub: 'sus sesiones',
+    verbo: 'Ver',
+    seccion: 'rutina',
+    tasks: ['atrasado'],
   },
   {
     id: 'programar',

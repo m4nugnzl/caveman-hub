@@ -12,7 +12,9 @@
  *
  * ══ La forma ════════════════════════════════════════════════════════════════
  *   { id, name, plannedWeeks, intent?, note?, sessions?, mobilityDrills?,
- *     microciclo?, referencias? }
+ *     microciclo?, referencias?, folder? }
+ *
+ * · `folder` es su temporada, como en un bloque (ver `domain/temporadas`).
  *
  * · El ORDEN del array es el orden en el tiempo. No lleva fechas: su sitio se
  *   deriva del final previsto del abierto, sumando lo que dura cada uno.
@@ -33,7 +35,7 @@
  */
 
 import { newId } from '@/lib/ids';
-import { blockTraits, blocksOf } from './blocks';
+import { blockTraits, blocksOf, carpetaDelBloque } from './blocks';
 import { duracionDe, normalizaMicrociclo } from './training';
 
 /** Tope de un nombre de ejercicio de referencia: el de la Librería. */
@@ -63,6 +65,7 @@ export const borradorSaneado = (b) => {
   if (!plannedWeeks) return null;
   const microciclo = normalizaMicrociclo(b.microciclo);
   const referencias = referenciasSaneadas(b.referencias);
+  const folder = carpetaDelBloque(b);
   return {
     id: b.id,
     name: String(b.name ?? '').trim() || 'Bloque',
@@ -73,6 +76,7 @@ export const borradorSaneado = (b) => {
     ...(Array.isArray(b.mobilityDrills) && b.mobilityDrills.length > 0 ? { mobilityDrills: b.mobilityDrills } : {}),
     ...(microciclo ? { microciclo } : {}),
     ...(referencias.length > 0 ? { referencias } : {}),
+    ...(folder ? { folder } : {}),
   };
 };
 
@@ -111,7 +115,11 @@ const conBorradores = (program, lista) => ({ ...program, draftBlocks: lista });
 export const anadirBorrador = (program, datos = {}) => {
   const lista = borradoresDe(program);
   const nombre = String(datos.name ?? '').trim() || `Bloque ${blocksOf(program).length + lista.length + 1}`;
-  const borrador = borradorSaneado({ ...datos, id: newId('b'), name: nombre });
+  /* Hereda la temporada de lo que tiene delante —el último previsto o, sin
+     ninguno, el abierto— salvo que llegue una. */
+  const anterior = lista[lista.length - 1] || blocksOf(program).at(-1);
+  const folder = datos.folder !== undefined ? datos.folder : carpetaDelBloque(anterior);
+  const borrador = borradorSaneado({ ...datos, id: newId('b'), name: nombre, folder });
   if (!borrador) return { program, borrador: null };
   return { program: conBorradores(program, [...lista, borrador]), borrador };
 };
@@ -177,6 +185,7 @@ export const datosParaEmpezar = (borrador) => ({
   intent: borrador.intent || null,
   note: borrador.note || null,
   microciclo: borrador.microciclo || null,
+  folder: carpetaDelBloque(borrador),
 });
 
 /**

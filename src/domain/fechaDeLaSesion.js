@@ -97,15 +97,84 @@ export const porQueNoSeMueve = ({ session, esCliente = false, entregas = [], pre
   if (session?.isLegacy) return 'Es un registro antiguo: su día es el de su microciclo.';
   if (!session || !session.id) return 'Esta sesión todavía no se ha guardado.';
   if (!esCliente || !session.date) return null;
-  /* La cuenta de `puedeTocarLaSemana`, pero diciendo cuál de las dos
-     fronteras es: no es lo mismo «ya la revisó» que «queda muy atrás». */
-  const estado = estadoDeRevision({ lunes: session.date, entregas, preferences, startDate, hoy });
-  const cerrada = estado ? !estado.editable && estado.estado === 'cerrada' : false;
-  if (cerrada) return 'Tu entrenador ya ha revisado esa semana. Si hay que cambiar el día, díselo.';
-  const dentro = estado
-    ? estado.editable
-    : weekStart(session.date) >= addDays(weekStart(hoy), -MARGEN_SEMANAS * 7);
-  return dentro ? null : 'Esa semana queda fuera de plazo. Si hay que cambiar el día, díselo a tu entrenador.';
+  const frontera = fronteraDelCliente({ fecha: session.date, entregas, preferences, startDate, hoy });
+  if (frontera === 'cerrada') return 'Tu entrenador ya ha revisado esa semana. Si hay que cambiar el día, díselo.';
+  if (frontera === 'fuera') return 'Esa semana queda fuera de plazo. Si hay que cambiar el día, díselo a tu entrenador.';
+  return null;
+};
+
+/**
+ * ¿Puede el cliente escribir las series de una sesión de ese día? `null` si
+ * puede; si no, por qué. Es la frontera de las revisiones (23 sep): lo que su
+ * entrenador ya ha revisado no lo toca, ni lo que queda fuera de plazo. El
+ * entrenador no tiene frontera.
+ *
+ * La base repite la regla en `workout_data_frontera_del_cliente` (0137): esto
+ * es lo que evita dejar escribir algo que el servidor va a rechazar.
+ */
+export const porQueNoSeEscribe = ({ fecha, esCliente = false, entregas = [], preferences, startDate = null, hoy = todayISO() }) => {
+  if (!esCliente || !fecha) return null;
+  const frontera = fronteraDelCliente({ fecha, entregas, preferences, startDate, hoy });
+  if (frontera === 'cerrada') return 'Tu entrenador ya ha revisado esta semana. Si hay algo que corregir, díselo.';
+  if (frontera === 'fuera') return 'Esta semana queda fuera de plazo. Si hay algo que corregir, díselo a tu entrenador.';
+  return null;
+};
+
+/**
+ * La cuenta de `puedeTocarLaSemana`, pero diciendo cuál de las dos fronteras
+ * es: no es lo mismo «ya la revisó» que «queda muy atrás».
+ *
+ * @returns `null` si el cliente puede tocar esa semana, `'cerrada'` o `'fuera'`.
+ */
+const fronteraDelCliente = ({ fecha, entregas, preferences, startDate, hoy }) => {
+  const estado = estadoDeRevision({ lunes: fecha, entregas, preferences, startDate, hoy });
+  if (estado && !estado.editable && estado.estado === 'cerrada') return 'cerrada';
+  const dentro = estado ? estado.editable : weekStart(fecha) >= addDays(weekStart(hoy), -MARGEN_SEMANAS * 7);
+  return dentro ? null : 'fuera';
+};
+
+/**
+ * LOS DÍAS DE UNA APARICIÓN: los de su sesión, sin cruzarse con sus hermanas.
+ *
+ * Qué sesión es de qué aparición lo dice el orden por fecha
+ * (`aparicionesDelMicrociclo`), así que el segundo Push no puede caer antes que
+ * el primero: se cambiarían de fila sin que nadie lo pidiera. Se acota entre la
+ * última fecha de las apariciones anteriores y la primera de las siguientes.
+ */
+export const limitesDeLaAparicion = (limites, { anteriores = [], siguientes = [] } = {}) => {
+  const antes = [...anteriores].sort().at(-1) || null;
+  const despues = [...siguientes].sort()[0] || null;
+  const desde = [limites?.desde, antes].filter(Boolean).sort().at(-1) || null;
+  const hasta = despues && despues < limites.hasta ? despues : limites.hasta;
+  return { desde, hasta };
+};
+
+/**
+ * El día que lleva una sesión nueva si nadie lo toca: hoy, dentro de sus
+ * límites. Quien la rellena el mismo día no tiene que elegir nada.
+ */
+export const diaPorDefecto = (limites, hoy = todayISO()) => {
+  if (limites?.hasta && hoy > limites.hasta) return limites.hasta;
+  if (limites?.desde && hoy < limites.desde) return limites.desde;
+  return hoy;
+};
+
+/**
+ * ¿SE APUNTÓ DÍAS DESPUÉS? El día en que se empezó a apuntar, si es posterior
+ * al día de la sesión; si no, `null`.
+ *
+ * Sale de `startedAt`, que lo estampa el servidor al crear la sesión (0119):
+ * un reloj de teléfono no lo puede mover. Es la única marca que ve el
+ * entrenador de lo registrado a posteriori; corregir una serie no deja marca,
+ * igual que no la deja en el flujo guiado.
+ */
+export const apuntadaDespues = (session) => {
+  const fecha = toISODate(session?.date);
+  /* En UTC, como `todayISO`, que es con lo que nace la fecha de la sesión: en
+     hora local, lo apuntado a la una de la madrugada saldría «al día
+     siguiente» sin serlo. */
+  const empezada = toISODate(session?.startedAt);
+  return fecha && empezada && empezada > fecha ? empezada : null;
 };
 
 /**

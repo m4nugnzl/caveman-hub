@@ -1,0 +1,487 @@
+/*
+  ══ LOS BLOQUES COMO UNA CARTERA DE PASES (`?v=lista`, 25 sep 2026) ═════════
+
+  Sustituye a la línea de tiempo del 24 sep. Cada bloque es un PASE
+  (`PaseDeBloque`) y cada temporada una FUNDA (`domain/temporadas`).
+
+  ── El pase ───────────────────────────────────────────────────────────────
+  La única pieza con color de la página, y por eso lleva toda la tinta: un
+  degradado diagonal de su intención (`--data-*`) hacia la misma oscurecida,
+  un brillo suave arriba a la derecha y un filo interior claro. El texto es
+  BLANCO siempre; lo que cambia por tema es cuánto se oscurece:
+
+    · claro  — la tinta al 82 % (18 % de negro) → la peor, ámbar: 6,6:1;
+    · oscuro — los `--data-*` de noche son claros (el ámbar da 1,8:1 con
+      blanco), así que el arranque baja al 48 % de negro (el peor, teal:
+      6,3:1) y el ámbar al 52 % (6,6:1). Medido con la fórmula de WCAG.
+
+  Lo tenue va al 80 % de blanco como poco: sobre el arranque más claro de
+  cada intención y tema da 4,7:1 o más (teal, de noche).
+
+  ── La funda ──────────────────────────────────────────────────────────────
+  Neutra, de la casa: la superficie y su filo. El color solo asoma por detrás
+  —los cantos de sus tres últimos pases— y en la tira de intenciones, que
+  distingue y no juzga (ver `ley-del-color`).
+*/
+
+.pases-pagina {
+  container: pases / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  min-width: 0;
+  max-width: 68rem;
+}
+
+/* ── La cabecera, a la iOS ───────────────────────────────────────────────── */
+.pases-cab {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  flex-wrap: wrap;
+}
+.pases-cab-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pases-titulo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.pases-cab-dato { font-size: var(--fs-sm); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.pases-cab-mandos { display: flex; align-items: center; gap: var(--s1); flex-wrap: wrap; }
+.pases-cab-mandos .cab-accion,
+.pases-barra .cab-accion { white-space: nowrap; }
+.cab-accion.is-hecho { font-weight: 600; }
+/* En el teléfono los mandos van arriba a la derecha y el título grande debajo. */
+@container pases (max-width: 559.98px) {
+  .pases-cab { flex-direction: column-reverse; align-items: stretch; flex-wrap: nowrap; }
+  .pases-cab-mandos { justify-content: flex-end; }
+}
+.pases-mas.btn { color: var(--accent); }
+
+.pases-barra { display: flex; align-items: center; justify-content: space-between; margin-bottom: calc(var(--s3) * -1); }
+.pases-atras {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+  padding: 6px var(--s2) 6px 2px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-base);
+  cursor: pointer;
+}
+.pases-atras:hover { background: var(--accent-wash); }
+.pases-atras:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pases-rotulo {
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* ── La portada: el pase de hoy y las fundas, 5:4 ─────────────────────────── */
+.pases-portada {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 4fr);
+  gap: var(--s6);
+  align-items: start;
+}
+@container pases (max-width: 759.98px) {
+  .pases-portada { grid-template-columns: minmax(0, 1fr); gap: var(--s6); }
+}
+
+.pases-renombrar { max-width: 28rem; }
+.pases-hoy,
+.pases-temporadas { min-width: 0; }
+.pases-peligro.btn { color: var(--negative); }
+
+/* ══ EL PASE ═══════════════════════════════════════════════════════════════ */
+.pase {
+  --pase-tinta: var(--data-slate); /* la de cada pase llega en línea */
+  --pase-luz: color-mix(in srgb, var(--pase-tinta), black 18%);
+  --pase-fondo: color-mix(in srgb, var(--pase-tinta), black 52%);
+  --pase-brillo: rgba(255, 255, 255, 0.16);
+  --pase-r: 22px;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--pase-r);
+  color: #fff;
+  background:
+    radial-gradient(110% 80% at 100% 0%, var(--pase-brillo), transparent 58%),
+    linear-gradient(135deg, var(--pase-luz), var(--pase-fondo));
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 18px 36px -18px color-mix(in srgb, var(--pase-tinta) 70%, transparent);
+  transition:
+    transform 0.25s var(--ease),
+    box-shadow 0.25s var(--ease),
+    margin 0.35s var(--ease),
+    padding 0.35s var(--ease);
+}
+/* El filo interior, por encima de todo lo que se pinte dentro. */
+.pase::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  pointer-events: none;
+}
+[data-theme='dark'] .pase {
+  --pase-luz: color-mix(in srgb, var(--pase-tinta), black 48%);
+  --pase-fondo: color-mix(in srgb, var(--pase-tinta), black 74%);
+  --pase-brillo: rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.3),
+    0 18px 36px -18px color-mix(in srgb, var(--pase-tinta) 40%, black);
+}
+[data-theme='dark'] .pase[data-intent='descarga'] { --pase-luz: color-mix(in srgb, var(--pase-tinta), black 52%); }
+
+/* Lo previsto, velado: la tinta a medias con el gris y el filo a trazos. */
+.pase.is-previsto {
+  --pase-luz: color-mix(in srgb, color-mix(in srgb, var(--pase-tinta) 50%, var(--data-slate)), black 20%);
+  --pase-fondo: color-mix(in srgb, color-mix(in srgb, var(--pase-tinta) 50%, var(--data-slate)), black 50%);
+  --pase-brillo: rgba(255, 255, 255, 0.08);
+}
+[data-theme='dark'] .pase.is-previsto {
+  --pase-luz: color-mix(in srgb, color-mix(in srgb, var(--pase-tinta) 50%, var(--data-slate)), black 50%);
+  --pase-fondo: color-mix(in srgb, color-mix(in srgb, var(--pase-tinta) 50%, var(--data-slate)), black 74%);
+}
+.pase.is-previsto::after { box-shadow: none; border: 1.5px dashed rgba(255, 255, 255, 0.5); }
+
+/* La puerta: el pase entero, por debajo de sus mandos. */
+.pase > .task-hit { z-index: 1; }
+.pase:has(> .task-hit:hover):not(:has(.pase-mandos:hover)) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08),
+    0 24px 44px -18px color-mix(in srgb, var(--pase-tinta) 80%, transparent);
+}
+.pase:has(> .task-hit:focus-visible) { outline: 2px solid var(--accent); outline-offset: 3px; }
+.pase.is-arrastrable { cursor: grab; }
+.pase.is-arrastrable > .task-hit { cursor: grab; }
+
+.pase-mandos {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-left: auto;
+}
+.pase .btn.pase-menu {
+  color: #fff;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.pase .btn.pase-menu:hover,
+.pase .btn.pase-menu[aria-expanded='true'] { background: rgba(255, 255, 255, 0.16); }
+.pase .btn.pase-menu:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.pase .btn.pase-empezar {
+  background: #fff;
+  color: var(--pase-fondo);
+  border-color: transparent;
+  font-weight: 600;
+}
+.pase .btn.pase-empezar:hover { background: rgba(255, 255, 255, 0.88); }
+
+/* El texto del pase: blanco, y lo tenue nunca por debajo del 80 %. */
+.pase-quien { display: flex; flex-direction: column; min-width: 0; }
+.pase-antetitulo {
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+}
+.pase-nombre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pase-split { font-size: var(--fs-sm); color: rgba(255, 255, 255, 0.94); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pase-fechas { font-size: var(--fs-sm); color: rgba(255, 255, 255, 0.8); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pase-cifras {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s6);
+  pointer-events: none;
+}
+.pase-cifras .pase-mandos { pointer-events: auto; }
+.pase-cifra { display: flex; flex-direction: column; gap: 2px; }
+.pase-cifra > b {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pase-cifra > small { font-size: var(--fs-xs); color: rgba(255, 255, 255, 0.84); }
+
+/* La curva del rendimiento, de fondo: forma, no lectura. */
+.pase-curva {
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 58%;
+  pointer-events: none;
+}
+.pase-curva-area { fill: rgba(255, 255, 255, 0.1); }
+.pase-curva-linea { fill: none; stroke: rgba(255, 255, 255, 0.55); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+
+/* ── La variante de portada ──────────────────────────────────────────────── */
+.pase.is-portada {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  min-height: 300px;
+  padding: var(--s5) 26px var(--s4);
+}
+.pase.is-portada .pase-cabeza {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  pointer-events: none;
+}
+.pase.is-portada .pase-nombre { font-size: var(--fs-xl); margin: 6px 0 var(--s2); }
+.pase.is-portada .pase-split + .pase-fechas { margin-top: 2px; }
+/* La curva, detrás de los números grandes y por encima del pie. */
+.pase.is-portada .pase-curva {
+  bottom: 60px;
+  height: 44%;
+  /* El área se desvanece hacia el pie en vez de cortarse. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+.pase.is-portada .pase-cifras { grid-row: 3; margin-top: var(--s6); padding-bottom: var(--s4); }
+/* Sin pie, las cifras llegan hasta el canto. */
+.pase.is-portada .pase-cifras:last-child { padding-bottom: var(--s2); }
+
+.pase-pie {
+  grid-row: 4;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 36px;
+  padding-top: var(--s3);
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: var(--fs-sm);
+  color: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.pase-pie .pase-mandos { pointer-events: auto; }
+.pase-siguiente { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* El anillo: por qué microciclo va. */
+.pase-anillo { position: relative; flex: none; width: 64px; height: 64px; display: grid; place-items: center; }
+.pase-anillo > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pase-anillo-pista { fill: none; stroke: rgba(255, 255, 255, 0.24); stroke-width: 6; }
+.pase-anillo-arco { fill: none; stroke: #fff; stroke-width: 6; stroke-linecap: round; }
+.pase-anillo-cifra {
+  position: relative;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.pase-anillo-cifra > small { font-size: var(--fs-2xs); font-weight: 600; color: rgba(255, 255, 255, 0.8); }
+
+/* ── La variante de temporada: la cascada ────────────────────────────────── */
+/* No `.cascada` a secas: esa es la entrada escalonada de base.css y la llevan
+   las páginas enteras (la portada de Revisiones se quedaba en 40rem). */
+.cascada-de-pases { list-style: none; margin: 0; padding: 0; max-width: 40rem; display: flex; flex-direction: column; }
+.cascada-hueco { transition: margin 0.35s var(--ease); }
+/* De cada plegado asoma su cabecera: el siguiente se monta sobre su relleno. */
+.cascada-hueco + .cascada-hueco { margin-top: -26px; }
+.cascada-hueco.is-entero + .cascada-hueco { margin-top: var(--s3); }
+.cascada-hueco.is-destino .pase { box-shadow: 0 0 0 3px var(--accent); }
+
+.pase.is-temporada { padding: var(--s4) var(--s5) calc(var(--s4) + 26px); }
+.pase.is-temporada.is-entero { padding-bottom: var(--s5); }
+.pase.is-temporada.is-plegado:has(> .task-hit:hover) { transform: translateY(-4px); }
+.pase-cabecera {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s3);
+  pointer-events: none;
+}
+.pase.is-temporada .pase-nombre { font-size: var(--fs-md); }
+.pase.is-temporada .pase-fechas { font-size: var(--fs-xs); margin-top: 2px; }
+.pase-resumen { display: flex; align-items: center; gap: var(--s2); flex: none; min-height: 26px; }
+.pase-dato { font-size: var(--fs-sm); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pase-chapa {
+  padding: 2px var(--s2);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.2);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* El cuerpo se despliega de 0fr a 1fr: la transición de alto sin medir. */
+.pase-cuerpo {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s var(--ease);
+}
+.pase.is-entero .pase-cuerpo { grid-template-rows: 1fr; }
+.pase-cuerpo-dentro { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: var(--s5); }
+.pase.is-temporada .pase-cuerpo-dentro > .pase-split { position: relative; z-index: 2; margin-top: var(--s3); pointer-events: none; }
+.pase.is-temporada .pase-cifras { padding-top: var(--s2); }
+.pase.is-temporada .pase-cifras:first-child { margin-top: var(--s5); }
+
+/* ══ LAS FUNDAS ═════════════════════════════════════════════════════════════ */
+.fundas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s4); }
+
+.funda { position: relative; padding-top: 27px; }
+.funda-cantos { position: absolute; inset: 0 0 auto; height: 44px; pointer-events: none; }
+.funda-canto {
+  position: absolute;
+  height: 30px;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--pase-tinta), black 12%),
+    color-mix(in srgb, var(--pase-tinta), black 40%));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: transform 0.25s var(--ease);
+}
+.funda-canto.is-previsto { opacity: 0.55; }
+.funda-canto.is-0 { top: 18px; left: 10px; right: 10px; z-index: 3; }
+.funda-canto.is-1 { top: 9px; left: var(--s5); right: var(--s5); z-index: 2; }
+.funda-canto.is-2 { top: 0; left: 34px; right: 34px; z-index: 1; }
+[data-theme='dark'] .funda-canto {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--pase-tinta), black 35%),
+    color-mix(in srgb, var(--pase-tinta), black 62%));
+}
+/* Al pasar por encima, los pases se asoman un poco más. */
+.funda:has(.task-hit:hover) .funda-canto.is-0 { transform: translateY(-3px); }
+.funda:has(.task-hit:hover) .funda-canto.is-1 { transform: translateY(-5px); }
+.funda:has(.task-hit:hover) .funda-canto.is-2 { transform: translateY(-7px); }
+
+.funda-tarjeta {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s4) 18px;
+  border-radius: 16px;
+  background: var(--surface-raised);
+  box-shadow:
+    0 0 0 1px var(--hairline),
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 8px 20px -14px rgba(15, 23, 42, 0.18);
+}
+.funda:has(.task-hit:focus-visible) .funda-tarjeta { outline: 2px solid var(--accent); outline-offset: 2px; }
+.funda.is-destino .funda-tarjeta { box-shadow: 0 0 0 2px var(--accent); }
+.funda.is-vacia { padding-top: 0; }
+.funda.is-vacia .funda-tarjeta { box-shadow: none; border: 1.5px dashed var(--hairline-strong); background: transparent; }
+
+.funda-cab { display: flex; align-items: center; gap: var(--s2); min-height: 28px; }
+.funda-icono { flex: none; color: var(--accent); }
+.funda-nombre {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.funda-mandos { position: relative; z-index: 2; margin-left: auto; display: flex; gap: var(--s1); }
+.funda-fechas { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.funda-dato { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
+/* La tira de intenciones, a la escala común de todas las fundas. */
+.funda-tira { display: block; height: 6px; margin-top: var(--s3); border-radius: 3px; background: var(--fill); overflow: hidden; }
+.funda-tira-lleno { display: flex; gap: 2px; height: 100%; }
+.funda-tira-lleno > i { flex-basis: 0; min-width: 3px; border-radius: 3px; background: var(--pase-tinta); }
+
+.funda-nueva {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  width: 100%;
+  margin-top: var(--s4);
+  padding: 14px;
+  border: 1.5px dashed var(--hairline-strong);
+  border-radius: 16px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--fast), border-color var(--fast);
+}
+button.funda-nueva:hover { color: var(--accent); border-color: var(--accent); }
+button.funda-nueva:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.funda-nueva.is-nombrando { justify-content: flex-start; color: var(--accent); cursor: default; }
+
+/* ── Editar, dentro de una temporada ─────────────────────────────────────── */
+.pases-edicion { display: flex; flex-direction: column; gap: var(--s4); max-width: 40rem; }
+.pases-edicion-mandos { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.pases-destinos { display: flex; flex-direction: column; gap: var(--s2); }
+.pases-destinos-rotulo { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.pases-destinos-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+.pases-destino {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px var(--s3);
+  border: 1.5px dashed var(--hairline-strong);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+.pases-destino.is-destino { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pase,
+  .cascada-hueco,
+  .pase-cuerpo,
+  .funda-canto,
+  .funda-nueva { transition: none; }
+  .pase:has(> .task-hit:hover):not(:has(.pase-mandos:hover)),
+  .pase.is-temporada.is-plegado:has(> .task-hit:hover),
+  .funda:has(.task-hit:hover) .funda-canto { transform: none; }
+}

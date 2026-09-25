@@ -591,6 +591,10 @@ export default function App() {
                       dirección, por su lunes (22 sep 2026). */}
                   <Route path="semana" element={<PortadaDeSemanas />} />
                   <Route path="semana/:lunes" element={<WeekReview />} />
+                  {/* La temporada como línea de tiempo (24 sep 2026). Vive en
+                      la portada de Revisiones, detrás de su conmutador, hasta
+                      que sustituya a las tiras (fase 7). */}
+                  <Route path="temporada" element={<Navigate to="../semana?vista=linea" replace />} />
                   {/* El resumen ES el análisis: una sola pantalla, y lo que
                       antes era la segunda —los diez gráficos con su barra de
                       cuatro pestañas— se abre ahora en ventanas desde el título

@@ -123,6 +123,16 @@ export const taskAction = (taskId, row, handlers) => {
       onClick: () => handlers.review(row.review.id, row.client.id),
     };
   }
+  /* Lo atrasado se da por visto sin abrir su Entreno: a veces ya te lo ha
+     dicho por otro lado. Solo se marca como visto; la marca en su Entreno se queda. */
+  if (taskId === 'atrasado' && handlers.verAtrasos) {
+    return {
+      icon: Check,
+      label: 'Descartar',
+      title: 'Descartar',
+      onClick: () => handlers.verAtrasos(row.client.id),
+    };
+  }
   if (taskId === 'inactive' && row.client.phone) {
     return {
       icon: MessageCircle,

@@ -45,6 +45,22 @@ const POR_INTENCION = {
 };
 
 /**
+ * La primera palabra de un nombre, cuando no es el nombre entero.
+ *
+ * Es el peldaño que faltaba entre decirlo todo y decir una letra. Un nombre
+ * recortado a «Inten…» no vale —ocupa lo mismo y no dice más—, pero una palabra
+ * entera sí: «Descarga» de «Descarga y test», «Transición» de «Transición
+ * suave». Sin ella, un bloque de 92 px que se llama algo se quedaba en «D».
+ */
+export const primeraPalabra = (nombre) => {
+  const limpio = String(nombre || '').trim();
+  const corte = limpio.indexOf(' ');
+  if (corte <= 0) return null;
+  const una = limpio.slice(0, corte);
+  return una.length > 1 ? una : null;
+};
+
+/**
  * Lo que se escribe dentro de la píldora de un bloque.
  *
  * @param nombre     el nombre que le puso el entrenador, que manda.
@@ -61,7 +77,7 @@ export const etiquetaDelBloque = ({ nombre, intent = null, cola = '', ancho }) =
   const util = ancho - AIRE_BLOQUE;
   const cabe = (t) => t && anchoTexto(t, PX_BLOQUE) <= util;
 
-  for (const t of [cola ? `${nombre}${cola}` : null, nombre, meta?.corto]) {
+  for (const t of [cola ? `${nombre}${cola}` : null, nombre, meta?.corto, primeraPalabra(nombre)]) {
     if (cabe(t)) return { texto: t, letra: false };
   }
   /* La letra se centra y no lleva aire: una píldora de 16 px cabe una «A». */
@@ -131,4 +147,48 @@ export const rotuloDeFase = ({ titulo, ritmo = '', cuenta = '', pesoEntrada = nu
       { texto: e, tono: 'peso' },
     ].filter((x) => x.texto),
   };
+};
+
+/** Lo que separa dos pesos seguidos para que no se lean como uno. */
+export const AIRE_PESO = 8;
+/** Lo que separa la salida de una fase de la entrada de la siguiente. */
+export const HUECO_DOBLE = 8;
+
+const anchoDePartes = (partes) =>
+  partes.reduce((n, p) => n + anchoTexto(p, PX_FASE), 0) + HUECO_DOBLE * Math.max(0, partes.length - 1);
+
+/**
+ * Los pesos de los extremos, cada uno atado a su unión.
+ *
+ * Un peso no va en el rótulo de la fase: en la unión de dos fases la salida de
+ * una es la entrada de la otra, y escrito dos veces en dos renglones no se sabía
+ * de quién era (el dueño, 23 sep 2026). Así que se escribe UNA vez, encima de la
+ * unión, con un tallo hasta ella. Si la fase ya empezó y su entrada real no es
+ * la salida que se esperaba de la anterior, van los dos: la salida pegada a su
+ * final y la entrada al principio de la siguiente, a cada lado del tallo.
+ *
+ * @param marcas `[{ x, ancla, versiones }]`. `ancla`: 'centro' (una unión),
+ *               'izq' (el principio de una fase suelta) o 'der' (su final).
+ *               `versiones`: de la más larga a la más corta, cada una una lista
+ *               de trozos (uno, o dos si salida y entrada no coinciden).
+ * @param ancho  el de la tira: ninguna marca se sale de ella.
+ * @returns las que caben, `{ x, left, ancho, partes }`. La que no cabe ni en su
+ *          versión más corta se calla: la dice el globo.
+ */
+export const colocarPesos = (marcas, ancho) => {
+  const puestas = [];
+  let fin = -Infinity;
+  for (const m of [...marcas].sort((p, q) => p.x - q.x)) {
+    for (const partes of m.versiones) {
+      const w = anchoDePartes(partes);
+      if (w > ancho) continue;
+      let left = m.ancla === 'izq' ? m.x : m.ancla === 'der' ? m.x - w : m.x - w / 2;
+      left = Math.max(0, Math.min(ancho - w, left));
+      if (left < fin + AIRE_PESO) continue;
+      puestas.push({ x: m.x, ancla: m.ancla, left, ancho: w, partes });
+      fin = left + w;
+      break;
+    }
+  }
+  return puestas;
 };

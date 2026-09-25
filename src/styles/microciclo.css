@@ -78,6 +78,11 @@
   gap: var(--s3);
 }
 
+/* El nombre del split, arriba del todo: rótulo y campo en un renglón. */
+.micro-nombre { display: flex; align-items: center; gap: var(--s3); }
+.micro-nombre-k { flex: none; font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); }
+.micro-nombre-campo { flex: 1 1 auto; min-width: 0; }
+
 /* ── UNA SOLA CABECERA ────────────────────────────────────────────────────────
    «Semanal | Rotativo   Tandas 2-1 ›   9 días · 6 entrenos». Las tandas tenían
    su propio renglón debajo; dos renglones de etiqueta + valor se leen como dos
@@ -467,3 +472,25 @@
     max-height: 60svh;
   }
 }
+
+/* ══ EL SPLIT DEL BLOQUE, EN LA BARRA (24 sep) ═════════════════════════════════
+   `Coach/Workout/SplitDelBloque`: solo el nombre del split, en el sitio de los
+   puntos del ritmo; qué hoja va cada día se ve en el editor al pulsarlo. Es la
+   misma caja que «+ hoja» (`.tira-mas`) con el texto en tinta: es un dato,
+   no un «+». Si la fila no cabe, el nombre largo cede al corto. */
+.split-pastilla {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-weight: 600;
+}
+.split-pastilla svg { flex: none; color: var(--text-tertiary); }
+.split-pastilla.is-lectura { cursor: default; }
+.split-largo { overflow: hidden; text-overflow: ellipsis; max-width: 28ch; }
+.split-corto { display: none; }
+.tira-fila[data-aprieta="2"] .split-largo { display: none; }
+.tira-fila[data-aprieta="2"] .split-corto { display: inline; }

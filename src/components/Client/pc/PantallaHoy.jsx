@@ -277,6 +277,7 @@ export const PantallaHoy = ({ datos }) => {
                   icono={Salad}
                   rotulo={hoy.dieta.rotulo}
                   frase={hoy.dieta.frase}
+                  nota={hoy.dieta.nota}
                   to="/mi/dieta"
                 />
               ) : null}

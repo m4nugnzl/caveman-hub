@@ -509,7 +509,24 @@ describe('AppProvider', () => {
     // Y 317 con dos del 23 sep: `marcarExcepcionVista` («Es intencionado» en la
     // marca de una excepción) y `cambiarFechaDeSesion`, el mini calendario del
     // día de una sesión que comparten entrenador y cliente (0135).
-    expect(Object.keys(visto.app).length).toBe(317);
+    //
+    // Y 320 con EL CREADOR DEL PLAN: `estirarFase` (el arrastre del final de
+    // una fase, que empuja las de detrás; 0136) y `anadirHecho`/`quitarHecho`,
+    // los hechos del plan puestos desde su barra.
+    //
+    // Y 326 con ATRASAR LAS SESIONES (0138): los datos `sessionPlans` y
+    // `sessionDelays`, y sus cuatro acciones —`atrasarSesiones` y
+    // `deshacerAtraso` del cliente, `verAtrasos` del entrenador y
+    // `reloadPlanDeSesiones`—. Ver `domain/planDeSesiones`.
+    //
+    // Y 328 con LAS TEMPORADAS de la lista de bloques: `ponerTemporada` (la
+    // `folder` de una lista de bloques y previstos) y `moverBorradorDelBloque`.
+    // Ver `domain/temporadas`.
+    //
+    // Y 330 con LAS INTERVENCIONES (0143): el dato `notasDeIntervencion` (el
+    // motivo, la valoración y las ventanas de cada una) y `guardarIntervencion`.
+    // Ver `domain/intervenciones`.
+    expect(Object.keys(visto.app).length).toBe(330);
   });
 
   /*

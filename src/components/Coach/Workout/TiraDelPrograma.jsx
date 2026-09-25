@@ -106,9 +106,7 @@ const useDeslizador = (activo, cuantos, mirando, marca) => {
  * tramo de ancho no sabe cuándo sobra: se mide. Lo que cede:
  *
  *   1. «+ microciclo» se queda en «+», como ya hace cuando se escribe una hoja.
- *
- * El ritmo ya no tiene nada que ceder: son solo puntos desde que la cadena
- * escrita se fue al editor, y quitarlos sería quitar el dato.
+ *   2. El nombre del split cede al corto: «Push Pull Legs · 4 días» → «PPL · 4d».
  *
  * Se aprieta cuando la fila se sale o cuando el carril de microciclos tiene
  * que deslizar sin que quede aire en medio: antes que esconder un microciclo,
@@ -116,7 +114,7 @@ const useDeslizador = (activo, cuantos, mirando, marca) => {
  * maquetación —quitar, medir, poner—, así que no hay fotograma a medias ni
  * vaivén.
  */
-const PASOS_DE_APRIETO = 1;
+const PASOS_DE_APRIETO = 2;
 const useApriete = () => {
   const fila = useRef(null);
   const ajustar = useCallback(() => {
@@ -242,8 +240,9 @@ const useApriete = () => {
  *                    barra— y qué se puede hacer lo sabe la pantalla. Así el
  *                    ámbito lo dice el sitio y no hace falta un «···» por fila.
  * @param derecha     Lo que se sienta al final de la fila de hojas: «+ hoja».
- * @param ritmo       El ritmo del microciclo (`RitmoDelMicrociclo`): va justo
- *                    antes de «+ hoja», con el bloque entero delante.
+ * @param ritmo       El split del bloque (`SplitDelBloque`), que abre el editor
+ *                    del microciclo: va justo antes de «+ hoja», con el bloque
+ *                    entero delante. Con la fila apretada, cede a su nombre corto.
  * @param mandosDeLaHoja  Qué sesión se mira y cuánto lleva escrito. Van en el
  *                    renglón del microciclo —una sesión es un entrenamiento de
  *                    ESTE microciclo— y al canto DERECHO, enfrentados a las

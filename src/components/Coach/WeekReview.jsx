@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, ClipboardCheck } from 'lucide-react';
 
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { kindMeta } from '@/domain/calendar';
 import { metricColor } from '@/domain/metrics';
@@ -55,6 +55,7 @@ import { SemanaPorDias } from '@/components/review/SemanaPorDias';
 import { ReviewHistory } from '@/components/ReviewHistory';
 import { EntregaFueraDePlazo } from '@/components/review/EntregaFueraDePlazo';
 import { comoLlego } from '@/domain/revisionesPasadas';
+import { rangoAParam, rangoDeParam } from '@/domain/resumenDelRango';
 
 /* La ventana del cuerpo a fondo es la MISMA del Resumen: se difiere igual. */
 const PanelCuerpo = lazyRoute(() => import('@/components/dashboard/PanelCuerpo').then((m) => ({ default: m.PanelCuerpo })));
@@ -436,8 +437,18 @@ export const WeekReview = () => {
      semana que la portada no enseña. */
   const primerLunes = estados?.semanas[0]?.lunes || null;
   const ultimoLunes = estados?.semanas[estados.semanas.length - 1]?.lunes || null;
-  const anterior = lunes && primerLunes && addDays(lunes, -7) >= primerLunes ? addDays(lunes, -7) : null;
-  const posterior = lunes && ultimoLunes && addDays(lunes, 7) <= ultimoLunes ? addDays(lunes, 7) : null;
+  /* Llegando desde un rango de la línea de tiempo («Abrir revisiones de estas
+     semanas»), las flechas recorren ese rango y nada más, y la vuelta lleva a
+     él. Una semana de fuera del rango lo ignora. */
+  const [params] = useSearchParams();
+  const rangoPedido = rangoDeParam(params.get('rango'));
+  const rango = rangoPedido && lunes && lunes >= rangoPedido.desde && lunes <= rangoPedido.hasta ? rangoPedido : null;
+  const tope = (l) => !rango || (l >= rango.desde && l <= rango.hasta);
+  const anterior = lunes && primerLunes && addDays(lunes, -7) >= primerLunes && tope(addDays(lunes, -7)) ? addDays(lunes, -7) : null;
+  const posterior = lunes && ultimoLunes && addDays(lunes, 7) <= ultimoLunes && tope(addDays(lunes, 7)) ? addDays(lunes, 7) : null;
+  const enElRango = rango
+    ? { n: Math.round((daysBetween(rango.desde, lunes) ?? 0) / 7) + 1, de: Math.round(((daysBetween(rango.desde, rango.hasta) ?? 0) + 1) / 7) }
+    : null;
   const protocolo = useMemo(() => clientProtocol(activeClient?.preferences), [activeClient?.preferences]);
   const pesoActual = metricPoints(serie, 'weight').slice(-1)[0]?.value ?? null;
   const trend = useMemo(() => weightTrend(serie), [serie]);
@@ -856,7 +867,7 @@ export const WeekReview = () => {
       : estado === 'revisada' && revisadaEl
         ? `Revisada el ${shortDate(revisadaEl)}`
         : CHAPA[estado] || null;
-  const irA = (l) => navigate(semanaPath(activeClient.id, l));
+  const irA = (l) => navigate(`${semanaPath(activeClient.id, l)}${rango ? `?rango=${rangoAParam(rango)}` : ''}`);
   const nombreDe = (l) => {
     const n = semanaDe(l);
     return n && n >= 1 ? `S${n}` : shortDate(l);
@@ -872,12 +883,20 @@ export const WeekReview = () => {
       */}
       <Mando
         titulo={`Semana ${semana}`}
-        contexto={[`del ${shortDate(lunes)}`, bloque].filter(Boolean).join(' · ')}
+        contexto={[`del ${shortDate(lunes)}`, bloque, enElRango && `${enElRango.n} de ${enElRango.de} del rango`]
+          .filter(Boolean)
+          .join(' · ')}
         acciones={
           <>
-            <Link className="cab-accion" to={semanaPath(activeClient.id)}>
-              Todas sus semanas
-            </Link>
+            {rango ? (
+              <Link className="cab-accion" to={`${semanaPath(activeClient.id)}?vista=linea&desde=${rango.desde}&hasta=${rango.hasta}`}>
+                Volver a la gráfica
+              </Link>
+            ) : (
+              <Link className="cab-accion" to={semanaPath(activeClient.id)}>
+                Todas sus semanas
+              </Link>
+            )}
             <div className="revision-paso" role="group" aria-label="Cambiar de semana">
               <button
                 type="button"

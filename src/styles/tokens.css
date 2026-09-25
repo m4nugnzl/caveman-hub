@@ -525,6 +525,9 @@
   --data-teal: #0e7f73;
   --data-amber: #96690a;
   --data-violet: #7a34ad;
+  /* El diet break: de la familia del refeed (los dos son pauta alta), más
+     suave, porque es mantenimiento y no un pico. No es un disco nuevo. */
+  --data-violet-claro: #a67ccc;
   --data-pink: #a8306e;
   --data-slate: #656f7b;
 
@@ -1617,6 +1620,7 @@
   --data-teal: #47cdb8;
   --data-amber: #e8bc55;
   --data-violet: #c58ae6;
+  --data-violet-claro: #dcc0ef;
   --data-pink: #ee8ab9;
   --data-slate: #9ba5b1;
 

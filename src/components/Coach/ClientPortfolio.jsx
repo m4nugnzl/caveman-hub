@@ -21,6 +21,7 @@ import { Cinta } from '@/components/ui/Cinta';
 import { traeALaVista } from '@/lib/motion';
 import { PORTFOLIO_FILTERS, TAG_LIMITS, buildPortfolio, filtrosUtiles } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
+import { lineasDeAtrasos } from '@/domain/planDeSesiones';
 import { semanaDeAhora } from '@/domain/week';
 import { memberName } from '@/domain/team';
 import { clientProtocol } from '@/domain/protocol';
@@ -635,6 +636,8 @@ export const ClientPortfolio = () => {
     checkIns,
     equipmentCounts,
     envioRows,
+    sessionDelays,
+    nutrition,
     checkInsActivos,
     addClient,
     updateClient,
@@ -694,9 +697,10 @@ export const ClientPortfolio = () => {
   /* Y cuántas respuestas suyas te faltan por leer (0108). Sin fecha: una
      respuesta lo es el día que llega. */
   const contestadoCounts = useMemo(() => contestadasPorCliente(envioRows), [envioRows]);
+  const atrasoLineas = useMemo(() => lineasDeAtrasos(sessionDelays, nutrition), [sessionDelays, nutrition]);
   const rows = useMemo(
-    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas, today]
   );
 
   /*

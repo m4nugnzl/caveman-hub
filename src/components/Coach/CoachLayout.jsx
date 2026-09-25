@@ -14,6 +14,7 @@ import { feeLabel, paymentState } from '@/domain/billing';
 import { identityFacts } from '@/domain/ficha';
 import { BOARD_COLUMNS, buildPortfolio, colasDeInicio, columnFor, portfolioInbox } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
+import { lineasDeAtrasos } from '@/domain/planDeSesiones';
 import { clientProtocol } from '@/domain/protocol';
 import { semanaDeAhora } from '@/domain/week';
 import { useAtajoDelAncho, useBarraPlegada } from '@/lib/barraPlegada';
@@ -182,6 +183,8 @@ export const CoachLayout = () => {
     checkIns,
     equipmentCounts,
     envioRows,
+    sessionDelays,
+    nutrition,
     workoutData,
   } = useApp();
   const { clientId } = useParams();
@@ -317,9 +320,10 @@ export const CoachLayout = () => {
   */
   const mandadoCounts = useMemo(() => pendientesPorCliente(envioRows), [envioRows]);
   const contestadoCounts = useMemo(() => contestadasPorCliente(envioRows), [envioRows]);
+  const atrasoLineas = useMemo(() => lineasDeAtrasos(sessionDelays, nutrition), [sessionDelays, nutrition]);
 
   const bandeja = useMemo(() => {
-    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts });
+    const rows = buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas });
     const { tasks } = portfolioInbox(rows);
     /* Las colas ENTERAS, no solo su suma: desde «El puesto» la barra es el
        inicio y enseña a la gente de cada cola, no una cifra en una puerta. */
@@ -378,7 +382,7 @@ export const CoachLayout = () => {
         ])
       ),
     };
-  }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts]);
+  }, [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas]);
 
   /*
     Qué número acompaña a cada puerta del nivel primario. Solo «Hoy», y en ámbar

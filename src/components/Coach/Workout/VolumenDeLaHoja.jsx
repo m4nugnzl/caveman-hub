@@ -89,7 +89,7 @@ export const VolumenDeLaHoja = ({ program = null, bloque, hoja, cycleType, hojas
           <div className="lado-cab-fila">
             <span className="lado-titulo">{cuenta(series, 'serie', 'series')}</span>
             {pasados > 0 && (
-              <span className="lado-aviso" title="Grupos de esta hoja que en el bloque pasan de su MRV estimado">
+              <span className="lado-aviso is-sobre" title="Grupos de esta hoja que en el bloque pasan de su MRV estimado">
                 {pasados} sobre el MRV
               </span>
             )}

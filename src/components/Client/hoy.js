@@ -145,29 +145,91 @@ const inicial = (dia) => (dia === 'Miércoles' ? 'X' : dia.charAt(0));
 export const proximaDelMicrociclo = (micros = [], microciclo = null) => {
   const micro = micros[micros.length - 1];
   if (!micro) return null;
+  const toca = aparicionesDelMicrociclo(micro, microciclo).find((a) => a.series > 0 && a.hechas < a.series);
+  return toca ? { ...toca, weekNumber: micro.weekNumber } : null;
+};
+
+/**
+ * CADA APARICIÓN DE CADA HOJA en un microciclo, en el orden de su secuencia.
+ *
+ * Una hoja que cae el lunes y el jueves son DOS filas, y cada una es su propia
+ * sesión (el dueño, 23 sep: «cada aparición es su propia fila; tocarla abre
+ * esa aparición concreta, y la crea si aún no existe»). Hasta entonces la
+ * entrada era por hoja y abría «la más reciente»: el segundo Push de la semana
+ * se escribía encima del primero.
+ *
+ * ── Qué sesión es de qué aparición ─────────────────────────────────────────
+ * No se guarda: la i-ésima sesión de la hoja, por FECHA, es su i-ésima
+ * aparición, y la última aparición se queda con la mejor de las que sobren
+ * (`vecesDeLaHoja`, `docs/estudio-microciclo-secuencia.md` §5). Es la regla con
+ * la que ya cuentan el taller y la analítica, así que abrir una aparición no
+ * puede contar otra cosa. Lo que la sostiene es que las fechas no se crucen:
+ * de eso se encarga `limitesDeLaAparicion`.
+ *
+ * Las hojas que no caen en ningún día van detrás, una vez cada una.
+ *
+ * @returns `[{ clave, dayName, day, vez, veces, cuando, diaDeLaSemana, session,
+ *   sessionId, hechas, series, ejercicios, anteriores, siguientes }]`.
+ *   `session` es `null` si esa aparición aún no se ha empezado; `anteriores` y
+ *   `siguientes` son las fechas de las otras apariciones de la misma hoja.
+ */
+export const aparicionesDelMicrociclo = (micro, microciclo = null) => {
+  if (!micro) return [];
   const dias = micro.days || [];
+  const semanal = microciclo?.tipo === 'semanal';
 
   const enLaSecuencia = (microciclo?.dias || [])
-    .filter((d) => !d.descanso && d.hoja && dias.some((day) => day.dayName === d.hoja))
-    .map((d) => d.hoja);
-  const orden = [...enLaSecuencia, ...dias.map((d) => d.dayName).filter((n) => !enLaSecuencia.includes(n))];
-  const veces = (dayName) => Math.max(1, enLaSecuencia.filter((n) => n === dayName).length);
+    .map((d, i) => ({ ...d, i }))
+    .filter((d) => !d.descanso && d.hoja && dias.some((day) => day.dayName === d.hoja));
+  const orden = [
+    ...enLaSecuencia.map((d) => ({ dayName: d.hoja, indice: d.i })),
+    ...dias
+      .map((d) => d.dayName)
+      .filter((n) => !enLaSecuencia.some((d) => d.hoja === n))
+      .map((dayName) => ({ dayName, indice: null })),
+  ];
+  const veces = (dayName) => Math.max(1, enLaSecuencia.filter((d) => d.hoja === dayName).length);
   const vistas = new Map();
 
-  for (const dayName of orden) {
-    const i = vistas.get(dayName) || 0;
-    vistas.set(dayName, i + 1);
+  const lista = orden.map(({ dayName, indice }) => {
+    const vez = vistas.get(dayName) || 0;
+    vistas.set(dayName, vez + 1);
+    const total = veces(dayName);
 
     const day = dias.find((d) => d.dayName === dayName);
     const series = (day.exercises || []).reduce((n, ex) => n + (ex.sets?.length || 0), 0);
-    if (series === 0) continue;
-
     const sesiones = porFecha(allSessionsOfDay(micro, dayName));
-    const suyas = i < veces(dayName) - 1 ? sesiones.slice(i, i + 1) : sesiones.slice(i);
-    const hechas = suyas.length > 0 ? Math.max(...suyas.map(sessionSetCount)) : 0;
-    if (hechas < series) return { dayName, day, hechas, series, weekNumber: micro.weekNumber };
-  }
-  return null;
+    const suyas = vez < total - 1 ? sesiones.slice(vez, vez + 1) : sesiones.slice(vez);
+    /* La mejor de las suyas, y en empate la primera: la misma que cuenta. */
+    const session = suyas.reduce((mejor, s) => (!mejor || sessionSetCount(s) > sessionSetCount(mejor) ? s : mejor), null);
+
+    return {
+      clave: `${dayName}#${vez}`,
+      dayName,
+      day,
+      vez,
+      veces: total,
+      /* Cómo se distinguen dos apariciones de la misma hoja: por su día en el
+         semanal, por su orden en el rotativo («D4» no le dice nada a nadie). */
+      cuando: total > 1 ? (semanal && indice !== null ? WEEK_DAYS[indice] : `${vez + 1}.ª vez`) : null,
+      diaDeLaSemana: semanal && indice !== null ? WEEK_DAYS[indice] : null,
+      session,
+      sessionId: session?.id || null,
+      hechas: session ? sessionSetCount(session) : 0,
+      series,
+      ejercicios: (day.exercises || []).length,
+    };
+  });
+
+  /* Las fechas de las otras apariciones de la misma hoja, a cada lado. */
+  return lista.map((a) => {
+    const hermanas = lista.filter((b) => b.dayName === a.dayName && b.session?.date);
+    return {
+      ...a,
+      anteriores: hermanas.filter((b) => b.vez < a.vez).map((b) => String(b.session.date).slice(0, 10)),
+      siguientes: hermanas.filter((b) => b.vez > a.vez).map((b) => String(b.session.date).slice(0, 10)),
+    };
+  });
 };
 
 /** Las sesiones de más antigua a más nueva. */

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { localeNumber, shortDate } from '@/lib/dates';
+import { localeNumber, shortDate, toISODate } from '@/lib/dates';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { useAtajosDeCopia } from '@/lib/useAtajosDeCopia';
 import { useAtajoDeDeshacer } from '@/lib/useAtajoDeDeshacer';
@@ -68,13 +68,20 @@ import { ComparativaEjercicio } from './ComparativaEjercicio';
 import { TramoDelPegado } from './TramoDelPegado';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { PanelDeLaSesion } from '@/components/ui/CalendarioDeLaSesion';
-import { diasConOtraSesion, estadoDeLaSesion, limitesDeLaSesion, porQueNoSeMueve } from '@/domain/fechaDeLaSesion';
+import {
+  apuntadaDespues,
+  diasConOtraSesion,
+  estadoDeLaSesion,
+  limitesDeLaSesion,
+  porQueNoSeMueve,
+} from '@/domain/fechaDeLaSesion';
+import { diaCorto, hoyLocal, microciclosDelPlan, planDeLaSemana, sesionesDelPlan } from '@/domain/planDeSesiones';
 import { Subjetivo } from '@/components/ui/Subjetivo';
 import { Destino } from '@/components/ui/Portapapeles';
 import { TIPO, copiar as copiarAlPortapapeles, piezaDeHoja, usePortapapeles } from '@/lib/portapapeles';
 
 import { TiraDelPrograma } from './TiraDelPrograma';
-import { RitmoDelMicrociclo } from './RitmoDelMicrociclo';
+import { SplitDelBloque } from './SplitDelBloque';
 import { BotonMas } from '@/components/ui/BotonMas';
 import { ConjuntoDelBloque } from './ConjuntoDelBloque';
 import { LecturasDelBloque } from './LecturasDelBloque';
@@ -103,6 +110,7 @@ import {
   lastWeekNumber,
   microcicloDelBloque,
   planOfDay,
+  splitDelBloque,
   resolvedMicrocycles,
   structureOfBlock,
   weekInBlock,
@@ -187,6 +195,8 @@ export const WorkoutLogEditor = () => {
     appendMicrocycle,
     startBlockWithPlan,
     empezarBorradorDelBloque,
+    moverBorradorDelBloque,
+    ponerTemporada,
     quitarBorradorDelBloque,
     devolverBorradorDelBloque,
     renameBlock,
@@ -248,6 +258,11 @@ export const WorkoutLogEditor = () => {
     /* La ficha del ejercicio —tu vídeo y tu pauta—, para que la hoja marque
        cuáles tienen algo que ver. Ver `videoDe` en `HojaDeSeries`. */
     sheetOf,
+    /* El plan de sus sesiones y lo que ha atrasado (0138). */
+    sessionPlans,
+    sessionDelays,
+    verAtrasos,
+    isCoach,
   } = useApp();
 
   const [copyOpen, setCopyOpen] = useState(false);
@@ -495,6 +510,35 @@ export const WorkoutLogEditor = () => {
     [microcycles, activeClient.startDate]
   );
   const sesionesDeLaSemana = useMemo(() => executedSessions(nav.microcycle || {}), [nav.microcycle]);
+
+  /*
+    ── LO QUE HA ATRASADO (0138) ─────────────────────────────────────────────
+    La fecha planificada de cada hoja sin hacer, para el selector y las
+    tarjetas, y los atrasos que tocan al microciclo en curso o al siguiente.
+    Abrir su Entreno da los avisos por vistos: aquí es donde se ve qué movió.
+  */
+  const delPlan = useMemo(
+    () =>
+      program
+        ? sesionesDelPlan({
+            program,
+            client: activeClient,
+            plans: (sessionPlans || []).filter((p) => p.client_id === activeClient.id),
+            hoy: hoyLocal(),
+          })
+        : [],
+    [program, activeClient, sessionPlans]
+  );
+  const atrasosDelCliente = useMemo(() => {
+    const desde = toISODate(microciclosDelPlan(microcycles, hoyLocal()).actual?.date);
+    return (sessionDelays || [])
+      .filter((f) => f.client_id === activeClient.id && (!desde || f.desde >= desde))
+      .sort((a, b) => a.desde.localeCompare(b.desde));
+  }, [sessionDelays, activeClient.id, microcycles]);
+  const atrasosSinVer = (sessionDelays || []).some((f) => f.client_id === activeClient.id && !f.seen_at);
+  useEffect(() => {
+    if (isCoach && atrasosSinVer) verAtrasos(activeClient.id);
+  }, [isCoach, atrasosSinVer, activeClient.id, verAtrasos]);
   const toast = useToast();
   const confirm = useConfirm();
   /* El gesto de guardar en el cajón, para «Guardarlo en tus plantillas» de la
@@ -897,7 +941,7 @@ export const WorkoutLogEditor = () => {
     <CycleSettings
       client={activeClient}
       /* El tipo y las tandas ya no están aquí: son del bloque, y se cambian en
-         el ritmo del microciclo de la barra (`RitmoDelMicrociclo`). */
+         el split del bloque, en la barra (`SplitDelBloque`). */
       onChange={(fields) => updateClient(activeClient.id, fields, { immediate: false })}
       protocol={protocol}
       /* Igual que el interruptor de la dieta: cambiar el protocolo desde aquí
@@ -2050,10 +2094,15 @@ export const WorkoutLogEditor = () => {
     });
     if (ok) removeSession(activeClient.id, nav.week, s.id);
   };
+  /* Sin sesión, la fecha que tiene planificada: «Para el jue 24». */
+  const planDeEstaHoja = nav.day ? planDeLaSemana(delPlan, nav.week).get(nav.day.dayName)?.[0] || null : null;
+  const sinSesion = planDeEstaHoja
+    ? `Para el ${diaCorto(planDeEstaHoja.fecha)}${planDeEstaHoja.atrasada ? ' · atrasada' : ''}`
+    : 'Sin sesión';
   const mandosDeLaHoja = nav.day ? (
     <PanelDeLaSesion
       claseBoton="tira-sesion"
-      etiqueta={daySession.session?.date ? shortDate(daySession.session.date) : 'Sin sesión'}
+      etiqueta={daySession.session?.date ? shortDate(daySession.session.date) : sinSesion}
       ariaLabel={`Sesión de ${nav.day.dayName} que se está mirando${
         daySession.session?.date ? `: ${shortDate(daySession.session.date)}` : ''
       }`}
@@ -2063,6 +2112,7 @@ export const WorkoutLogEditor = () => {
               fecha: daySession.session.date || null,
               estado: estadoDeLaSesion(daySession.session, seriesPautadas),
               fechaPor: daySession.session.fechaPor,
+              apuntadaEl: apuntadaDespues(daySession.session),
             }
           : null
       }
@@ -2489,12 +2539,16 @@ export const WorkoutLogEditor = () => {
     ) : null;
 
   /*
-    ── EL RITMO DEL MICROCICLO, EN LA BARRA ───────────────────────────────────
-    Entre los microciclos y «+ hoja»: un resumen —puntos y «7 días» o «2-1 2-1
-    3-1»— que abre el editor entero. Solo en el bloque abierto, que es el que
-    se escribe; en uno cerrado, dónde cayó cada hoja lo dicen sus columnas.
+    ── EL SPLIT DEL BLOQUE, EN LA BARRA (24 sep) ─────────────────────────────
+    Fue un resumen en la barra —puntos, uno por día— que abría el editor del
+    microciclo; luego un renglón propio con una casilla por día. Ahora es el
+    NOMBRE del split en el sitio de los puntos (`SplitDelBloque`): la barra
+    sigue en una línea, y qué hoja va cada día se ve al pulsarlo, en el editor.
+
+    Se lee en cualquier bloque; solo el ABIERTO se edita.
   */
-  const microcicloAbierto = esBloqueActual && bloque ? microcicloDelBloque(program, bloque, activeClient) : null;
+  const microcicloDeLaVista = bloque ? microcicloDelBloque(program, bloque, activeClient) : null;
+  const microcicloAbierto = esBloqueActual ? microcicloDeLaVista : null;
   /* Y qué día de la vuelta es hoy, contando desde que empezó el microciclo en
      curso. En un rotativo es el único dato que no se deduce mirando la tira;
      sin microciclo en curso o con hoy fuera de la vuelta, `null`. */
@@ -2502,20 +2556,31 @@ export const WorkoutLogEditor = () => {
     microcicloAbierto,
     microcycles.find((m) => m.weekNumber === semanaEnCurso)?.date
   );
-  const ritmoDelMicrociclo = microcicloAbierto ? (
-    <RitmoDelMicrociclo
-      microciclo={microcicloAbierto}
-      hojas={nombresDeHojaDelBloque()}
-      onCambiar={ponerMicrociclo}
-      onQuitarHoja={eliminarHoja}
-      diaEnCurso={diaEnCurso}
-    />
-  ) : null;
+  const splitDeLaVista =
+    vista === 'bloque' && microcicloDeLaVista ? (
+      <SplitDelBloque
+        split={splitDelBloque(program, bloque, activeClient)}
+        microciclo={microcicloDeLaVista}
+        editor={
+          microcicloAbierto
+            ? {
+                hojas: nombresDeHojaDelBloque(),
+                onCambiar: ponerMicrociclo,
+                onQuitarHoja: eliminarHoja,
+                diaEnCurso,
+                onNombrar: (nuevo) => {
+                  setBlockTraits(activeClient.id, bloque.id, { split: nuevo });
+                  toast({ text: nuevo ? `Split: «${nuevo}».` : 'El split vuelve al nombre deducido.' });
+                },
+              }
+            : null
+        }
+      />
+    ) : null;
 
   const tiraDelPrograma = (
     <TiraDelPrograma
       derecha={altaDeHojaEnLaTira}
-      ritmo={ritmoDelMicrociclo}
       program={program}
       bloque={bloque}
       semanaEnCurso={semanaEnCurso}
@@ -2532,6 +2597,7 @@ export const WorkoutLogEditor = () => {
           ? (hoja) => weekdayForDay(repartoDelBloque, hoja.dayName)
           : null
       }
+      ritmo={splitDeLaVista}
       acciones={accionesDeLaCabecera}
       mandosDeLaHoja={mandosDeLaHoja}
       /* Deshacer va PRIMERO y en las dos vistas: el plan se toca en la hoja y
@@ -2620,13 +2686,10 @@ export const WorkoutLogEditor = () => {
         <ListaDeBloques
           program={program}
           cliente={activeClient}
-          bloque={bloque}
-          unidad={unidad}
-          unidades={unidades}
-          /* Dónde estás, para la barra de microciclos de su fila: el microciclo
-             EN CURSO —el último con actividad—, no el que estés hojeando. La
-             lista es la historia del entrenamiento y ahí «aquí» es por dónde va
-             la persona, igual que en la cabecera del bloque. */
+          /* Dónde estás, para el anillo del pase: el microciclo EN CURSO —el
+             último con actividad—, no el que estés hojeando. La lista es la
+             historia del entrenamiento y ahí «aquí» es por dónde va la
+             persona, igual que en la cabecera del bloque. */
           semanaEnCurso={semanaEnCurso}
           onMandarBloque={mandarBloque}
           onGuardarBloque={guardarBloque}
@@ -2634,7 +2697,6 @@ export const WorkoutLogEditor = () => {
             const suyas = weeksOfBlock(program, b);
             if (suyas.length > 0) irA(suyas[suyas.length - 1], 0, 'bloque');
           }}
-          onVolver={() => verVista('bloque')}
           onNuevoBloque={aComponer}
           /* El verbo llega montado y no como manejador: con un bloque copiado
              es un botón y con varios una pregunta, y esa decisión es de aquí
@@ -2659,6 +2721,18 @@ export const WorkoutLogEditor = () => {
             toast({
               text: `«${b.name}» se ha quitado de lo previsto.`,
               action: { label: 'Deshacer', onClick: () => devolverBorradorDelBloque(activeClient.id, quitado, posicion) },
+            });
+          }}
+          onMoverBorrador={(id, destino) => moverBorradorDelBloque(activeClient.id, id, destino)}
+          /* Las temporadas son la `folder` de sus bloques. Quitar una devuelve
+             sus bloques a la de su año, y se deshace como todo lo que borra. */
+          onPonerTemporada={(ids, folder) => ponerTemporada(activeClient.id, ids, folder)}
+          onQuitarTemporada={(t) => {
+            const ids = t.pases.map((p) => p.id);
+            ponerTemporada(activeClient.id, ids, null);
+            toast({
+              text: `«${t.nombre}» se ha quitado. Sus bloques vuelven a su año.`,
+              action: { label: 'Deshacer', onClick: () => ponerTemporada(activeClient.id, ids, t.nombre) },
             });
           }}
           /* A qué juega el bloque. Es un rótulo del entrenador, no una receta:
@@ -2864,11 +2938,22 @@ export const WorkoutLogEditor = () => {
         >
           {vista === 'bloque' ? (
             <div className="mesa-cuerpo">
+            {atrasosDelCliente.length > 0 && (
+              <p className="entreno-atrasos">
+                <span>Atrasado por el cliente</span>
+                {atrasosDelCliente.map((a) => (
+                  <span key={a.id} className="entreno-atraso">
+                    {diaCorto(a.desde)} · {a.dias} {a.dias === 1 ? 'día' : 'días'}
+                  </span>
+                ))}
+              </p>
+            )}
             <ConjuntoDelBloque
               program={program}
               cliente={activeClient}
               bloque={bloque}
               semanaEnCurso={semanaEnCurso}
+              planDeHojas={planDeLaSemana(delPlan, semanaEnCurso)}
               library={ejerciciosDisponibles}
               onAbrirHoja={(dayName) =>
                 irA(nav.week, Math.max(0, nav.days.findIndex((d) => d.dayName === dayName)), 'hoja')
@@ -3361,7 +3446,7 @@ export const WorkoutLogEditor = () => {
         </div>
       {/* Las ventanas se montan solo abiertas: cerradas no calculan nada. */}
       {progresionAbierta && (
-        <ProgresionPopup etiqueta={etiqueta} open onClose={() => setProgresionAbierta(false)} microcycles={microcycles} name={ejercicioEnFoco?.name || null} weekNumber={nav.week} />
+        <ProgresionPopup etiqueta={etiqueta} open onClose={() => setProgresionAbierta(false)} microcycles={microcycles} name={ejercicioEnFoco?.name || null} semanas={semanasDelBloque} />
       )}
       {sensacionesAbiertas && (
         <SensacionesPopup etiqueta={etiqueta} open onClose={() => setSensacionesAbiertas(false)} microcycles={microcycles} preguntas={activeQuestions(protocol)} />

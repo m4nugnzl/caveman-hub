@@ -8,6 +8,22 @@ import { weightSeries } from '@/domain/anthropometry';
 import { cicloPorAbrir, clientCycleSlots, microcicloDeLaSemana, semanaDelCliente } from '@/domain/blocks';
 import { clientIntake, clientSteps, intakeDeliverables, stepDone } from '@/domain/intake';
 import { dietaDeHoy } from '@/domain/nutrition';
+import { pautaEspecialDelDia } from '@/domain/pautaDelDia';
+import {
+  LA_DIETA_SIGUE_AL_PLAN,
+  casillaParaLaDieta,
+  diasDelCalendario,
+  dietaConVariosDias,
+  entrenaElDia,
+  hoyLocal,
+  hoySegunElPlan,
+  iniciosDeMicrociclo,
+  movidasDeAtrasar,
+  puedeAtrasarDesde,
+  resumenDelMicrociclo,
+  sesionesSinDia,
+  sesionesDelPlan,
+} from '@/domain/planDeSesiones';
 import { onboardingState } from '@/domain/onboardingState';
 import { weekFromStart } from '@/domain/photos';
 import { clientProtocol } from '@/domain/protocol';
@@ -24,6 +40,7 @@ import { localeNumber, miles, shortDate, todayISO, weekdayName } from '@/lib/dat
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/ToastProvider';
 import { Loading } from '@/components/ui/primitives';
 import { HojaDePortal } from './ClientLayout';
 import { IntakeDeliverables } from './IntakeDeliverables';
@@ -105,8 +122,13 @@ export const ClientStart = () => {
     continueProgram,
     updateClientPreferences,
     isCoach,
+    sessionPlans,
+    atrasarSesiones,
+    deshacerAtraso,
+    hechos,
   } = useApp();
   const navigate = useNavigate();
+  const toast = useToast();
   const oculto = useOculto();
   const { seguir } = useSesionEnCurso();
   const fichaDe = useFichaDe();
@@ -145,9 +167,21 @@ export const ClientStart = () => {
     );
   }, [micros]);
 
+  /* El plan de sus sesiones (0138): la fecha que da el patrón a cada una, o la
+     que él le dio al atrasarla. Ver `domain/planDeSesiones`. */
+  const hoyDelAparato = hoyLocal();
+  const suyos = useMemo(
+    () => (sessionPlans || []).filter((p) => p.client_id === activeClient?.id),
+    [sessionPlans, activeClient?.id]
+  );
+  const delPlan = useMemo(
+    () => (program ? sesionesDelPlan({ program, client: activeClient, plans: suyos, hoy: hoyDelAparato }) : []),
+    [program, activeClient, suyos, hoyDelAparato]
+  );
+
   const hoy = useMemo(
-    () => sesionDeHoy({ client: activeClient, program }),
-    [activeClient, program]
+    () => hoySegunElPlan(sesionDeHoy({ client: activeClient, program }), delPlan, micros, hoyDelAparato),
+    [activeClient, program, delPlan, micros, hoyDelAparato]
   );
 
   if (!activeClient) return null;
@@ -257,8 +291,16 @@ export const ClientStart = () => {
   const avisos = novedades.map((n) => ({ ...n, onQuitar: () => quitar(n) }));
 
   const entregables = intakeDeliverables(intake);
-  const dieta = dietaDeHoy(nutrition?.[activeClient.id], casillas, undefined, casillaDeHoy);
+  /* La dieta sigue al plan (`LA_DIETA_SIGUE_AL_PLAN`): si hoy se entrena lo
+     dicen sus sesiones, no la casilla. */
+  const suDieta = nutrition?.[activeClient.id];
+  const entrenaHoy = entrenaElDia(hoyDelAparato, { items: delPlan, micros, hoy: hoyDelAparato });
+  const dieta = dietaDeHoy(suDieta, casillas, undefined, casillaParaLaDieta(suDieta, casillas, casillaDeHoy, entrenaHoy));
   const pasosDelDia = String(nutrition?.[activeClient.id]?.stepsGoal ?? '').trim();
+  /* Un refeed o un diet break hoy: sus kcal mandan sobre las de la dieta, y su
+     indicación va con ellas (ver `Client/DiaEspecial`). */
+  const especial = dieta ? pautaEspecialDelDia(hechos, hoyDelAparato) : null;
+  const kcalDeHoy = especial?.kcals > 0 ? especial.kcals : dieta?.kcal;
 
   /* La sesión que se ofrece en la portada: la de medias manda sobre la de hoy. */
   const diaDeMedias = aMedias
@@ -287,7 +329,8 @@ export const ClientStart = () => {
           series: hoy.planned,
           ejercicios: hoy.day?.exercises || [],
           anotadas: [],
-          weekNumber: semanaActual,
+          weekNumber: hoy.weekNumber ?? semanaActual,
+          vez: hoy.vez,
         }
       : null;
 
@@ -345,7 +388,7 @@ export const ClientStart = () => {
     );
   }
 
-  const kcalVisible = !oculto.nutrition && dieta?.kcal > 0;
+  const kcalVisible = !oculto.nutrition && kcalDeHoy > 0;
   const pesoVisible = !oculto.weight && pesajes.length > 0;
   const ahora = pesoVisible ? pesajes[pesajes.length - 1].value : null;
   const anterior = pesoVisible && pesajes.length > 1 ? pesajes[pesajes.length - 2].value : null;
@@ -384,9 +427,10 @@ export const ClientStart = () => {
         ? {
             rot: 'Hoy te toca',
             icono: Salad,
-            val: kcalVisible ? miles(dieta.kcal) : dieta.unica ? 'Tu dieta' : dieta.name,
+            val: kcalVisible ? miles(kcalDeHoy) : especial ? especial.nombre : dieta.unica ? 'Tu dieta' : dieta.name,
             uni: kcalVisible ? 'kcal' : null,
             pie: [
+              especial ? especial.nombre.toLowerCase() : null,
               hoy?.descanso ? 'descanso' : laSesion ? laSesion.nombre.toLowerCase() : null,
               dieta.comidas > 0 ? `${dieta.comidas} comidas` : null,
             ]
@@ -439,13 +483,18 @@ export const ClientStart = () => {
     hoy: {
       dieta: dieta
         ? {
-            rotulo: dieta.unica ? 'Tu dieta' : dieta.name,
+            rotulo: especial
+              ? `${especial.nombre}${especial.dias > 1 ? `, día ${especial.dia} de ${especial.dias}` : ''}`
+              : dieta.unica
+                ? 'Tu dieta'
+                : dieta.name,
             frase: [
-              kcalVisible ? `${miles(dieta.kcal)} kcal` : null,
+              kcalVisible ? `${miles(kcalDeHoy)} kcal` : null,
               dieta.comidas > 0 ? `${dieta.comidas} comidas` : null,
             ]
               .filter(Boolean)
               .join(' · '),
+            nota: especial?.nota || null,
           }
         : null,
       entreno: hoy?.descanso
@@ -510,7 +559,7 @@ export const ClientStart = () => {
   */
   const irASesion = () => {
     if (laSesion && Number.isFinite(laSesion.weekNumber)) {
-      seguir({ weekNumber: laSesion.weekNumber, dayName: laSesion.nombre });
+      seguir({ weekNumber: laSesion.weekNumber, dayName: laSesion.nombre, vez: laSesion.vez });
     }
     navigate('/mi/rutina/sesion');
   };
@@ -630,6 +679,41 @@ export const ClientStart = () => {
   const sensaciones = sensacionesRecientes(micros, clientProtocol(activeClient.preferences));
   const fotosSuyas = (progressPhotos || []).filter((p) => p.clientId === activeClient.id);
 
+  /* ── El calendario: abrir una sesión y atrasar desde un día ─────────────── */
+  const abrirDelCalendario = (s) => {
+    seguir({ weekNumber: s.weekNumber, dayName: s.hoja, vez: s.vez ?? undefined, sessionId: s.sessionId || undefined });
+    navigate('/mi/rutina/sesion');
+  };
+
+  const atrasar = async (desde, dias) => {
+    const calculo = movidasDeAtrasar(delPlan, desde, dias, hoyDelAparato);
+    if (!calculo.ok) {
+      toast({ text: calculo.motivo });
+      return calculo;
+    }
+    const res = await atrasarSesiones(activeClient.id, { desde, dias, movidas: calculo.movidas });
+    if (!res.ok) {
+      toast({ text: res.error });
+      return res;
+    }
+    try {
+      navigator.vibrate?.(8);
+    } catch {
+      /* Sin vibración, el aviso basta. */
+    }
+    toast({
+      text: `Atrasado ${dias} ${dias === 1 ? 'día' : 'días'}`,
+      action: {
+        label: 'Deshacer',
+        onClick: async () => {
+          const vuelta = await deshacerAtraso(res.id);
+          if (!vuelta.ok) toast({ text: vuelta.error });
+        },
+      },
+    });
+    return res;
+  };
+
   const datosMovil = {
     preguntaDelCiclo,
     cabecera: {
@@ -644,6 +728,21 @@ export const ClientStart = () => {
         .join(' · ') || diaCorto,
     },
     dias: tira ? tira.map((d, i) => ({ ...d, pasado: indiceHoy >= 0 && i < indiceHoy })) : null,
+    calendario: {
+      hoy: hoyDelAparato,
+      dias: diasDelCalendario({ items: delPlan, micros }),
+      resumen: resumenDelMicrociclo(delPlan),
+      sinDia: sesionesSinDia(delPlan),
+      /* Sin ninguna fecha, un día vacío no es «descanso»: no hay reparto. */
+      conDias: delPlan.some((i) => i.fechaPlan),
+      inicios: iniciosDeMicrociclo(micros),
+      ajustaDieta: LA_DIETA_SIGUE_AL_PLAN && dietaConVariosDias(suDieta),
+      /* «Ver como» no atrasa: es cosa del cliente, y su entrenador recibe el aviso. */
+      puedeAtrasar: (fecha) => !isCoach && puedeAtrasarDesde(delPlan, fecha, hoyDelAparato),
+      vistaPrevia: (fecha, n) => movidasDeAtrasar(delPlan, fecha, n, hoyDelAparato),
+      onAbrir: abrirDelCalendario,
+      onAtrasar: atrasar,
+    },
     entreno: heroe
       ? {
           ...heroe,

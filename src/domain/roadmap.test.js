@@ -7,6 +7,7 @@ import {
   esperadoEn,
   esperadoOriginalEn,
   expectativaDeFase,
+  expectativasDelPlan,
   nextPhaseAfter,
   nextPhaseDraft,
   overlapping,
@@ -489,5 +490,34 @@ describe('el replanteo', () => {
     expect(effectiveGoal({ preferences: {} }, [f], '2026-08-10').ratePct).toBe(0.4);
     /* Sin replanteos, igual que siempre. */
     expect(phaseGoal(fase, '2026-08-10').ratePct).toBe(0.6);
+  });
+});
+
+describe('expectativasDelPlan — las fases futuras se encadenan', () => {
+  const history = [
+    { date: '2026-07-01', weight: 80 },
+    { date: '2026-09-20', weight: 78 },
+  ];
+  const volumen = { id: 'v', direction: 'bulk', ratePct: 0.25, startsOn: '2026-07-01', endsOn: '2026-12-31' };
+  const minicut = { id: 'm', direction: 'cut', ratePct: 0.8, startsOn: '2027-01-01', endsOn: '2027-02-25' };
+
+  it('la que ya empezó parte del peso real; la futura, del final esperado de la anterior', () => {
+    const mapa = expectativasDelPlan([minicut, volumen], history, '2026-09-24');
+    const salidaVolumen = esperadoEn(mapa.get('v'), '2027-01-01');
+    expect(mapa.get('v').original.base).toBe(80);
+    expect(mapa.get('m').original.base).toBeCloseTo(salidaVolumen, 6);
+    expect(mapa.get('m').original.base).not.toBe(78);
+  });
+
+  it('el día que la futura empieza, se reancla al real', () => {
+    const conPesaje = [...history, { date: '2026-12-31', weight: 83.4 }];
+    const mapa = expectativasDelPlan([volumen, minicut], conPesaje, '2027-01-01');
+    expect(mapa.get('m').original.base).toBe(83.4);
+  });
+
+  it('detrás de una fase abierta sigue desde su entrada', () => {
+    const abierta = { ...volumen, endsOn: null };
+    const mapa = expectativasDelPlan([abierta, minicut], history, '2026-09-24');
+    expect(mapa.get('m').original.base).toBe(80);
   });
 });

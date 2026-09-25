@@ -407,7 +407,7 @@ export const RoadmapPanel = ({ audience = 'coach' }) => {
  * Guardar escribe SOLO esta clave — `updateClientPreferences` fusiona la
  * sección, así que la dirección y el ritmo no se tocan.
  */
-const Destino = ({ goal, onSet }) => {
+export const Destino = ({ goal, onSet }) => {
   const [texto, setTexto] = useState(goal.targetWeightKg === null ? '' : String(goal.targetWeightKg));
   const [editando, setEditando] = useState(false);
 
@@ -575,7 +575,7 @@ const PhaseRow = ({ phase, index, today, current, past, weight, onEdit, onRemove
 };
 
 /** Alta y edición. El mismo formulario para las dos: los campos son idénticos. */
-const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
+export const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
   /* El giro y el tic del botón de guardar. `busy` sigue existiendo porque lo
      comparten las otras acciones del recorrido; esto es solo de este botón. */
   const envio = useAccionDeBoton();
@@ -773,7 +773,7 @@ const PhaseForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) 
  * número porque no se sabe cuál va a ser: es un sitio donde el carril se abre,
  * y el rombo es lo que dice eso sin una palabra.
  */
-const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, onPregunta, busy }) => {
+export const ForkRow = ({ fork, weight, onChoose, onEdit, onDiscard, onPregunta, busy }) => {
   const { options, pregunta, decidesOn, daysLeft, due, overdue } = fork;
 
   return (
@@ -970,7 +970,7 @@ const RoadCard = ({ option, weight, onChoose, busy }) => {
  * camino que a lo mejor no se coge no merece que nadie ajuste sus semanas de
  * una en una; si al elegirlo hay que retocarlas, se retoca la fase.
  */
-const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
+export const ForkForm = ({ value, onChange, onSubmit, onCancel, busy, error = null }) => {
   const envio = useAccionDeBoton();
   const { options } = value;
 

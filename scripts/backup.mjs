@@ -95,6 +95,10 @@ const TABLES = [
   'progress_photos',
   'check_ins',
   'client_events',
+  /* Lo que el entrenador piensa de cada intervención (0143): el motivo y la
+     valoración. Después de client_events, nutrition_plan_versions y
+     workout_data, que es de donde cuelga. */
+  'client_interventions',
   'client_phases',
   /*
     Lo que le has mandado a alguien y lo que ha contestado (0105, antes

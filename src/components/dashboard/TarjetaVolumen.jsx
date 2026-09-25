@@ -56,7 +56,7 @@ const MAX_GRUPOS = 6;
  * aquí no significa nada: el color es del DATO —las series son verdes en todo el
  * producto—. Cuatro colores por fila serían cuatro señales que no señalan. Y
  * desde el 21 sep ni siquiera pasarse del MRV le cambia el color a la barra:
- * el juicio va en la cifra, en rojo.
+ * se dice en la cifra, en violeta (no en rojo: puede ser a propósito).
  */
 export const TarjetaVolumen = ({ program, cycleType, isClient = false, aRutina = null }) => {
   const unit = unitLabel(cycleType);
@@ -104,7 +104,7 @@ export const TarjetaVolumen = ({ program, cycleType, isClient = false, aRutina =
           <MapaMuscular musculos={musculos} />
           {/* Las mismas barras que el costado de Entreno: es el mismo dato
               —series por grupo contra su MRV— y tenía su tercera forma de
-              dibujarse. El rojo en la cifra al pasarse del MRV, ver
+              dibujarse. El violeta en la cifra al pasarse del MRV, ver
               `BarrasDeVolumen`. */}
           <BarrasDeVolumen grupos={vistos.map((m) => ({ name: m.name, valor: m.media, mrv: m.mrv }))} />
         </div>

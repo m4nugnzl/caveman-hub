@@ -1,0 +1,1058 @@
+/* ==========================================================================
+   La temporada (`components/temporada/`): el roadmap como una sola historia
+   --------------------------------------------------------------------------
+   De arriba abajo: la cabecera (a dónde va y cómo va), la línea de lectura,
+   la ruta, el peso, la pauta, el split y el eje. El cromo va en tinta; el
+   color es del dato y llega desde el dominio como atributo (la dirección de
+   cada fase, la tinta del peso), nunca desde aquí.
+
+   Lo vivido se pinta como dato; lo que falta, lavado y con el canto a trazos:
+   es proyección. Las señales azules son «Hoy» y lo que te toca revisar.
+
+   DOS TAMAÑOS DE LETRA (25 sep): --tl-letra (13 px) para todo lo que se lee,
+   rótulos de la gráfica incluidos, y --tl-cifra (18 px) para las cifras que
+   mandan (la cabecera y las tarjetas). Y UN gris: --text-secondary.
+   ========================================================================== */
+
+.tl { --tl-letra: var(--fs-control); --tl-cifra: var(--fs-md); display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+
+.tl-mandos {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.tl-mandos-derecha { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+/* «Vista: Definición ▾»: discreto, sin caja hasta que se pasa por encima. */
+.tl-vista { background: transparent; color: var(--text-secondary); box-shadow: none; font-weight: 500; }
+.tl-vista:hover { background: var(--fill); color: var(--text); }
+.tl-vista-nota { margin: var(--s2) 0 0; font-size: var(--tl-letra); color: var(--text-secondary); }
+.tl-vista-nota.is-error { color: var(--negative); }
+
+.tl-marco {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: var(--r-tarjeta);
+  box-shadow: var(--elev-1);
+  padding: var(--s4);
+  min-width: 0;
+}
+
+/* ── La cabecera: dónde va y cómo va ───────────────────────────────────── */
+.tl-cabecera {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s2) var(--s5);
+  flex-wrap: wrap;
+}
+.tl-cabecera-destino {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px var(--s2);
+  flex-wrap: wrap;
+  font-size: var(--tl-letra);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.tl-cabecera-destino svg { flex: none; color: var(--text); }
+.tl-cabecera-destino b { font-size: var(--tl-cifra); font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+
+.tl-cabecera-cifras { margin: 0; display: flex; gap: var(--s5); }
+.tl-cabecera-cifras div { display: flex; flex-direction: column-reverse; gap: 1px; min-width: 0; }
+.tl-cabecera-cifras dt { font-size: var(--tl-letra); color: var(--text-secondary); white-space: nowrap; }
+.tl-cabecera-cifras div[title] { cursor: default; }
+.tl-cabecera-cifras dd { margin: 0; font-size: var(--tl-cifra); font-weight: 600; color: var(--text); letter-spacing: -0.01em; white-space: nowrap; }
+
+/* ── La línea de lectura: lo de la columna bajo el cursor ─────────────────
+   En reposo no está: arriba se lee a dónde va (la cabecera). Con el cursor,
+   su lectura flota SOBRE la cabecera, del mismo alto o más: la gráfica no
+   salta y no tapa nada de ella. */
+.tl-arriba { position: relative; margin-bottom: var(--s3); }
+.tl-lectura {
+  position: absolute;
+  inset: -6px -8px auto;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  min-height: calc(100% + 12px);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--text) 4%, var(--surface));
+  pointer-events: none;
+}
+.tl-lectura-texto {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--tl-letra);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.tl-lectura-texto b { color: var(--text); font-weight: 600; }
+.tl-lectura-texto span::before { content: '·'; margin: 0 6px; color: var(--text-secondary); }
+
+/* ── El lienzo: el sitio de los gestos ─────────────────────────────────────
+   `pan-y`: el dedo en vertical sigue bajando la página; en horizontal es el
+   cursor, y con dos dedos, del lienzo. */
+.tl-lienzo {
+  position: relative;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+  border-radius: var(--r-sm);
+}
+.tl-lienzo:focus-visible { outline: var(--foco); outline-offset: 6px; }
+.tl-ruta, .tl-capa-svg { display: block; overflow: hidden; }
+/* Encima del fondo de fases: un elemento con posición pinta sobre los que no. */
+.tl-capa-svg { position: relative; }
+.tl-grafica { position: relative; display: flex; flex-direction: column; gap: 6px; padding-block: 2px 4px; }
+
+/* ── Cada fila: su nombre a la izquierda y su trazo ────────────────────────
+   El nombre no es lienzo: no mueve la vista ni pone el cursor. Al pasar por
+   él (o con una pulsación larga), subir, bajar y quitar, en una pastilla que
+   flota al principio del trazo. */
+.tl-fila { position: relative; display: grid; grid-template-columns: var(--tl-nombres) minmax(0, 1fr) var(--tl-derecha, 0px); align-items: stretch; }
+.tl-fila-nombre {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-right: var(--s2);
+  font-size: var(--tl-letra);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: default;
+  -webkit-touch-callout: none;
+}
+.tl-fila-nombre.is-arriba { align-items: flex-start; padding-top: 2px; }
+.tl-fila-texto { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-fila-menu {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  left: calc(100% - 6px);
+  transform: translateY(-50%);
+  display: none;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: var(--elev-2);
+}
+.tl-fila-nombre.is-arriba .tl-fila-menu { top: -2px; transform: none; }
+.tl-fila.is-abierta .tl-fila-menu,
+.tl-fila-nombre:focus-within .tl-fila-menu { display: inline-flex; }
+@media (hover: hover) {
+  .tl-fila-nombre:hover { color: var(--text); }
+  .tl-fila-nombre:hover .tl-fila-menu { display: inline-flex; }
+}
+.tl-fila-boton {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.tl-fila-boton:hover { background: var(--fill); color: var(--text); }
+.tl-fila-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* «+ Añadir fila»: texto atenuado, sin caja, bajo los nombres. */
+.tl-anadir-fila { padding-top: var(--s2); }
+.tl-anadir {
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--tl-letra);
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.tl-anadir:hover, .tl-anadir[aria-expanded='true'] { color: var(--text); }
+.tl-anadir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ── Las tiras: una celda por semana (o por día), su valor dentro ──────────
+   Neutras; solo los extremos de la escala llevan tono, y suave: lo malo
+   cálido, lo bueno verde. Lo que falta, vacía con borde. */
+.tl-celda rect { fill: var(--fill); }
+.tl-celda text { font-size: var(--tl-letra); font-weight: 600; fill: var(--text-secondary); font-variant-numeric: tabular-nums; pointer-events: none; }
+.tl-celda.is-malo rect { fill: color-mix(in srgb, var(--warning-grafico) 22%, var(--surface)); }
+.tl-celda.is-malo text { fill: var(--warning); }
+.tl-celda.is-bueno rect { fill: color-mix(in srgb, var(--positive-grafico) 18%, var(--surface)); }
+.tl-celda.is-bueno text { fill: var(--positive); }
+.tl-celda.is-vacia rect { fill: none; stroke: var(--hairline-strong); stroke-width: 1; }
+.tl-celda.is-cursor rect { stroke: var(--text-secondary); stroke-width: 1.25; }
+.tl-diana { fill: transparent; }
+.is-pulsable { cursor: pointer; }
+
+/* ── El fondo: el color de cada fase y cada lunes ───────────────────────── */
+.tl-fondo, .tl-capa { position: absolute; inset: 0 var(--tl-derecha, 0px) 0 var(--tl-nombres); pointer-events: none; }
+.tl-fondo-fase { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--tinta) 6%, transparent); }
+.tl-fondo-fase.is-plan { background: color-mix(in srgb, var(--tinta) 3%, transparent); }
+.tl-raya-semana { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--hairline); }
+.tl-vertical { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--hairline-strong); }
+.tl-vertical.is-hoy { border-left-color: var(--accent); opacity: 0.55; }
+.tl-vertical.is-destino { border-left-style: dashed; }
+/* El cursor de lectura: una línea que cruza peso, pauta y split. */
+.tl-cursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px solid var(--text); opacity: 0.45; }
+.tl-cursor-punto { fill: var(--surface); stroke-width: 2; }
+
+/* ── La ruta: fases, decisión, destino y hechos ────────────────────────── */
+.tl-fase-hecha { fill-opacity: 0.3; }
+.tl-fase-plan { fill-opacity: 0.1; }
+.tl-fase-canto { fill: none; stroke-width: 1; stroke-dasharray: 3 3; stroke-opacity: 0.55; }
+.tl-fase-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); pointer-events: none; }
+.tl-hueco rect { fill: none; stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.tl-hueco text { font-size: var(--tl-letra); fill: var(--text-secondary); }
+.tl-decision circle { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.25; }
+.tl-decision-signo { font-size: var(--tl-letra); font-weight: 700; fill: var(--text-secondary); pointer-events: none; }
+.tl-decision-rotulo { font-size: var(--tl-letra); fill: var(--text-secondary); }
+.tl-bandera-asta { stroke: var(--text); stroke-width: 1.25; }
+.tl-bandera-tela { fill: var(--text); }
+.tl-hecho rect:not(.tl-diana) { fill-opacity: 0.75; }
+.tl-hecho.is-plan rect:not(.tl-diana) { fill-opacity: 0.35; }
+.tl-hecho-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text-secondary); pointer-events: none; }
+/* Las intervenciones: rellena si ya empezó, a contorno si está prevista. La
+   abierta, con un anillo de tinta. */
+.tl-marca-forma { fill: var(--tinta); stroke: var(--surface); stroke-width: 1.5; }
+.tl-marca.is-prevista .tl-marca-forma { fill: var(--surface); stroke: var(--tinta); stroke-width: 1.5; }
+.tl-marca.is-abierta .tl-marca-forma { stroke: var(--text); stroke-width: 2; }
+.tl-marca-cuenta { font-size: 9px; font-weight: 700; fill: var(--surface); pointer-events: none; font-variant-numeric: tabular-nums; }
+.tl-marca.is-prevista .tl-marca-cuenta { fill: var(--tinta); }
+.tl-marca-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text-secondary); pointer-events: none; }
+.tl-marca.is-abierta .tl-marca-rotulo { fill: var(--text); }
+@media (hover: hover) {
+  .tl-fase.is-pulsable:hover .tl-fase-hecha { fill-opacity: 0.4; }
+  .tl-fase.is-pulsable:hover .tl-fase-plan { fill-opacity: 0.18; }
+  .tl-hecho.is-pulsable:hover .tl-hecho-rotulo { fill: var(--text); }
+  .tl-marca.is-pulsable:hover .tl-marca-rotulo { fill: var(--text); }
+}
+
+/* ── Peso ───────────────────────────────────────────────────────────────── */
+.tl-peso-marca line { stroke: var(--hairline); stroke-width: 1; }
+.tl-peso-marca text { font-size: var(--tl-letra); fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
+/* Lo esperado, en gris: el plan. La fase ya la dice el fondo. */
+.tl-banda { fill: var(--text); fill-opacity: 0.09; }
+.tl-banda.is-plan { fill-opacity: 0.05; }
+.tl-banda-rotulo { font-size: var(--tl-letra); fill: var(--text-secondary); pointer-events: none; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.tl-banda-arranque { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.5; }
+.tl-proyeccion { stroke-width: 1.5; stroke-dasharray: 4 4; stroke-opacity: 0.6; stroke-linecap: round; }
+.tl-objetivo line { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
+.tl-objetivo text { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); }
+.tl-peso-cifra {
+  font-size: var(--tl-letra);
+  font-weight: 600;
+  fill: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+.tl-vacio { font-size: var(--tl-letra); fill: var(--text-secondary); }
+.tl-tendencia { stroke-width: 2; }
+
+/* ── Kcal y pasos: áreas en escalón ──────────────────────────────────────
+   La línea de borde y un relleno suave debajo, sin huecos. El refeed, un pico
+   en su tinta dentro de la misma área. Lo que aún no ha llegado, lavado. */
+.tl-escalon-suelo { stroke: var(--hairline); stroke-width: 1; }
+.tl-escalon-relleno { fill-opacity: 0.2; stroke: none; }
+.tl-escalon-linea { fill: none; stroke-width: 1.75; stroke-linejoin: round; }
+.is-futuro .tl-escalon-relleno { fill-opacity: 0.08; }
+.is-futuro .tl-escalon-linea { stroke-dasharray: 3 3; stroke-opacity: 0.7; }
+.tl-escalon-pico rect { fill-opacity: 0.55; }
+.tl-escalon-pico line { stroke-width: 2; }
+.tl-escalon-numero {
+  font-size: var(--tl-letra);
+  font-weight: 600;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+.tl-escalon-numero.is-intervencion { fill: var(--data-violet); }
+.tl-carril-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text-secondary); pointer-events: none; }
+
+/* ── El split de cada bloque ───────────────────────────────────────────── */
+.tl-split-barra { fill: var(--fill-strong); }
+.tl-split-previsto { fill: none; stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.tl-split-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); pointer-events: none; }
+
+/* ── El eje, al pie ─────────────────────────────────────────────────────────
+   Píldoras rectangulares de esquinas suaves y las fechas debajo, a 11 px.
+   Semanas: el número dentro y su revisión (✓ revisada, punto azul si te
+   toca, borde a trazos sin check-in); la de hoy, con borde y texto azules;
+   las futuras, más atenuadas. Meses: una píldora por mes y una muesca azul
+   donde cae hoy. Sin verde ni rojo. */
+.tl-eje { display: block; overflow: visible; }
+.tl-eje-marca { font-size: var(--fs-2xs); fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.tl-eje-marca .is-fuerte { fill: var(--text); font-weight: 600; }
+.tl-sem { cursor: pointer; }
+.tl-sem rect { fill: var(--fill); stroke: transparent; stroke-width: 1; }
+.tl-sem text { font-size: var(--fs-2xs); font-weight: 600; fill: var(--text-secondary); font-variant-numeric: tabular-nums; pointer-events: none; }
+.tl-sem-tic { fill: none; stroke: var(--text-secondary); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.tl-sem-punto { fill: var(--accent); pointer-events: none; }
+.tl-sem.is-pendiente text { fill: var(--text); }
+.tl-sem.is-estrecha.is-pendiente rect { fill: var(--accent-soft); }
+.tl-sem.is-estrecha.is-pendiente text { fill: var(--accent); }
+.tl-sem.is-sin rect { fill: none; stroke: var(--hairline-strong); stroke-dasharray: 3 2; }
+.tl-sem.is-futura rect { fill: none; stroke: var(--hairline); }
+.tl-sem.is-futura text { fill: var(--text-tertiary); font-weight: 500; }
+.tl-sem:hover rect { stroke: var(--hairline-strong); }
+.tl-sem.is-hoy rect { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: none; }
+.tl-sem.is-hoy text { fill: var(--accent); }
+.tl-sem.is-mes text { font-weight: 500; }
+.tl-sem rect.tl-sem-muesca { fill: var(--accent); stroke: none; pointer-events: none; }
+
+/* Las flechas del eje, a sus lados: media vista hacia atrás o hacia delante. */
+.tl-eje-flecha { display: flex; align-items: flex-start; justify-content: center; padding-top: 1px; cursor: default; }
+.tl-eje-flecha.is-izquierda { justify-content: flex-end; padding-right: 4px; }
+.tl-eje-flecha .btn { width: 22px; min-width: 22px; height: 22px; min-height: 22px; padding: 0; }
+
+/* La franja que se arrastra para acercar: el azul que invita, muy suave. */
+.tl-franja {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: inset 1px 0 0 var(--accent), inset -1px 0 0 var(--accent);
+}
+
+/* ── El minimapa: la temporada entera, bajo el eje ─────────────────────────
+   La ruta en miniatura y el peso en una línea; lo que no se ve, velado, y
+   la ventana de lo que se ve con borde azul. */
+.tl-fila-mini { margin-top: 2px; }
+.tl-mini { display: block; overflow: visible; touch-action: none; cursor: pointer; border-radius: 4px; }
+.tl-mini:focus-visible { outline: var(--foco); outline-offset: 2px; }
+.tl-mini-fondo { fill: var(--fill-subtle); }
+.tl-mini-fase { opacity: 0.55; }
+.tl-mini-fase.is-plan { opacity: 0.25; }
+.tl-mini-peso { fill: none; stroke: var(--text-secondary); stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; }
+.tl-mini-velo { fill: var(--surface); opacity: 0.6; pointer-events: none; }
+.tl-mini-ventana { fill: color-mix(in srgb, var(--accent) 6%, transparent); stroke: var(--accent); stroke-width: 1; cursor: grab; }
+.tl-mini-ventana:active { cursor: grabbing; }
+.tl-mini-asa { fill: transparent; cursor: ew-resize; }
+
+/* ── El inspector: el detalle de lo elegido, bajo la gráfica ──────────────
+   Una tarjeta como la de la gráfica, en tres franjas: cifras clave (tarjetas
+   iguales: etiqueta, valor, una línea de comparación), los días o las semanas
+   (tarjetas pulsables en una fila) y el contexto en dos columnas.
+   DOS tamaños de letra: el de los valores (--tl-cifra) y el de todo lo demás
+   (--tl-letra). Cifras en tinta: la herramienta no juzga. En el teléfono lo
+   elegido sube como hoja (`.is-hoja`). */
+.tl-ins {
+  background: var(--surface);
+  border-radius: var(--r-tarjeta);
+  box-shadow: var(--elev-1);
+  padding: var(--s5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+  min-width: 0;
+  font-size: var(--tl-letra);
+  color: var(--text);
+}
+.tl-ins.is-hoja { background: none; box-shadow: none; padding: 0; border-radius: 0; }
+.tl-ins.is-hoja > .tl-ins-sub { margin: 0; }
+
+/* La cabecera: flechas y título a la izquierda; contexto y acciones a la derecha. */
+.tl-ins-cabeza { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s2) var(--s4); min-width: 0; }
+.tl-ins-izquierda { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.tl-ins-flechas { flex: none; display: inline-flex; gap: 2px; }
+.tl-ins-titulo { margin: 0; font-size: var(--tl-letra); font-weight: 600; color: var(--text); white-space: nowrap; }
+.tl-ins-sub { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* «1 revisión pendiente · Abrir»: una frase, no una píldora. */
+.tl-ins-pendiente { margin: 0; color: var(--text-secondary); white-space: nowrap; }
+.tl-ins-enlace { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; }
+.tl-ins-enlace:hover { text-decoration: underline; }
+.tl-ins-enlace:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tl-ins-derecha { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--s2); min-width: 0; }
+.tl-ins-pildoras { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.tl-ins-pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tl-ins-pildora .tl-rango-estado { width: 8px; height: 8px; border-radius: 2px; }
+/* El estado de la revisión, con el color de la marca del eje. */
+.tl-ins-pildora.is-pendiente { background: var(--accent-soft); color: var(--accent); }
+.tl-ins-pildora.is-curso { background: var(--accent-wash); color: var(--accent); }
+.tl-ins-pildora.is-sin { background: transparent; border: 1px dashed var(--hairline-strong); }
+.tl-ins-pildora.is-futura { background: transparent; border: 1px dotted var(--hairline-strong); }
+
+.tl-ins-cuerpo { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.tl-ins-etq { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-weight: 500; }
+.tl-ins-val { font-size: var(--tl-cifra); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tl-ins-val.is-nada { color: var(--hairline-strong); }
+.tl-ins-val.is-debil { color: var(--text-secondary); font-weight: 500; }
+.tl-ins-unidad { font-size: var(--tl-letra); font-weight: 500; letter-spacing: 0; color: var(--text-secondary); }
+
+/* Franja 1: las cifras clave. */
+.tl-ins-cifras { margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s2); }
+.tl-ins-cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.tl-ins-cifra dd { margin: 0; }
+.tl-ins-cmp { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Franja 2: los días (o las semanas), en una fila; si no caben, se desplaza. */
+/* Lo que cubre varios días (un diet break, un refeed), nombrado una vez. */
+.tl-ins-franja { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.tl-ins-franja-cabeza { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); color: var(--text-secondary); }
+.tl-ins-franja-cabeza li { display: inline-flex; align-items: center; gap: 6px; }
+.tl-ins-pasos {
+  margin: 0;
+  padding: 0 0 2px;
+  list-style: none;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(112px, 1fr);
+  gap: var(--s2);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.tl-ins-pasos > li { display: flex; min-width: 0; scroll-snap-align: start; }
+.tl-ins-paso {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--s3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--fast), background-color var(--fast);
+}
+.tl-ins-paso:hover { border-color: var(--hairline-strong); background: var(--fill-subtle); }
+.tl-ins-paso:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tl-ins-paso[aria-current] .tl-ins-etq { color: var(--accent); font-weight: 600; }
+/* Un refeed o un diet break: la tarjeta, teñida de su color. */
+.tl-ins-paso.is-tenido { background: color-mix(in srgb, var(--tinta) 9%, var(--surface)); border-color: color-mix(in srgb, var(--tinta) 35%, transparent); }
+.tl-ins-paso.is-tenido:hover { background: color-mix(in srgb, var(--tinta) 14%, var(--surface)); }
+.tl-ins-paso.is-tenido .tl-ins-linea { color: var(--text); font-weight: 600; }
+.tl-ins-linea { max-width: 100%; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* La sesión: hecha, rellena; pendiente o prevista, a trazos; descanso, atenuado. */
+.tl-ins-sesion { margin-top: auto; max-width: 100%; padding: 2px 8px; border: 1px solid transparent; border-radius: var(--r-pill); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-ins-sesion.is-hecha { background: var(--fill-strong); color: var(--text); }
+.tl-ins-sesion.is-pendiente { border-style: dashed; border-color: var(--hairline-strong); color: var(--text-secondary); }
+.tl-ins-sesion.is-descanso { padding-inline: 0; color: var(--text-secondary); }
+
+/* Franja 3: el contexto, en dos columnas. */
+.tl-ins-contexto { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--s5) var(--s6); align-items: start; padding-top: var(--s1); }
+.tl-ins-columna { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
+.tl-ins-rotulo { margin: 0; display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: var(--s1) var(--s3); font-size: var(--tl-letra); font-weight: 600; color: var(--text); }
+.tl-ins-leyenda { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; color: var(--text-secondary); }
+.tl-ins-leyenda-marca { width: 2px; height: 11px; border-radius: 1px; background: var(--text); }
+.tl-ins-nada { margin: 0; color: var(--text-secondary); }
+.tl-ins-parte { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.tl-ins-parte + .tl-ins-parte { padding-top: var(--s3); border-top: 1px solid var(--hairline); }
+
+/* Las sensaciones: nombre, la barra en su escala, el valor y su cambio, pegados. */
+.tl-ins-barras {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: minmax(0, 10em) minmax(64px, 1fr) max-content minmax(2.5em, max-content);
+  align-items: center;
+  gap: var(--s2) var(--s3);
+}
+.tl-ins-barras.sin-dif { grid-template-columns: minmax(0, 10em) minmax(64px, 1fr) max-content; }
+.tl-ins-barras > li { display: contents; }
+.tl-ins-barra-nombre { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-ins-barra { position: relative; height: 6px; border-radius: var(--r-pill); background: var(--fill); }
+.tl-ins-barra-relleno { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; background: color-mix(in srgb, var(--text) 32%, transparent); }
+.tl-ins-barra-media { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--text); }
+.tl-ins-barra-valor { color: var(--text-secondary); white-space: nowrap; }
+.tl-ins-barra-valor b { color: var(--text); font-weight: 600; }
+/* En el extremo de su escala: un punto de tinta, no un color de alarma. */
+.tl-ins-barra-valor.is-extremo b::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin: 0 5px 2px 0;
+  border-radius: 50%;
+  background: var(--text);
+}
+.tl-ins-barra-dif { color: var(--text-secondary); white-space: nowrap; }
+
+/* Las notas: etiqueta encima, texto debajo. */
+.tl-ins-notas { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s3); }
+.tl-ins-notas > li { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tl-ins-notas .tl-ins-etq { display: flex; align-items: center; gap: 6px; white-space: normal; }
+.tl-ins-texto { margin: 0; line-height: 1.45; color: var(--text); }
+.tl-ins-nota-boton { align-self: flex-start; padding: 0; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+.tl-ins-nota-boton .tl-ins-etq { color: var(--text); }
+.tl-ins-nota-boton:hover .tl-ins-etq { color: var(--accent); }
+.tl-ins-nota-boton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tl-ins-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+
+/* La progresión de las referencias: nombre y, pegado, su cambio. */
+.tl-ins-refs { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: minmax(0, max-content) max-content; gap: 4px var(--s3); }
+.tl-ins-refs > li { display: contents; }
+.tl-ins-refs .tl-ins-nombre { color: var(--text-secondary); }
+.tl-ins-refs b { font-weight: 600; }
+
+/* Las fichas de una fase, el destino y el punto de decisión: renglones. */
+.tl-ins-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s5) var(--s6); align-items: start; }
+.tl-ins-seccion { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.tl-ins-seccion.is-ancho { grid-column: 1 / -1; }
+.tl-ins-lista { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.tl-ins-fila { display: flex; flex-direction: column; gap: 2px; padding: var(--s2) 0; border-top: 1px solid var(--hairline); }
+.tl-ins-fila:first-child { border-top: 0; padding-top: 0; }
+.tl-ins-fila-linea { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--s2); min-width: 0; }
+.tl-ins-nombre { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.tl-ins-valor { flex: none; font-weight: 600; color: var(--text); }
+.tl-ins-pie { color: var(--text-secondary); }
+
+.tl-ins-pie-hoja { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); width: 100%; }
+/* ── Las ventanas de la intervención abierta ──────────────────────────────
+   Antes y después, un gris muy suave; durante, su tinta. Los dos bordes de
+   fuera se arrastran: una pastilla en medio de la línea lo dice. */
+.tl-capa-ventanas { z-index: 1; }
+.tl-ventana { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text) 4%, transparent); }
+.tl-ventana.is-durante { background: color-mix(in srgb, var(--tinta) 10%, transparent); }
+.tl-ventana-nombre {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.tl-ventana-asa {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 16px;
+  margin-left: -8px;
+  pointer-events: auto;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.tl-ventana-asa::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7.5px;
+  border-left: 1px solid var(--text-tertiary);
+}
+.tl-ventana-asa::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  width: 6px;
+  height: 24px;
+  margin-top: -12px;
+  border-radius: 3px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--text-tertiary);
+}
+.tl-ventana-asa:hover::after, .tl-ventana-asa:focus-visible::after { box-shadow: 0 0 0 1.5px var(--text); }
+.tl-ventana-asa:focus-visible { outline: none; }
+
+/* ── La tarjeta de impacto: antes, durante y después en columnas ───────── */
+.tl-imp { overflow-x: auto; }
+.tl-imp-tabla { width: 100%; min-width: 420px; border-collapse: collapse; font-size: var(--tl-letra); }
+.tl-imp-tabla th, .tl-imp-tabla td { padding: 6px 8px; text-align: right; vertical-align: top; }
+.tl-imp-tabla th:first-child { text-align: left; padding-left: 0; font-weight: 400; }
+.tl-imp-tabla thead th { font-weight: 600; border-bottom: 1px solid var(--hairline); }
+.tl-imp-tabla thead th.is-durante { background: color-mix(in srgb, var(--text) 3%, transparent); border-radius: 8px 8px 0 0; }
+.tl-imp-tabla tbody td:nth-child(3) { background: color-mix(in srgb, var(--text) 3%, transparent); }
+.tl-imp-tabla td { font-weight: 600; color: var(--text); }
+.tl-imp-tabla td.is-nada { font-weight: 400; color: var(--text-tertiary); }
+/* Una tendencia con pocos pesajes: se lee, pero no pesa como las otras. */
+.tl-imp-tabla td.is-debil { font-weight: 500; color: var(--text-secondary); }
+.tl-imp-tabla td .tl-imp-nota { font-weight: 400; }
+.tl-imp-tabla tr.is-grupo:not(:first-child) th, .tl-imp-tabla tr.is-grupo:not(:first-child) td { border-top: 1px solid var(--hairline); }
+.tl-imp-col, .tl-imp-fechas, .tl-imp-pie, .tl-imp-nota { display: block; }
+.tl-imp-fechas { font-weight: 400; color: var(--text-secondary); }
+.tl-imp-pie { font-weight: 600; color: var(--text-secondary); }
+.tl-imp-nota { color: var(--text-secondary); }
+/* En el teléfono, las tres columnas caben sin desplazar: la de los nombres cede. */
+@media (max-width: 640px) {
+  .tl-imp-tabla { min-width: 0; table-layout: fixed; }
+  .tl-imp-tabla th, .tl-imp-tabla td { padding: 6px 4px; }
+  .tl-imp-tabla th:first-child { width: 31%; }
+}
+.tl-imp-form { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.tl-imp-form .textarea { width: 100%; }
+.tl-imp-guardar { display: flex; justify-content: flex-start; }
+
+/* Las flechas del pie de la hoja no se estiran como los botones del pie. */
+.tl-ins-pie-hoja .tl-ins-flechas .btn { flex: none; padding-inline: 0; width: var(--h-control-lg); min-height: var(--h-control-lg); }
+.tl-ins-pie-hoja > .btn { flex: 1; }
+
+/* La columna elegida, en la gráfica: un velo muy suave del azul que invita. */
+.tl-elegida {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--accent) 30%, transparent), inset -1px 0 0 color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* ── La marca del estado de una revisión ─────────────────────────────────
+   Con la misma forma que en el eje (`.tl-sem`). */
+.tl-rango-estado { flex: none; width: 10px; height: 10px; border-radius: 3px; border: 1px solid transparent; }
+.tl-rango-estado.is-revisada { background: var(--fill-strong); }
+.tl-rango-estado.is-pendiente { background: var(--accent); }
+.tl-rango-estado.is-curso { background: var(--accent-soft); border-color: var(--accent); }
+.tl-rango-estado.is-sin { border: 1px dashed var(--hairline-strong); }
+.tl-rango-estado.is-futura { border: 1px dotted var(--hairline-strong); }
+
+
+/* ── El conmutador de la portada de Revisiones (hasta la fase 7) ────────── */
+.portada-vista { display: flex; justify-content: flex-end; gap: var(--s3); }
+.portada-vista-opcion { padding: 2px 0; border: 0; background: none; font: inherit; font-size: var(--fs-control); color: var(--text-secondary); cursor: pointer; }
+.portada-vista-opcion[aria-pressed="true"] { color: var(--text); font-weight: 600; }
+.portada-vista-opcion:hover { color: var(--text); }
+.portada-vista-opcion:focus-visible { outline: var(--foco); outline-offset: 2px; border-radius: 4px; }
+
+/* ── El teléfono ─────────────────────────────────────────────────────────── */
+@media (max-width: 639.98px) {
+  .tl-marco { padding: var(--s3); border-radius: var(--r-md); }
+  .tl-mandos { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s2); }
+  .tl-mandos .segmented { width: 100%; }
+  .tl-cabecera-cifras { width: 100%; justify-content: space-between; gap: var(--s3); }
+  .tl-cabecera-cifras dd { font-size: var(--tl-cifra); }
+  /* Tres renglones de sitio: la lectura de un día no cabe en uno. */
+  .tl-lectura { align-items: flex-start; }
+  /* Los tres atajos, en su renglón y a lo ancho: no caben al lado de la vista. */
+  .tl-mandos-derecha { flex-wrap: wrap; justify-content: space-between; }
+  .tl-mandos-derecha .segmented { flex: 1 1 100%; }
+  .tl-ins { padding: var(--s4) var(--s3); border-radius: var(--r-md); }
+  .tl-ins-derecha { justify-content: flex-start; }
+  /* «contra las 4 semanas anteriores» entero, en su renglón; y debajo, lo
+     de la derecha («Abrir revisiones de estas semanas»), que no cabe al lado. */
+  .tl-ins-cabeza { align-items: flex-start; }
+  .tl-ins-izquierda { flex: 1 1 100%; flex-wrap: wrap; }
+  .tl-ins-derecha { flex: 1 1 100%; }
+  .tl-ins-sub { white-space: normal; }
+  .tl-ins-cifras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tl-ins-cifra { padding: var(--s3); }
+    .tl-ins-cifra .tl-ins-cmp { white-space: normal; }
+  /* La quinta cifra, sola en su renglón, a lo ancho. */
+  .tl-ins-cifra:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  /* Los días, en una fila que se desplaza: tres y un poco a la vista. */
+  .tl-ins-pasos { grid-auto-columns: 124px; }
+  .tl-ins-contexto { grid-template-columns: minmax(0, 1fr); }
+  .tl-ins-barras { grid-template-columns: minmax(0, 7.5em) minmax(48px, 1fr) max-content minmax(2em, max-content); }
+  .tl-ins-barras.sin-dif { grid-template-columns: minmax(0, 7.5em) minmax(48px, 1fr) max-content; }
+}
+
+/* ══ EL CALENDARIO (`Calendario.jsx`, 25 sep) ══════════════════════════════
+   La temporada día a día, como el Calendario de iOS con datos. Se lee sin leer
+   números: el tinte de los días distintos, el punto de cada sesión y, a la
+   derecha, la semana en tres líneas. Las medidas son las que cuenta `semanasDelCalendario.js`
+   (MEDIDAS, MES_TELEFONO y LISTA) para saber lo que mide cada fila sin montarla:
+   si cambia una aquí, cambia allí.
+
+   Un fondo tranquilo donde solo destaca lo que pasó: un día vacío es su
+   número, sin caja; el fondo suave, solo en los días con algo (pesaje, refeed,
+   diet break, un hecho). Las semanas, separadas por una línea fina; cada una
+   mide lo que lleva. Lo que aún no ha llegado, atenuado; lo previsto, a trazos.
+   El color es del dato (la fase, el refeed, el hecho); el azul, hoy y el rango. */
+
+.tl-marco[hidden] { display: none; }
+.tl-marco.is-calendario { gap: var(--s3); }
+/* El calendario no se estira: días y semana, centrados en 960 px con sus mandos y su ficha. */
+.tl.is-calendario { width: 100%; max-width: 960px; margin-inline: auto; }
+.tl-marco.is-calendario > .tl-arriba { margin-bottom: 0; }
+
+.tl-cal {
+  --cal-cols: 5px repeat(7, minmax(0, 1fr)) minmax(132px, 10rem);
+  --cal-hueco: 4px;
+  --cal-celda-fondo: var(--fill);
+  --cal-carriles: 0;
+  --cal-alto: color-mix(in srgb, var(--data-violet) 7%, var(--fill));
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--tl-letra);
+}
+.tl-cal.is-mes { --cal-cols: 4px repeat(7, minmax(0, 1fr)); --cal-hueco: 3px; }
+
+/* El mes que se ve, fijo arriba, y «Hoy». */
+.tl-cal-titular { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2); padding-bottom: var(--s2); }
+.tl-cal-mes { margin: 0; white-space: nowrap; font-size: var(--tl-cifra); font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.tl-cal-titular-derecha { display: flex; align-items: center; gap: var(--s2); }
+
+.tl-cal-cabecera {
+  display: grid;
+  grid-template-columns: var(--cal-cols);
+  column-gap: var(--cal-hueco);
+  padding: 0 4px 6px 0;
+  color: var(--text-secondary);
+}
+.tl-cal-cabecera span { padding-inline: 8px; }
+.tl-cal.is-mes .tl-cal-cabecera span { text-align: center; padding-inline: 0; }
+
+.tl-cal-scroll {
+  position: relative;
+  height: clamp(480px, calc(100dvh - 300px), 860px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Sitio a la derecha para el contorno del rango. */
+.tl-cal-lienzo { position: relative; margin-right: 4px; }
+
+/* ── Una semana ─────────────────────────────────────────────────────────── */
+.tl-cal-semana { position: absolute; inset-inline: 0; display: flex; flex-direction: column; }
+.tl-cal-celdas {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cal-cols);
+  column-gap: var(--cal-hueco);
+  flex: none;
+  box-sizing: border-box;
+  padding-block: 4px;
+  border-top: 1px solid var(--hairline);
+}
+.tl-cal.is-mes .tl-cal-celdas { height: 48px; padding-block: 3px 4px; }
+.tl-cal-franja { background: var(--fase); border-radius: 3px; }
+.tl-cal-semana.is-futura .tl-cal-franja { opacity: 0.45; }
+
+/* Encima de la fila, solo si hace falta: el mes que empieza en lunes y la
+   fase que empieza esa semana, junto a la franja. */
+.tl-cal-rotulo {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cal-cols);
+  column-gap: var(--cal-hueco);
+  align-items: end;
+  flex: none;
+  height: 28px;
+  padding-bottom: 5px;
+}
+.tl-cal-rotulo-mes { grid-row: 1; grid-column: 2 / 9; margin: 0; font-size: var(--tl-cifra); font-weight: 600; letter-spacing: -0.01em; line-height: 20px; color: var(--text); }
+.tl-cal-rotulo-fase {
+  grid-row: 1;
+  grid-column: calc(var(--columna) + 2) / 9;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 0 8px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: 20px;
+  color: var(--text);
+  cursor: pointer;
+}
+.tl-cal-rotulo-fase::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: var(--fase); }
+/* El mes y la fase que empiezan el mismo lunes: la fase, después del mes. */
+.tl-cal-rotulo-fase[data-a-la-par] { grid-column: 3 / 9; }
+.tl-cal-rotulo-fase:focus-visible { outline: var(--foco); outline-offset: 1px; border-radius: 4px; }
+
+/* ── Un día ─────────────────────────────────────────────────────────────── */
+.tl-cal-dia {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  /* Los hechos de periodo van en carriles al pie: los días les dejan sitio. */
+  padding: 6px 8px calc(6px + var(--cal-carriles) * 14px);
+  border: 1px solid transparent;
+  border-radius: 10px;
+}
+.tl-cal-dia.is-lleno { background: var(--cal-celda-fondo); }
+/* El día entero se pulsa; lo de dentro que tiene su ficha, encima. */
+.tl-cal-dia-boton { position: absolute; inset: -1px; z-index: 0; padding: 0; border: 0; background: transparent; cursor: pointer; border-radius: inherit; }
+.tl-cal-dia-boton:focus-visible { outline: var(--foco); outline-offset: 1px; }
+.tl-cal-dia > :not(.tl-cal-dia-boton) { position: relative; z-index: 1; pointer-events: none; }
+.tl-cal-dia button:not(.tl-cal-dia-boton) { pointer-events: auto; }
+@media (hover: hover) {
+  .tl-cal-dia:hover { background: var(--fill-subtle); }
+  .tl-cal-dia.is-lleno:hover { background: color-mix(in srgb, var(--text) 5%, var(--cal-celda-fondo)); }
+}
+
+.tl-cal-dia-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; height: 18px; }
+.tl-cal-numero { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; margin-left: -4px; padding-inline: 4px; border-radius: 999px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tl-cal-numero.is-hoy { background: var(--accent); color: var(--accent-on); font-weight: 600; }
+.tl-cal-numero.is-uno { color: var(--text); font-weight: 700; }
+
+.tl-cal-pesaje { margin: 2px 0 0; height: 22px; font-size: var(--tl-cifra); font-weight: 600; line-height: 22px; letter-spacing: -0.01em; color: var(--text); }
+
+/* El punto de la sesión, en la esquina: relleno si se hizo; hueco si se pidió.
+   El hueco de un día pasado es lo que tiene que llamar la atención: en tinta. */
+.tl-cal-punto { flex: none; width: 6px; height: 6px; border-radius: 999px; box-sizing: border-box; }
+.tl-cal-punto.is-hecha { background: var(--data-blue); }
+.tl-cal-punto.is-falta { border: 1.25px solid var(--text); }
+.tl-cal-punto.is-prevista { border: 1.25px solid var(--hairline-strong); }
+
+/* Los días distintos, teñidos: el refeed y el diet break con su color y su
+   cifra; los días altos de una semana con tipos, un tinte suave sin texto. */
+.tl-cal-dia.is-alto { --cal-celda-fondo: var(--cal-alto); }
+.tl-cal-dia.is-pauta { --cal-celda-fondo: color-mix(in srgb, var(--tinta) 16%, var(--surface)); }
+.tl-cal-intervencion {
+  margin-top: auto;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--tinta);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* El nombre y la cifra, en un renglón; en dos si el día no tiene pesaje y no caben. */
+.tl-cal-intervencion { display: flex; flex-wrap: wrap; column-gap: 0.3em; }
+.tl-cal-intervencion > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tl-cal-intervencion:not(.is-sin-pesaje) { flex-wrap: nowrap; }
+.tl-cal-carrera {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: 16px;
+  color: var(--text);
+  cursor: pointer;
+}
+.tl-cal-carrera svg { flex: none; color: var(--data-amber); }
+.tl-cal-carrera span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tl-cal-intervencion:focus-visible, .tl-cal-carrera:focus-visible, .tl-cal-barra:focus-visible { outline: var(--foco); outline-offset: 1px; border-radius: 4px; }
+
+/* Una fase que empieza a mitad de semana: su color entra por ese día. */
+.tl-cal-dia.is-cambia-fase { box-shadow: inset 3px 0 0 var(--fase-nueva); }
+
+/* Lo que aún no ha llegado: el número atenuado; lo previsto, a trazos. */
+.tl-cal-dia.is-futuro { --cal-celda-fondo: transparent; }
+.tl-cal-dia.is-futuro .tl-cal-numero:not(.is-hoy) { color: var(--text-tertiary); }
+.tl-cal-dia.is-futuro.is-pauta { --cal-celda-fondo: transparent; border: 1.5px dashed color-mix(in srgb, var(--tinta) 60%, transparent); }
+
+/* Los hechos de periodo: una barra fina al pie de sus días, con el nombre una vez. */
+.tl-cal-barras {
+  position: absolute;
+  inset: auto 0 4px;
+  display: grid;
+  grid-template-columns: var(--cal-cols);
+  column-gap: var(--cal-hueco);
+  grid-auto-rows: 14px;
+  pointer-events: none;
+  z-index: 2;
+}
+.tl-cal-barra {
+  pointer-events: auto;
+  align-self: center;
+  height: 12px;
+  margin: 0 6px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tinta) 30%, var(--surface));
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 12px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tl-cal-barra.is-prevista { background: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tinta) 60%, transparent); color: var(--text-secondary); }
+
+/* ── La semana, en tres líneas ───────────────────────────────────────────── */
+.tl-cal-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 4px 8px 4px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .tl-cal-col:hover { background: var(--fill-subtle); }
+}
+.tl-cal-col:focus-visible { outline: var(--foco); outline-offset: -2px; }
+.tl-cal-col-cabeza { max-width: 100%; color: var(--text-secondary); line-height: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-cal-col-cabeza b { font-weight: 600; color: var(--text); }
+.tl-cal-col-cabeza.is-pendiente { color: var(--accent); }
+.tl-cal-col-peso { font-size: var(--tl-cifra); font-weight: 600; letter-spacing: -0.01em; line-height: 24px; white-space: nowrap; }
+.tl-cal-col-cambio { color: var(--text-secondary); line-height: 16px; white-space: nowrap; }
+.is-futura .tl-cal-col-peso { color: var(--text-secondary); font-weight: 500; }
+.tl-cal-extremo { margin-top: 2px; max-width: 100%; font-size: 11px; font-weight: 600; line-height: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-cal-extremo.is-malo { color: var(--warning); }
+.tl-cal-extremo.is-bueno { color: var(--positive); }
+
+/* Lo elegido: el rango, un contorno fino alrededor de sus semanas (no tapa los
+   tintes de la pauta); lo abierto en el inspector, con canto. */
+.tl-cal-rango {
+  position: absolute;
+  left: 6px;
+  right: -3px;
+  margin-top: -3px;
+  padding-bottom: 3px;
+  box-sizing: content-box;
+  border: 1.5px solid var(--accent);
+  border-radius: 13px;
+  pointer-events: none;
+  z-index: 3;
+}
+.tl-cal-rango.is-eligiendo { border-style: dashed; }
+.tl-cal.is-mes .tl-cal-rango { left: 4px; border-radius: 11px; }
+.tl-cal.is-lista .tl-cal-rango { left: 1px; border-radius: calc(var(--r-md) + 4px); }
+.tl-cal-dia.is-elegido, .tl-cal-col.is-elegido { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* ── El teléfono, modo Mes: número, punto, tinte y el pesaje si cabe ─────── */
+.tl-cal.is-mes .tl-cal-dia { align-items: stretch; padding: 4px 4px 3px; border-radius: 8px; }
+.tl-cal.is-mes .tl-cal-numero { margin-left: -2px; min-width: 18px; height: 18px; padding-inline: 3px; }
+/* El mes ya lo dice el título fijo: el día 1, solo en negrita. */
+.tl-cal.is-mes .tl-cal-numero-mes { display: none; }
+.tl-cal.is-mes .tl-cal-pesaje { margin-top: auto; height: auto; font-size: 11px; font-weight: 600; line-height: 14px; text-align: center; }
+.tl-cal.is-mes .tl-cal-rotulo-mes { grid-column: 2 / 9; }
+@media (max-width: 340px) {
+  .tl-cal.is-mes .tl-cal-pesaje { display: none; }
+}
+
+/* ── El teléfono, modo Lista: una semana tras otra, separadas por una línea ── */
+.tl-cal.is-lista .tl-cal-scroll { height: clamp(420px, calc(100dvh - 240px), 760px); }
+.tl-cal-hueco-tarjeta { position: absolute; left: 4px; right: 0; display: flex; flex-direction: column; }
+.tl-cal-rotulo-mes.is-lista { flex: none; height: 32px; padding: 6px 0 0 2px; }
+.tl-cal-tarjeta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 4px 10px 14px;
+  border-top: 1px solid var(--hairline);
+  box-shadow: inset 4px 0 0 var(--fase);
+  overflow: hidden;
+}
+.tl-cal-tarjeta.is-futura { box-shadow: inset 4px 0 0 color-mix(in srgb, var(--fase) 45%, transparent); }
+.tl-cal-tarjeta-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  flex: none;
+  height: 40px;
+  margin-top: -10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.tl-cal-tarjeta-tramo { color: var(--text-secondary); white-space: nowrap; }
+.tl-cal-tarjeta-peso { display: flex; align-items: baseline; gap: 8px; flex: none; height: 32px; margin: 0; min-width: 0; }
+.tl-cal-tarjeta-peso .tl-cal-extremo { margin: 0 0 0 auto; }
+.tl-cal-tarjeta-dias { display: flex; flex-direction: column; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.tl-cal-fila {
+  display: grid;
+  grid-template-columns: 76px 52px minmax(0, 1fr) 8px;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px 0 8px;
+}
+.tl-cal-fila-fecha { display: flex; align-items: center; gap: 6px; }
+.tl-cal-fila-semana { width: 30px; color: var(--text-secondary); }
+.tl-cal-fila .tl-cal-numero { margin-left: 0; }
+.tl-cal-fila-pesaje { font-size: var(--tl-cifra); font-weight: 600; letter-spacing: -0.01em; }
+.tl-cal-fila-pie { grid-column: 3; display: flex; min-width: 0; }
+/* Sin pesaje, la etiqueta ocupa también su hueco. */
+.tl-cal-fila-pie.is-ancho { grid-column: 2 / 4; }
+.tl-cal-fila > .tl-cal-punto { grid-column: 4; }
+.tl-cal-fila .tl-cal-intervencion, .tl-cal-fila .tl-cal-carrera { margin-top: 0; }
+.tl-cal-fila .tl-cal-intervencion { flex-wrap: nowrap; }
+
+/* ── La hoja a medias (`HojaAMedias`): la tarjeta de impacto en el teléfono ──
+   Sin velo: la gráfica, con sus ventanas, sigue a la vista por encima. Media
+   altura al abrir; entera arrastrando o pulsando el asa. */
+.tl-hoja {
+  --hoja-media: 50svh;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 190;
+  height: var(--hoja-media); max-height: calc(100svh - 12px);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--edge); border-bottom: 0;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  transition: height var(--slow) var(--ease), transform var(--slow) var(--ease);
+  animation: modal-sube var(--entrada) both;
+}
+.tl-hoja.is-entera { height: calc(100svh - 12px); }
+.tl-hoja-asa {
+  flex-shrink: 0; align-self: stretch;
+  display: grid; place-items: center;
+  height: 22px; padding: 0; border: 0; background: none;
+  touch-action: none; cursor: grab;
+}
+.tl-hoja-asa > span { width: 34px; height: 4px; border-radius: var(--r-pill); background: var(--hairline-strong); }
+.tl-hoja-asa:focus-visible { outline: none; }
+.tl-hoja-asa:focus-visible > span { box-shadow: 0 0 0 3px var(--accent-soft); background: var(--accent); }
+.tl-hoja-cabeza { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: 0 var(--s4) var(--s2); }
+.tl-hoja-cuerpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--s4) var(--s5); }
+@media (prefers-reduced-motion: reduce) {
+  .tl-hoja { transition: none; }
+}

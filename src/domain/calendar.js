@@ -41,11 +41,15 @@ export const EVENT_KINDS = [
   /*
     Las intervenciones de dieta (0123). Son pauta, como el destino: solo las
     escribe el entrenador (`soloEntrenador`, y la base lo exige por RLS). Pueden
-    durar varios días (`hasta`) y llevar kcal. Sin color propio en el roadmap,
-    donde van en tinta: su color aquí es el del calendario, el de una nota.
+    durar varios días (`hasta`) y llevar kcal. Violeta el refeed y violeta
+    claro el diet break (25 sep): el mismo en la línea, el calendario y las
+    tarjetas.
   */
-  { id: 'refeed', label: 'Refeed', hint: 'Uno o dos días de más hidratos', color: 'var(--data-slate)', soloEntrenador: true },
-  { id: 'diet_break', label: 'Diet break', hint: 'Una o dos semanas en mantenimiento', color: 'var(--data-slate)', soloEntrenador: true },
+  { id: 'refeed', label: 'Refeed', hint: 'Uno o dos días de más hidratos', color: 'var(--data-violet)', soloEntrenador: true },
+  { id: 'diet_break', label: 'Diet break', hint: 'Una o dos semanas en mantenimiento', color: 'var(--data-violet-claro)', soloEntrenador: true },
+  /* Estar enfermo (0141): contexto de las semanas de alrededor, como unas
+     vacaciones. Lo apuntan los dos y puede durar varios días. */
+  { id: 'illness', label: 'Enfermedad', hint: 'Resfriado, gripe, un virus', color: 'var(--data-rose)' },
 ];
 
 /* Lo desconocido se lee como una nota, por su nombre y no por su posición: la

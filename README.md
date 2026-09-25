@@ -76,6 +76,17 @@ una pantalla nueva— y para sacar las capturas de la portada
 Para abrir la aplicación contra esos datos, un `.env.demo` con la URL y la
 `anon key` del proyecto de pruebas y `npx vite --mode demo`.
 
+Entre ellos va Rubén Castaño, con una temporada de culturismo entera en el
+roadmap (volumen, preparación, peak week, campeonato y vuelta). Sus datos salen
+de `scripts/demo-temporada.mjs`.
+
+Para dejarle a un entrenador de fuera una cuenta llena **en producción**:
+`node --env-file=.env scripts/demo-entrenador.mjs --entrenador=… --cliente=…`.
+Se da de alta por la portada con la clave pública y siembra con su propia
+sesión, sin `service_role`. Crea dos clientes del plan gratuito, así que le
+queda uno libre, y la cuenta de cliente de Rubén. Las contraseñas son
+aleatorias y solo salen por el terminal.
+
 `backup` no es parte de `check`: corre contra la base de datos real y necesita la
 `service_role key` en `.env.backup`. Ver **[`docs/copias.md`](docs/copias.md)**.
 

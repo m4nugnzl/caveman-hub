@@ -644,14 +644,36 @@
   background: var(--text);
 }
 
-/* ── TU NOTA DEL EJERCICIO, al pie de la caja ──────────────────────────────
-   En reposo es un verbo de una palabra; abierta, un campo con su rótulo y su
-   pie. Ver `pc/PantallaSesion`. */
+/* ── EL LOGBOOK DEL EJERCICIO (0139), al pie de la caja ────────────────────
+   Tres renglones con nombre: «Ajustes» (chapas con su «×» a la vista), «La
+   última vez» (la nota de aquel día) y «Nota de hoy». El rótulo en su columna,
+   para que se lea de un vistazo qué es cada cosa. Ver `LogbookDelEjercicio`. */
 .pc-ej-nota {
-  padding: 10px 14px var(--s3);
+  padding: var(--s3) 14px;
   border-top: 1px solid var(--pc-canto);
   background: var(--pc-hundido);
 }
+/* Una rejilla para los tres renglones: la columna del rótulo mide lo que el
+   más largo («La última vez · 21 sept») y todos empiezan en la misma línea. */
+.pc-log {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 10px var(--s5);
+  align-items: start;
+}
+.pc-log-fila { display: contents; }
+.pc-log > .pc-nota-aviso { grid-column: 1 / -1; }
+.pc-log-rot {
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 28px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--pc-tinta-3);
+  white-space: nowrap;
+}
+.pc-log-chapas { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 28px; }
+.pc-log-chapas .pc-nota-mas { padding: 0 var(--s1); line-height: 28px; }
 .pc-nota-mas {
   font-size: 12.5px;
   font-weight: 600;
@@ -663,38 +685,76 @@
   cursor: pointer;
 }
 .pc-nota-mas:hover { text-decoration: underline; }
-.pc-nota-campo { display: grid; gap: 6px; }
-.pc-nota-campo .pc-rot {
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--pc-tinta-3);
-}
-.pc-nota-campo textarea {
-  width: 100%;
-  resize: vertical;
+.pc-nota-mas:disabled { color: var(--pc-tinta-3); cursor: default; text-decoration: none; }
+.pc-nota-mas[data-tono='quieto'] { color: var(--pc-tinta-3); }
+/* Un ajuste: la chapa, su texto (pulsarlo lo cambia) y su «×». */
+.pc-mi-ajuste {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  max-width: 100%;
+  min-height: 28px;
+  padding-left: var(--s2);
   border: 1px solid var(--pc-canto-2);
-  border-radius: 10px;
+  border-radius: var(--r-xs);
   background: var(--pc-caja);
-  padding: var(--s2) 10px;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1.45;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
   color: var(--pc-tinta);
 }
-.pc-nota-campo textarea:focus-visible {
-  outline: none;
-  border-color: var(--accent);
+.pc-mi-ajuste > svg { flex: none; color: var(--pc-tinta-3); }
+.pc-mi-ajuste-texto {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
-.pc-nota-pie {
-  font-size: var(--fs-xs);
-  font-weight: 500;
-  line-height: 1.3;
+button.pc-mi-ajuste-texto:hover { text-decoration: underline; text-decoration-color: var(--pc-tinta-3); }
+span.pc-mi-ajuste-texto { cursor: default; padding-right: var(--s2); }
+.pc-mi-ajuste-x {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: none;
   color: var(--pc-tinta-3);
-  margin: 0;
+  cursor: pointer;
 }
+.pc-mi-ajuste-x:hover { color: var(--negative); background: var(--fill); }
+.pc-log-campo,
+.pc-log textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--pc-canto-2);
+  border-radius: var(--r-xs);
+  background: var(--pc-caja);
+  padding: 5px var(--s2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--pc-tinta);
+}
+.pc-log textarea { resize: vertical; border-radius: 10px; padding: var(--s2) 10px; }
+.pc-log-campo:focus-visible,
+.pc-log textarea:focus-visible { outline: none; border-color: var(--accent); }
+.pc-log-chapas > .pc-log-campo { width: auto; min-width: 160px; }
+.pc-log-alta { display: flex; align-items: center; gap: var(--s3); margin-top: 6px; }
+.pc-log-alta .pc-log-campo { flex: 1; max-width: 320px; }
+.pc-log-antes,
+.pc-log-leida { margin: 0; padding-top: 5px; font-size: 13px; line-height: 1.45; color: var(--pc-tinta-2); white-space: pre-line; }
+.pc-log-antes .pc-nota-mas { margin-left: var(--s1); }
+.pc-log-fila > div > .pc-nota-mas { line-height: 28px; }
+.pc-nota-pie { margin: var(--s1) 0 0; font-size: var(--fs-xs); font-weight: 500; line-height: 1.3; color: var(--pc-tinta-3); }
+.pc-nota-aviso { display: block; margin: 0; font-size: var(--fs-xs); line-height: 1.35; color: var(--negative); }
 
 /* ── Aquí vivían las gráficas del portal, y se fueron el 14 sep ────────────
    Nueve clases —el lienzo, el eje escrito en HTML fuera del SVG, la leyenda,
@@ -943,6 +1003,16 @@ body:has(.pc-portal) .app-header { display: none; }
   overflow: hidden;
 }
 .pc-puesto-riel i { display: block; height: 100%; background: var(--accent); transition: width 0.4s var(--ease); }
+/* La frontera de las revisiones: la semana revisada se lee y no se escribe.
+   Gris, no rojo: no es un error. */
+.pc-puesto-bloqueo {
+  margin: var(--s3) 0 0;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunken);
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
 .pc-puesto-guardado { margin: -6px 0 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
 .pc-puesto-guardado.pc-si { color: var(--positive); }
 .pc-puesto-guardado.pc-no { color: var(--negative); }

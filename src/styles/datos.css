@@ -213,6 +213,15 @@
    elegida sí sigue en el acento (`.grafica-marca`): es una raya de 2 px, no una
    superficie, y ahí señalar dónde estás es justo su trabajo. */
 .chart-band { fill: var(--text); opacity: 0.06; }
+/* La raya de referencia (`referencia` en `BandChart`): la reja, discontinua, con
+   su nombre en voz de eje. */
+.chart-ref line { stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart-ref text { fill: var(--text-tertiary); font-size: var(--fs-3xs); font-weight: 600; }
+/* El nombre al final de una línea (BandChart `etiqueta`): tinta de texto, no la de la serie. */
+.chart-etiquetas text { fill: var(--text-secondary); font-size: var(--fs-3xs); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) {
+  .chart-line, .chart-area { transition: opacity var(--dur-micro) var(--ease); }
+}
 .chart-legend { display: flex; flex-wrap: wrap; gap: var(--s4); font-size: var(--fs-xs); color: var(--text-secondary); }
 .chart-swatch { width: 11px; height: 3px; border-radius: 2px; flex-shrink: 0; }
 .chart-empty {

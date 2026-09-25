@@ -83,11 +83,13 @@ import {
   cambiarBorrador,
   datosParaEmpezar,
   devolverBorrador,
+  moverBorrador,
   quitarBorrador,
   sePuedeEmpezar,
   sinBorrador,
 } from '@/domain/borradores';
 import { ponerReferencias } from '@/domain/lenteDeEntreno';
+import { ponerCarpetaIn, sinCarpeta } from '@/domain/temporadas';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { freeSheetName } from '@/domain/pieces';
 import { moveItem, isEmptyDiet } from '@/domain/nutrition';
@@ -711,39 +713,74 @@ export const useWorkout = ({
    * A diferencia del cierre, aquí lo que se perdería es TEXTO que alguien
    * escribió, y no hay ninguna pantalla que lo vuelva a pedir. Su clave
    * (`notaej:`) está entre las que se recuperan.
+   *
+   * ── Solo la escribe el cliente, y sin esperar a la primera serie (0139) ──
+   * Su entrenador la lee y no la escribe: la función de la base lo rechaza, y
+   * aquí no hay camino para él. Y si la sesión aún no existe, se crea como la
+   * crea la primera serie (`logSessionSet`), con el día y la fecha de la
+   * pantalla: lo escrito antes de empezar ya no se pierde.
+   *
+   * @returns el id de la sesión, o `null` si no ha escrito nada.
    */
   const logExerciseNote = useCallback(
-    (clientId, weekNumber, sessionId, exerciseId, note) => {
-      if (!clientId || !sessionId || !exerciseId || !Number.isFinite(weekNumber)) return;
+    (clientId, weekNumber, sessionId, exerciseId, note, { date = null, dayName = null } = {}) => {
+      if (profileRole !== 'client') return null;
+      if (!clientId || !exerciseId || !Number.isFinite(weekNumber)) return null;
       const texto = String(note ?? '');
-      const local = (m) => ({
-        ...m,
-        sessions: sessionsOf(m).map((s) =>
-          s.id !== sessionId
-            ? s
-            : {
-                ...s,
-                entries: (s.entries || []).map((e) =>
-                  e.exerciseId === exerciseId ? { ...e, clientNote: texto } : e
-                ),
-              }
-        ),
-      });
+      const current = workoutRef.current[clientId] || emptyWorkoutData();
+      const micro = findMicrocycle(current.microcycles, weekNumber);
+      if (!micro) return null;
 
-      if (profileRole !== 'client') {
-        applyMicrocycle(clientId, weekNumber, local, { immediate: false });
-        return;
+      let targetId = sessionId;
+      let sessions = sessionsOf(micro);
+      const existe = Boolean(targetId) && sessions.some((s) => s.id === targetId);
+      if (!existe) {
+        const day = (micro.days || []).find((d) => d.dayName === dayName);
+        if (!day) return null;
+        const created = { ...buildSessionFromPlan(day, date || undefined), ...(targetId ? { id: targetId } : {}) };
+        targetId = created.id;
+        sessions = [...sessions, created];
       }
 
-      applyMicrocycle(clientId, weekNumber, local, { skipPersist: true });
-      persistExerciseNote(`notaej:${clientId}:${sessionId}:${exerciseId}`, clientId, {
+      const session = sessions.find((s) => s.id === targetId);
+      const planEx = (micro.days || [])
+        .find((d) => d.dayName === (session.dayName || dayName))
+        ?.exercises?.find((ex) => ex.id === exerciseId);
+      const tiene = (session.entries || []).some((e) => e.exerciseId === exerciseId);
+      if (!tiene && !planEx) return null;
+
+      const nextSessions = sessions.map((s) =>
+        s.id !== targetId
+          ? s
+          : {
+              ...s,
+              entries: tiene
+                ? (s.entries || []).map((e) => (e.exerciseId === exerciseId ? { ...e, clientNote: texto } : e))
+                : [
+                    ...(s.entries || []),
+                    {
+                      exerciseId,
+                      name: planEx.name,
+                      muscle: planEx.muscle,
+                      sets: (planEx.sets || []).map(() => ({ kg: '', reps: '', rir: '' })),
+                      clientNote: texto,
+                    },
+                  ],
+            }
+      );
+
+      applyMicrocycle(clientId, weekNumber, (m) => ({ ...m, sessions: nextSessions }), { skipPersist: true });
+      persistExerciseNote(`notaej:${clientId}:${targetId}:${exerciseId}`, clientId, {
         weekNumber,
-        sessionId,
+        sessionId: targetId,
         exerciseId,
         note: texto,
+        date: session.date || date || null,
+        dayName: session.dayName || dayName || null,
       });
+      return targetId;
     },
-    [applyMicrocycle, persistExerciseNote, profileRole]
+    [applyMicrocycle, persistExerciseNote, profileRole, workoutRef]
   );
 
   /**
@@ -1266,6 +1303,23 @@ export const useWorkout = ({
    * Va DIFERIDO como el renombrado: la nota se teclea, y guardar cada letra
    * sería una escritura por pulsación.
    */
+  /*
+    ══ LAS TEMPORADAS ═══════════════════════════════════════════════════════
+    Una temporada es la `folder` de sus bloques y sus previstos: moverlos,
+    renombrarla y quitarla son la MISMA escritura sobre una lista de ids. Ver
+    `domain/temporadas`.
+  */
+  const ponerTemporada = useCallback(
+    (clientId, ids, folder) => applyWorkout(clientId, (cd) => ponerCarpetaIn(cd, ids, folder)),
+    [applyWorkout]
+  );
+
+  /** Cambia de sitio un previsto en el tiempo (su índice entre los previstos). */
+  const moverBorradorDelBloque = useCallback(
+    (clientId, id, destino) => applyWorkout(clientId, (cd) => moverBorrador(cd, id, destino)),
+    [applyWorkout]
+  );
+
   const setBlockTraits = useCallback(
     (clientId, blockId, traits) =>
       applyWorkout(clientId, (cd) => setBlockTraitsIn(cd, blockId, traits), { immediate: false }),
@@ -1387,6 +1441,9 @@ export const useWorkout = ({
         plannedWeeks = null,
         intent = null,
         note = null,
+        /* La temporada del borrador que empieza. Sin ella (`undefined`), el
+           bloque que nace hereda la del que cierra (`openNextBlock`). */
+        folder = undefined,
         /*
           ── EL REPARTO POR DÍAS, DESDE EL COMPOSITOR ──────────────────────────
           Va al PROGRAMA y no al bloque, y no es un descuido: el reparto del
@@ -1486,7 +1543,8 @@ export const useWorkout = ({
             b.id !== block.id
               ? b
               : {
-                  ...b,
+                  ...(folder === undefined ? b : sinCarpeta(b)),
+                  ...(folder ? { folder } : {}),
                   sessions,
                   ...(suMicrociclo ? { microciclo: suMicrociclo } : {}),
                   ...(Array.isArray(mobilityDrills) ? { mobilityDrills } : {}),
@@ -2656,6 +2714,8 @@ export const useWorkout = ({
     startBlock,
     renameBlock,
     setBlockTraits,
+    ponerTemporada,
+    moverBorradorDelBloque,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,

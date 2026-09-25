@@ -199,6 +199,18 @@ export const entrenoDeLasSemanas = ({ program, client = null, semanas = [] } = {
          explica por qué la hilera no sale y la columna sí. */
       extra: pedidos === null ? 0 : Math.max(0, sesiones.length - pedidos),
       sesiones,
+      /* Qué pedía cada día y qué se hizo en él, con la misma casilla que
+         cuenta los pedidos: `pedida` es la hoja (o `null`), `descanso` es
+         `null` cuando no se puede saber. */
+      dias: sieteDias(s.lunes).map((fecha) => {
+        const casilla = b ? casillaDelDia(b.microciclo, b.ancla, fecha) : null;
+        return {
+          fecha,
+          pedida: casilla && !casilla.rest ? casilla.sesion : null,
+          descanso: casilla ? Boolean(casilla.rest) : null,
+          hechas: sesiones.filter((x) => x.date === fecha),
+        };
+      }),
     });
   }
 

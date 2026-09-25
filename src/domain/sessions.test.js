@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   bestSetsBefore,
+  claveDeEjercicio,
   historialDeEjercicio,
   isRecord,
   marcasDeEjercicio,
@@ -11,8 +12,11 @@ import {
   previousSetsBefore,
   resumenDeEntrada,
   sesionAMedias,
+  sessionMuscleVolume,
+  sessionSetCount,
   trainingSummary,
   ultimaSesionDeHoja,
+  ultimaVezDeEjercicio,
 } from './sessions';
 
 import { mapTrainingSummaryFromDb } from '@/lib/mappers';
@@ -431,5 +435,101 @@ describe('historialDeEjercicio y marcasDeEjercicio — la puerta de `M-03`', () 
 
   it('sin nada anotado la marca no inventa ceros', () => {
     expect(marcasDeEjercicio([])).toEqual({ maxKg: null, maxReps: null, tonelaje: 0 });
+  });
+});
+
+
+/*
+  ══ La última vez en un ejercicio, y la clave que dice qué ejercicio es ══════
+
+  El logbook del cliente (0139): el bloque «La última vez · fecha» con las
+  series y la nota de UNA sesión, la más reciente con algo apuntado de ese
+  ejercicio, en cualquier rutina y microciclo.
+*/
+describe('claveDeEjercicio — qué ejercicio es el mismo', () => {
+  it('sin espacios de más y sin distinguir mayúsculas', () => {
+    expect(claveDeEjercicio('  Press   Banca ')).toBe('press banca');
+    expect(claveDeEjercicio(null)).toBe('');
+  });
+
+  it('el historial ya compara así', () => {
+    const micros = [
+      { weekNumber: 1, days: [], sessions: [{ id: 'a', date: '2026-09-01', dayName: 'X', entries: [{ name: 'press banca ', sets: [{ kg: '60', reps: '8' }] }] }] },
+    ];
+    expect(historialDeEjercicio(micros, 'Press  Banca')).toHaveLength(1);
+  });
+});
+
+describe('ultimaVezDeEjercicio — el logbook del cliente', () => {
+  const sesion = (id, date, dayName, entries) => ({ id, date, dayName, entries });
+  const entrada = (name, sets, clientNote = '') => ({ exerciseId: `${name}-${sets.length}`, name, sets, clientNote });
+  const hecha = (kg, reps) => ({ kg, reps, rir: '' });
+  const vacia = () => ({ kg: '', reps: '', rir: '' });
+
+  const programa = [
+    {
+      weekNumber: 1,
+      days: [],
+      sessions: [sesion('s1', '2026-09-07', 'Empuje', [entrada('Press banca', [hecha('60', '8'), hecha('60', '7')], 'multipower')])],
+    },
+    {
+      weekNumber: 2,
+      days: [],
+      sessions: [
+        /* Lunes y jueves de la MISMA semana, en hojas distintas. */
+        sesion('s2', '2026-09-14', 'Empuje', [entrada('Press banca', [hecha('62,5', '8'), vacia()])]),
+        sesion('s3', '2026-09-17', 'Torso', [entrada('press  banca', [vacia(), vacia()], 'solo nota')]),
+      ],
+    },
+  ];
+
+  it('la primera vez que se hace, nada', () => {
+    expect(ultimaVezDeEjercicio(programa, 'Sentadilla')).toBeNull();
+    expect(ultimaVezDeEjercicio([], 'Press banca')).toBeNull();
+    expect(ultimaVezDeEjercicio(programa, '')).toBeNull();
+  });
+
+  it('con series y sin nota: las series, y la nota vacía', () => {
+    const uv = ultimaVezDeEjercicio(programa, 'Press banca', { sinSesion: 's3', antesDe: '2026-09-17' });
+    expect(uv).toMatchObject({ fecha: '2026-09-14', nota: '' });
+    expect(uv.series).toEqual([{ kg: '62,5', reps: '8', rir: '' }]);
+    /* Alineadas con las casillas: la segunda serie no se hizo. */
+    expect(uv.sets).toEqual([{ kg: '62,5', reps: '8', rir: '' }, null]);
+  });
+
+  it('dos veces en la misma semana: el jueves ve el lunes, no la semana anterior', () => {
+    const uv = ultimaVezDeEjercicio(programa, 'Press banca', { sinSesion: 's3', antesDe: '2026-09-17' });
+    expect(uv.weekNumber).toBe(2);
+    expect(uv.dayName).toBe('Empuje');
+  });
+
+  it('una sesión sin series apuntadas no es la última vez', () => {
+    /* s3 solo tiene nota: la última vez con series sigue siendo el lunes. */
+    expect(ultimaVezDeEjercicio(programa, 'Press banca').fecha).toBe('2026-09-14');
+  });
+
+  it('pasando del papel un día viejo, lo de antes de ese día', () => {
+    const uv = ultimaVezDeEjercicio(programa, 'Press banca', { antesDe: '2026-09-10' });
+    expect(uv).toMatchObject({ fecha: '2026-09-07', nota: 'multipower' });
+  });
+
+});
+
+describe('serie efectiva — un solo criterio en toda la app', () => {
+  it('la serie a RIR 5 está hecha pero no suma al volumen', () => {
+    const session = {
+      entries: [
+        {
+          muscle: 'Pecho',
+          sets: [
+            { kg: '80', reps: '8', rir: '2' },
+            { kg: '80', reps: '8', rir: '' },
+            { kg: '60', reps: '10', rir: '5' },
+          ],
+        },
+      ],
+    };
+    expect(sessionSetCount(session)).toBe(3);
+    expect(sessionMuscleVolume(session)).toEqual({ Pecho: 2 });
   });
 });

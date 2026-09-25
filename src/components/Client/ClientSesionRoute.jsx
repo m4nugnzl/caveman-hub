@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Dumbbell } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
 import { useSesionEnCurso } from '@/context/SesionEnCurso';
-import { blockOfWeek, resolvedMicrocycles, structureOfBlock, weekLabel } from '@/domain/blocks';
+import { blockOfWeek, microcicloDeLaSemana, resolvedMicrocycles, structureOfBlock, weekLabel, weeksOfBlock } from '@/domain/blocks';
 import { conSeriesSinConfirmar } from '@/domain/seriesSinConfirmar';
 import { esDelCliente } from '@/lib/seriesNoGuardadas';
 import {
@@ -18,27 +18,37 @@ import {
   bestSetsBefore,
   historialDeEjercicio,
   isSetLogged,
-  previousSetKey,
-  previousSetsBefore,
   sesionAMedias,
   sessionSetCount,
   sessionTonnage,
   sessionsOf,
+  ultimaVezDeEjercicio,
 } from '@/domain/sessions';
+import { useAjustesDeEjercicio } from '@/context/useAjustesDeEjercicio';
 import { drillsForDay, restLabel, unitInitial, unitLabel } from '@/domain/training';
-import { shortDate, todayISO, weekdayName } from '@/lib/dates';
+import { shortDate, weekdayName } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
 import { useDaySession } from '@/components/Coach/Workout/useDaySession';
 import { useReviewRows } from '@/components/review/useReviewRows';
-import { diasConOtraSesion, estadoDeLaSesion, limitesDeLaSesion, porQueNoSeMueve } from '@/domain/fechaDeLaSesion';
+import {
+  apuntadaDespues,
+  diaPorDefecto,
+  diasConOtraSesion,
+  estadoDeLaSesion,
+  limitesDeLaAparicion,
+  limitesDeLaSesion,
+  porQueNoSeEscribe,
+  porQueNoSeMueve,
+} from '@/domain/fechaDeLaSesion';
 import { EmptyState } from '@/components/ui/primitives';
 import { CierreDeLaSesion } from './CierreDeLaSesion';
-import { pautaDe, sesionDeHoy } from './hoy';
+import { aparicionesDelMicrociclo, pautaDe, sesionDeHoy } from './hoy';
 import { porEjercicio, recordsDeLaSesion } from './sesion';
 import { useFichaDe } from './useFichaDe';
 import { FichaDelEjercicio } from './movil/FichaDelEjercicio';
 import { PantallaSesion as SesionEnMonitor } from './pc/PantallaSesion';
 import { PantallaSesion as SesionEnTelefono } from './movil/PantallaSesion';
+import { RegistroDelEjercicio } from './movil/RegistroDelEjercicio';
 
 /**
  * `/mi/rutina/sesion` — LA PANTALLA DE HACER, y su cierre.
@@ -89,6 +99,7 @@ export const ClientSesionRoute = () => {
     seriesNoGuardadas,
   } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     viva,
     destino,
@@ -123,6 +134,14 @@ export const ClientSesionRoute = () => {
     quien entrena —el carril, el dedo o «Siguiente»—.
   */
   const [activo, setActivo] = useState(null);
+  /*
+    EL DÍA DE UNA SESIÓN QUE AÚN NO EXISTE. Hasta el 23 sep la fecha solo se
+    podía cambiar con la primera serie ya apuntada; quien pasa del papel lo
+    que hizo el martes tiene que poder decirlo ANTES, y la primera serie la
+    crea con ese día (`log_session_set` guarda el `p_date` que recibe). Sin
+    tocarlo, hoy: quien la rellena el mismo día no elige nada.
+  */
+  const [diaElegido, setDiaElegido] = useState(null);
 
   /*
     Con las series que el servidor NO guardó puestas encima: tras recargar solo
@@ -145,30 +164,62 @@ export const ClientSesionRoute = () => {
   const micros = useMemo(() => program?.microcycles || [], [program]);
   const hoy = useMemo(() => sesionDeHoy({ client: activeClient, program: crudo }), [activeClient, crudo]);
 
+  /*
+    Las apariciones de un microciclo: una hoja que cae dos veces son dos
+    sesiones, y se entra a UNA (ver `aparicionesDelMicrociclo`).
+  */
+  const aparicionesDe = (weekNumber) =>
+    aparicionesDelMicrociclo(
+      micros.find((m) => m.weekNumber === weekNumber),
+      microcicloDeLaSemana(program, weekNumber, activeClient)
+    );
+
   /* El destino se toma UNA vez: si se quedara puesto, volver aquí desde
      cualquier sitio reabriría la sesión de la última vez. */
   useEffect(() => {
     if (donde) return;
     if (destino) {
       setDonde(destino);
+      if (destino.cierre) setEnCierre(true);
       tomarDestino();
       return;
     }
     const semanas = micros.map((m) => m.weekNumber).sort((a, b) => a - b);
     const ultima = semanas[semanas.length - 1] ?? null;
     if (hoy && !hoy.descanso && ultima !== null) {
-      setDonde({ weekNumber: ultima, dayName: hoy.name });
+      /* La de hoy, y si la hoja cae dos veces, la primera aparición que no
+         está terminada: es la misma que la caja «Próxima sesión». Antes abría
+         la más reciente, y el segundo Push de la semana se escribía encima
+         del primero. */
+      const suyas = aparicionesDe(ultima).filter((a) => a.dayName === hoy.name);
+      const toca = suyas.find((a) => a.series === 0 || a.hechas < a.series) || suyas[suyas.length - 1];
+      setDonde(
+        toca
+          ? { weekNumber: ultima, dayName: hoy.name, vez: toca.vez, sessionId: toca.sessionId }
+          : { weekNumber: ultima, dayName: hoy.name }
+      );
       return;
     }
     /* Y si hoy no toca, la que dejaste a medias: entrar aquí un día de descanso
        casi siempre es ir a terminarla. Sin ninguna no se inventa una sesión. */
     const media = sesionAMedias(micros);
-    if (media) setDonde({ weekNumber: media.weekNumber, dayName: media.dayName });
+    if (media) {
+      const suya = aparicionesDe(media.weekNumber).find((a) => a.sessionId === media.session.id);
+      setDonde({ weekNumber: media.weekNumber, dayName: media.dayName, vez: suya?.vez, sessionId: media.session.id });
+    }
+    // `aparicionesDe` sale de `micros` y `program`, que ya están aquí.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [donde, destino, tomarDestino, hoy, micros]);
 
   const micro = micros.find((m) => m.weekNumber === donde?.weekNumber) || null;
   const day = micro?.days?.find((d) => d.dayName === donde?.dayName) || null;
-  const daySession = useDaySession(micro, day);
+  /* Con aparición, esa sesión o una nueva; sin ella, la más reciente. */
+  const daySession = useDaySession(micro, day, donde && 'sessionId' in donde ? donde.sessionId : undefined);
+  const aparicion = donde && Number.isFinite(donde.vez)
+    ? aparicionesDe(donde.weekNumber).find((a) => a.dayName === donde.dayName && a.vez === donde.vez) || null
+    : null;
+  /* El registro suelto de un ejercicio: la otra puerta, solo en el teléfono. */
+  const suelto = !enMonitor && donde?.ejercicio ? donde.ejercicio : null;
 
   /*
     SU HOJA CAMBIÓ DE NOMBRE CON LA SESIÓN ABIERTA. `donde` se fija al entrar y
@@ -185,7 +236,8 @@ export const ClientSesionRoute = () => {
       setDonde({ weekNumber: donde.weekNumber, dayName: s.dayName });
     }
   }, [donde, micro, day, sesionViva]);
-  const antes = useMemo(() => previousSetsBefore(micros, donde?.weekNumber), [micros, donde?.weekNumber]);
+  /* Sus ajustes («banco al 3»): de cualquier ejercicio, en cualquier rutina. */
+  const { ajustesDe, fijar, editar, quitar } = useAjustesDeEjercicio(activeClient?.id);
   /* El listón de cada ejercicio ANTES de esta semana: contra eso se decide qué
      es récord. Con el de esta misma sesión dentro, nada lo sería nunca. */
   const mejores = useMemo(() => bestSetsBefore(micros, donde?.weekNumber), [micros, donde?.weekNumber]);
@@ -211,7 +263,9 @@ export const ClientSesionRoute = () => {
   */
   const firmaDeTramos = tramos.join(',');
   useEffect(() => {
-    if (!daySession.activeId || !donde) return;
+    /* Pasar series del papel no es estar entrenando: ni pantalla despierta ni
+       barra retirada. */
+    if (!daySession.activeId || !donde || suelto) return;
     marcar({
       clientId: activeClient?.id,
       weekNumber: donde.weekNumber,
@@ -223,7 +277,7 @@ export const ClientSesionRoute = () => {
     });
     // `tramos` es un array nuevo en cada render; su firma es lo que cambia.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [daySession.activeId, donde, hechas, series, firmaDeTramos, activeClient?.id, marcar]);
+  }, [daySession.activeId, donde, suelto, hechas, series, firmaDeTramos, activeClient?.id, marcar]);
 
   if (!activeClient) return null;
 
@@ -305,6 +359,43 @@ export const ClientSesionRoute = () => {
     );
 
   /*
+    LOS DÍAS QUE PUEDE LLEVAR, los de su microciclo y sin cruzarse con las
+    otras apariciones de la misma hoja: el orden por fecha es lo que dice qué
+    sesión es de qué aparición.
+  */
+  const limites = limitesDeLaAparicion(limitesDeLaSesion(micros, donde.weekNumber), aparicion || {});
+  const fecha = daySession.session?.date || diaElegido || diaPorDefecto(limites);
+
+  /*
+    LA FRONTERA DE LAS REVISIONES, también en las series (23 sep): lo que su
+    entrenador ya revisó, o lo que queda fuera de plazo, el cliente lo lee y no
+    lo escribe. La base lo repite (0137). El entrenador no tiene frontera.
+  */
+  const bloqueo = porQueNoSeEscribe({
+    fecha,
+    esCliente: !isCoach,
+    entregas,
+    preferences: activeClient.preferences,
+    startDate: activeClient.startDate,
+  });
+
+  /*
+    LA ÚLTIMA VEZ de cada ejercicio: UNA sesión, la más reciente con series
+    apuntadas de ese ejercicio antes de esta, en cualquier rutina y microciclo
+    (`ultimaVezDeEjercicio`). De ahí salen el bloque «La última vez», los
+    números en gris de las casillas y lo que pone «Hecha» en una serie vacía:
+    los tres dicen lo mismo. Antes las casillas salían de `previousSetsBefore`,
+    que no veía el lunes desde el jueves de la misma semana.
+  */
+  const ultimas = new Map(
+    daySession.exercises.map((ex) => [
+      ex.id,
+      ultimaVezDeEjercicio(micros, ex.name, { sinSesion: daySession.activeId, antesDe: fecha }),
+    ])
+  );
+  const previoDe = (exId, i) => ultimas.get(exId)?.sets?.[i] || null;
+
+  /*
     Escribir una serie. La PRIMERA de un día crea la sesión y devuelve su id;
     quien escriba dos campos seguidos tiene que pasarle ese id al segundo o
     abrirá dos sesiones.
@@ -317,7 +408,7 @@ export const ClientSesionRoute = () => {
       donde.weekNumber,
       /* Una sesión heredada no tiene id real: se manda `null` y se crea una. */
       sessionId !== undefined ? sessionId : daySession.session?.isLegacy ? null : daySession.activeId,
-      daySession.session?.date || todayISO(),
+      fecha,
       day.dayName,
       exercise,
       setIndex,
@@ -370,7 +461,7 @@ export const ClientSesionRoute = () => {
     if (!ex || !set) return false;
 
     if (!isSetLogged(set)) {
-      const previo = antes.get(previousSetKey(ex.name, setIndex));
+      const previo = previoDe(exId, setIndex);
       const pautaReps = String(set.targetReps ?? '').trim();
       if (previo && isSetLogged(previo)) {
         ponerLoDeAntes(exId, setIndex, previo, { conRir: showRir });
@@ -415,6 +506,19 @@ export const ClientSesionRoute = () => {
     en `sessions` y se escribiría en el aire.
   */
   const puedeAnotar = Boolean(daySession.activeId && !daySession.session?.isLegacy);
+  /*
+    LA NOTA DEL EJERCICIO Y LOS AJUSTES son del cliente (0139): su entrenador,
+    entrando con «Ver como», los lee y no los escribe. La nota ya no espera a
+    la primera serie: si la sesión no existe, la crea (`logExerciseNote`).
+  */
+  const esSuyo = !isCoach && !daySession.session?.isLegacy && !bloqueo;
+  const anotar = (exId, texto) => {
+    const id = logExerciseNote(activeClient.id, donde.weekNumber, daySession.activeId, exId, texto, {
+      date: fecha,
+      dayName: day.dayName,
+    });
+    if (id && id !== daySession.activeId) daySession.select(id);
+  };
 
   /* Las series de ESTA sesión que el servidor no guardó, por ejercicio y serie.
      Una sin sesión todavía (era la primera) se reconoce por su día. */
@@ -438,6 +542,8 @@ export const ClientSesionRoute = () => {
       nombre: ex.name,
       musculo: ex.muscle || null,
       objetivo: pedidas.length === 1 ? pedidas[0] : null,
+      /* «3 × 8-10», como en la hoja: el registro suelto lo enseña en su chapa. */
+      pauta: pautaDe(ex),
       descanso: restLabel(ex.restSeconds),
       ejercicio: ex,
       /* LA NOTA DE SU ENTRENADOR para este ejercicio («codos pegados»). Se
@@ -445,11 +551,18 @@ export const ClientSesionRoute = () => {
          no monta nadie. Con el mismo interruptor del protocolo que en su hoja. */
       indicacion: isModuleOn(protocolo, 'coachNote') ? String(ex.coachNote || '').trim() : '',
       nota: String(ex.clientNote || ''),
-      onNota: puedeAnotar
-        ? (texto) => logExerciseNote(activeClient.id, donde.weekNumber, daySession.activeId, ex.id, texto)
-        : null,
+      /* Su logbook: la última vez que hizo este ejercicio (series y nota) y
+         sus ajustes fijos. Ver `ultimaVezDeEjercicio` y `useAjustesDeEjercicio`. */
+      ultimaVez: ultimas.get(ex.id) || null,
+      onNota: esSuyo ? (texto) => anotar(ex.id, texto) : null,
+      ajustes: {
+        lista: ajustesDe(ex.name),
+        onFijar: !isCoach ? (texto) => fijar(ex.name, texto) : null,
+        onEditar: !isCoach ? editar : null,
+        onQuitar: !isCoach ? quitar : null,
+      },
       series: (ex.sets || []).map((set, i) => {
-        const previo = antes.get(previousSetKey(ex.name, i)) || null;
+        const previo = previoDe(ex.id, i);
         return {
           kg: String(set.kg ?? ''),
           reps: String(set.reps ?? ''),
@@ -497,7 +610,6 @@ export const ClientSesionRoute = () => {
       : [],
   };
 
-  const fecha = daySession.session?.date || todayISO();
   /*
     ── EL DÍA DE LA SESIÓN SE TOCA (23 sep) ────────────────────────────────
     Si entrenó el martes y lo apuntó el miércoles, la sesión decía miércoles y
@@ -506,13 +618,16 @@ export const ClientSesionRoute = () => {
     mismas reglas (`domain/fechaDeLaSesion`). Mientras la sesión no existe —ninguna
     serie apuntada— no hay día que mover, y con la semana ya revisada tampoco:
     la fecha se lee y su globo dice por qué.
+
+    Y antes de la primera serie también se elige (23 sep): es el día con el
+    que nacerá la sesión. Sin tocarlo, hoy.
   */
   const dia = {
     texto: weekdayName(fecha, { conFecha: true }).replace(',', ''),
     /* En la cabecera del teléfono no caben las cuatro palabras. */
     corto: `${weekdayName(fecha).slice(0, 3)} ${shortDate(fecha)}`,
     fecha,
-    limites: limitesDeLaSesion(micros, donde.weekNumber),
+    limites,
     ocupados: diasConOtraSesion(micros, day.dayName, daySession.activeId),
     estado: daySession.session ? estadoDeLaSesion(daySession.session, series) : null,
     motivo: daySession.session
@@ -523,8 +638,10 @@ export const ClientSesionRoute = () => {
           preferences: activeClient.preferences,
           startDate: activeClient.startDate,
         })
-      : 'La sesión empieza con la primera serie que apuntes.',
-    onElegir: (nueva) => cambiarFechaDeSesion(activeClient.id, donde.weekNumber, daySession.activeId, nueva),
+      : null,
+    onElegir: daySession.session
+      ? (nueva) => cambiarFechaDeSesion(activeClient.id, donde.weekNumber, daySession.activeId, nueva)
+      : setDiaElegido,
   };
   const cabecera = {
     nombre: day.dayName,
@@ -543,10 +660,28 @@ export const ClientSesionRoute = () => {
 
   const abrirFicha = (e) => setFicha({ ejercicio: e.ejercicio, nombre: e.nombre });
 
+  /*
+    DE VUELTA A LA HOJA, que es de donde se llega al registro suelto y al
+    cierre directo. Con historial, atrás: la hoja se queda como estaba. Sin él
+    (se recargó la página), a su dirección.
+  */
+  const volverALaHoja = () => {
+    if (location.key !== 'default') {
+      navigate(-1);
+      return;
+    }
+    const q = new URLSearchParams({ hoja: day.dayName });
+    if (Number.isFinite(donde.vez)) q.set('vez', String(donde.vez));
+    navigate(`/mi/rutina?${q}`, { replace: true });
+  };
+
   /* ── El cierre ─────────────────────────────────────────────────────────── */
   if (enCierre && hechas > 0) {
+    /* La duración solo si se ha entrenado con la app en la mano: pasada del
+       papel, «ahora menos el principio» mide lo que se tardó en copiarla. */
     const inicio = Date.parse(daySession.session?.startedAt || '');
-    const minutos = Number.isFinite(inicio) ? Math.round((Date.now() - inicio) / 60000) : null;
+    const medida = Number.isFinite(inicio) && !donde.cierre && !apuntadaDespues(daySession.session);
+    const minutos = medida ? Math.round((Date.now() - inicio) / 60000) : null;
     const preguntas = puedeAnotar && asksFeedback(protocolo) ? activeQuestions(protocolo) : [];
     const cierre = {
       nombre: day.dayName,
@@ -567,7 +702,8 @@ export const ClientSesionRoute = () => {
           ? (texto) => updateSessionMeta(activeClient.id, donde.weekNumber, daySession.activeId, { clientNote: texto })
           : null,
       onTerminar: terminar,
-      onVolver: () => setEnCierre(false),
+      /* Llegado desde la hoja, volver es volver a ella, no entrar a entrenar. */
+      onVolver: donde.cierre ? volverALaHoja : () => setEnCierre(false),
     };
     return (
       <div className={enMonitor ? 'pc-hoja pc-hoja-cierre' : 'tel-tramo tel-tramo-cierre'}>
@@ -604,6 +740,7 @@ export const ClientSesionRoute = () => {
     onSalir: salir,
     onAcabar: acabar,
     guardado,
+    bloqueo,
     /*
       Solo el monitor: lo que leen las dos tarjetas del costado y sus ventanas,
       que son las de la hoja del entrenador (`ComparativaEjercicio`,
@@ -613,11 +750,40 @@ export const ClientSesionRoute = () => {
     lecturas: {
       microcycles: micros,
       weekNumber: donde.weekNumber,
+      /* Las semanas del bloque de hoy: la progresión se mide dentro del bloque. */
+      semanas: bloqueDelDia ? weeksOfBlock(program, bloqueDelDia) : null,
       etiqueta: (w) => weekLabel(program, w, unitInitial(program?.cycleType)),
       preguntas: activeQuestions(protocolo),
       ultimaConSensaciones: ultimaConSensaciones(micros, activeQuestions(protocolo)),
     },
   };
+
+  /*
+    ── LA OTRA PUERTA: un ejercicio suelto, con todas sus series a la vez ─────
+    Las mismas escrituras y la misma sesión que el modo entreno; sin descanso,
+    porque copiar del papel no es terminar una serie. Si el ejercicio ya no
+    está en la hoja (su entrenador la cambió), se entra al modo entreno.
+  */
+  const delRegistro = suelto ? ejercicios.find((e) => e.id === suelto) : null;
+  if (delRegistro) {
+    return (
+      <RegistroDelEjercicio
+        datos={{
+          cabecera: { nombre: day.dayName, cuando: aparicion?.cuando || null, dia },
+          ejercicio: delRegistro,
+          showRir,
+          onCampo: (exId, i, campo, valor) => escribir(exId, i, campo, valor),
+          guardado,
+          bloqueo,
+          /* Todo se guarda al escribir: «Guardar» vuelve, salvo que el servidor
+             haya rechazado algo, que entonces se queda a la vista. */
+          onGuardar: () => {
+            if (guardado?.status !== 'error') volverALaHoja();
+          },
+        }}
+      />
+    );
+  }
 
   return (
     <>

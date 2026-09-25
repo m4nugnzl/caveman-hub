@@ -9,7 +9,7 @@ import { metricColor } from '@/domain/metrics';
  *
  * ── Cómo se lee ─────────────────────────────────────────────────────────────
  * Apagado: sin series. De claro a pleno: de pocas series al MRV. Pasado del
- * MRV, el grupo se pinta en negativo, igual que su barra de al lado. La
+ * MRV, el grupo se pinta en violeta —un dato, no un error—, igual que su cifra. La
  * leyenda de abajo lo dice con la misma escala.
  *
  * ── La figura ───────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ const ESPALDA = dobla(ESPALDA_IZQ);
 
 const relleno = (dato, color) => {
   if (!dato) return 'var(--fill)';
-  if (dato.pasado) return 'var(--negative)';
+  if (dato.pasado) return 'var(--data-violet)';
   return `color-mix(in srgb, ${color} ${Math.round(22 + dato.valor * 78)}%, var(--fill))`;
 };
 
@@ -152,7 +152,7 @@ export const MapaMuscular = ({ musculos }) => {
           <span>sin series</span>
           <span>MRV</span>
         </span>
-        {pasados && <span className="mapa-leyenda-pasado">rojo: por encima del MRV</span>}
+        {pasados && <span className="mapa-leyenda-pasado">violeta: por encima del MRV</span>}
       </div>
     </div>
   );

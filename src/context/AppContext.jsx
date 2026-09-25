@@ -28,6 +28,7 @@ import { useCoachPrefs } from '@/context/useCoachPrefs';
 import { useCajon } from '@/context/useCajon';
 import { useAutomatizaciones } from '@/context/useAutomatizaciones';
 import { useEnvios } from '@/context/useEnvios';
+import { usePlanDeSesiones } from '@/context/usePlanDeSesiones';
 import { useClients } from '@/context/useClients';
 import { useAnthropometry } from '@/context/useAnthropometry';
 import { useNutrition } from '@/context/useNutrition';
@@ -924,6 +925,11 @@ export const AppProvider = ({ children }) => {
             p_session_id: data.sessionId,
             p_exercise_id: data.exerciseId,
             p_note: String(data.note ?? ''),
+            /* El día y la fecha, para que la nota pueda CREAR la sesión si
+               todavía no hay ninguna serie (0139). Un envío viejo de la cola
+               no los trae y se comporta como antes. */
+            p_date: data.date ?? null,
+            p_day_name: data.dayName ?? null,
           }),
         { immediate: false }
       );
@@ -2012,6 +2018,11 @@ export const AppProvider = ({ children }) => {
     marcarVisto,
   } = useEnvios({ session });
 
+  /* El plan de las sesiones y lo que el cliente atrasa (0138). Los dos lados,
+     como los envíos: filtra RLS. Ver `domain/planDeSesiones`. */
+  const { sessionPlans, sessionDelays, reloadPlanDeSesiones, atrasarSesiones, deshacerAtraso, verAtrasos } =
+    usePlanDeSesiones({ session });
+
   /* El espejo que `aplicarInstantanea` usa para sembrar la bandeja: su gancho se
      monta aquí abajo y la carga vive arriba. Ver `siembraEnviosRef`. */
   siembraEnviosRef.current = { setEnvioRows, setEnviosReady };
@@ -2223,6 +2234,8 @@ export const AppProvider = ({ children }) => {
     anchors,
     hechos,
     dietVersions,
+    notasDeIntervencion,
+    guardarIntervencion,
     igualar,
     quitarReplanteo,
     addPhase,
@@ -2233,6 +2246,9 @@ export const AppProvider = ({ children }) => {
     saveAnchor,
     removeAnchor,
     shiftFuturePhases,
+    estirarFase,
+    anadirHecho,
+    quitarHecho,
   } = useRoadmap({
     session,
     activeClientId,
@@ -2628,6 +2644,8 @@ export const AppProvider = ({ children }) => {
     startBlock,
     renameBlock,
     setBlockTraits,
+    ponerTemporada,
+    moverBorradorDelBloque,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,
@@ -3046,11 +3064,15 @@ export const AppProvider = ({ children }) => {
       /* Los hechos del plan y la pauta fechada (0123, 0124). Ver `useRoadmap`. */
       hechos,
       dietVersions,
+      /* Lo que el entrenador piensa de cada intervención (0143). Ver `useRoadmap`. */
+      notasDeIntervencion,
       conditions,
       equipment,
       equipmentCounts,
       envioRows,
       enviosReady,
+      sessionPlans,
+      sessionDelays,
       automatizaciones,
       automatizacionesReady,
       corridas,
@@ -3069,7 +3091,8 @@ export const AppProvider = ({ children }) => {
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
       workoutData, pasosDelPlan, training, legacyPending, anthropometry, nutrition, progressPhotos,
       exerciseLibrary, foodLibrary, cajon, hayCajon, sheetOf, gruposEquiv, catalogFoods, catalogExercises, checkIns, checkInsActivos,
-      phases, anchors, hechos, dietVersions, conditions, equipment, equipmentCounts, envioRows, enviosReady,
+      phases, anchors, hechos, dietVersions, notasDeIntervencion, conditions, equipment, equipmentCounts, envioRows, enviosReady,
+      sessionPlans, sessionDelays,
       automatizaciones, automatizacionesReady, corridas,
       saveStatus, enEspera, fallosAlGuardar, copiaLocal, seriesNoGuardadas,
     ]
@@ -3167,6 +3190,8 @@ export const AppProvider = ({ children }) => {
     startBlock,
     renameBlock,
     setBlockTraits,
+    ponerTemporada,
+    moverBorradorDelBloque,
     deleteBlock,
     logBlockChange,
     migratePlanToBlock,
@@ -3317,6 +3342,12 @@ export const AppProvider = ({ children }) => {
     marcarAccion,
     marcarVisto,
 
+    // Atrasar las sesiones (0138, `domain/planDeSesiones`)
+    reloadPlanDeSesiones,
+    atrasarSesiones,
+    deshacerAtraso,
+    verAtrasos,
+
     // Y lo que sale solo: las automatizaciones del protocolo (0116)
     guardarAutomatizacion,
     quitarAutomatizacion,
@@ -3393,6 +3424,10 @@ export const AppProvider = ({ children }) => {
     saveAnchor,
     removeAnchor,
     shiftFuturePhases,
+    estirarFase,
+    anadirHecho,
+    quitarHecho,
+    guardarIntervencion,
     igualar,
     quitarReplanteo,
 

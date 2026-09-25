@@ -32,6 +32,7 @@
  * O, más corto:  npm run demo   /   npm run demo:limpiar
  */
 import { createClient } from '@supabase/supabase-js';
+import { TEMPORADA, sembrarPerfil } from './demo-temporada.mjs';
 
 const URL_TEST = process.env.SUPABASE_TEST_URL || '';
 const SERVICE = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY || '';
@@ -371,6 +372,15 @@ for (const persona of CARTERA) {
       }
     }
   }
+}
+
+/* Y uno con la temporada entera de culturismo —fases, bloques, competición—,
+   que es lo que ninguno de los seis de arriba enseña. */
+{
+  const fila = ok(await sesion.rpc('create_client', { p_name: TEMPORADA.nombre }), 'create_client');
+  const clientId = fila?.id || fila?.[0]?.id;
+  await sembrarPerfil(admin, clientId, coachId, TEMPORADA);
+  creados.push({ clientId, persona: TEMPORADA });
 }
 
 console.log('\nSembrado:');

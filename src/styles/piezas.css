@@ -345,7 +345,7 @@
 .mapa-leyenda { display: flex; flex-direction: column; gap: 2px; width: 124px; }
 .mapa-escala { display: block; height: 5px; border-radius: 3px; }
 .mapa-leyenda-k { display: flex; justify-content: space-between; font-size: var(--fs-3xs); color: var(--text-tertiary); letter-spacing: 0.02em; }
-.mapa-leyenda-pasado { font-size: var(--fs-3xs); color: var(--negative); }
+.mapa-leyenda-pasado { font-size: var(--fs-3xs); color: var(--data-violet); }
 /* El rótulo que titula una tarjeta suelta (objetivo, pasos, cardio): frase. */
 .section-label.is-titulo {
   font-family: var(--font-display);
@@ -1763,6 +1763,7 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
   background: var(--surface); border: 1px solid var(--edge); box-shadow: var(--shadow-sm);
 }
 .lado-aviso { font-size: var(--fs-2xs); font-weight: 600; color: var(--negative); white-space: nowrap; flex-shrink: 0; }
+.lado-aviso.is-sobre { color: var(--data-violet); }
 .lado-mas { align-self: flex-start; padding: 0; border: 0; background: transparent; font: inherit; font-size: var(--fs-xs); color: var(--text-tertiary); cursor: pointer; }
 .lado-mas:hover { color: var(--text); }
 .lado-tarjeta .bloque-cifra { padding: var(--s2) var(--s3); }
@@ -1902,7 +1903,8 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 .volumen-num { text-align: center; font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .volumen-v { font-size: var(--fs-sm); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; text-align: center; }
 .volumen-v > small { font-size: var(--fs-2xs); color: var(--text-tertiary); font-weight: 500; }
-.volumen-v.is-mal { color: var(--negative); }
+/* Pasarse del MRV puede ser a propósito: violeta, un dato, no rojo de error. */
+.volumen-v.is-sobre { color: var(--data-violet); }
 .volumen-v.is-aviso { color: var(--warning); }
 /* La barra sube de 6 a 8 px, que es lo que el frame le da: con la marca del
    MEV encima, a 6 el palito medía el doble que la barra. */
@@ -1910,7 +1912,8 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 .volumen-relleno { display: block; height: 100%; border-radius: 4px; }
 /* La marca del MEV: un palito sobre la barra, donde empieza a contar. En tinta
    llena y no terciaria —el frame la pinta casi negra— porque es lo único que
-   convierte la barra en una MEDIDA: sin ella es un relleno bonito. */
+   convierte la barra en una MEDIDA: sin ella es un relleno bonito. Al pasarse
+   del MRV sale un segundo palito igual, en el MRV (ver `VolumenPopup`). */
 .volumen-mev { position: absolute; top: -2px; width: 2px; height: 12px; margin-left: -1px; border-radius: 1px; background: var(--text); }
 /* El pie: la única cifra llena de la tabla, y a su lado de qué es. */
 .volumen-suma {
@@ -2904,138 +2907,16 @@ a.title:hover { text-decoration: underline; }
    cabecera. Con ellas se van también `.escribir-alta-pie`, `.escribir-pauta` y
    `.escribir-series-cab`. */
 
-/* ══ LA LISTA DE BLOQUES ═══════════════════════════════════════════════════
-   La otra cara de Entreno (`?v=lista`). Misma gramática que la mesa del
-   bloque: sin cajas, el aire separa, las cifras van rotuladas y en la misma
-   vertical en todas las filas. Si esto llevara tarjetas volveríamos a tener
-   dos idiomas en una pestaña. */
-.bl-pagina { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
-
-.bl-cab { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
-.bl-titulo {
-  margin: 0; font-family: var(--font-display);
-  font-size: var(--fs-lg); font-weight: 700; letter-spacing: -0.026em; line-height: 1.2;
-}
-.bl-cab-dato { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.bl-hueco { flex: 1 1 auto; min-width: 0; }
-.bl-cab > .segmented { align-self: center; }
-
-.bl-grupo { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
-.bl-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-
-/* ── La fila ───────────────────────────────────────────────────────────────
-   La caja ENTERA es la puerta, con `.task-hit` por debajo: el nombre solo son
-   dos palabras dentro de una fila de mil píxeles, y encender dos palabras es
-   pedirle puntería a quien va a entrar (ver `ley-de-los-gestos`). El «···» va
-   por encima, y con el cursor sobre él la fila no se enciende: ahí el clic no
-   abre el bloque. */
-.bl-fila {
-  position: relative; display: flex; align-items: center; gap: var(--s4);
-  padding: var(--s3) var(--s3) var(--s3) var(--s2);
-  border-top: 1px solid var(--hairline); min-width: 0;
-  border-radius: var(--r-sm);
-  transition: background-color var(--fast);
-}
-.bl-fila:first-child { border-top: 0; }
-.bl-fila:hover:not(:has(.bl-menu:hover)) { background: var(--accent-wash); }
-.bl-fila:hover:not(:has(.bl-menu:hover)) .bl-nombre { color: var(--accent); }
-.bl-fila.is-renombrando { padding: var(--s2); }
-
-.bl-say { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.bl-nombre-fila { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; min-width: 0; }
-.bl-nombre {
-  font-family: var(--font-display); font-size: var(--fs-md); font-weight: 700;
-  letter-spacing: -0.022em; color: var(--text); transition: color var(--fast);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-/* La intención del bloque —a qué juega— y si sigue abierto. Chapa callada: es
-   un rótulo, no un estado que haya que juzgar. */
+/* ══ LA CHAPA DE LOS BLOQUES ═══════════════════════════════════════════════
+   La intención de un bloque y si sigue abierto, en la tira del programa. La
+   lista de bloques que también la usaba es ahora una línea de tiempo
+   (`lista-de-bloques.css`). Chapa callada: es un rótulo, no un estado. */
 .bl-chapa {
   flex-shrink: 0; border-radius: 999px; padding: 2px 9px;
   background: var(--surface-sunken); color: var(--text-secondary);
   font-size: var(--fs-3xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
 }
 .bl-chapa.is-abierto { background: var(--accent-soft); color: var(--accent); }
-.bl-aqui { font-size: var(--fs-xs); font-weight: 600; color: var(--accent); }
-.bl-cuando { font-size: var(--fs-xs); color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
-.bl-nota {
-  font-size: var(--fs-xs); color: var(--text-secondary); max-width: 60ch;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* ── LOS MICROCICLOS DEL BLOQUE, DIBUJADOS ─────────────────────────────────
-   Una casilla por microciclo escrito: llena la que tiene entrenos registrados,
-   vacía la que no, y en acento el que está en curso. La fila decía «10
-   microciclos» y eso hay que descifrarlo; esto se ve.
-
-   El bloque ABIERTO no cierra su barra: la última casilla se desvanece por la
-   derecha y al lado se dice «sigue abierto». Dibujar diez de doce en un bloque
-   sin duración sería inventarse un final — es lo único de la tarjeta de Efort
-   que no se puede copiar, porque sus bloques sí lo tienen. */
-.bl-micros { display: flex; align-items: center; gap: 3px; margin-top: var(--s1); }
-/* Tres tintas y bien separadas: la escrita sin entrenar es el relleno de la
-   casa; la ENTRENADA sube al filete fuerte —el mismo salto que separa un canto
-   de un relleno, o las dos no se distinguen a cinco píxeles de alto—; y la que
-   está en curso, acento. */
-.bl-micro {
-  width: 13px; height: 5px; border-radius: 1px;
-  background: var(--fill); flex: none;
-}
-.bl-micro.is-hecha { background: var(--hairline-strong); }
-.bl-micro.is-aqui { background: var(--accent); }
-/* El canto abierto: la última casilla se va en degradado hacia el papel. Salvo
-   que ahí mismo sea donde estás: el microciclo en curso es una afirmación —«va
-   por aquí»— y desvanecerlo lo convierte en una duda. */
-.bl-micros.is-abierto > .bl-micro:last-of-type:not(.is-aqui) {
-  -webkit-mask-image: linear-gradient(to right, #000 45%, transparent 100%);
-          mask-image: linear-gradient(to right, #000 45%, transparent 100%);
-}
-.bl-micros-sigue {
-  font-size: var(--fs-3xs); color: var(--text-tertiary); margin-left: 3px;
-}
-
-/* Cuatro cifras de ancho fijo: en todas las filas caen en la misma vertical,
-   así que la lista se lee también hacia abajo por una columna. */
-.bl-cifras { display: flex; gap: var(--s5); flex-shrink: 0; }
-.bl-cifra { display: flex; flex-direction: column; align-items: flex-end; width: 74px; gap: 0; }
-.bl-cifra > b {
-  font-size: var(--fs-base); font-weight: 700; letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.2;
-}
-.bl-cifra > small { font-size: var(--fs-3xs); color: var(--text-tertiary); letter-spacing: 0.02em; }
-
-.bl-mandos { position: relative; flex-shrink: 0; }
-.bl-menu { opacity: 0; transition: opacity var(--fast); }
-.bl-fila:hover .bl-menu,
-.bl-fila:focus-within .bl-menu,
-.bl-menu[aria-expanded='true'] { opacity: 1; }
-@media (hover: none) { .bl-menu { opacity: 1; } }
-
-/* Qué cambió: una hoja por bloque, y dentro sus cambios. El signo lleva el
-   color —entra en acento, sale en tinta apagada— y no el semáforo: cambiar un
-   plan no es acertar ni fallar. */
-
-@media (max-width: 1023.98px) {
-  .bl-cifras { gap: var(--s4); }
-  .bl-cifra { width: 62px; }
-}
-@media (max-width: 1023.98px) {
-  /* En un teléfono la fila se parte: el nombre arriba y las cifras debajo, que
-     es lo que cabe. Ver `movil-ejecuta-pc-planifica`: esto es de escritorio,
-     pero si se abre no puede salir roto. */
-  .bl-fila { flex-wrap: wrap; }
-  .bl-cifras { width: 100%; justify-content: space-between; gap: var(--s2); }
-  .bl-cifra { align-items: flex-start; width: auto; }
-}
-
-/* ── Correcciones medidas sobre la lista ───────────────────────────────────
-   1. «+ bloque» partía en dos renglones —el «+» arriba y la palabra debajo—:
-      es un `inline-flex` dentro de una fila con `baseline`, y sin `nowrap` el
-      icono cuenta como una palabra más.
-   2. Las cifras enfrentadas bajan a la primera columna de la mesa: sueltas y a
-      todo el ancho, el rótulo del medio quedaba en el centro de la página con
-      sus dos valores pegados y el resto vacío. */
-.bl-cab .cab-accion { white-space: nowrap; display: inline-flex; align-items: center; gap: var(--s1); }
 
 /* ── LA MEDIA DEL CICLO: el total de la lista de días ──────────────────────
    Misma anatomía que un renglón de `.lado-lineas` —nombre a la izquierda, cifra
@@ -3607,21 +3488,9 @@ a.title:hover { text-decoration: underline; }
   font-size: var(--fs-xs); margin-left: 2px;
 }
 
-/* ── 5 · LA PROGRESIÓN, EN CHAPAS ──────────────────────────────────────────
-   En el frame cada delta va en una chapa de color y no en tinta suelta, que es
-   la misma figura que acaba de coger lo registrado en la hoja (`.plan-ej-real`):
-   una cifra que juzga se contiene, no se pinta.
-
-   El tono NO es el del frame, y es a propósito. Allí todos los deltas van en
-   rojo; aquí bajar carga es un AVISO y no un error —lo dice la ley del color de
-   la casa, y es la diferencia entre «mira esto» y «esto está mal»—. Lo clavado
-   se queda en gris, que es lo que es: un dato, no un juicio. */
-.entreno.is-conjunto .progresion-quietos .d {
-  display: inline-flex; align-items: center; padding: 2px var(--s2);
-  border-radius: var(--r-pill); background: var(--fill); color: var(--text-tertiary);
-}
-.entreno.is-conjunto .progresion-quietos .d.is-flat { background: var(--fill); color: var(--text-secondary); }
-.entreno.is-conjunto .progresion-quietos .d.is-down { background: var(--warning-soft); color: var(--warning); }
+/* ── 5 · La progresión en chapas se fue el 25 sep con su lista: el costado
+   lleva las cifras del rendimiento y el % de cada hoja en texto llano
+   (`TarjetaRendimiento`, `.progresion-quietos` en revision.css). */
 
 /* ── 6 · EL MICROCICLO ABIERTO, EN ACENTO ──────────────────────────────────
    La pastilla del microciclo que miras era un relleno neutro con canto. En el
@@ -4211,15 +4080,6 @@ a.title:hover { text-decoration: underline; }
   letter-spacing: 0; color: var(--text-tertiary);
 }
 .entreno.is-conjunto .lado-cab-fila { justify-content: flex-start; gap: var(--s1); }
-/* Salvo en Progresión, que es la única de las tres a la que el frame le pone
-   la cuenta EN LA LÍNEA del título y no debajo. Y es coherente con lo que
-   cuenta: «9 ejercicios · 8 sin moverse» no es de cuánto habla la tarjeta, es
-   ya una lectura — la primera de la lista que viene debajo. */
-.entreno.is-conjunto .lado-tarjeta:has(.progresion-quietos) .lado-cab {
-  flex-direction: row; align-items: baseline; justify-content: space-between; gap: var(--s2);
-}
-.entreno.is-conjunto .lado-tarjeta:has(.progresion-quietos) .lado-cab-fila { flex: 0 1 auto; }
-
 /* ── 26 · Y SUS MEDIDAS ────────────────────────────────────────────────────
    Relleno 20 y aire interior 16, como el frame y como la tarjeta de la hoja
    (regla 20): las cinco cajas de la pantalla pasan a tener el mismo relleno,
@@ -4249,28 +4109,7 @@ a.title:hover { text-decoration: underline; }
 /* ── 28 · El volumen: desde el 21 sep lo dibuja el medidor de la casa, con su
    propia hoja (`medidor.css`). Aquí no queda nada que decirle. */
 
-/* ── 29 · LA PROGRESIÓN NO LLEVA FILETES ───────────────────────────────────
-   Cada renglón iba separado por una línea. En el frame no hay ninguna: son
-   cuatro filas con 12 px de aire y la única línea de la tarjeta es la que
-   cierra la lista antes de «y 5 más» (regla 27).
-
-   Y el frame tiene razón por dónde va el filete en la casa: una línea entre
-   filas dice «esto es una tabla y las columnas se comparan en vertical». Esto
-   no es una tabla —es un nombre y su delta, cuatro veces— y la chapa de color
-   ya separa un renglón del siguiente. El aire basta.
-
-   La lista de ejercicios de la hoja SÍ conserva los suyos: allí se comparan
-   ocho filas de dosis en vertical, que es justo el caso contrario.
-
-   Aquí hubo un `:not(.progresion-mas)` para salvar el filete de «y N más» de
-   este mismo selector, que le ganaba por el tipo. Ya no hace falta: ese verbo
-   se fue del `<ul>` y es un `.lado-mas` como el del volumen, así que la regla
-   27 lo alcanza sin que esta le pueda. Un caso menos de la trampa de
-   especificidad, y por la buena razón —la pieza es otra— y no por un `:not()`
-   que había que acordarse de mantener. */
-.entreno.is-conjunto .progresion-quietos { gap: var(--s3); }
-.entreno.is-conjunto .progresion-quietos > li { border-top: 0; padding: 0; }
-.entreno.is-conjunto .progresion-quietos .n { font-size: var(--fs-xs); font-weight: 400; }
+/* ── 29 · La lista de progresión ya no está (25 sep): nada que decirle. */
 
 /* ── 30 · Y EL REGISTRO SE LLEVA SU RENGLÓN TAMBIÉN EN COLUMNA ANCHA ───────
    En el reparto ancho la fila era `'nombre pauta' / 'real pauta'`: la dosis
@@ -4677,3 +4516,25 @@ a.title:hover { text-decoration: underline; }
 .fecha-sesion { white-space: nowrap; }
 @media (hover: hover) { .fecha-sesion:hover { color: var(--accent); } }
 .fecha-sesion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── LO QUE HA ATRASADO EL CLIENTE (0138) ──────────────────────────────────
+   Una línea discreta encima de las hojas del bloque: desde qué día y cuántos.
+   No es un aviso (ese vive en la bandeja de Hoy): es el rastro, y se queda. */
+.entreno-atrasos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+  margin: 0 0 var(--s3);
+  font-size: var(--fs-xs);
+  color: var(--text-tertiary);
+}
+/* En la píldora de la hoja, el reloj ocupa el sitio del punto. */
+.plan-col-estado.is-atrasada::before { display: none; }
+.entreno-atraso {
+  padding: 2px var(--s2);
+  border-radius: var(--r-pill);
+  background: var(--fill-subtle);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}

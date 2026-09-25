@@ -37,7 +37,7 @@
 export interface SetEntry {
   /** Kilos levantados. Cadena vacía = sin registrar. */
   kg?: string;
-  /** Repeticiones hechas. Es lo que decide si la serie cuenta como efectiva. */
+  /** Repeticiones hechas. Con ellas la serie está hecha; efectiva, si además va a RIR 3 o menos. */
   reps?: string;
   /** Repeticiones en reserva. */
   rir?: string;

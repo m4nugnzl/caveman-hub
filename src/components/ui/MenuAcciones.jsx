@@ -111,6 +111,12 @@ export const MenuAcciones = ({
           {visibles.map((it, i) =>
             it === null ? (
               <hr key={`sep-${i}`} className="menu-sep" />
+            ) : it.grupo ? (
+              /* `{ grupo }` rotula lo que sigue: un menú agrupado («Pauta»,
+                 «Sensaciones»…), sin ser un ítem. */
+              <p key={`grupo-${it.grupo}`} className="menu-grupo" role="presentation">
+                {it.grupo}
+              </p>
             ) : (
               <button
                 key={it.label}

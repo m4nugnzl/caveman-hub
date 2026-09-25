@@ -23,7 +23,7 @@
  */
 
 import { clientCycleSlots } from './blocks';
-import { cycleFoto, optionMacros } from './nutrition';
+import { cycleFoto, optionMacros, tiposDelCiclo } from './nutrition';
 import { weekFromStart } from './photos';
 import { esSerie } from './protocol';
 import { round, toNum } from '@/lib/num';
@@ -147,20 +147,41 @@ const recorta = (foto) => {
  * trae menú, y el programa no es de la dieta. Así `nutritionTrack` compara una
  * versión con una foto de revisión sin traducir nada.
  *
+ * Y los TIPOS DE DÍA (`tiposDelCiclo`) con sus casillas: la línea de tiempo
+ * los enseña por semana y por día. Solo en memoria: esta foto no se guarda.
+ *
  * @param nutrition la pauta ya traducida (`mapNutritionFromDb(version.pauta)`).
  */
 export const fotoDeVersion = ({ nutrition, program, client = null } = {}) => {
-  const ciclo = cycleFoto(nutrition, clientCycleSlots(client, program)) || {};
+  const slots = clientCycleSlots(client, program);
+  const ciclo = cycleFoto(nutrition, slots) || {};
+  const tipos = tiposDelCiclo(nutrition, slots);
   return {
+    tipos: tipos.length > 0 ? tipos : null,
     kcals: ciclo.kcals ?? null,
     protein: ciclo.protein ?? null,
     carbs: ciclo.carbs ?? null,
     fats: ciclo.fats ?? null,
     de: ciclo.de ?? null,
     reparto: ciclo.reparto ?? null,
-    steps: toNum(nutrition?.stepsGoal),
+    steps: pasosDeLaSemana(tipos) ?? toNum(nutrition?.stepsGoal),
     cardio: String(nutrition?.cardioGoal || '').trim().slice(0, 120) || null,
   };
+};
+
+/**
+ * Los pasos de una semana con pasos por día: la media de sus casillas. Sin
+ * casillas repartidas, `null` y manda el objetivo del plan.
+ */
+const pasosDeLaSemana = (tipos) => {
+  let suma = 0;
+  let n = 0;
+  for (const t of tipos) {
+    if (t.steps === null) continue;
+    suma += t.steps * t.casillas.length;
+    n += t.casillas.length;
+  }
+  return n > 0 ? Math.round(suma / n) : null;
 };
 
 export const planSnapshot = ({ nutrition, program, client = null } = {}) => {
@@ -173,7 +194,8 @@ export const planSnapshot = ({ nutrition, program, client = null } = {}) => {
     `cycleFoto` da la media ponderada cuando el ciclo está repartido, dice de
     dónde sale y trae los días detrás. El porqué entero, allí.
   */
-  const ciclo = cycleFoto(nutrition, clientCycleSlots(client, program)) || {};
+  const slots = clientCycleSlots(client, program);
+  const ciclo = cycleFoto(nutrition, slots) || {};
 
   const foto = {
     kcals: ciclo.kcals ?? null,
@@ -188,7 +210,10 @@ export const planSnapshot = ({ nutrition, program, client = null } = {}) => {
        es la de entonces. Lo primero que suelta `recorta` si la foto no cabe:
        ocupa poco, pero menos que las cifras de cabecera, que no se sueltan. */
     cycle: ciclo.cycle?.length ? ciclo.cycle : null,
-    steps: toNum(nutrition?.stepsGoal),
+    /* Con pasos por día, los de la semana son su media, como en la versión
+       fechada (`fotoDeVersion`): si no, las dos fotos de la misma dieta
+       discreparían y la de hoy parecería un cambio. */
+    steps: pasosDeLaSemana(tiposDelCiclo(nutrition, slots)) ?? toNum(nutrition?.stepsGoal),
     /* El cardio es texto, así que se guarda tal cual y no pasa por `toNum`.
        Recortado: la foto tiene un tope de 8 KB y una prescripción de tres
        párrafos se comería el sitio de las semanas del programa. */

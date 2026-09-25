@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { etiquetaDelBloque, rotuloDeFase } from './rotulos';
+import { colocarPesos, etiquetaDelBloque, primeraPalabra, rotuloDeFase } from './rotulos';
 
 /*
   Lo que protegen estas pruebas: que ningún bloque se quede mudo por estrecho
@@ -35,6 +35,19 @@ describe('la etiqueta de un bloque', () => {
 
   it('un bloque con nombre propio y sin intención usa su inicial', () => {
     expect(etiquetaDelBloque({ nombre: 'Puesta a punto', ancho: 24 })).toEqual({ texto: 'P', letra: true });
+  });
+
+  /* El caso que lo destapó: un borrador de 92 px llamado «Descarga y test», sin
+     intención escrita, se quedaba en «D» teniendo sitio para una palabra. */
+  it('sin intención, antes de la letra prueba la primera palabra', () => {
+    expect(etiquetaDelBloque({ nombre: 'Descarga y test', ancho: 92 })).toEqual({
+      texto: 'Descarga',
+      letra: false,
+    });
+  });
+
+  it('pero una palabra recortada no: o cabe entera o se cae al peldaño siguiente', () => {
+    expect(etiquetaDelBloque({ nombre: 'Descarga y test', ancho: 40 })).toEqual({ texto: 'D', letra: true });
   });
 
   it('en un tramo de una semana estrecha no se escribe nada: manda el globo', () => {
@@ -84,5 +97,61 @@ describe('el rótulo de una fase', () => {
 
   it('en una sola semana no cabe nada y no se escribe nada', () => {
     expect(textos(rotuloDeFase({ ...base, ancho: 18 }))).toEqual([]);
+  });
+});
+
+describe('los pesos de las uniones', () => {
+  const kg = (t) => [[`${t} kg`], [t]];
+
+  it('una unión lleva un solo número, centrado encima', () => {
+    const [p] = colocarPesos([{ x: 300, ancla: 'centro', versiones: kg('85,8') }], 800);
+    expect(p.partes).toEqual(['85,8 kg']);
+    expect(p.left + p.ancho / 2).toBe(300);
+  });
+
+  it('pegado al borde de la tira no se sale', () => {
+    const [a] = colocarPesos([{ x: 0, ancla: 'centro', versiones: kg('85,8') }], 800);
+    const [b] = colocarPesos([{ x: 800, ancla: 'centro', versiones: kg('85,8') }], 800);
+    expect(a.left).toBe(0);
+    expect(b.left + b.ancho).toBe(800);
+  });
+
+  it('dos uniones cerca sueltan las unidades antes que el número', () => {
+    const r = colocarPesos(
+      [
+        { x: 100, ancla: 'centro', versiones: kg('85,8') },
+        { x: 150, ancla: 'centro', versiones: kg('84,1') },
+      ],
+      800
+    );
+    expect(r.map((p) => p.partes[0])).toEqual(['85,8 kg', '84,1']);
+  });
+
+  it('y si ni así cabe, se calla: lo dice el globo', () => {
+    const r = colocarPesos(
+      [
+        { x: 100, ancla: 'centro', versiones: kg('85,8') },
+        { x: 120, ancla: 'centro', versiones: kg('84,1') },
+      ],
+      800
+    );
+    expect(r).toHaveLength(1);
+  });
+});
+
+describe('la primera palabra', () => {
+  it('es la palabra, no el nombre entero', () => {
+    expect(primeraPalabra('Descarga y test')).toBe('Descarga');
+    expect(primeraPalabra('Seguir definiendo')).toBe('Seguir');
+  });
+
+  it('de un nombre de una sola palabra no hay peldaño que dar', () => {
+    expect(primeraPalabra('Acumulación')).toBeNull();
+    expect(primeraPalabra('  Volumen  ')).toBeNull();
+  });
+
+  it('y una inicial suelta no es una palabra', () => {
+    expect(primeraPalabra('A tope')).toBeNull();
+    expect(primeraPalabra('')).toBeNull();
   });
 });

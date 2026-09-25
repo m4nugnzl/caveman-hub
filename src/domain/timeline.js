@@ -356,6 +356,10 @@ export const nutritionTrack = ({
          pueda decirlo, en vez de dar una cifra sin apellido. */
       de: vigente?.de ?? null,
       reparto: vigente?.reparto ?? null,
+      /* Los tipos de día de esa pauta: los de la versión, con sus casillas, o
+         los días que guardó la foto de la revisión (`cycle`), sin ellas. Una
+         foto vieja no guarda ninguno: esa semana solo tiene la media. */
+      tipos: tiposDeLaFoto(vigente),
       changed,
       cambios,
       fuente,
@@ -365,6 +369,22 @@ export const nutritionTrack = ({
       aprox: cambios.length > 0 ? aprox : null,
     };
   });
+};
+
+/** Los tipos de día de una foto: `[{ n, kcals, protein, carbs, fats, steps, casillas, dias }]` o `null`. */
+const tiposDeLaFoto = (foto) => {
+  if (foto?.tipos?.length) return foto.tipos;
+  if (!foto?.cycle?.length) return null;
+  return foto.cycle.map((d) => ({
+    n: d.n,
+    kcals: toNum(d.kcals),
+    protein: toNum(d.protein),
+    carbs: toNum(d.carbs),
+    fats: toNum(d.fats),
+    steps: null,
+    casillas: null,
+    dias: toNum(d.x),
+  }));
 };
 
 /** El último elemento de una lista ordenada que cumple la condición. */

@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleCheck,
   ClipboardList,
+  Clock3,
   KeyRound,
   MessageCircle,
   MessageSquare,
@@ -27,6 +28,7 @@ import {
   previsionEscrita,
 } from '@/domain/portfolio';
 import { contestadasPorCliente, pendientesPorCliente } from '@/domain/envios';
+import { lineasDeAtrasos } from '@/domain/planDeSesiones';
 import { ACTIVITY_KINDS, buildActivity, dayLabel, semanaDeUnVistazo } from '@/domain/today';
 import {
   MAX_CHECKIN_DATES,
@@ -375,6 +377,7 @@ const ColaTareas = ({ filas, seccion, onOpen, handlers }) => (
    antes de leerla. `revisar` no está porque no es tarjeta: tiene caja propia. */
 const ICONO_COLA = {
   leer: MessageSquare,
+  atrasos: Clock3,
   programar: ClipboardList,
   senales: TriangleAlert,
   siguiente: CalendarClock,
@@ -442,10 +445,13 @@ export const Today = () => {
     checkIns,
     equipmentCounts,
     envioRows,
+    sessionDelays,
+    nutrition,
     markClientPaid,
     loadEvents,
     setEventDone,
     updateClientPreferences,
+    verAtrasos,
   } = useApp();
   const { profileName } = useSession();
   const navigate = useNavigate();
@@ -466,10 +472,11 @@ export const Today = () => {
 
   const mandadoCounts = useMemo(() => pendientesPorCliente(envioRows, today), [envioRows, today]);
   const contestadoCounts = useMemo(() => contestadasPorCliente(envioRows), [envioRows]);
+  const atrasoLineas = useMemo(() => lineasDeAtrasos(sessionDelays, nutrition), [sessionDelays, nutrition]);
 
   const rows = useMemo(
-    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts }, today),
-    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, today]
+    () => buildPortfolio({ clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas }, today),
+    [clients, training, anthropometry, progressPhotos, checkIns, equipmentCounts, mandadoCounts, contestadoCounts, atrasoLineas, today]
   );
   const colas = useMemo(() => colasDeInicio(rows, today), [rows, today]);
   /* Lo que viene: a cuánta gente se le acaba lo escrito, semana a semana. Es la
@@ -644,6 +651,10 @@ export const Today = () => {
     },
     review: (reviewId, clientId) => cerrarRevision(reviewId, clientId),
     invite: () => navigate('/clientes'),
+    verAtrasos: async (clientId) => {
+      const res = await verAtrasos(clientId);
+      setError(res?.ok === false ? res.error : null);
+    },
   };
 
   const marcarEvento = async (event, done) => {

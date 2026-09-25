@@ -46,6 +46,10 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
   const pasados = grupos.filter((g) => g.pasado);
   const cortos = grupos.filter((g) => g.corto);
   const tope = Math.max(1, ...grupos.map((g) => g.mrv || g.total));
+  /* La barra llena es el MRV, como siempre. Solo al pasarse la barra se
+     estira hasta el total y aparece la raya del MRV: lo que queda a su
+     derecha es lo que sobra. */
+  const escala = (g) => (g.pasado ? g.total : g.mrv || tope);
   const u = unidad.toLowerCase();
   /* ── Las columnas del frame `202:4`, en el mismo orden ───────────────────
      grupo · una por hoja · veces · total · el tramo útil. El total y la barra
@@ -75,7 +79,7 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
               <span className="v">{Math.round(seriesTotales / Math.max(1, hojas.length))}</span>
               <span className="k">series por hoja, de media</span>
             </div>
-            <div className={`bloque-cifra${pasados.length > 0 ? ' is-mal' : ''}`}>
+            <div className="bloque-cifra">
               <span className="v">{pasados.length}</span>
               <span className="k">{pasados.length === 1 ? 'grupo sobre el MRV' : 'grupos sobre el MRV'}</span>
             </div>
@@ -87,7 +91,7 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
 
           <p className="t-sm t-secondary">
             Series pautadas por {u}, repartidas por hoja. La barra del final es el tramo útil de cada grupo: la marca es el MEV —por debajo apenas estimula— y el
-            tope el MRV —por encima no se recupera—. «Veces» dice en cuántas hojas se trabaja el grupo.
+            tope el MRV —por encima cuesta recuperarse; si se pasa, una segunda raya marca dónde estaba—. «Veces» dice en cuántas hojas se trabaja el grupo.
           </p>
 
           <div className="volumen-tabla" role="table" aria-label="Series por grupo y por hoja">
@@ -113,16 +117,17 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
                 <span className="volumen-num" title={`${g.name} se trabaja en ${cuenta(g.frecuencia, 'hoja', 'hojas')} por ${u}`}>
                   {g.frecuencia}
                 </span>
-                <span className={`volumen-v${g.pasado ? ' is-mal' : g.corto ? ' is-aviso' : ''}`}>
+                <span className={`volumen-v${g.pasado ? ' is-sobre' : g.corto ? ' is-aviso' : ''}`}>
                   {g.total}
                   {g.mrv && <small>/{g.mrv}</small>}
                 </span>
                 <span className="volumen-barra" aria-hidden="true">
                   <span
                     className="volumen-relleno"
-                    style={{ width: `${Math.min(100, (g.total / (g.mrv || tope)) * 100)}%`, background: g.pasado ? 'var(--negative)' : g.corto ? 'var(--warning)' : metricColor('sets') }}
+                    style={{ width: `${Math.min(100, (g.total / escala(g)) * 100)}%`, background: g.pasado ? 'var(--data-violet)' : g.corto ? 'var(--warning)' : metricColor('sets') }}
                   />
-                  {g.mev && g.mrv && <span className="volumen-mev" style={{ left: `${(g.mev / g.mrv) * 100}%` }} title={`MEV ${g.mev}`} />}
+                  {g.mev && g.mrv && <span className="volumen-mev" style={{ left: `${(g.mev / escala(g)) * 100}%` }} title={`MEV ${g.mev}`} />}
+                  {g.pasado && <span className="volumen-mev" style={{ left: `${(g.mrv / escala(g)) * 100}%` }} title={`MRV ${g.mrv}`} />}
                 </span>
               </div>
             ))}

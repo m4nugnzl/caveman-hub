@@ -6,6 +6,7 @@ import { useApp } from '@/context/AppContext';
 import { semanaPath } from '@/routes';
 import { Modal } from '@/components/ui/Modal';
 import { MandoTab, MandoTabs } from '@/components/ui/Mando';
+import { CreadorDelPlan } from './CreadorDelPlan';
 import { RoadmapPanel } from './RoadmapPanel';
 import { VistaDeTemporada } from './VistaDeTemporada';
 
@@ -16,8 +17,10 @@ import { VistaDeTemporada } from './VistaDeTemporada';
  *     fases, el peso contra lo esperado, el cruce, los hechos y la escalera de
  *     kcal, con zoom Temporada / Fase. Se lee; pulsar una semana lleva a su
  *     revisión. Ver `VistaDeTemporada`.
- *   · **Plan** — la herramienta: fases con su hilo, el cruce con su pregunta,
- *     el destino y el peso objetivo. Ver `RoadmapPanel`.
+ *   · **Plan** — el creador: la temporada en una barra segmentada de fases,
+ *     bloques y hechos, que se alarga arrastrando, con el destino, el peso
+ *     objetivo y el cruce arriba. Ver `CreadorDelPlan` (23 sep 2026; antes era
+ *     la lista de `RoadmapPanel`, que sigue siendo la del lado del cliente).
  *
  * Abre por Temporada porque casi siempre se entra a MIRAR: «¿cómo va esto?» es
  * la pregunta de cada día y «cambiar la fase» es la de cada mes. El orden de
@@ -58,7 +61,7 @@ export const PlanDelRoadmap = ({ onClose, audience = 'coach' }) => {
               Plan
             </MandoTab>
           </MandoTabs>
-          {pestana === 'temporada' ? <VistaDeTemporada onIrASemana={irASemana} /> : <RoadmapPanel audience={audience} />}
+          {pestana === 'temporada' ? <VistaDeTemporada onIrASemana={irASemana} /> : <CreadorDelPlan />}
         </div>
       )}
     </Modal>

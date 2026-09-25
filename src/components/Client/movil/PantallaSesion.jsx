@@ -4,8 +4,16 @@ import { ArrowLeft, Check, CloudOff, History, Minus, Plus } from 'lucide-react';
 import { mmss } from '@/context/SesionEnCurso';
 import { useDeslizarEntreDestinos } from '@/lib/useDeslizarEntreDestinos';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
-import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
+import { objetivoDeSerie, pasoDelCampo, serieEnCorto, siguientePorHacer } from '../sesion';
 import { Descanso } from './Descanso';
+import {
+  CAMPOS,
+  ChapasDelEjercicio,
+  EstadoDelGuardado,
+  IndicacionDelEjercicio,
+  NotaDelEjercicio,
+  resumenDeSerie,
+} from './PiezasDelEjercicio';
 import { FechaTocable } from '@/components/ui/CalendarioDeLaSesion';
 
 /**
@@ -78,6 +86,7 @@ export const PantallaSesion = ({ datos }) => {
     onSalir,
     onAcabar,
     guardado = null,
+    bloqueo = null,
   } = datos;
 
   /* El índice se acota aquí: los ejercicios de un día pueden cambiar de número
@@ -238,27 +247,19 @@ export const PantallaSesion = ({ datos }) => {
             {n + 1} de {ejercicios.length}
           </span>
         </div>
-        {ej.musculo || ej.objetivo ? (
-          <div className="tel-chapas">
-            {ej.musculo ? (
-              <span className="tel-chapa tel-chapa-grupo">
-                {ej.musculo.charAt(0).toUpperCase() + ej.musculo.slice(1)}
-              </span>
-            ) : null}
-            {ej.objetivo ? <span className="tel-chapa">Objetivo: {ej.objetivo} reps</span> : null}
-          </div>
-        ) : null}
+        <ChapasDelEjercicio musculo={ej.musculo} objetivo={ej.objetivo ? `${ej.objetivo} reps` : null} />
 
         {/* Lo que te pide tu entrenador de este ejercicio, antes de las
             series: es la condición con la que se hacen. */}
-        {ej.indicacion ? (
-          <p className="tel-ses-indicacion">
-            <span className="tel-ses-k">De tu entrenador</span>
-            {ej.indicacion}
-          </p>
-        ) : null}
+        <IndicacionDelEjercicio texto={ej.indicacion} />
+
+        {/* La frontera de las revisiones: lo revisado se lee, no se escribe. */}
+        {bloqueo ? <p className="tel-bloqueo">{bloqueo}</p> : null}
 
         <div className="tel-ses-series">
+          {/* `display: contents`: el fieldset solo apaga, no dibuja. «Ir ›»
+              queda fuera, porque moverse no es escribir. */}
+          <fieldset className="fieldset-plano" disabled={Boolean(bloqueo)}>
           {/* Las hechas, arriba: un botón con sus valores que se toca para
               corregir. Cerrar es una marca, no un cerrojo. */}
           {cerradas.length > 0 ? (
@@ -387,6 +388,7 @@ export const PantallaSesion = ({ datos }) => {
               </span>
             </button>
           ))}
+          </fieldset>
 
           {/* Todas hechas: lo siguiente es una puerta que se pulsa, no un salto. */}
           {abierta === -1 ? (
@@ -398,7 +400,7 @@ export const PantallaSesion = ({ datos }) => {
           ) : null}
         </div>
 
-        <NotaDelEjercicio nombre={ej.nombre} nota={ej.nota} onNota={ej.onNota} />
+        <NotaDelEjercicio nombre={ej.nombre} nota={ej.nota} onNota={ej.onNota} ultimaVez={ej.ultimaVez} ajustes={ej.ajustes} />
       </div>
 
       {/* ── El pie: lo que llevas, lo guardado y el siguiente paso ────────── */}
@@ -430,18 +432,6 @@ export const PantallaSesion = ({ datos }) => {
   );
 };
 
-const CAMPOS = [
-  { key: 'kg', rotulo: 'kg', nombre: 'Kilos', modo: 'decimal', antes: 'antesKg' },
-  { key: 'reps', rotulo: 'reps', nombre: 'Repeticiones', modo: 'numeric', antes: 'antesReps' },
-  { key: 'rir', rotulo: 'RIR', nombre: 'RIR', modo: 'numeric', antes: 'antesRir' },
-];
-
-/** «55 kg · 6 · RIR 0» — lo que dice una serie cerrada. */
-const resumenDeSerie = (s, showRir) =>
-  [serieEnCorto(s), showRir && s.rir !== '' && s.rir != null ? `RIR ${s.rir}` : null]
-    .filter(Boolean)
-    .join(' · ');
-
 /** «objetivo 8-10 · la última vez 45 kg · 8», para lo que viene después. */
 const metaDeSerie = (s) =>
   [
@@ -452,70 +442,3 @@ const metaDeSerie = (s) =>
   ]
     .filter(Boolean)
     .join(' · ') || null;
-
-/**
- * LO GUARDADO, dicho en el pie.
- *
- * Es la misma lectura que el indicador de la casa (`SaveIndicator`): sin
- * conexión no es un fallo —lo tienes, falta enviarlo— y un fallo de verdad
- * trae su «Reintentar». Aquí en corto, porque comparte renglón con la cuenta.
- * Sin nada escrito todavía no dice nada: «Guardado» antes de la primera serie
- * sería mentira.
- */
-const EstadoDelGuardado = ({ guardado }) => {
-  const status = guardado?.status;
-  if (status === 'saved') return <span className="tel-ses-guardado tel-si">Guardado ✓</span>;
-  if (status === 'saving') return <span className="tel-ses-guardado">Guardando…</span>;
-  if (status === 'pending') return <span className="tel-ses-guardado">Sin conexión · se enviará</span>;
-  if (status === 'error') {
-    return (
-      <span className="tel-ses-guardado tel-no" role="alert">
-        {textoDelFallo(guardado)}
-        {guardado.onRetry ? (
-          <button type="button" onClick={guardado.onRetry}>
-            Reintentar
-          </button>
-        ) : null}
-      </span>
-    );
-  }
-  return <span className="tel-ses-guardado" />;
-};
-
-/**
- * TU NOTA DE ESTE EJERCICIO.
- *
- * En reposo, el verbo y nada más; lo escrito se queda a la vista. Sin sesión
- * empezada (`onNota` nulo) el verbo sigue estando y dice qué falta: la nota
- * cuelga de la sesión, y la sesión nace con la primera serie.
- */
-const NotaDelEjercicio = ({ nombre, nota, onNota }) => {
-  const [abiertaNota, setAbiertaNota] = useState(false);
-  const escrita = String(nota || '').trim().length > 0;
-
-  if (!abiertaNota && !escrita) {
-    return (
-      <button type="button" className="tel-nota-mas" onClick={() => setAbiertaNota(true)}>
-        + Nota
-      </button>
-    );
-  }
-
-  if (!onNota) {
-    return <p className="tel-nota-pie">Apunta una serie y podrás anotar aquí.</p>;
-  }
-
-  return (
-    <label className="tel-nota">
-      <span className="tel-et">Tu nota</span>
-      <textarea
-        rows={2}
-        value={nota || ''}
-        placeholder="Lo que quieras recordar de este ejercicio."
-        aria-label={`Tu nota de ${nombre}`}
-        onChange={(ev) => onNota(ev.target.value)}
-      />
-      <span className="tel-nota-pie">La lee tu entrenador, con tus series.</span>
-    </label>
-  );
-};

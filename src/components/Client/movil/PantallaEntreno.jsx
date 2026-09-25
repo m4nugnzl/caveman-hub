@@ -13,7 +13,9 @@ import { HojaAntesDeEmpezar } from './HojaAntesDeEmpezar';
  *   3. **Las sesiones del microciclo**, cada una con su estado. Tocar una abre
  *      su HOJA —qué ejercicios, cuántas series, qué hiciste la última vez y lo
  *      que te dice tu entrenador— antes de empezarla (frame `328:299`). Hasta
- *      el 18 sep tocar una sesión te metía a entrenar sin haberla visto.
+ *      el 18 sep tocar una sesión te metía a entrenar sin haberla visto. Desde
+ *      el 23 sep hay una fila por APARICIÓN: la hoja que cae el lunes y el
+ *      jueves son dos, cada una con su sesión.
  *
  * Y debajo, lo que no está en el dibujo pero no se puede perder: **tus
  * ejercicios** (el cajón con tu última marca, que es lo que hace que esta
@@ -60,9 +62,10 @@ export const PantallaEntreno = ({ datos }) => {
       {sesiones.length > 0 ? (
         <Tramo rotulo={`Sesiones del ${unidad}`}>
           <Lista>
+            {/* Una fila por APARICIÓN: la hoja que cae dos veces sale dos. */}
             {sesiones.map((s) => (
               <Fila
-                key={s.dayName}
+                key={s.clave}
                 titulo={s.dayName}
                 sub={s.meta}
                 derecha={<Estado tono={s.tono}>{s.estado}</Estado>}

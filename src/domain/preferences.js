@@ -20,7 +20,7 @@ export const WIDGETS = [
   { id: 'weight', label: 'Peso corporal', hint: 'Último pesaje y su variación' },
   { id: 'rate', label: 'Ritmo del peso', hint: 'Kilos por semana de media' },
   { id: 'tonnage', label: 'Tonelaje', hint: 'Kilos totales levantados' },
-  { id: 'sets', label: 'Series efectivas', hint: 'Series con repeticiones registradas' },
+  { id: 'sets', label: 'Series efectivas', hint: 'Series hechas a RIR 3 o menos, o sin RIR apuntado' },
   { id: 'kcals', label: 'Kcal objetivo', hint: 'Objetivo diario y reparto de macros' },
   { id: 'adherence', label: 'Adherencia', hint: 'Series registradas sobre las programadas' },
   { id: 'checkin', label: 'Check-in semanal', hint: 'Pesajes de esta semana' },

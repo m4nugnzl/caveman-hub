@@ -88,6 +88,13 @@ export const METRIC_COLORS = {
      además comparte selector con el tonelaje y el volumen, y desde el pizarrón
      no se distinguía de la interfaz que lo rodea. */
   e1rm: 'var(--data-slate)',
+  /* El índice de rendimiento (`rendimiento.js`, 100 = inicio) de un ejercicio o
+     de la media de un bloque. Y a su lado, punteadas y en gris, las dos
+     lecturas que lo acompañan: la carga en el mismo índice —de dónde sale la
+     subida— y la media del bloque contra la que se leen hojas y grupos. */
+  rendimiento: 'var(--data-blue)',
+  cargaIndexada: 'var(--data-slate)',
+  rendimientoMedio: 'var(--data-slate)',
 
   /* ── La comida ──
      El ámbar de la kcal es el mismo que el de los carbohidratos, y es correcto:
@@ -116,6 +123,37 @@ export const METRIC_COLORS = {
  * cosa que no existe.
  */
 export const metricColor = (id) => METRIC_COLORS[id] || null;
+
+/**
+ * Los colores de VARIAS series de la misma métrica —el rendimiento de cada
+ * hoja de un bloque—, en orden fijo y sin repetir. El color sigue a la serie
+ * por su puesto en el orden natural (el de las hojas), no por su valor. El
+ * rosa, el último: de las seis es la que más se parece a un aviso.
+ *
+ * @returns el color de la serie `i`, o `null` pasada la sexta: más curvas que
+ *   colores no se leen, y una séptima no se inventa (va sin curva).
+ */
+export const SERIES_EN_ORDEN = [
+  'var(--data-blue)',
+  'var(--data-teal)',
+  'var(--data-violet)',
+  'var(--data-amber)',
+  'var(--data-pink)',
+  'var(--data-rose)',
+];
+export const colorDeSerie = (i) => SERIES_EN_ORDEN[i] || null;
+
+/**
+ * El punto de cada sección de la lectura del bloque (`lecturaDelBloque`). Dice
+ * a qué sección pertenece una fila, no si va bien: por eso lo de abajo va en
+ * ámbar y no en rojo, y «en la media» en el gris de la media del bloque.
+ */
+export const LECTURA_COLORS = {
+  encima: 'var(--data-teal)',
+  debajo: 'var(--data-amber)',
+  frenados: 'var(--data-violet)',
+  media: 'var(--data-slate)',
+};
 
 /**
  * El color de una MEDIDA del entrenador.

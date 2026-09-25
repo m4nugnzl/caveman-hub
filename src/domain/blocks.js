@@ -31,6 +31,7 @@ import {
   cycleSlots,
   dayPlannedVolume,
   duracionDe,
+  entrenosDe,
   isRestDay,
   normalizaMicrociclo,
   normalizePattern,
@@ -43,6 +44,7 @@ import {
 } from './training';
 import { executedSessions, sesionAbierta, sesionAMedias, sessionsOf, sessionTonnage } from './sessions';
 import { weekStartOfProgramWeek } from './photos';
+import { nombreCortoDelSplit, nombreDelSplit } from './split';
 import { clientProtocol, isServiceOn } from './protocol';
 
 /** La última semana montada del programa (0 sin ninguna). */
@@ -123,6 +125,9 @@ export const openNextBlock = (program, { name = null, id = null } = {}) => {
     name: name || `Bloque ${lista.length + 1}`,
     fromWeek: fin + 1,
     toWeek: null,
+    /* Hereda la temporada del que cierra: un bloque nuevo sigue en la misma
+       funda hasta que el entrenador lo cambie (ver `domain/temporadas`). */
+    ...(carpetaDelBloque(abierto) ? { folder: carpetaDelBloque(abierto) } : {}),
   };
   return {
     program: { ...program, blocks: [...lista.slice(0, -1), cerrado, nuevo] },
@@ -938,11 +943,13 @@ export const sessionDiff = (antesLista = [], ahoraLista = []) => {
 
 /** A qué juega un bloque. Lista corta y del oficio: no es una taxonomía. */
 export const BLOCK_INTENTS = [
-  { id: 'adaptacion', label: 'Adaptación' },
-  { id: 'acumulacion', label: 'Acumulación' },
-  { id: 'intensificacion', label: 'Intensificación' },
-  { id: 'descarga', label: 'Descarga' },
-  { id: 'mantenimiento', label: 'Mantenimiento' },
+  /* La tinta es de la paleta de DATOS: distingue, no juzga. Adaptación va en
+     gris como «sin intención» porque es el punto de partida, no un énfasis. */
+  { id: 'adaptacion', label: 'Adaptación', color: 'var(--data-slate)' },
+  { id: 'acumulacion', label: 'Acumulación', color: 'var(--data-teal)' },
+  { id: 'intensificacion', label: 'Intensificación', color: 'var(--data-violet)' },
+  { id: 'descarga', label: 'Descarga', color: 'var(--data-amber)' },
+  { id: 'mantenimiento', label: 'Mantenimiento', color: 'var(--data-blue)' },
 ];
 
 const INTENT_IDS = new Set(BLOCK_INTENTS.map((i) => i.id));
@@ -950,8 +957,25 @@ const INTENT_IDS = new Set(BLOCK_INTENTS.map((i) => i.id));
 /** «acumulacion» → «Acumulación». Sin intención, nada. */
 export const intentLabel = (id) => BLOCK_INTENTS.find((i) => i.id === id)?.label || null;
 
+/** La tinta de una intención. Sin intención, gris. */
+export const intentColor = (id) => BLOCK_INTENTS.find((i) => i.id === id)?.color || 'var(--data-slate)';
+
 /* Una línea, no un diario: lo largo va a la bitácora del bloque. */
 export const MAX_BLOCK_NOTE = 280;
+
+/* El nombre del split, como lo diría el entrenador: «Torso-pierna», «PPL». */
+export const MAX_BLOCK_SPLIT = 40;
+
+/* El nombre de una temporada: «Volumen 2026», «Hacia el campeonato». */
+export const MAX_BLOCK_FOLDER = 40;
+
+/**
+ * La TEMPORADA en la que el entrenador ha puesto el bloque (`folder`), saneada,
+ * o `null` si no la tiene: entonces va a la del año. Vale igual para un bloque
+ * que para un borrador. Ver `domain/temporadas`.
+ */
+export const carpetaDelBloque = (block) =>
+  String(block?.folder ?? '').trim().replace(/\s+/g, ' ').slice(0, MAX_BLOCK_FOLDER) || null;
 
 /** Un tope alto y honesto: un bloque de un año no es un bloque. */
 const MAX_PLANNED = 52;
@@ -969,6 +993,7 @@ export const blockTraits = (block) => ({
   intent: INTENT_IDS.has(block?.intent) ? block.intent : null,
   plannedWeeks: semanasPrevistas(block?.plannedWeeks),
   note: String(block?.note ?? '').trim().slice(0, MAX_BLOCK_NOTE) || null,
+  split: String(block?.split ?? '').trim().slice(0, MAX_BLOCK_SPLIT) || null,
 });
 
 /**
@@ -982,12 +1007,13 @@ export const setBlockTraitsIn = (program, blockId, traits = {}) => ({
   blocks: blocksOf(program).map((b) => {
     if (b.id !== blockId) return b;
     const saneadas = blockTraits({ ...blockTraits(b), ...traits });
-    const { intent: _i, plannedWeeks: _p, note: _n, ...limpio } = b;
+    const { intent: _i, plannedWeeks: _p, note: _n, split: _s, ...limpio } = b;
     return {
       ...limpio,
       ...(saneadas.intent ? { intent: saneadas.intent } : {}),
       ...(saneadas.plannedWeeks ? { plannedWeeks: saneadas.plannedWeeks } : {}),
       ...(saneadas.note ? { note: saneadas.note } : {}),
+      ...(saneadas.split ? { split: saneadas.split } : {}),
     };
   }),
 });
@@ -1214,6 +1240,86 @@ export const tramoDelBloque = (program, block, { cycleType = null, cyclePattern 
   const previstoHasta = faltan > 0 ? addDays(hasta, faltan * duracionDe(microciclo)) : null;
 
   return { bloque: block, desde, hasta, previstoHasta, estimado };
+};
+
+/**
+ * EL SPLIT DE UN BLOQUE, como se enseña en la línea de tiempo (24 sep 2026).
+ *
+ * El nombre lo pone `nombreDelSplit` (domain/split): el del entrenador si lo
+ * escribió (`split`, en el bloque) y, si no, el que se deduce de sus hojas
+ * —«Torso / Pierna · 4 días», «Push Pull Legs 2-1»—. `datos` sigue diciendo
+ * lo literal, para el rótulo del ratón: cuántos entrenos y qué hojas.
+ *
+ * Límite conocido: el microciclo no guarda versiones dentro de un bloque. Si
+ * se cambió a mitad, esto describe el último.
+ *
+ * @param client lo que hace falta para derivar el microciclo si no está
+ *   guardado: `{ cycleType, cyclePattern }`.
+ * @returns `{ nombre, datos, dias, texto, deducido, corto }`: `nombre` el del
+ *   entrenador o `null`; `datos` lo literal; `texto` el nombre entero y
+ *   `corto` el de las filas estrechas. `null` sin entrenos ni nombre.
+ */
+export const splitDelBloque = (program, block, client = null) => {
+  const microciclo = microcicloDelBloque(program, block, client);
+  const entrenos = entrenosDe(microciclo);
+  const nombre = blockTraits(block).split;
+  if (entrenos === 0 && !nombre) return null;
+  const hojas = [];
+  for (const d of microciclo?.dias || []) if (!d.descanso && d.hoja && !hojas.includes(d.hoja)) hojas.push(d.hoja);
+  const dias =
+    microciclo?.tipo === 'rotativo' && duracionDe(microciclo) !== 7
+      ? `${entrenos} de cada ${duracionDe(microciclo)} días`
+      : `${entrenos} ${entrenos === 1 ? 'día' : 'días'}`;
+  const datos = entrenos > 0 ? [dias, hojas.join(', ')].filter(Boolean).join(' · ') : null;
+  const conSeries = block ? blockPlan(program, block).sessions : [];
+  return {
+    nombre,
+    datos,
+    dias: entrenos > 0 ? dias : null,
+    texto: nombreDelSplit(block, conSeries, microciclo),
+    /* El que saldría sin el nombre del entrenador: el ejemplo de su campo. */
+    deducido: nombreDelSplit({ ...block, split: null }, conSeries, microciclo),
+    corto: nombreCortoDelSplit(block, conSeries, microciclo),
+  };
+};
+
+/**
+ * QUÉ MICROCICLO DE UN BLOQUE CAE EN UNA SEMANA DEL CALENDARIO.
+ *
+ * La regla vive aquí y en ningún otro sitio: la usan el creador del plan y
+ * quien tenga que nombrar «el microciclo de esta semana».
+ *
+ *   · Semanal (siete días): el que contiene el JUEVES. Muchos microciclos
+ *     semanales no empiezan en lunes (80 de 153 en la copia del 22 sep), así
+ *     que una semana natural toca dos; se nombra uno solo, el del jueves, igual
+ *     que la fase y el bloque de una semana.
+ *   · Rotativo (una vuelta de otra longitud): TODOS los que tocan la semana,
+ *     porque en diez días caben dos vueltas en siete. Se dice «M3–M4».
+ *
+ * @param desde  el día en que empieza el primer microciclo del bloque.
+ * @param vuelta los días que dura un microciclo (`duracionDe`).
+ * @param total  cuántos microciclos tiene (escritos o previstos).
+ * @param lunes  la semana.
+ * @returns `{ primero, ultimo }` (1-based), o `null` si la semana no toca el
+ *   bloque.
+ */
+export const microciclosDeLaSemana = ({ desde, vuelta = 7, total = null } = {}, lunes) => {
+  const inicio = toISODate(desde);
+  const l = toISODate(lunes);
+  const largo = Math.max(1, Math.trunc(Number(vuelta)) || 7);
+  if (!inicio || !l) return null;
+  const tope = total === null || total === undefined ? Infinity : total;
+  const numero = (dia) => Math.floor((daysBetween(inicio, dia) ?? 0) / largo) + 1;
+  const dentro = (n) => n >= 1 && n <= tope;
+
+  if (largo === 7) {
+    const n = numero(addDays(l, 3));
+    return dentro(n) && addDays(l, 3) >= inicio ? { primero: n, ultimo: n } : null;
+  }
+  const a = Math.max(1, numero(l < inicio ? inicio : l));
+  const b = Math.min(tope, numero(addDays(l, 6)));
+  if (addDays(l, 6) < inicio || a > b) return null;
+  return { primero: a, ultimo: b };
 };
 
 /* ══════════════════════════════════════════════════════════════════════════

@@ -225,7 +225,63 @@ export const mapEventFromDb = (row) => ({
      un evento de un día y sin kcal, que es lo de antes. */
   hasta: row.hasta ?? null,
   kcal: row.kcal === null || row.kcal === undefined ? null : Number(row.kcal),
+  /* Las macros de un refeed o diet break y la nota de cualquier hecho (0142).
+     Con macros, las kcal de arriba son su cuenta (la hace la base). Sin la
+     migración no vienen: `null`, que es lo de antes. */
+  proteina: row.proteina_g === null || row.proteina_g === undefined ? null : Number(row.proteina_g),
+  carbohidratos: row.carbohidratos_g === null || row.carbohidratos_g === undefined ? null : Number(row.carbohidratos_g),
+  grasa: row.grasa_g === null || row.grasa_g === undefined ? null : Number(row.grasa_g),
+  nota: row.nota ?? null,
+  /* Un refeed escalonado (0143): la pauta de cada día, en orden desde `date`,
+     como la deja la base: `{ kcal, p, c, g }` (las kcal ya calculadas si hay
+     macros). Con ella, `kcal` y las macros de arriba van vacías: cada día
+     lleva las suyas (`pautaDeIntervencion`). Sin la migración o sin
+     escalera, `null`. */
+  pautaDias: Array.isArray(row.pauta_dias)
+    ? row.pauta_dias.map((d) => ({
+        kcal: d?.kcal === null || d?.kcal === undefined ? null : Number(d.kcal),
+        proteina: d?.p === null || d?.p === undefined ? null : Number(d.p),
+        carbohidratos: d?.c === null || d?.c === undefined ? null : Number(d.c),
+        grasa: d?.g === null || d?.g === undefined ? null : Number(d.g),
+      }))
+    : null,
 });
+
+// ── La capa del entrenador sobre una intervención (migración 0143) ─────────
+// Solo del equipo: el motivo, la valoración y las ventanas movidas a mano. De
+// qué intervención habla lo dice UNA de las tres fuentes (`domain/intervenciones.js`).
+
+export const mapInterventionFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id,
+  eventId: row.event_id ?? null,
+  dietaDia: row.dieta_dia ?? null,
+  bloqueId: row.bloque_id ?? null,
+  motivo: row.motivo ?? null,
+  valoracion: row.valoracion ?? null,
+  valoracionNota: row.valoracion_nota ?? null,
+  valoradaEl: row.valorada_el ?? null,
+  antesDesde: row.antes_desde ?? null,
+  despuesHasta: row.despues_hasta ?? null,
+});
+
+/** Solo los campos que se tocan: `undefined` no se manda. Un texto vacío se guarda como nulo. */
+export const mapInterventionToDb = (fields) => {
+  const texto = (v) => {
+    const t = String(v ?? '').trim();
+    return t ? t.slice(0, 280) : null;
+  };
+  const row = {};
+  if (fields.motivo !== undefined) row.motivo = texto(fields.motivo);
+  if (fields.valoracion !== undefined) {
+    row.valoracion = fields.valoracion || null;
+    row.valorada_el = fields.valoracion ? new Date().toISOString() : null;
+  }
+  if (fields.valoracionNota !== undefined) row.valoracion_nota = texto(fields.valoracionNota);
+  if (fields.antesDesde !== undefined) row.antes_desde = fields.antesDesde || null;
+  if (fields.despuesHasta !== undefined) row.despues_hasta = fields.despuesHasta || null;
+  return row;
+};
 
 // ── Fases del roadmap (migración 0028) ─────────────────────────────────────
 

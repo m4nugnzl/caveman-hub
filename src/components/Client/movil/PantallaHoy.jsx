@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { CalendarioDeSesiones } from './CalendarioDeSesiones';
 import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Piezas';
 
 /**
@@ -9,7 +10,8 @@ import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Pie
  *
  *   1. **Hola y dónde estás.** «Semana 6 · Microciclo 3 · Definición», y a la
  *      derecha la puerta a tu perfil: «Tú» ya no está en la barra.
- *   2. **La semana en siete discos.** Los hechos con su punto, hoy encendido.
+ *   2. **La semana en siete discos**, que se despliega en el mes con tus
+ *      sesiones (`CalendarioDeSesiones`). Sin programa, la fila de siempre.
  *   3. **Tu entreno de hoy.** El nombre en grande, los grupos que toca, lo que
  *      llevas en un anillo y UN verbo. Sigue siendo la tesis de «la sesión
  *      manda»: lo que hay que hacer, arriba y a un toque. En descanso, lo que
@@ -27,13 +29,13 @@ import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Pie
  * estar en la barra con su punto cuando espera.
  */
 export const PantallaHoy = ({ datos }) => {
-  const { cabecera, dias, entreno, preguntaDelCiclo, recados, peso, sensaciones, ultimo } = datos;
+  const { cabecera, calendario, dias, entreno, preguntaDelCiclo, recados, peso, sensaciones, ultimo } = datos;
 
   return (
     <>
       <Cabecera {...cabecera} perfil="/mi/tu" />
 
-      {dias ? <SieteDias dias={dias} /> : null}
+      {calendario ? <CalendarioDeSesiones calendario={calendario} /> : dias ? <SieteDias dias={dias} /> : null}
 
       {entreno ? <Entreno entreno={entreno} /> : null}
 

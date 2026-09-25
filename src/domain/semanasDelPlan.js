@@ -13,8 +13,8 @@
  *
  *   · Fase      `phaseAt(jueves)`.
  *   · Peso      la media de la semana (`buildWeeklySeries`) y sus pesajes.
- *   · Esperado  `expectativaDeFase`, el tramo vigente; y el fantasma original
- *               desde el primer replanteo.
+ *   · Esperado  `expectativasDelPlan`, el tramo vigente; y el fantasma original
+ *               desde el primer replanteo. Las fases futuras, encadenadas.
  *   · Dieta     `nutritionTrack`, la misma fuente que la Revisión y el Resumen.
  *               Las semanas futuras van vacías: el plan de hoy no se proyecta.
  *   · Bloque    `tramosDeLosBloques`: la fecha de sus microciclos, NUNCA
@@ -46,6 +46,7 @@ import {
   esperadoEn,
   esperadoOriginalEn,
   expectativaDeFase,
+  expectativasDelPlan,
   phaseAt,
   replanteosDe,
   sortPhases,
@@ -56,7 +57,7 @@ import {
 import { nutritionTrack } from './timeline';
 
 /** Los tipos de evento que son HECHOS del plan. El destino va aparte. */
-export const HECHO_KINDS = ['race', 'rest', 'refeed', 'diet_break'];
+export const HECHO_KINDS = ['race', 'rest', 'refeed', 'diet_break', 'illness'];
 
 /** Cuántos días puede tener el último pesaje para que la media sea «de ahora». */
 export const PESAJE_RECIENTE = 7;
@@ -227,8 +228,7 @@ export const semanasDelPlan = ({
   const temporada = tramos.find((t) => t.enCurso) || null;
   const destino = temporada?.ancla || null;
 
-  const expectativas = new Map();
-  for (const f of fases) expectativas.set(f.id, expectativaDeFase(f, history));
+  const expectativas = expectativasDelPlan(fases, history, hoy);
 
   const cruce = cruceMedido({ fases, expectativas, history, hoy, temporada });
   const rango = rangoDelPlan({ fases, temporada, cruce, history, hoy, desdeMinimo: desde });
@@ -338,6 +338,13 @@ export const semanasDelPlan = ({
             steps: d.steps,
             cardio: d.cardio,
             de: d.de,
+            /* Por tipo de día («alta», «baja»), con los nombres del
+               entrenador. Con casillas, también se sabe qué día tocaba cada
+               fecha (`pautaDelDia`). */
+            tipos: d.tipos,
+            /* La dieta tenía varios días, pero esta semana solo guarda su
+               media (fotos anteriores a las versiones fechadas). */
+            soloMedia: d.de === 'media' && !d.tipos?.length,
           }
         : null,
       cambios: hayPauta ? d.cambios : [],
@@ -481,6 +488,13 @@ export const cardioCorto = (texto) => {
   const n = t.match(SOLO_MINUTOS);
   if (n) return `${n[1]}′`;
   return t;
+};
+
+/** Las sesiones de la semana: el 3 de «3×35′». `null` si el texto no lo dice. */
+export const cardioSesiones = (texto) => {
+  const m = String(texto ?? '').match(DOSIS);
+  const n = m ? Number(m[1]) : null;
+  return n && n > 0 && n <= 14 ? n : null;
 };
 
 /** «elíptica» de «3×35′ elíptica». `null` si solo hay dosis o no se reconoce. */

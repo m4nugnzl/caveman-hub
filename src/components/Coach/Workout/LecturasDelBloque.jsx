@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { blockPlan, blockSummary, isCurrentBlock, volumeByGroup } from '@/domain/blocks';
-import { unitLabel, unitLabelPlural } from '@/domain/training';
-import { strengthByExercise } from '@/domain/reading';
+import { blockPlan, blockSummary, volumeByGroup, weekLabel, weeksOfBlock } from '@/domain/blocks';
+import { unitInitial, unitLabel, unitLabelPlural } from '@/domain/training';
+import { metricColor } from '@/domain/metrics';
+import { cambioMedio, indiceMedio, rendimientoDelBloque, rendimientoPorHoja, variacionTexto } from '@/domain/rendimiento';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { BarrasDeVolumen } from '@/components/ui/BarrasDeVolumen';
+import { BandChart } from '@/components/ui/charts';
 import { HistorialPopup } from './HistorialPopup';
+import { RendimientoDelBloque } from './RendimientoDelBloque';
+import { etiquetaCorta } from './ProgresionPopup';
 import { VolumenPopup } from './VolumenPopup';
 
 /**
@@ -189,7 +193,7 @@ export const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
         <div className="lado-cab-fila">
           <span className="lado-titulo">{cuenta(grupos.length, 'grupo', 'grupos')}</span>
           {pasados > 0 && (
-            <span className="lado-aviso" title="Grupos por encima de su MRV estimado">
+            <span className="lado-aviso is-sobre" title="Grupos por encima de su MRV estimado">
               {pasados} sobre el MRV
             </span>
           )}
@@ -216,95 +220,80 @@ export const TarjetaVolumen = ({ grupos, unidad, onAmpliar }) => {
   );
 };
 
-/* ══ LA PROGRESIÓN: qué se mueve y qué lleva semanas clavado ════════════════
-   Sale de `strengthByExercise` —el mismo 1RM estimado que usa la lectura del
-   Resumen— filtrado a los ejercicios de ESTE bloque. Señala; qué hacer con
-   ellos es cosa del entrenador. */
+/* ══ EL RENDIMIENTO ═════════════════════════════════════════════════════════
+   El mismo patrón que «Este bloque»: rótulo, cuatro cifras en una caja y, como
+   la tarjeta del volumen, su lista y su verbo. La curva es la media del bloque
+   por microciclo —cada ejercicio contra su primer microciclo del bloque = 100—
+   y la lista, cada hoja con su media. La ventana (`RendimientoDelBloque`)
+   tiene el detalle por hoja, por grupo y por ejercicio. Señala; qué hacer con
+   ello es del entrenador. */
 
-/* Cuatro y no seis. Con seis, las tres tarjetas medían 745 px y empujaban la
-   página 95 px por debajo de la ventana a 1600 × 950: lo que se caía por el
-   canto de abajo era el «+ hoja» de la mesa, o sea el verbo para añadir una
-   hoja al bloque. Cuatro sigue siendo una LISTA —que es lo que se pidió cuando
-   esto era una frase suelta— y cabe. Las que no entran siguen contándose en
-   «y N más». */
-const EJERCICIOS_A_LA_VISTA = 4;
-
-/*
-  ── Era una frase, y ahora es una lectura ─────────────────────────────────
-  Esta tarjeta decía «Progresión · sube en 18 de 18» y, cuando no había ninguno
-  atascado, ahí se acababa: un rótulo y una oración donde las otras dos tienen
-  cifra y barras. El dueño, literal: «progresión es un texto, solo dice
-  progresión en 18 de 18, queda fatal».
-
-  Ahora enseña SIEMPRE la lista, con el mismo renglón para todos —nombre a la
-  izquierda, cuánto se ha movido a la derecha— y en el orden en que se mira:
-  primero lo que baja, luego lo clavado, y después lo que más sube. La cifra de
-  arriba pasa a ser una cuenta, como en las otras dos tarjetas, y el aviso de
-  «sin moverse» se queda porque es lo único que la lista no dice de un vistazo
-  cuando hay más de seis.
-
-  Sigue sin recetar: dice cuánto se ha movido cada uno, no qué hacer con ello.
-*/
-const TarjetaProgresion = ({ filas, unidades }) => {
-  /* Ver la nota de `TarjetaVolumen`: el mismo verbo, el mismo gesto. Aquí
-     además «y 16 más» ERA UN `<li>`: iba pintado de azul y en negrita —la
-     forma con la que esta casa dice «esto se pulsa»— y no se podía pulsar. La
-     única manera de ver el ejercicio diecisiete no existía. */
-  const [todos, setTodos] = useState(false);
-  const peso = (f) => (f.dir === 'down' ? 0 : f.dir === 'flat' ? 1 : 2);
-  const orden = [...filas].sort((a, b) => peso(a) - peso(b) || b.delta - a.delta);
-  const quietos = filas.filter((f) => f.dir !== 'up').length;
-  const ocultos = orden.length - EJERCICIOS_A_LA_VISTA;
-
-  /* Lo que dice el renglón de la derecha: los kilos ganados o perdidos sobre su
-     1RM estimado, y en los clavados cuántos entrenamientos llevan sin subir,
-     que es el dato y no el adjetivo. */
-  const movimiento = (f) => {
-    if (f.dir === 'flat') return `${f.weeks} sin subir`;
-    const signo = f.delta > 0 ? '+' : '−';
-    return `${signo}${localeNumber(Math.abs(f.delta))} kg`;
-  };
-
+const TarjetaRendimiento = ({ rend, rotulos, onAmpliar }) => {
+  const { medidos, recuento, media, linea, hojas } = rend;
   return (
-    <section className="lado-tarjeta" aria-label="Progresión de los ejercicios">
+    <section className="lado-tarjeta tarjeta-puerta" aria-label="Rendimiento del bloque">
+      <button
+        type="button"
+        className="task-hit"
+        onClick={onAmpliar}
+        aria-label="Ver el rendimiento del bloque"
+        title="Ver el rendimiento del bloque"
+      />
       <div className="lado-cab">
-        <span className="section-label">Progresión</span>
-        <div className="lado-cab-fila">
-          <span className="lado-titulo">{cuenta(filas.length, 'ejercicio', 'ejercicios')}</span>
-          {quietos > 0 && (
-            <span className="lado-aviso" title={`Sin mejorar su 1RM estimado en ${unidades} seguidos`}>
-              {quietos} sin moverse
-            </span>
-          )}
+        <span className="section-label">Rendimiento</span>
+        <span className="lado-desde">
+          {cuenta(medidos, 'ejercicio', 'ejercicios')}
+          {rotulos.length > 1 ? ` · ${rotulos[0]}–${rotulos[rotulos.length - 1]}` : ''}
+        </span>
+      </div>
+      <div className="bloque-cifras is-compacta">
+        <div className="bloque-cifra" title="La media de lo que ha cambiado cada ejercicio en el bloque">
+          <span className="k">media</span>
+          <span className="v">{variacionTexto(media / 100)}</span>
+        </div>
+        <div className="bloque-cifra" title="Ejercicios que rinden más que en su primer microciclo del bloque">
+          <span className="k">suben</span>
+          <span className="v">{recuento.suben}</span>
+        </div>
+        <div className="bloque-cifra" title="Ejercicios a menos de un 1 % de su primer microciclo del bloque">
+          <span className="k">igual</span>
+          <span className="v">{recuento.igual}</span>
+        </div>
+        <div className="bloque-cifra" title="Ejercicios que rinden menos que en su primer microciclo del bloque">
+          <span className="k">bajan</span>
+          <span className="v">{recuento.bajan}</span>
         </div>
       </div>
-      <ul className="progresion-quietos">
-        {(todos ? orden : orden.slice(0, EJERCICIOS_A_LA_VISTA)).map((f) => (
-          <li
-            key={f.name}
-            title={`${f.name}: 1RM estimado ${
-              f.dir === 'down' ? 'a la baja' : f.dir === 'flat' ? 'plano' : 'al alza'
-            } en sus últimos ${f.weeks} entrenamientos`}
-          >
-            <span className="n">{f.name}</span>
-            <span className={`d is-${f.dir}`}>{movimiento(f)}</span>
-          </li>
-        ))}
-      </ul>
-      {/* Fuera del `<ul>`: no es una fila de la lista, es el verbo de la
-          tarjeta, y así es EXACTAMENTE el mismo objeto que el del volumen —un
-          `.lado-mas` detrás del filete que cierra la lista—. Dos tarjetas
-          vecinas con el mismo verbo se escriben una sola vez. */}
-      {ocultos > 0 && (
-        <button
-          type="button"
-          className="lado-mas"
-          onClick={() => setTodos((v) => !v)}
-          aria-expanded={todos}
-        >
-          {todos ? `Ocultar los otros ${ocultos}` : `y ${ocultos} más`}
-        </button>
+      <BandChart
+        labels={rotulos}
+        series={[
+          {
+            id: 'media',
+            label: 'Media',
+            color: metricColor('rendimiento'),
+            decimals: 0,
+            points: linea.map((p, i) => ({ label: rotulos[i], value: p.indice })),
+          },
+        ]}
+        referencia={{ valor: 100, rotulo: 'inicio' }}
+        /* Suavizada, con los extremos en su dato: el primero es el 100. */
+        smooth
+        showArea={false}
+        height={110}
+      />
+      {hojas.length > 0 && (
+        <ul className="progresion-quietos">
+          {hojas.map((h) => (
+            <li key={h.nombre}>
+              <span className="n">{h.nombre}</span>
+              <span className="d">{variacionTexto(h.pct / 100)}</span>
+            </li>
+          ))}
+        </ul>
       )}
+      <button type="button" className="lado-mas" onClick={onAmpliar}>
+        Ver rendimiento ›
+      </button>
     </section>
   );
 };
@@ -334,24 +323,30 @@ export const LecturasDelBloque = ({
   onIrSemana,
   onFechaSemana,
 }) => {
-  const [ventana, setVentana] = useState(null); // 'historial' | 'volumen'
+  const [ventana, setVentana] = useState(null); // 'historial' | 'volumen' | 'rendimiento'
 
   const plan = blockPlan(program, bloque);
-  const esActual = isCurrentBlock(program, bloque);
   const cycleType = cliente?.cycleType || 'weekly';
   const unidad = unitLabel(cycleType);
   const unidades = unitLabelPlural(cycleType);
   const resumen = blockSummary(program, bloque, cliente);
   const grupos = volumeByGroup(plan.sessions);
+  const etiqueta = (w) => weekLabel(program, w, unitInitial(cycleType));
 
-  /* La progresión de los ejercicios de ESTE bloque, solo en el actual: en un
-     bloque cerrado la hoja es archivo y ya no hay microciclo que montar. Con
-     menos de 3 entrenamientos por ejercicio, `strengthByExercise` calla solo. */
-  const progresion = esActual
-    ? strengthByExercise(program?.microcycles || []).filter((f) =>
-        plan.sessions.some((h) => (h.exercises || []).some((ex) => ex.name === f.name))
-      )
-    : [];
+  /* El rendimiento de ESTE bloque, en cualquier bloque: uno cerrado también se
+     puede releer. Cada ejercicio se mide desde el primer microciclo del bloque. */
+  const rend = useMemo(() => {
+    const { ejercicios, recuento } = rendimientoDelBloque(program, bloque);
+    const con = ejercicios.filter((e) => e.cambio);
+    return {
+      medidos: con.length,
+      recuento,
+      media: cambioMedio(con),
+      linea: indiceMedio(con.map((e) => e.linea)),
+      hojas: rendimientoPorHoja(program, bloque, { ejercicios }).sort((a, b) => b.pct - a.pct),
+    };
+  }, [program, bloque]);
+  const rotulos = bloque ? weeksOfBlock(program, bloque).map((w) => etiquetaCorta(etiqueta, w)) : [];
 
   return (
     <div className="bloque-lecturas">
@@ -373,8 +368,8 @@ export const LecturasDelBloque = ({
             onAmpliar={() => setVentana('volumen')}
           />
         )}
-        {progresion.length > 0 && (
-          <TarjetaProgresion key={bloque?.id} filas={progresion} unidades={unidades} />
+        {rend.medidos > 0 && (
+          <TarjetaRendimiento rend={rend} rotulos={rotulos} onAmpliar={() => setVentana('rendimiento')} />
         )}
       </div>
 
@@ -398,6 +393,15 @@ export const LecturasDelBloque = ({
             onIrSemana(w);
           }}
           onFechaSemana={onFechaSemana}
+        />
+      )}
+      {ventana === 'rendimiento' && (
+        <RendimientoDelBloque
+          open
+          onClose={() => setVentana(null)}
+          program={program}
+          bloque={bloque}
+          etiqueta={etiqueta}
         />
       )}
       {ventana === 'volumen' && (

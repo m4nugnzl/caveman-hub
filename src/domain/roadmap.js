@@ -34,6 +34,7 @@
 
 import { daysBetween, shortDate, todayISO, toISODate, weekStart } from '@/lib/dates';
 import { round, toNum } from '@/lib/num';
+import { latestWeight } from './anthropometry';
 import { clientGoal, directionById, targetRateKg } from './goals';
 
 /** Una fase dura al menos esto para que hablar de «ritmo semanal» signifique algo. */
@@ -442,15 +443,18 @@ const baseDelArranque = (fase, history = []) => {
  * Una sola cuenta para todo lo que la dibuja o la mide —`phaseProjection`, la
  * línea y el libro del roadmap—, así que no pueden discrepar.
  *
+ * @param base el peso de partida, si no es el real del arranque: el de una
+ *   fase futura, que sale de donde se espera que acabe la anterior
+ *   (`expectativasDelPlan`).
  * @returns `{ fase, tramos, original }` o `null` si no hay dirección o no hay
  *   ni un pesaje del que partir. Cada tramo es
  *   `{ desde, ancla, base, ratePct, ritmoKg, replanteo }`: `desde` es el día
  *   en que empieza a mandar, `ancla` el día en que vale `base`.
  */
-export const expectativaDeFase = (fase, history = []) => {
+export const expectativaDeFase = (fase, history = [], { base = null } = {}) => {
   const direction = directionById(fase?.direction);
   const inicio = iso(fase?.startsOn);
-  const base0 = baseDelArranque(fase, history);
+  const base0 = toNum(base) ?? baseDelArranque(fase, history);
   if (!direction || !inicio || base0 === null) return null;
 
   const tramo = (desde, ancla, base, ratePct, replanteo) => {
@@ -471,6 +475,34 @@ export const expectativaDeFase = (fase, history = []) => {
   ];
 
   return { fase, tramos, original: tramos[0] };
+};
+
+/**
+ * LAS EXPECTATIVAS DEL PLAN ENTERO, encadenadas: `Map` id de fase → expectativa.
+ *
+ * Una fase que ya empezó parte del peso real de su arranque. Una futura parte
+ * de donde se espera que acabe la anterior, porque ese es el cuerpo con el que
+ * va a llegar; el día que empieza se reancla sola al real. Detrás de una fase
+ * abierta o sin pesajes se sigue desde lo último que se sabe: su entrada, y si
+ * no hay nada, el último pesaje.
+ *
+ * El creador del plan, la línea, las tiras y el cliente leen de aquí: una sola
+ * cuenta, así que no pueden discrepar.
+ */
+export const expectativasDelPlan = (fases = [], history = [], hoy = todayISO()) => {
+  const ultimo = latestWeight(history);
+  const mapa = new Map();
+  let salida = null;
+  for (const f of sortPhases(fases)) {
+    const inicio = iso(f.startsOn);
+    const empezo = Boolean(inicio && inicio <= hoy);
+    const entrada = empezo ? null : (salida ?? ultimo);
+    const exp = empezo || entrada !== null ? expectativaDeFase(f, history, { base: entrada }) : null;
+    mapa.set(f.id, exp);
+    const fin = iso(f.endsOn);
+    salida = (exp && fin ? esperadoEn(exp, addDays(fin, 1)) : null) ?? exp?.original.base ?? salida;
+  }
+  return mapa;
 };
 
 /** El tramo que manda un día: el último que ya había empezado. */

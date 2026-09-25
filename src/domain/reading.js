@@ -23,7 +23,7 @@
  *   1. ¿Va hacia donde se pretendía?      → tendencia contra objetivo
  *   2. ¿Es señal o es ruido?              → r² y número de semanas
  *   3. ¿Ha hecho el cliente su parte?     → adherencia (pesajes y series)
- *   4. ¿Progresa la fuerza?               → 1RM estimado
+ *   4. ¿Progresa la fuerza?               → rendimiento (rendimiento.js)
  *
  * El orden importa. La 1 es la pregunta; la 2 dice si la respuesta a la 1 vale
  * algo; la 3 dice si el problema es del plan o de la ejecución —distinción que
@@ -45,7 +45,8 @@ import { round } from '@/lib/num';
 import { linearTrend, metricPoints, weekAdherence } from './analytics';
 import { RATE_VERDICTS, directionById, rateVerdict, targetRateKg } from './goals';
 import { effectiveGoal } from './roadmap';
-import { exerciseNames, exerciseProgression, findMicrocycle } from './training';
+import { exerciseNames, findMicrocycle } from './training';
+import { cambioEnElBloque, lineaDeRendimiento } from './rendimiento';
 import { executedSessions, sessionSetCount } from './sessions';
 import { weekEntries } from './anthropometry';
 import { clientProtocol, weighInsTarget } from './protocol';
@@ -172,18 +173,19 @@ export const weighInAdherence = (history, date, target = 0) => {
 };
 
 /**
- * ¿Sube la fuerza? Cuenta en cuántos ejercicios ha mejorado el 1RM estimado.
+ * ¿Sube la fuerza? Cuenta en cuántos ejercicios ha mejorado el RENDIMIENTO.
  *
- * ── Por qué el 1RM estimado y no los kilos ──────────────────────────────────
+ * ── Por qué el rendimiento y no los kilos ───────────────────────────────────
  * Los kilos solos no comparan nada: 100×3 y 100×10 son el mismo peso y esfuerzos
- * distintos. El 1RM estimado (Epley) mete las repeticiones en la cuenta, así que
- * detecta la mejora aunque el cliente haya cambiado de rango.
+ * distintos. El rendimiento (`rendimientoDeSerie`, Epley con el RIR dentro) mete
+ * las repeticiones en la cuenta, así que detecta la mejora aunque el cliente haya
+ * cambiado de rango.
  *
  * ── Por qué contar ejercicios y no promediar ────────────────────────────────
- * Promediar los 1RM de sentadilla y curl de bíceps da un número sin significado
- * físico. «Sube en 4 de 6 ejercicios» sí lo tiene, y además dice algo el reparto:
- * subir en todos es progreso general; subir en uno y bajar en cinco es una
- * casualidad en ese uno.
+ * Promediar los rendimientos de sentadilla y curl de bíceps da un número sin
+ * significado físico. «Sube en 4 de 6 ejercicios» sí lo tiene, y además dice algo
+ * el reparto: subir en todos es progreso general; subir en uno y bajar en cinco es
+ * una casualidad en ese uno.
  */
 /**
  * LA FUERZA, EJERCICIO A EJERCICIO.
@@ -194,46 +196,50 @@ export const weighInAdherence = (history, date, target = 0) => {
  * y es lo que necesita la lectura. Lo que necesita un entrenador para DECIDIR es
  * la otra mitad: en cuáles sube y en cuáles no. Un press que se estanca mientras
  * todo lo demás progresa no es un problema del déficit — es ese ejercicio.
+ * `strengthTrend` resume esta lista: el recuento se deduce de la lista, la lista
+ * no se deduce del recuento.
  *
- * Esa lista ya se calculaba aquí dentro y se tiraba al salir: el bucle recorría
- * cada ejercicio, sacaba su pendiente y solo se quedaba con el nombre en un
- * montón. Ahora sale entera y `strengthTrend` la resume, que es el orden
- * correcto — el recuento se deduce de la lista, la lista no se deduce del
- * recuento.
+ * ── El criterio: el de `rendimiento.js` ─────────────────────────────────────
+ * Hasta el 24 sep era la pendiente del 1RM estimado (redondeado al kilo, sin
+ * series de más de 12) contra un umbral del 0,5 % por semana. Ahora es
+ * `cambioEnElBloque` sobre `lineaDeRendimiento`: el último rendimiento contra
+ * el primero, con ±1 % de umbral. Los microciclos que se le pasen marcan desde
+ * dónde se mide: el programa entero, o solo los del bloque.
  *
- * ── El umbral, y por qué no es cero ─────────────────────────────────────────
- * Medio por ciento del 1RM por semana. Por debajo de eso es la misma carga con
- * una repetición de diferencia, y llamar «progresión» a eso llenaría la lista de
- * flechas verdes que no significan nada.
+ * ── Los campos de siempre, y los nuevos ─────────────────────────────────────
+ * `dir` sigue siendo 'up' | 'flat' | 'down' y `e1rm`/`delta` siguen existiendo
+ * porque hay pantallas que los pintan; ahora son el rendimiento del último
+ * punto y su diferencia con el primero (con RIR 0 coinciden con el 1RM
+ * estimado de Epley). `pct`, `desde` y `hasta` son la lectura buena, para
+ * cuando esas pantallas cambien.
  *
- * ── En orden alfabético, no por pendiente ───────────────────────────────────
+ * ── En orden alfabético, no por cambio ──────────────────────────────────────
  * Ordenar es de quien pinta: la lectura los cita en el orden en que aparecen y
- * el panel los ordena por lo que sube más. Devolverlos ya ordenados aquí
- * obligaría a las dos a compartir un criterio que no comparten.
+ * el panel los ordena por lo que sube más.
  */
+const DIR_EN_INGLES = { sube: 'up', igual: 'flat', baja: 'down' };
+
 export const strengthByExercise = (microcycles, minPoints = 3) =>
   exerciseNames(microcycles)
     .map((name) => {
-      const points = exerciseProgression(microcycles, name)
-        .map((row) => ({ label: row.label, value: row.e1rm }))
-        .filter((p) => p.value !== null && p.value !== undefined);
-      if (points.length < minPoints) return null;
+      const linea = lineaDeRendimiento(microcycles, name);
+      const conDato = linea.filter((p) => p.valor !== null);
+      if (conDato.length < minPoints) return null;
 
-      const trend = linearTrend(points);
-      if (!trend) return null;
-
-      const threshold = Math.max(0.5, Math.abs(trend.from) * 0.005);
-      const first = points[0].value;
-      const last = points[points.length - 1].value;
+      const cambio = cambioEnElBloque(linea);
+      const first = conDato[0].valor;
+      const last = conDato[conDato.length - 1].valor;
 
       return {
         name,
-        weeks: points.length,
+        weeks: conDato.length,
         first,
         e1rm: last,
         delta: round(last - first, 1),
-        perWeek: trend.perWeek,
-        dir: trend.perWeek > threshold ? 'up' : trend.perWeek < -threshold ? 'down' : 'flat',
+        pct: cambio.pct,
+        desde: cambio.desde,
+        hasta: cambio.hasta,
+        dir: DIR_EN_INGLES[cambio.dir],
       };
     })
     .filter(Boolean);
@@ -404,7 +410,7 @@ export const weeklyReading = ({
       tone: majority ? 'good' : strength.down > strength.up ? 'warn' : 'unknown',
       title: `La fuerza sube en ${strength.up} de ${strength.tracked} ejercicios`,
       detail: majority
-        ? `1RM estimado al alza en ${strength.rising.slice(0, 3).join(', ')}${strength.rising.length > 3 ? '…' : ''}. Con la fuerza subiendo, un peso que no baja no es motivo para recortar calorías.`
+        ? `Rendimiento al alza en ${strength.rising.slice(0, 3).join(', ')}${strength.rising.length > 3 ? '…' : ''}. Con la fuerza subiendo, un peso que no baja no es motivo para recortar calorías.`
         : strength.down > strength.up
           ? `Baja en ${strength.falling.slice(0, 3).join(', ')}${strength.falling.length > 3 ? '…' : ''}. Perder fuerza suele ser la primera señal de que el déficit es demasiado agresivo o de que falta descanso.`
           : 'Ni sube ni baja de forma clara. Se necesitan más semanas registradas para ver la dirección.',

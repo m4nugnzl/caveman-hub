@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import { MACROS } from '@/domain/nutrition';
 import { equivalencesFor, racionDe } from '@/domain/foodEquiv';
 import { grupoDe } from '@/domain/gruposEquiv';
+import { DiaEspecial } from '../DiaEspecial';
 import { Aire, Cabecera, Tramo } from './Piezas';
 
 /**
@@ -39,6 +40,7 @@ export const PantallaComer = ({ datos }) => {
     cabecera,
     dias,
     dia,
+    especial = null,
     comidas,
     notas = [],
     historia,
@@ -85,7 +87,14 @@ export const PantallaComer = ({ datos }) => {
         </div>
       ) : null}
 
-      {dia && !sinCifras ? (
+      {/* Un refeed o un diet break hoy: qué día es y lo que le dejó su entrenador. */}
+      {especial ? (
+        <Tramo>
+          <DiaEspecial especial={especial} />
+        </Tramo>
+      ) : null}
+
+      {dia && !sinCifras && dia.macros.length > 0 ? (
         <Tramo>
           <div className="tel-macros">
             {dia.macros.map((m) => {

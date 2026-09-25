@@ -2,15 +2,16 @@
  * Reglas de entrenamiento. Funciones puras: no tocan React ni Supabase, así
  * que se pueden testear directamente y reutilizar desde coach y cliente.
  *
- * "Serie efectiva" = serie con repeticiones registradas (> 0). Una serie
- * programada pero sin ejecutar no cuenta como volumen.
+ * "Serie efectiva" = `esSerieEfectiva` (sessions.js): con repeticiones
+ * registradas y, si lleva RIR, a RIR 3 o menos. Una serie programada pero sin
+ * ejecutar no cuenta como volumen.
  */
 
 import { newId, deepClone } from '@/lib/ids';
 import { toNum } from '@/lib/num';
 import { addDays, daysBetween, localeNumber, toISODate, todayISO, weekStart } from '@/lib/dates';
 // `sessions` no importa de aquí, así que no hay ciclo: es la capa de debajo.
-import { executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
+import { e1rm, esSerieEfectiva, executedSessions, sessionMuscleVolume, sessionTonnage } from './sessions';
 
 export const MUSCLE_GROUPS = [
   'Pecho',
@@ -1585,7 +1586,7 @@ export const dayMuscleVolume = (day) => {
   const out = {};
   for (const ex of day?.exercises || []) {
     const muscle = ex.muscle || 'Otros';
-    const effective = (ex.sets || []).filter((s) => (toNum(s?.reps) ?? 0) > 0).length;
+    const effective = (ex.sets || []).filter(esSerieEfectiva).length;
     if (effective > 0) out[muscle] = (out[muscle] || 0) + effective;
   }
   return out;
@@ -1653,20 +1654,6 @@ export const weekdayForDay = (weeklySplit, dayName) => {
 // antes no se podían responder: ¿este ejercicio progresa? ¿cuánto volumen
 // lleva cada músculo? ¿cuántas veces por semana se toca?
 
-/**
- * 1RM estimado por la fórmula de Epley: kg × (1 + reps/30).
- *
- * Sirve para comparar series de rangos distintos: 100 kg × 5 y 85 kg × 10 son
- * esfuerzos parecidos, y mirando solo los kg parecería un retroceso. Pierde
- * precisión por encima de 12 repeticiones, así que ahí se descarta.
- */
-export const estimatedOneRm = (kg, reps) => {
-  const load = toNum(kg);
-  const r = toNum(reps);
-  if (load === null || r === null || load <= 0 || r <= 0 || r > 12) return null;
-  return Math.round(load * (1 + r / 30));
-};
-
 /** Todos los nombres de ejercicio que aparecen en el programa, sin repetir. */
 export const exerciseNames = (microcycles) => {
   const names = new Set();
@@ -1716,9 +1703,10 @@ export const exerciseProgression = (microcycles, name) => {
           sets += 1;
           tonnage += kg * reps;
 
-          const e1rm = estimatedOneRm(kg, reps);
-          if (e1rm !== null && (best === null || e1rm > best.e1rm)) {
-            best = { kg, reps, e1rm };
+          /* Epley con el tope de 12: por encima la fórmula ya no compara. */
+          const marca = Math.round(e1rm(kg, reps, { hasta: 12 }));
+          if (marca > 0 && (best === null || marca > best.e1rm)) {
+            best = { kg, reps, e1rm: marca };
           }
         }
       }

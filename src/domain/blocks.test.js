@@ -702,6 +702,7 @@ describe('las características del bloque', () => {
       intent: null,
       plannedWeeks: null,
       note: null,
+      split: null,
     });
   });
 
@@ -710,6 +711,7 @@ describe('las características del bloque', () => {
       intent: null,
       plannedWeeks: null,
       note: null,
+      split: null,
     });
     expect(blockTraits({ plannedWeeks: '4' }).plannedWeeks).toBe(4);
     expect(blockTraits({ plannedWeeks: 99 }).plannedWeeks).toBeNull();
@@ -730,6 +732,7 @@ describe('las características del bloque', () => {
       intent: 'acumulacion',
       plannedWeeks: 6,
       note: 'Subir volumen hasta rozar el MRV',
+      split: null,
     });
   });
 

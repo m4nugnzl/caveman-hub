@@ -75,12 +75,23 @@ export const smoothPath = (points) => {
   return d;
 };
 
+/* Los dos extremos se quedan en su dato: el primero de un índice es el 100 del
+   inicio —suavizado salía en 103— y el último es el que la leyenda escribe. */
 const movingAverage = (values, window = 3) => {
   const half = Math.floor(window / 2);
-  return values.map((_, i) => {
+  return values.map((v, i) => {
+    if (i === 0 || i === values.length - 1) return v;
     const slice = values.slice(Math.max(0, i - half), Math.min(values.length, i + half + 1));
     return slice.reduce((a, b) => a + b, 0) / slice.length;
   });
+};
+
+/* Las etiquetas del final de cada línea, sin pisarse: de arriba abajo, cada una
+   al menos `sep` por debajo de la anterior. */
+const separarEtiquetas = (etiquetas, sep = 12) => {
+  const orden = [...etiquetas].sort((a, b) => a.y - b.y);
+  for (let i = 1; i < orden.length; i += 1) orden[i].y = Math.max(orden[i].y, orden[i - 1].y + sep);
+  return orden;
 };
 
 /**
@@ -170,6 +181,18 @@ const labelStep = (count, width) => {
  * @param band  Banda horizontal de referencia: `{ from, to, label }`. Se usa para
  *   el objetivo, y convierte «¿esto está bien?» en algo que se ve: el punto está
  *   dentro de la banda o está fuera.
+ *
+ * @param referencia  Raya horizontal con nombre: `{ valor, rotulo }`. Para un
+ *   índice en base 100, la raya del 100 es «inicio»: lo que queda encima subió.
+ *
+ * ── Lo que una serie puede pedir, para AISLAR una entre varias ─────────────
+ *   · `opacidad` (0–1) y `grosor` (px) del trazo.
+ *   · `area`: `false` sin área; `true` con área aunque el gráfico no la lleve.
+ *   · `punto: false`: sin el punto del último dato ni el del cursor.
+ *   · `etiqueta`: un nombre corto al final de la línea.
+ *
+ * @param leyenda  `false` cuando la leyenda la pinta quien llama —una que se
+ *   toca—; `onCursor(i | null)` le dice entonces dónde está el cursor.
  */
 export const BandChart = ({
   series,
@@ -181,15 +204,30 @@ export const BandChart = ({
   gridLines = 3,
   trend = null,
   band = null,
+  referencia = null,
+  leyenda = true,
+  onCursor = null,
   emptyMessage = 'Sin datos suficientes todavía.',
 }) => {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
-  const [hover, setHover] = useState(null);
+  const [hover, setHoverState] = useState(null);
+  const setHover = (i) => {
+    setHoverState(i);
+    onCursor?.(i);
+  };
   const [wrapRef, measured] = useElementWidth();
 
   const W = Math.max(MIN_W, measured);
   const H = height;
-  const PAD = { top: 8, right: 6, bottom: 18, left: 36 };
+  /* Con etiquetas al final, el margen derecho se abre a lo que mide la más
+     larga (a ~6 px la letra) y no más de un cuarto del ancho. */
+  const largoEtiqueta = Math.max(0, ...series.map((s) => (s.etiqueta ? String(s.etiqueta).length : 0)));
+  const PAD = {
+    top: 8,
+    right: largoEtiqueta ? Math.min(W / 4, 12 + largoEtiqueta * 6) : 6,
+    bottom: 18,
+    left: 36,
+  };
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
 
@@ -206,14 +244,14 @@ export const BandChart = ({
     // La banda de objetivo entra en la escala: si se quedara fuera, una banda por
     // encima o por debajo del rango de los datos se dibujaría en el borde del
     // gráfico o directamente fuera, y parecería que el cliente la está tocando.
-    const extra = band ? [band.from, band.to].map(toNum).filter((v) => v !== null) : [];
+    const extra = [...(band ? [band.from, band.to] : []), referencia?.valor].map(toNum).filter((v) => v !== null);
 
     return {
       total,
       series: withIndex,
       scale: makeScale([...withIndex.flatMap((s) => s.pts.map((p) => p.value)), ...extra], { fromZero }),
     };
-  }, [series, labels, fromZero, band]);
+  }, [series, labels, fromZero, band, referencia]);
 
   const hasData = prepared.series.some((s) => s.pts.length > 0);
 
@@ -263,8 +301,10 @@ export const BandChart = ({
             onPointerMove={leerPunto}
           >
             <defs>
-              {prepared.series.map((s) => (
-                <linearGradient id={`${uid}-${s.id}`} key={s.id} x1="0" y1="0" x2="0" y2="1">
+              {/* Por posición y no por `id`: un id con espacios —el nombre de un
+                  ejercicio— rompe el `url(#…)` y el área sale negra. */}
+              {prepared.series.map((s, i) => (
+                <linearGradient id={`${uid}-g${i}`} key={s.id} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={s.color} stopOpacity="var(--area-opacity)" />
                   <stop offset="100%" stopColor={s.color} stopOpacity="0" />
                 </linearGradient>
@@ -287,6 +327,20 @@ export const BandChart = ({
                 width={innerW}
                 height={Math.max(2, Math.abs(yAt(band.to) - yAt(band.from)))}
               />
+            )}
+
+            {/* La raya de referencia —el 100 de un índice, «inicio»—: discontinua,
+                en la tinta de la reja y con su nombre en el canto derecho. Como
+                la banda, entra en la escala y va debajo de los datos. */}
+            {referencia && (
+              <g className="chart-ref">
+                <line x1={PAD.left} x2={W - PAD.right} y1={yAt(referencia.valor)} y2={yAt(referencia.valor)} />
+                {referencia.rotulo && (
+                  <text x={W - PAD.right} y={yAt(referencia.valor) - 4} textAnchor="end">
+                    {referencia.rotulo}
+                  </text>
+                )}
+              </g>
             )}
 
             <g className="chart-axis">
@@ -321,7 +375,7 @@ export const BandChart = ({
               />
             )}
 
-            {prepared.series.map((s) => {
+            {prepared.series.map((s, si) => {
               if (s.pts.length === 0) return null;
 
               const source =
@@ -330,14 +384,19 @@ export const BandChart = ({
                   : s.pts;
               const coords = source.map((p) => ({ x: xAt(p.index), y: yAt(p.value) }));
               const path = smoothPath(coords);
+              const conArea = s.area === true || (showArea && s.area !== false);
+              const trazo = {
+                ...(s.opacidad !== undefined ? { opacity: s.opacidad } : null),
+                ...(s.grosor ? { strokeWidth: s.grosor } : null),
+              };
 
               return (
                 <g key={s.id}>
-                  {showArea && coords.length > 1 && (
+                  {conArea && coords.length > 1 && (
                     <path
                       className="chart-area"
                       d={`${path} L ${coords[coords.length - 1].x.toFixed(1)} ${(PAD.top + innerH).toFixed(1)} L ${coords[0].x.toFixed(1)} ${(PAD.top + innerH).toFixed(1)} Z`}
-                      fill={`url(#${uid}-${s.id})`}
+                      fill={`url(#${uid}-g${si})`}
                     />
                   )}
                   {/* `pathLength: 1` normaliza el largo del trazo y es lo que
@@ -358,13 +417,14 @@ export const BandChart = ({
                     className={`chart-line${s.dash ? ' is-punteada' : ''}`}
                     d={path}
                     stroke={s.color}
+                    style={trazo}
                     pathLength={s.dash ? undefined : '1'}
                   />
 
                   {/* El último dato, marcado: es donde está la persona HOY y
                       lo que se busca al mirar la curva. Con halo del color de
                       la superficie, para que se lea sobre el área. */}
-                  {hover === null && coords.length > 0 && (
+                  {hover === null && s.punto !== false && coords.length > 0 && (
                     <circle
                       className="chart-ultimo"
                       cx={coords[coords.length - 1].x}
@@ -376,8 +436,11 @@ export const BandChart = ({
                     />
                   )}
 
+                  {/* Sobre la curva que se dibuja: suavizada, el dato crudo
+                      quedaría flotando fuera de la línea. */}
                   {hover !== null &&
-                    s.pts
+                    s.punto !== false &&
+                    source
                       .filter((p) => p.index === hover)
                       .map((p) => (
                         <circle
@@ -393,8 +456,28 @@ export const BandChart = ({
                 </g>
               );
             })}
+
+            {/* Los nombres al final de las líneas, en tinta de texto —el color
+                lo lleva la línea, no la letra— y sin pisarse. */}
+            {largoEtiqueta > 0 && (
+              <g className="chart-etiquetas">
+                {separarEtiquetas(
+                  prepared.series
+                    .filter((s) => s.etiqueta && s.pts.length)
+                    .map((s) => {
+                      const ult = s.pts[s.pts.length - 1];
+                      return { id: s.id, texto: s.etiqueta, x: xAt(ult.index) + 6, y: yAt(ult.value) };
+                    })
+                ).map((e) => (
+                  <text key={e.id} x={e.x} y={e.y} dominantBaseline="middle">
+                    {e.texto}
+                  </text>
+                ))}
+              </g>
+            )}
           </svg>
 
+          {leyenda && (
           <figcaption className="chart-legend">
             {prepared.series.map((s) => {
               const point = hover !== null ? s.pts.find((p) => p.index === hover) : null;
@@ -416,6 +499,7 @@ export const BandChart = ({
             })}
             {hover !== null && labels[hover] && <span className="t-tertiary">{labels[hover]}</span>}
           </figcaption>
+          )}
         </>
       )}
     </figure>

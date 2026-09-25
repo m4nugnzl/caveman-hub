@@ -1,365 +1,308 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, ClipboardCheck, Layers, Pencil, Play, Plus, Trash2, Users } from 'lucide-react';
-
+import { useSearchParams } from 'react-router-dom';
 import {
-  BLOCK_INTENTS,
-  blockSummary,
-  blockTraits,
-  blocksOf,
-  intentLabel,
-  weeksOfBlock,
-} from '@/domain/blocks';
+  ArrowDown,
+  ArrowUp,
+  ChevronLeft,
+  ClipboardCheck,
+  Folder,
+  FolderInput,
+  Layers,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+  Users,
+} from 'lucide-react';
+
+import { BLOCK_INTENTS, blockTraits, weeksOfBlock } from '@/domain/blocks';
 import { borradoresDe, sePuedeEmpezar } from '@/domain/borradores';
-import { shortDate } from '@/lib/dates';
+import { lineaDeBloques, resumenDeLaLinea } from '@/domain/lineaDeBloques';
+import {
+  cantosDeLaFunda,
+  cascadaDeLaTemporada,
+  sucesionDeBloques,
+  temporadaConNombre,
+  temporadasDe,
+  tirasDeLasTemporadas,
+} from '@/domain/temporadas';
+import { shortDate, todayISO } from '@/lib/dates';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { EmptyState, RenombrarEnSitio, SegmentedControl } from '@/components/ui/primitives';
+import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
+import { PaseDeBloque, rangoDeFechas } from './PaseDeBloque';
 
 /**
- * LOS BLOQUES DE ESTA PERSONA: la lista, y dos de ellos cara a cara.
+ * LOS BLOQUES DE ESTA PERSONA, COMO UNA CARTERA DE PASES (25 sep 2026).
  *
- * ══ Por qué es una página y no una ventana ═════════════════════════════════
- * Entreno abre por el bloque puesto —es donde se trabaja— y esta es la otra
- * cara de la misma pestaña: `?v=lista`. Se pensó como capa (`Modal`), y una
- * capa es para consultar un dato sin soltar el trabajo; esto no es un dato,
- * es el otro sitio donde se está. Además una capa deja debajo la mesa del
- * bloque abierto encendida, que es justo lo que aquí no importa.
+ * Sustituye a la línea de tiempo del 24 sep. La metáfora es la de Wallet: cada
+ * bloque es un PASE (`PaseDeBloque`) y cada temporada una FUNDA con sus pases
+ * (`domain/temporadas`). Revisar un bloque exige abrirlo; aquí se reconoce.
  *
- * ══ La linealidad, y el agrupado ═══════════════════════════════════════════
- * Por defecto la lista va en ORDEN, del último al primero: un programa es una
- * sucesión y esa sucesión es el dato. La intención de cada bloque —adaptación,
- * acumulación, intensificación…— va como chapa en su fila, no como cabecera de
- * grupo, porque agrupar por intención rompe justamente la línea del tiempo.
- * Quien quiera comparar lo parecido con lo parecido lo agrupa con el
- * conmutador; entonces la fecha sigue estando en cada fila.
+ * ══ Dos pantallas en la misma URL ══════════════════════════════════════════
+ *   · La portada (`?v=lista`): lo de hoy —el pase del bloque abierto o, sin
+ *     él, el primer previsto— y las fundas, de la más reciente a la más antigua.
+ *   · Una temporada abierta (`?v=lista&t=clave`): sus pases en cascada, del
+ *     más antiguo arriba al más reciente abajo; de cada uno asoma su cabecera
+ *     y el último se ve entero. Va en la URL porque es dónde estás: «‹ Bloques»
+ *     y el botón de atrás hacen lo mismo.
  *
- * Ninguna cuenta de lo que va a durar: la duración es una LECTURA («duró 6»),
- * nunca una promesa. El abierto dice «abierto» y punto.
+ * ══ Editar ═════════════════════════════════════════════════════════════════
+ * Un modo, como en iOS: los pases se arrastran a otra funda (y los previstos,
+ * entre sí para reordenarlos), y la temporada se renombra o se quita —sus
+ * bloques vuelven a la de su año—. Todo lo que se arrastra tiene también su
+ * entrada en el menú del pase, que es el camino del teclado y del teléfono.
  *
- * ══ El cara a cara, retirado ═══════════════════════════════════════════════
- * Aquí abajo vivían dos selectores y una mesa de tres columnas que enfrentaba
- * dos bloques: sus cifras, lo que cambió del plan de uno a otro (`sessionDiff`)
- * y el volumen por grupo de los dos. Se retiró el 9 de septiembre por orden del
- * dueño —«fuera por ahora»— mientras se rehace la pantalla del bloque: comparar
- * es una decisión que se toma DESDE esta lista, y no tiene sentido pulirla
- * antes de saber qué forma tiene lo que se compara.
- *
- * Nada del dominio se ha tocado: `sessionDiff`, `inheritedSessions` y
- * `volumeByGroup` siguen ahí con sus pruebas, y `BarrasDeVolumen` y las clases
- * `.bl-vs-*` también. Vuelve cuando se pida, sin arqueología.
+ * Una temporada nueva no existe hasta que tiene un bloque (no hay lista de
+ * temporadas guardada): vive en esta pantalla, en «Editar», hasta que se le
+ * suelta el primero.
  */
 
-/** «6 microciclos» · «1 microciclo». */
 const cuenta = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
-const rangoDe = (r) => {
-  if (!r.desde) return 'sin fechas';
-  if (r.abierto) return `desde el ${shortDate(r.desde)}`;
-  return r.hasta ? `${shortDate(r.desde)} – ${shortDate(r.hasta)}` : shortDate(r.desde);
-};
+/* Un pase cabe en una funda de nombre cualquiera, y en la de un año solo si
+   es el suyo: «volver al año» es quitarle la carpeta, y eso lo lleva al SUYO. */
+const cabeEn = (pase, t) => Boolean(pase) && (t.propia || String(pase.desde || '').slice(0, 4) === t.nombre);
 
-/**
- * LOS MICROCICLOS DEL BLOQUE, DIBUJADOS.
- *
- * ══ Lo que se trae de Efort, y la traducción que hace falta ════════════════
- *
- * Su tarjeta de bloque lleva una barra segmentada con sus semanas, rellenas las
- * hechas: compacto, y se lee sin leer. Nuestra fila decía «10 microciclos», que
- * es el mismo dato en una palabra que hay que descifrar.
- *
- * Lo que NO se puede copiar es su final. Su barra dibuja «10 de 12» porque sus
- * bloques tienen duración; los nuestros son abiertos, y pintar dos casillas
- * vacías al final sería inventarse un plan que nadie ha escrito. Así que:
- *
- *   · se dibujan los microciclos ESCRITOS, uno por casilla;
- *   · lleno el que tiene entrenos registrados, vacío el que no;
- *   · el que estás mirando va en acento —«estás aquí»—;
- *   · y el bloque abierto no cierra su barra: el canto se queda abierto.
- *
- * Un bloque cerrado sí cierra, porque ahí el final existe de verdad.
- */
-const BarraDeMicrociclos = ({ micros, abierto, semanaEnCurso, unidades }) => {
-  if (micros.length === 0) return null;
-  /* «Con entrenos» es haber entrenado, esté o no en el plan: `extra` cuenta. */
-  const entrenado = (m) => m.hechas + (m.extra || 0) > 0;
-  const hechas = micros.filter(entrenado).length;
+/* Lo que viaja en un arrastre: el id del pase. */
+const TIPO_ARRASTRE = 'application/x-caveman-pase';
+
+const alSoltar = (onSoltar) => ({
+  onDragOver: (e) => {
+    if (!e.dataTransfer.types.includes(TIPO_ARRASTRE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('is-destino');
+  },
+  onDragLeave: (e) => e.currentTarget.classList.remove('is-destino'),
+  onDrop: (e) => {
+    e.currentTarget.classList.remove('is-destino');
+    const id = e.dataTransfer.getData(TIPO_ARRASTRE);
+    if (!id) return;
+    e.preventDefault();
+    onSoltar(id);
+  },
+});
+
+const arrastreDe = (id) => ({
+  onDragStart: (e) => {
+    e.dataTransfer.setData(TIPO_ARRASTRE, id);
+    e.dataTransfer.effectAllowed = 'move';
+  },
+});
+
+/* ══ LA FUNDA ═══════════════════════════════════════════════════════════════
+   Una tarjeta neutra con su carpeta, sus fechas, lo que lleva y la tira de sus
+   intenciones; por detrás asoman los cantos de sus tres últimos pases. */
+
+const Funda = ({ temporada, tira, editando, onAbrir, onRenombrar, onQuitar, onSoltar, hoy }) => {
+  const [renombrando, setRenombrando] = useState(false);
+  const cantos = cantosDeLaFunda(temporada);
+  const bloques = temporada.pases.length;
   return (
-    <span
-      className={`bl-micros${abierto ? ' is-abierto' : ''}`}
-      role="img"
-      aria-label={`${micros.length} ${unidades.toLowerCase()}, ${hechas} con entrenos registrados`}
-    >
-      {micros.map((m) => (
-        <i
-          key={m.semana}
-          className={`bl-micro${entrenado(m) ? ' is-hecha' : ''}${m.semana === semanaEnCurso ? ' is-aqui' : ''}`}
-          title={`${m.hechas} de ${m.planificadas || 0}`}
-        />
-      ))}
-      {/* El canto abierto se DICE además de dibujarse: la casilla a medio pintar
-          sola se lee como un error de maquetación. */}
-      {abierto && <span className="bl-micros-sigue">sigue abierto</span>}
-    </span>
-  );
-};
-
-/* ══ UNA FILA DE LO PREVISTO ═══════════════════════════════════════════════
-   Un bloque en BORRADOR: no tiene semanas, ni fechas, ni cifras —no ha pasado
-   nada dentro—, así que su fila dice lo único que tiene: cuánto va a durar y
-   qué lleva escrito. Dos verbos: rellenarlo (que es entrar a componerlo) y
-   empezarlo, que solo ofrece el primero. Ver `domain/borradores`.   */
-
-const FilaBorrador = ({ b, unidad, unidades, sePuede, abierto, onRellenar, onEmpezar, onQuitar }) => {
-  const intent = intentLabel(blockTraits(b).intent);
-  const hojas = (b.sessions || []).length;
-  return (
-    <li className="bl-fila is-borrador">
-      <button
-        type="button"
-        className="task-hit"
-        onClick={() => onRellenar(b)}
-        aria-label={`Rellenar ${b.name}`}
-        title={`Rellenar ${b.name}`}
-      />
-      <div className="bl-say">
-        <div className="bl-nombre-fila">
-          <span className="bl-nombre">{b.name}</span>
-          <span className="bl-chapa">borrador</span>
-          {intent && <span className="bl-chapa">{intent}</span>}
-        </div>
-        <span className="bl-cuando">
-          {cuenta(b.plannedWeeks, unidad.toLowerCase(), unidades.toLowerCase())} ·{' '}
-          {hojas === 0 ? 'sin hojas todavía' : cuenta(hojas, 'hoja', 'hojas')}
-          {abierto ? ` · empieza cuando cierres «${abierto.name}»` : ''}
-        </span>
-        {blockTraits(b).note && <span className="bl-nota">{blockTraits(b).note}</span>}
-      </div>
-
-      <div className="bl-mandos">
-        {sePuede && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => onEmpezar(b)}>
-            <Play size={13} aria-hidden="true" /> Empezar ahora
-          </button>
+    <li className={`funda${temporada.vacia ? ' is-vacia' : ''}`} {...(editando ? alSoltar(onSoltar) : {})}>
+      <span className="funda-cantos" aria-hidden="true">
+        {cantos.map((p, i) => (
+          <i
+            key={p.id}
+            className={`funda-canto is-${i}${p.tipo === 'borrador' ? ' is-previsto' : ''}`}
+            style={{ '--pase-tinta': p.color }}
+          />
+        ))}
+      </span>
+      <div className="funda-tarjeta">
+        {!editando && !temporada.vacia && (
+          <button
+            type="button"
+            className="task-hit"
+            onClick={() => onAbrir(temporada)}
+            aria-label={`Abrir la temporada ${temporada.nombre}`}
+          />
         )}
-        <MenuAcciones
-          clase="btn btn-icon btn-icon-compact bl-menu"
-          ariaLabel={`Acciones de ${b.name}`}
-          items={[
-            { icon: Pencil, label: hojas === 0 ? 'Rellenarlo' : 'Seguir rellenándolo', run: () => onRellenar(b) },
-            onQuitar && { icon: Trash2, label: 'Quitar el borrador', danger: true, run: () => onQuitar(b) },
-          ].filter(Boolean)}
-        />
+        <div className="funda-cab">
+          <Folder size={15} className="funda-icono" aria-hidden="true" />
+          {renombrando ? (
+            <RenombrarEnSitio
+              value={temporada.nombre}
+              label="Nombre de la temporada"
+              seleccionado
+              onRename={(nombre) => onRenombrar(temporada, nombre)}
+              onDone={() => setRenombrando(false)}
+            />
+          ) : (
+            <h3 className="funda-nombre">{temporada.nombre}</h3>
+          )}
+          {editando && !renombrando && (
+            <span className="funda-mandos">
+              <button type="button" className="btn btn-plain btn-sm" onClick={() => setRenombrando(true)}>
+                Renombrar
+              </button>
+              {temporada.propia && !temporada.vacia && (
+                <button type="button" className="btn btn-plain btn-sm pases-peligro" onClick={() => onQuitar(temporada)}>
+                  Quitar
+                </button>
+              )}
+            </span>
+          )}
+        </div>
+        {temporada.vacia ? (
+          <span className="funda-dato">Arrastra aquí un bloque, o usa «Mover a» en su menú.</span>
+        ) : (
+          <>
+            <span className="funda-fechas">{rangoDeFechas(temporada.desde, temporada.hasta, { hoy })}</span>
+            <span className="funda-dato">
+              {cuenta(bloques, 'bloque', 'bloques')} · {cuenta(temporada.semanas, 'semana', 'semanas')}
+            </span>
+            {tira && (
+              <span
+                className="funda-tira"
+                role="img"
+                aria-label={`Intenciones de sus bloques, en ${cuenta(temporada.largo, 'microciclo', 'microciclos')}`}
+              >
+                <span className="funda-tira-lleno" style={{ width: `${(tira.ancho * 100).toFixed(2)}%` }}>
+                  {tira.segmentos.map((s) => (
+                    <i key={s.id} style={{ flexGrow: s.fraccion, '--pase-tinta': s.color }} />
+                  ))}
+                </span>
+              </span>
+            )}
+          </>
+        )}
       </div>
     </li>
   );
 };
 
-/* ══ UNA FILA ══════════════════════════════════════════════════════════════ */
+/* ══ LAS ACCIONES DE UN PASE ═══════════════════════════════════════════════
+   El menú contextual: lo que hay que hacer con ESTE bloque sin abrirlo. */
 
-const Fila = ({ t, esEste, unidad, unidades, semanaEnCurso, onMandar, onGuardar, onIr, onRenombrar, onQuitar, onIntent, sePuedeQuitar }) => {
-  const { b, r } = t;
-  const [renombrando, setRenombrando] = useState(false);
-  const intent = intentLabel(blockTraits(b).intent);
-  const nota = blockTraits(b).note;
+const accionesDelPase = ({ pase, temporadas, aqui, program, sePuedeQuitar, h }) => {
+  const b = pase.bloque;
+  const previsto = pase.tipo === 'borrador';
+  const traits = blockTraits(b);
+  const otras = temporadas.filter((t) => t.clave !== aqui && cabeEn(pase, t));
+  const mover = otras.map((t) => ({
+    icon: FolderInput,
+    label: `Mover a «${t.nombre}»`,
+    run: () => h.moverA(pase.id, t),
+  }));
 
-  if (renombrando) {
-    return (
-      <li className="bl-fila is-renombrando">
-        <RenombrarEnSitio
-          value={b.name}
-          label="Nuevo nombre del bloque"
-          onRename={(nombre) => onRenombrar(b.id, nombre)}
-          onDone={() => setRenombrando(false)}
-        />
-      </li>
-    );
+  if (previsto) {
+    const lista = borradoresDe(program);
+    const i = lista.findIndex((x) => x.id === b.id);
+    return [
+      { icon: Pencil, label: (b.sessions || []).length ? 'Seguir rellenándolo' : 'Rellenarlo', run: () => h.onRellenarBorrador?.(b) },
+      h.onMoverBorrador && i > 0 && { icon: ArrowUp, label: 'Adelantarlo', run: () => h.onMoverBorrador(b.id, i - 1) },
+      h.onMoverBorrador && i < lista.length - 1 && { icon: ArrowDown, label: 'Retrasarlo', run: () => h.onMoverBorrador(b.id, i + 1) },
+      mover.length > 0 && null,
+      ...mover,
+      h.onQuitarBorrador && null,
+      h.onQuitarBorrador && { icon: Trash2, label: 'Quitar el previsto', danger: true, run: () => h.onQuitarBorrador(b) },
+    ].filter((x) => x !== false && x !== undefined);
   }
 
-  return (
-    <li className={`bl-fila${esEste ? ' is-aqui' : ''}`}>
-      {/* La fila entera es la puerta: la caja se enciende y el nombre pasa a
-          acento. Los mandos van por encima con `pointer-events`, así que pasar
-          por el «···» no enciende la fila. */}
-      <button
-        type="button"
-        className="task-hit"
-        onClick={() => onIr(b)}
-        aria-label={`Abrir ${b.name}`}
-        title={`Abrir ${b.name}`}
-      />
-      <div className="bl-say">
-        <div className="bl-nombre-fila">
-          <span className="bl-nombre">{b.name}</span>
-          {r.abierto && <span className="bl-chapa is-abierto">abierto</span>}
-          {intent && <span className="bl-chapa">{intent}</span>}
-          {esEste && <span className="bl-aqui">estás aquí</span>}
-        </div>
-        <span className="bl-cuando">
-          {rangoDe(r)} ·{' '}
-          {cuenta(r.semanas, unidad.toLowerCase(), unidades.toLowerCase())}
-        </span>
-        {nota && <span className="bl-nota">{nota}</span>}
-        <BarraDeMicrociclos
-          micros={r.microciclos}
-          abierto={r.abierto}
-          semanaEnCurso={esEste ? semanaEnCurso : null}
-          unidades={unidades}
-        />
-      </div>
-
-      {/* Las cifras del bloque, rotuladas y en la misma vertical en todas las
-          filas: así la lista se lee hacia abajo por una columna. */}
-      <div className="bl-cifras">
-        <span className="bl-cifra">
-          {/* Sin plan no hay «de N»: se cuentan todos los entrenos. */}
-          <b>{r.planificadas ? r.hechas : r.hechas + r.extra}</b>
-          <small>{r.planificadas ? `de ${r.planificadas}` : 'entrenos'}</small>
-        </span>
-        <span className="bl-cifra">
-          <b>{r.adherencia === null ? '—' : `${r.adherencia} %`}</b>
-          <small>de lo pautado</small>
-        </span>
-        <span className="bl-cifra">
-          <b>{r.series || '—'}</b>
-          <small>series</small>
-        </span>
-        <span className="bl-cifra">
-          <b>{r.kg > 0 ? `${Math.round(r.kg / 1000)} t` : '—'}</b>
-          <small>levantadas</small>
-        </span>
-      </div>
-
-      <div className="bl-mandos">
-        <MenuAcciones
-          clase="btn btn-icon btn-icon-compact bl-menu"
-          ariaLabel={`Acciones de ${b.name}`}
-          items={[
-            { icon: ArrowRight, label: 'Abrir este bloque', run: () => onIr(b) },
-            onRenombrar && { icon: Pencil, label: 'Renombrar', run: () => setRenombrando(true) },
-            /* Mandarlo a otros vive AQUÍ y no en un botón de la cabecera: es del
-               bloque concreto de esta fila, y desde la lista se ve cuál fue el
-               que funcionó. Se ofrece si el bloque tiene microciclos escritos —el
-               que abre `blocksOf` al final no los tiene, y de ahí no hay nada que
-               mandar—; el plan lo resuelve el panel, que sabe leerlo también de
-               los programas que aún no lo tienen subido al bloque. */
-            onMandar &&
-              t.semanas.length > 0 && {
-                icon: Users,
-                label: 'Mandarlo a otros clientes…',
-                run: () => onMandar(b),
-              },
-            /* GUARDARLO EN TUS PLANTILLAS, y aquí por la misma razón que
-               «Mandarlo a otros»: ésta es la pantalla donde se ve cuál fue el
-               bloque que funcionó, y guardar un bloque es decir «éste era el
-               bueno». Lo que se queda es la ESTRUCTURA —las hojas con sus
-               series, la intención, las semanas previstas y el calentamiento—;
-               nada registrado, ni kilos ni fechas ni la bitácora. Ver
-               `domain/cajon` y `docs/replanteamiento-lo-guardado.md`.
-
-               Sin confirmación, como las otras dos puertas: guardar no le toca
-               nada a nadie —ni a este cliente ni a ninguno—, así que no hay nada
-               que deshacer. El mismo tope y el mismo desempate de nombre los
-               pone `useGuardarEnPlantillas`, que es el gesto de las tres. */
-            onGuardar &&
-              t.semanas.length > 0 && {
-                icon: ClipboardCheck,
-                label: 'Guardarlo en tus plantillas',
-                run: () => onGuardar(b),
-              },
-            onIntent && null,
-            ...(onIntent
-              ? BLOCK_INTENTS.map((i) => ({
-                  label: i.label,
-                  on: blockTraits(b).intent === i.id,
-                  run: () => onIntent(b, blockTraits(b).intent === i.id ? null : i.id),
-                }))
-              : []),
-            onQuitar && sePuedeQuitar && null,
-            onQuitar &&
-              sePuedeQuitar && {
-                icon: Trash2,
-                label: `Quitar «${b.name}»`,
-                danger: true,
-                run: () => onQuitar(b),
-              },
-          ]}
-        />
-      </div>
-    </li>
-  );
+  const tieneSemanas = weeksOfBlock(program, b).length > 0;
+  return [
+    h.onRenombrarBloque && { icon: Pencil, label: 'Renombrar', run: () => h.renombrar(b) },
+    /* Mandarlo y guardarlo, solo si tiene algo escrito. */
+    h.onMandarBloque && tieneSemanas && { icon: Users, label: 'Mandarlo a otros clientes…', run: () => h.onMandarBloque(b) },
+    h.onGuardarBloque && tieneSemanas && { icon: ClipboardCheck, label: 'Guardarlo en tus plantillas', run: () => h.onGuardarBloque(b) },
+    mover.length > 0 && null,
+    ...mover,
+    h.onIntent && null,
+    ...(h.onIntent
+      ? BLOCK_INTENTS.map((it) => ({
+          label: it.label,
+          on: traits.intent === it.id,
+          run: () => h.onIntent(b, traits.intent === it.id ? null : it.id),
+        }))
+      : []),
+    h.onQuitarBloque && sePuedeQuitar && null,
+    h.onQuitarBloque && sePuedeQuitar && { icon: Trash2, label: `Quitar «${b.name}»`, danger: true, run: () => h.onQuitarBloque(b) },
+  ].filter((x) => x !== false && x !== undefined);
 };
+
+/* ══ RENOMBRAR UN BLOQUE ═══════════════════════════════════════════════════
+   El nombre se escribe en una fila encima del pase: dentro, sobre la tinta, un
+   campo de la casa no se leería. */
+
+const Renombrando = ({ bloque, onRenombrar, onDone }) => (
+  <div className="pases-renombrar">
+    <RenombrarEnSitio
+      value={bloque.name}
+      label="Nuevo nombre del bloque"
+      seleccionado
+      onRename={(nombre) => onRenombrar(bloque.id, nombre)}
+      onDone={onDone}
+    />
+  </div>
+);
 
 /* ══ LA PÁGINA ═════════════════════════════════════════════════════════════ */
 
 export const ListaDeBloques = ({
   program,
   cliente,
-  bloque,
-  unidad = 'Microciclo',
-  unidades = 'microciclos',
   semanaEnCurso = null,
   onMandarBloque,
-  /* «Guardarlo en tus plantillas», desde la fila. Llega como manejador y no
-     montado —al revés que `accionPegar`— porque su forma no depende de nada:
-     es una entrada más del menú de un bloque concreto. */
   onGuardarBloque,
   onIrBloque,
-  onVolver,
   onNuevoBloque,
   onRenombrarBloque,
   onQuitarBloque,
   onIntent,
-  /* Los bloques en BORRADOR, si esta pantalla los deja tocar. Sin manejadores
-     no se pintan: la lista de un sitio donde no se componen no los necesita. */
+  /* Los previstos, si esta pantalla los deja tocar. Sin manejadores no se
+     pintan: la lista de un sitio donde no se componen no los necesita. */
   onRellenarBorrador,
   onEmpezarBorrador,
   onQuitarBorrador,
-  /* El verbo de pegar un bloque copiado, ya montado. Llega como pieza y no como
-     manejador porque su forma depende de cuántos bloques haya en la mano —uno
-     es un botón, varios son una pregunta—, y eso lo sabe el portapapeles, no
-     esta lista. Aquí solo se le hace sitio. */
+  onMoverBorrador,
+  /* Las temporadas: poner (o quitar, con `null`) la de una lista de ids, y
+     quitar una entera con su aviso. */
+  onPonerTemporada,
+  onQuitarTemporada,
+  /* El verbo de pegar un bloque copiado, ya montado (ver `WorkoutLogEditor`). */
   accionPegar = null,
 }) => {
-  const [orden, setOrden] = useState('fecha');
+  const hoy = todayISO();
+  const [params, setParams] = useSearchParams();
+  const [editando, setEditando] = useState(false);
+  /* Las temporadas nuevas que aún no tienen bloque. */
+  const [nuevas, setNuevas] = useState([]);
+  const [nombrando, setNombrando] = useState(false);
+  const [entero, setEntero] = useState(null);
+  const [renombrando, setRenombrando] = useState(null);
+  const [renombrandoTemporada, setRenombrandoTemporada] = useState(false);
 
-  const bloques = blocksOf(program);
-  /* Lo previsto va ARRIBA: la lista se lee del último al primero, y un
-     borrador es lo que viene después del último. */
-  const borradores = onRellenarBorrador ? borradoresDe(program) : [];
-  const abierto = bloques[bloques.length - 1] || null;
-  const loPrevisto =
-    borradores.length > 0 ? (
-      <section className="bl-grupo">
-        <span className="section-label">Lo previsto</span>
-        <ul className="bl-lista">
-          {borradores.map((b) => (
-            <FilaBorrador
-              key={b.id}
-              b={b}
-              unidad={unidad}
-              unidades={unidades}
-              abierto={abierto}
-              sePuede={Boolean(onEmpezarBorrador) && sePuedeEmpezar(program, b.id)}
-              onRellenar={onRellenarBorrador}
-              onEmpezar={onEmpezarBorrador}
-              onQuitar={onQuitarBorrador}
-            />
-          ))}
-        </ul>
-      </section>
-    ) : null;
-  /* Del último al primero: un programa se lee por donde va, no por donde
-     empezó. `fromWeek` y no la fecha, que un microciclo puede no tenerla. */
-  const tramos = useMemo(
-    () =>
-      bloques
-        .map((b) => ({ b, r: blockSummary(program, b, cliente), semanas: weeksOfBlock(program, b) }))
-        .sort((x, y) => (y.b.fromWeek ?? 0) - (x.b.fromWeek ?? 0)),
-    [program, bloques, cliente]
+  const opciones = useMemo(
+    () => ({ cycleType: cliente?.cycleType, cyclePattern: cliente?.cyclePattern, startDate: cliente?.startDate }),
+    [cliente]
   );
+  const conPrevistos = Boolean(onRellenarBorrador);
+  const sucesion = useMemo(
+    () => sucesionDeBloques(program, { opciones, borradores: conPrevistos, hoy }),
+    [program, opciones, conPrevistos, hoy]
+  );
+  const guardadas = useMemo(() => temporadasDe(sucesion, { hoy }), [sucesion, hoy]);
+  /* Las nuevas van delante, vacías, mientras no tengan nombre repetido. */
+  const temporadas = useMemo(
+    () => [
+      ...nuevas
+        .filter((n) => !temporadaConNombre(guardadas, n))
+        .map((n) => ({ clave: `nueva:${n}`, nombre: n, propia: true, vacia: true, pases: [], largo: 0, semanas: 0 })),
+      ...guardadas,
+    ],
+    [nuevas, guardadas]
+  );
+  const tiras = useMemo(() => tirasDeLasTemporadas(guardadas), [guardadas]);
+  const resumen = resumenDeLaLinea(lineaDeBloques(program, { opciones }), hoy);
 
-  if (tramos.length === 0) {
+  const abiertaClave = params.get('t');
+  const abierta = guardadas.find((t) => t.clave === abiertaClave) || null;
+
+  const vacia = sucesion.length === 0;
+  if (vacia) {
     return (
-      <div className="bl-pagina">
+      <div className="pases-pagina">
         <EmptyState
           icon={Layers}
           title="Sin bloques"
@@ -375,80 +318,302 @@ export const ListaDeBloques = ({
     );
   }
 
-  const grupos =
-    orden === 'fecha'
-      ? [[null, tramos]]
-      : [
-          ...BLOCK_INTENTS.map((i) => [i.label, tramos.filter((t) => blockTraits(t.b).intent === i.id)]),
-          ['Sin intención', tramos.filter((t) => !blockTraits(t.b).intent)],
-        ].filter(([, suyos]) => suyos.length > 0);
+  const irA = (clave) => {
+    const siguiente = new URLSearchParams(params);
+    if (clave) siguiente.set('t', clave);
+    else siguiente.delete('t');
+    setParams(siguiente);
+    setEntero(null);
+    setEditando(false);
+    setRenombrandoTemporada(false);
+  };
+
+  /* Mover a una temporada: a la guardada por su nombre, o a la del año
+     (que es quitarle la carpeta). Soltar en una nueva la hace real. */
+  const moverA = (id, t) => {
+    if (!onPonerTemporada || !cabeEn(sucesion.find((p) => p.id === id), t)) return;
+    if (t.propia) {
+      onPonerTemporada([id], t.nombre);
+      setNuevas((n) => n.filter((x) => x !== t.nombre));
+    } else {
+      onPonerTemporada([id], null);
+    }
+  };
+  const renombrarTemporada = (t, nombre) => {
+    if (t.vacia) {
+      setNuevas((n) => n.map((x) => (x === t.nombre ? nombre : x)));
+      return;
+    }
+    onPonerTemporada?.(
+      t.pases.map((p) => p.id),
+      nombre
+    );
+    /* La clave cambia con el nombre: si estaba abierta, se sigue en ella. */
+    if (abierta?.clave === t.clave) {
+      const siguiente = new URLSearchParams(params);
+      siguiente.set('t', `t:${nombre.trim().replace(/\s+/g, ' ').toLowerCase()}`);
+      setParams(siguiente, { replace: true });
+    }
+  };
+  const quitarTemporada = (t) => {
+    if (t.vacia) {
+      setNuevas((n) => n.filter((x) => x !== t.nombre));
+      return;
+    }
+    onQuitarTemporada?.(t);
+    if (abierta?.clave === t.clave) irA(null);
+  };
+
+  const sePuedeQuitar = sucesion.filter((p) => p.tipo === 'bloque').length > 1;
+  const manejadores = {
+    onRellenarBorrador,
+    onQuitarBorrador,
+    onMoverBorrador,
+    onRenombrarBloque,
+    onMandarBloque,
+    onGuardarBloque,
+    onIntent,
+    onQuitarBloque,
+    moverA,
+    renombrar: (b) => setRenombrando(b.id),
+  };
+  const acciones = (pase, aqui) =>
+    accionesDelPase({ pase, temporadas, aqui, program, sePuedeQuitar, h: manejadores });
+  const abrir = (pase) => (pase.tipo === 'borrador' ? onRellenarBorrador?.(pase.bloque) : onIrBloque?.(pase.bloque));
+  const empezar = (pase) =>
+    onEmpezarBorrador && pase.tipo === 'borrador' && sePuedeEmpezar(program, pase.id) ? (
+      <button type="button" className="btn btn-sm pase-empezar" onClick={() => onEmpezarBorrador(pase.bloque)}>
+        <Play size={13} aria-hidden="true" /> Empezar ahora
+      </button>
+    ) : null;
+  const bloqueRenombrando = renombrando ? sucesion.find((p) => p.id === renombrando)?.bloque : null;
+
+  const botonEditar = (
+    <button
+      type="button"
+      className={`cab-accion is-puerta${editando ? ' is-hecho' : ''}`}
+      onClick={() => {
+        setEditando((e) => !e);
+        if (editando) {
+          setNuevas([]);
+          setNombrando(false);
+        }
+      }}
+    >
+      {editando ? 'Hecho' : 'Editar'}
+    </button>
+  );
+
+  /* ── Una temporada abierta ──────────────────────────────────────────────── */
+  if (abierta) {
+    const cascada = cascadaDeLaTemporada(abierta, entero);
+    const previstos = borradoresDe(program);
+    const otras = temporadas.filter((t) => t.clave !== abierta.clave);
+    return (
+      <div className="pases-pagina is-temporada">
+        <nav className="pases-barra">
+          <button type="button" className="pases-atras" onClick={() => irA(null)}>
+            <ChevronLeft size={20} aria-hidden="true" /> Bloques
+          </button>
+          {onPonerTemporada && botonEditar}
+        </nav>
+
+        <header className="pases-cab">
+          <div className="pases-cab-texto">
+            <h2 className="pases-titulo">
+              <Folder size={20} className="funda-icono" aria-hidden="true" />
+              {renombrandoTemporada ? (
+                <RenombrarEnSitio
+                  value={abierta.nombre}
+                  label="Nombre de la temporada"
+                  seleccionado
+                  onRename={(nombre) => renombrarTemporada(abierta, nombre)}
+                  onDone={() => setRenombrandoTemporada(false)}
+                />
+              ) : (
+                abierta.nombre
+              )}
+            </h2>
+            <span className="pases-cab-dato">
+              {rangoDeFechas(abierta.desde, abierta.hasta, { hoy })} · {cuenta(abierta.pases.length, 'bloque', 'bloques')} ·{' '}
+              {cuenta(abierta.semanas, 'semana', 'semanas')}
+            </span>
+          </div>
+        </header>
+
+        {editando && (
+          <div className="pases-edicion">
+            <div className="pases-edicion-mandos">
+              <button type="button" className="btn btn-sm btn-secondary" onClick={() => setRenombrandoTemporada(true)}>
+                <Pencil size={13} aria-hidden="true" /> Renombrar la temporada
+              </button>
+              {abierta.propia && (
+                <button type="button" className="btn btn-sm btn-secondary pases-peligro" onClick={() => quitarTemporada(abierta)}>
+                  <Trash2 size={13} aria-hidden="true" /> Quitar la temporada
+                </button>
+              )}
+            </div>
+            {otras.length > 0 && (
+              <div className="pases-destinos">
+                <span className="pases-destinos-rotulo">Arrastra un bloque a otra temporada</span>
+                <ul className="pases-destinos-lista">
+                  {otras.map((t) => (
+                    <li key={t.clave} className="pases-destino" {...alSoltar((id) => moverA(id, t))}>
+                      <Folder size={13} aria-hidden="true" /> {t.nombre}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {bloqueRenombrando && (
+          <Renombrando bloque={bloqueRenombrando} onRenombrar={onRenombrarBloque} onDone={() => setRenombrando(null)} />
+        )}
+
+        <ol className="cascada-de-pases" aria-label={`Bloques de ${abierta.nombre}, del más antiguo al más reciente`}>
+          {cascada.map((pase) => {
+            const i = previstos.findIndex((x) => x.id === pase.id);
+            /* Soltar un previsto sobre otro lo pone en su sitio. */
+            const soltar =
+              editando && pase.tipo === 'borrador' && onMoverBorrador
+                ? alSoltar((id) => {
+                    if (id !== pase.id && previstos.some((x) => x.id === id)) onMoverBorrador(id, i);
+                  })
+                : {};
+            return (
+              <li key={pase.id} className={`cascada-hueco${pase.entero ? ' is-entero' : ''}`} {...soltar}>
+                <PaseDeBloque
+                  pase={pase}
+                  program={program}
+                  cliente={cliente}
+                  variante="temporada"
+                  entero={pase.entero}
+                  hoy={hoy}
+                  onAbrir={() => abrir(pase)}
+                  onDesplegar={() => setEntero(pase.id)}
+                  acciones={acciones(pase, abierta.clave)}
+                  mando={empezar(pase)}
+                  arrastre={editando ? arrastreDe(pase.id) : null}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    );
+  }
+
+  /* ── La portada ─────────────────────────────────────────────────────────── */
+  const iActual = sucesion.findIndex((p) => p.abierto);
+  const actual = iActual >= 0 ? sucesion[iActual] : sucesion.find((p) => p.tipo === 'borrador');
+  const iDe = sucesion.indexOf(actual);
+  const siguiente = sucesion[iDe + 1] || null;
+  const clave = guardadas.find((t) => t.pases.includes(actual))?.clave;
 
   return (
-    <div className="bl-pagina">
-      <header className="bl-cab">
-        <h2 className="bl-titulo">
-          {cliente?.name ? `Los bloques de ${cliente.name.split(' ')[0]}` : 'Los bloques'}
-        </h2>
-        <span className="bl-cab-dato">
-          {cuenta(tramos.length, 'bloque', 'bloques')} ·{' '}
-          {cuenta(
-            tramos.reduce((n, t) => n + t.r.semanas, 0),
-            unidad.toLowerCase(),
-            unidades.toLowerCase()
-          )}
-        </span>
-        <span className="bl-hueco" />
-        <SegmentedControl
-          label="Cómo se ordena la lista"
-          value={orden}
-          onChange={setOrden}
-          options={[
-            { id: 'fecha', label: 'En orden', hint: 'Del último al primero' },
-            { id: 'intent', label: 'Por intención', hint: 'Agrupados por a qué juega cada bloque' },
-          ]}
-        />
-        {onNuevoBloque && (
-          <button type="button" className="cab-accion is-puerta" onClick={onNuevoBloque}>
-            <Plus size={13} aria-hidden="true" /> bloque
-          </button>
-        )}
-        {/* Al lado del «+ bloque» porque es su hermano: las dos formas de que
-            aquí aparezca uno más. Solo está si hay algo que pegar. */}
-        {accionPegar}
-        {onVolver && bloque && (
-          <button type="button" className="cab-accion is-puerta" onClick={onVolver}>
-            Volver a {bloque.name}
-          </button>
-        )}
+    <div className="pases-pagina">
+      <header className="pases-cab">
+        <div className="pases-cab-texto">
+          <h2 className="pases-titulo">Bloques</h2>
+          <span className="pases-cab-dato">
+            {cuenta(resumen.bloques, 'bloque', 'bloques')}
+            {resumen.semanas !== null ? ` · ${cuenta(resumen.semanas, 'semana', 'semanas')}` : ''}
+            {resumen.desde ? ` · desde el ${shortDate(resumen.desde)}` : ''}
+          </span>
+        </div>
+        <div className="pases-cab-mandos">
+          {accionPegar}
+          {onPonerTemporada && botonEditar}
+          <MenuAcciones
+            clase="btn btn-icon pases-mas"
+            ariaLabel="Nuevo"
+            items={[
+              onNuevoBloque && { icon: Plus, label: 'Nuevo bloque', run: onNuevoBloque },
+              onPonerTemporada && {
+                icon: Folder,
+                label: 'Nueva temporada',
+                run: () => {
+                  setEditando(true);
+                  setNombrando(true);
+                },
+              },
+            ].filter(Boolean)}
+            sinFlecha
+            label={<Plus size={20} aria-hidden="true" />}
+          />
+        </div>
       </header>
 
-      {loPrevisto}
+      {bloqueRenombrando && (
+        <Renombrando bloque={bloqueRenombrando} onRenombrar={onRenombrarBloque} onDone={() => setRenombrando(null)} />
+      )}
 
-      {grupos.map(([titulo, suyos]) => (
-        <section className="bl-grupo" key={titulo || 'todos'}>
-          {titulo && <span className="section-label">{titulo}</span>}
-          <ul className="bl-lista">
-            {suyos.map((t) => (
-              <Fila
-                key={t.b.id}
-                t={t}
-                esEste={t.b.id === bloque?.id}
-                unidad={unidad}
-                unidades={unidades}
-                semanaEnCurso={semanaEnCurso}
-                onMandar={onMandarBloque}
-                onGuardar={onGuardarBloque}
-                onIr={onIrBloque}
-                onRenombrar={onRenombrarBloque}
-                onQuitar={onQuitarBloque}
-                onIntent={onIntent}
-                sePuedeQuitar={tramos.length > 1}
+      <div className="pases-portada">
+        <section className="pases-hoy" aria-label="El bloque de ahora">
+          {actual && (
+            <PaseDeBloque
+              pase={actual}
+              program={program}
+              cliente={cliente}
+              variante="portada"
+              semanaEnCurso={semanaEnCurso}
+              siguiente={siguiente}
+              hoy={hoy}
+              onAbrir={() => abrir(actual)}
+              acciones={acciones(actual, clave)}
+              mando={empezar(actual)}
+              arrastre={editando ? arrastreDe(actual.id) : null}
+            />
+          )}
+        </section>
+
+        <section className="pases-temporadas" aria-labelledby="pases-temporadas-rotulo">
+          <h3 id="pases-temporadas-rotulo" className="pases-rotulo">
+            Temporadas
+          </h3>
+          <ul className="fundas">
+            {temporadas.map((t) => (
+              <Funda
+                key={t.clave}
+                temporada={t}
+                tira={tiras.get(t.clave)}
+                editando={editando}
+                hoy={hoy}
+                onAbrir={() => irA(t.clave)}
+                onRenombrar={renombrarTemporada}
+                onQuitar={quitarTemporada}
+                onSoltar={(id) => moverA(id, t)}
               />
             ))}
           </ul>
+          {onPonerTemporada &&
+            (nombrando ? (
+              <div className="funda-nueva is-nombrando">
+                <Folder size={15} aria-hidden="true" />
+                <RenombrarEnSitio
+                  value=""
+                  label="Nombre de la temporada nueva"
+                  min={18}
+                  onRename={(nombre) => setNuevas((n) => [nombre, ...n.filter((x) => x !== nombre)])}
+                  onDone={() => setNombrando(false)}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="funda-nueva"
+                onClick={() => {
+                  setEditando(true);
+                  setNombrando(true);
+                }}
+              >
+                <Plus size={15} aria-hidden="true" /> Nueva temporada
+              </button>
+            ))}
         </section>
-      ))}
-
+      </div>
     </div>
   );
 };

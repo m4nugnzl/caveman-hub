@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Bookmark, ClipboardPaste, Copy, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Zap } from 'lucide-react';
+import { Bookmark, ClipboardPaste, Clock3, Copy, FileUp, GripVertical, Layers, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 
 import {
   blockPlan,
@@ -42,6 +42,7 @@ import { TIPO, useZonasDeSoltar } from '@/lib/portapapeles';
 import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 import { useCambiosDelMicrociclo } from './EditorDelMicrociclo';
+import { diaCorto } from '@/domain/planDeSesiones';
 
 /**
  * EL BLOQUE EN CONJUNTO: sus hojas, su estructura y su información, a la vez.
@@ -532,6 +533,9 @@ export const ConjuntoDelBloque = ({
     Ver `Compositor.jsx`.
   */
   plan: planDado = null,
+  /* La fecha planificada de cada hoja sin hacer (0138): `Map<hoja, [{ fecha,
+     atrasada }]>`. Solo en el Entreno del entrenador. */
+  planDeHojas = null,
   nombre = null,
   microciclo: microcicloDado = null,
   onAbrirHoja,
@@ -978,7 +982,21 @@ export const ConjuntoDelBloque = ({
                        microciclo») no cabía en una columna de 150 px y salía
                        truncada en media rejilla. La unidad ya la dice la
                        franja de arriba; la frase completa va en el title. */
-                    { tono: 'aun', texto: 'aún no', title: `Aún no ${este} ${unidad.toLowerCase()}` }
+                    (() => {
+                      /* Con fecha planificada, la fecha a secas («jue 24»):
+                         la columna no da para más. Si la movió el cliente,
+                         con su reloj; la frase entera, en el title. */
+                      const plan = planDeHojas?.get(hoja.dayName)?.[0];
+                      if (!plan) return { tono: 'aun', texto: 'aún no', title: `Aún no ${este} ${unidad.toLowerCase()}` };
+                      return {
+                        tono: 'aun',
+                        texto: diaCorto(plan.fecha),
+                        atrasada: plan.atrasada,
+                        title: plan.atrasada
+                          ? `Atrasada por el cliente al ${diaCorto(plan.fecha)}`
+                          : `Planificada para el ${diaCorto(plan.fecha)}`,
+                      };
+                    })()
                   : seriesHechas >= hoja.series
                     ? /* El día abreviado («el dom.»): «hecha el miércoles»
                          pide 135 px y la columna estrecha da 113. Entero en
@@ -1097,9 +1115,10 @@ export const ConjuntoDelBloque = ({
                       del volumen, que es donde se mira cuánto pesa la hoja. */}
                   {estadoHoja && (
                     <span
-                      className={`plan-col-estado is-${estadoHoja.tono}`}
+                      className={`plan-col-estado is-${estadoHoja.tono}${estadoHoja.atrasada ? ' is-atrasada' : ''}`}
                       title={estadoHoja.title || estadoHoja.texto}
                     >
+                      {estadoHoja.atrasada && <Clock3 size={13} aria-label="Atrasada por el cliente" />}
                       {estadoHoja.texto}
                     </span>
                   )}

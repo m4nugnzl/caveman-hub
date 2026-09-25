@@ -83,8 +83,12 @@
 @import './styles/resumen.css';
 /* El ritmo del microciclo, en la barra, y su editor (F2c). */
 @import './styles/microciclo.css';
-/* Los bloques en borrador, en la lista de bloques (0133). */
-@import './styles/borradores.css';
+/* La lista de bloques como línea de tiempo, con lo previsto arriba (24 sep). */
+@import './styles/lista-de-bloques.css';
+/* El creador del plan: la pestaña Plan de «El plan», en barras (23 sep). */
+@import './styles/creador.css';
+/* La temporada como línea de tiempo: carriles sobre un eje (24 sep). */
+@import './styles/temporada.css';
 /*
   ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
 

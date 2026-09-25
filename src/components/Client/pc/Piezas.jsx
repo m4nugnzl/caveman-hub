@@ -93,9 +93,10 @@ export const Pildora = ({ tono = 'nada', children }) => (
 /**
  * La fila de dentro de una caja. Es un enlace, un botón o nada según lleve
  * `to`, `onClick` o ninguno de los dos — y el galón solo se pinta cuando de
- * verdad lleva a algún sitio.
+ * verdad lleva a algún sitio. `nota`, una segunda línea de texto (la
+ * indicación de un refeed).
  */
-export const Fila = ({ icono: Icono, rotulo, frase, cifra, pildora, to, onClick }) => {
+export const Fila = ({ icono: Icono, rotulo, frase, nota, cifra, pildora, to, onClick }) => {
   const dentro = (
     <>
       {Icono ? (
@@ -106,6 +107,7 @@ export const Fila = ({ icono: Icono, rotulo, frase, cifra, pildora, to, onClick 
       <span className="pc-cuerpo">
         <span className="pc-rotulo">{rotulo}</span>
         {frase ? <span className="pc-frase">{frase}</span> : null}
+        {nota ? <span className="pc-frase">{nota}</span> : null}
       </span>
       <span className="pc-fin">
         {cifra ? <span className="pc-cifra">{cifra}</span> : null}

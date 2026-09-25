@@ -20,6 +20,7 @@ import {
   targetsFor,
   cycleMap,
   cycleMatchesSplit,
+  DAY_STEPS_FIELD,
 } from '@/domain/nutrition';
 import { cicloPropio, clientCycleSlots, entrenaPorSuCuenta } from '@/domain/blocks';
 import { dietLog } from '@/domain/timeline';
@@ -1968,6 +1969,28 @@ export const NutritionModule = () => {
             editable
             onSave={(stepsGoal) => updateNutrition(activeClient.id, { stepsGoal })}
           />
+
+          {/* Los pasos de cada día, opcionales: vacío es «los del plan». Solo
+              con más de un día; con uno, son los de arriba. */}
+          {dias.length > 1 &&
+            dias.map((d) => (
+              <GoalCard
+                key={d.id}
+                icon={Footprints}
+                label={`Pasos · ${d.name}`}
+                value={d.targets?.[DAY_STEPS_FIELD] ?? ''}
+                unit="pasos"
+                placeholder={String(plan.stepsGoal || '10000')}
+                hint={
+                  plan.stepsGoal
+                    ? `En blanco, los del plan: ${plan.stepsGoal}.`
+                    : 'En blanco, los del plan.'
+                }
+                numeric
+                editable
+                onSave={(steps) => updateNutritionTargets(activeClient.id, d.id, { [DAY_STEPS_FIELD]: steps })}
+              />
+            ))}
 
           <GoalCard
             icon={HeartPulse}

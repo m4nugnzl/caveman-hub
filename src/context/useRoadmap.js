@@ -5,7 +5,14 @@ import { competicionDe } from '@/domain/calendar';
 import { optionToPhaseDraft } from '@/domain/fork';
 import { conReplanteo, sinReplanteo } from '@/domain/roadmap';
 import { HECHO_KINDS } from '@/domain/semanasDelPlan';
-import { mapEventFromDb, mapNutritionFromDb, mapPhaseFromDb, mapPhaseToDb } from '@/lib/mappers';
+import {
+  mapEventFromDb,
+  mapInterventionFromDb,
+  mapInterventionToDb,
+  mapNutritionFromDb,
+  mapPhaseFromDb,
+  mapPhaseToDb,
+} from '@/lib/mappers';
 
 /*
   ══ El roadmap, fuera de AppContext ══════════════════════════════════════════
@@ -104,6 +111,15 @@ export const useRoadmap = ({ session, activeClientId }) => {
   const [dietVersions, setDietVersions] = useState([]);
 
   /*
+    LO QUE EL ENTRENADOR PIENSA DE CADA INTERVENCIÓN (`client_interventions`,
+    0143): el motivo, la valoración y las ventanas movidas a mano. Una fila solo
+    cuando ha escrito algo; las intervenciones en sí se derivan de los hechos,
+    la pauta fechada y los bloques (`domain/intervenciones.js`). Solo el equipo
+    la lee: para el cliente la consulta vuelve vacía y no pasa nada.
+  */
+  const [notasDeIntervencion, setNotasDeIntervencion] = useState([]);
+
+  /*
     Las fases se recargan al cambiar de cliente.
 
     `cancelado` es lo que evita el fallo clásico de este patrón: al pasar rápido de
@@ -118,6 +134,7 @@ export const useRoadmap = ({ session, activeClientId }) => {
       setAnchors([]);
       setHechos([]);
       setDietVersions([]);
+      setNotasDeIntervencion([]);
       return undefined;
     }
 
@@ -126,9 +143,10 @@ export const useRoadmap = ({ session, activeClientId }) => {
     setAnchors([]);
     setHechos([]);
     setDietVersions([]);
+    setNotasDeIntervencion([]);
 
     (async () => {
-      const [fases, anclas, suyos, versiones] = await Promise.all([
+      const [fases, anclas, suyos, versiones, capa] = await Promise.all([
         supabase.from('client_phases').select('*').eq('client_id', activeClientId).order('starts_on'),
         supabase.from('client_events').select('*').eq('client_id', activeClientId).eq('ancla', true).order('date'),
         supabase
@@ -142,6 +160,7 @@ export const useRoadmap = ({ session, activeClientId }) => {
           .select('dia, pauta')
           .eq('client_id', activeClientId)
           .order('dia'),
+        supabase.from('client_interventions').select('*').eq('client_id', activeClientId),
       ]);
 
       if (cancelado) return;
@@ -162,6 +181,8 @@ export const useRoadmap = ({ session, activeClientId }) => {
           ? []
           : (versiones.data || []).map((v) => ({ dia: v.dia, nutrition: mapNutritionFromDb(v.pauta || {}) }))
       );
+      /* Sin la 0143, sin notas: las intervenciones se ven igual, sin motivo ni valoración. */
+      setNotasDeIntervencion(capa.error ? [] : (capa.data || []).map(mapInterventionFromDb));
     })();
 
     return () => {
@@ -370,6 +391,145 @@ export const useRoadmap = ({ session, activeClientId }) => {
   );
 
   /**
+   * Alargar (o acortar, en negativo) una fase `dias` días y mover lo mismo
+   * todas las que empiezan detrás (`estirar_fase`, 0136). Es el arrastre del
+   * final de una fase en el creador del plan, y su Deshacer es la misma
+   * llamada con el signo cambiado.
+   *
+   * Todo o nada, como `shiftFuturePhases`, y por eso al acabar se recargan
+   * TODAS las fases del cliente en vez de parchear las que creemos movidas.
+   */
+  const estirarFase = useCallback(
+    async (clientId, faseId, dias) => {
+      if (!dias) return { ok: true };
+      const { error } = await supabase.rpc('estirar_fase', { p_fase: faseId, p_dias: dias });
+      if (error) {
+        return {
+          ok: false,
+          error:
+            error.code === PG.EXCLUSION
+              ? 'La fase no se ha movido: alguna de detrás se pisaría con otra. Ajústalas a mano.'
+              : error.code === PG.RLS
+                ? 'No se ha podido guardar el roadmap. Si tu suscripción no está activa, la planificación queda en solo lectura.'
+                : error.message || 'No se ha podido cambiar la fase.',
+        };
+      }
+      if (clientId === activeClientId) {
+        const { data } = await supabase
+          .from('client_phases')
+          .select('*')
+          .eq('client_id', clientId)
+          .order('starts_on');
+        if (data) setPhases(data.map(mapPhaseFromDb));
+      }
+      return { ok: true };
+    },
+    [activeClientId]
+  );
+
+  /**
+   * Un hecho del plan —refeed, diet break, vacaciones, competición— puesto
+   * desde el creador. Es un evento del calendario de siempre (0123): el
+   * calendario lo verá como cualquier otro. Solo el entrenador escribe refeeds
+   * y diet breaks (RLS).
+   */
+  const anadirHecho = useCallback(
+    async (
+      clientId,
+      { kind, title, date, hasta = null, kcal = null, proteina = null, carbohidratos = null, grasa = null, nota = null }
+    ) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+      const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+      /* Las macros van las tres o ninguna (0142); con ellas, las kcal las
+         calcula la base y lo que llegue aquí se descarta. Solo se mandan si
+         hay: así apuntar un refeed sigue funcionando sin la migración. */
+      const macros = [num(proteina), num(carbohidratos), num(grasa)];
+      const conMacros = macros.every((v) => v !== null);
+      const texto = String(nota ?? '').trim().slice(0, 280);
+      const { data, error } = await supabase
+        .from('client_events')
+        .insert({
+          client_id: clientId,
+          created_by: userId,
+          kind,
+          title: String(title || '').trim(),
+          date,
+          hasta: hasta && hasta > date ? hasta : null,
+          kcal: conMacros ? null : num(kcal),
+          ...(conMacros ? { proteina_g: macros[0], carbohidratos_g: macros[1], grasa_g: macros[2] } : {}),
+          ...(texto ? { nota: texto } : {}),
+          privada: false,
+        })
+        .select()
+        .single();
+      if (error) return { ok: false, error: error.message || 'No se ha podido apuntar.' };
+      const hecho = mapEventFromDb(data);
+      if (clientId === activeClientId) {
+        setHechos((prev) => [...prev, hecho].sort((a, b) => String(a.date).localeCompare(String(b.date))));
+      }
+      return { ok: true, hecho };
+    },
+    [activeClientId, session]
+  );
+
+  /** Quitarlo: es el Deshacer de `anadirHecho` y la papelera del globo. */
+  const quitarHecho = useCallback(async (eventId) => {
+    const { error } = await supabase.from('client_events').delete().eq('id', eventId);
+    if (error) return { ok: false, error: error.message };
+    setHechos((prev) => prev.filter((h) => h.id !== eventId));
+    return { ok: true };
+  }, []);
+
+  /**
+   * Escribir el motivo, la valoración o las ventanas de una intervención. SOLO
+   * desde un gesto del entrenador en su tarjeta: nada la valora solo.
+   *
+   * @param fuente `{ eventId }`, `{ dietaDia }` o `{ bloqueId }`: de qué
+   *               intervención habla (`intervencionesDelCliente`).
+   * @param campos los que cambian (`mapInterventionToDb`).
+   */
+  const guardarIntervencion = useCallback(
+    async (clientId, fuente, campos) => {
+      const userId = session?.user?.id;
+      if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+      const fila = mapInterventionToDb(campos);
+      const deEsta = (c) =>
+        (fuente.eventId && c.eventId === fuente.eventId) ||
+        (fuente.dietaDia && c.dietaDia === fuente.dietaDia) ||
+        (fuente.bloqueId && c.bloqueId === fuente.bloqueId);
+      const previa = notasDeIntervencion.find((c) => c.clientId === clientId && deEsta(c)) || null;
+      const { data, error } = previa
+        ? await supabase.from('client_interventions').update(fila).eq('id', previa.id).select().single()
+        : await supabase
+            .from('client_interventions')
+            .insert({
+              client_id: clientId,
+              created_by: userId,
+              event_id: fuente.eventId || null,
+              dieta_dia: fuente.dietaDia || null,
+              bloque_id: fuente.bloqueId || null,
+              ...fila,
+            })
+            .select()
+            .single();
+      if (error) {
+        return {
+          ok: false,
+          error:
+            error.code === PG.RLS
+              ? 'No se ha podido guardar. Solo quien lleva a este cliente puede valorar sus intervenciones.'
+              : error.message || 'No se ha podido guardar.',
+        };
+      }
+      const nota = mapInterventionFromDb(data);
+      if (clientId === activeClientId) setNotasDeIntervencion((prev) => [...prev.filter((c) => c.id !== nota.id), nota]);
+      return { ok: true, nota };
+    },
+    [activeClientId, session, notasDeIntervencion]
+  );
+
+  /**
    * Igualar una semana: su media pasa a ser la base de la expectativa y se sigue
    * al ritmo que se elija (`client_phases.replanteos`, 0123). SOLO desde el gesto
    * «Igualar aquí» del detalle de una semana: nada en la aplicación iguala solo.
@@ -390,6 +550,8 @@ export const useRoadmap = ({ session, activeClientId }) => {
     anchors,
     hechos,
     dietVersions,
+    notasDeIntervencion,
+    guardarIntervencion,
     igualar,
     quitarReplanteo,
     addPhase,
@@ -400,5 +562,8 @@ export const useRoadmap = ({ session, activeClientId }) => {
     saveAnchor,
     removeAnchor,
     shiftFuturePhases,
+    estirarFase,
+    anadirHecho,
+    quitarHecho,
   };
 };

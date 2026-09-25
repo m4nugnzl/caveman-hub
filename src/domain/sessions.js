@@ -39,6 +39,24 @@ const emptySet = () => ({ kg: '', reps: '', rir: '' });
 /** ¿Tiene esta serie algo registrado? */
 export const isSetLogged = (set) => (toNum(set?.reps) ?? 0) > 0;
 
+/** El RIR a partir del cual una serie ya no va cerca del fallo. */
+export const RIR_CERCA_DEL_FALLO = 3;
+
+/** Si una serie con RIR apuntado va cerca del fallo. Sin RIR, sí: no se
+    castiga a quien no lo apunta. */
+export const cercaDelFallo = (set) => {
+  const rir = toNum(set?.rir);
+  return rir === null || rir <= RIR_CERCA_DEL_FALLO;
+};
+
+/**
+ * Una SERIE EFECTIVA, en toda la aplicación: hecha (con repeticiones) y, si
+ * lleva RIR, cerca del fallo (`RIR_CERCA_DEL_FALLO` o menos). Una serie a
+ * RIR 5 está hecha —cuenta para lo registrado (`isSetLogged`)— pero no es
+ * estímulo: no suma al volumen por músculo ni a las series efectivas.
+ */
+export const esSerieEfectiva = (set) => isSetLogged(set) && cercaDelFallo(set);
+
 /** ¿Tiene este conjunto de series algo registrado? */
 const anyLogged = (sets) => (sets || []).some(isSetLogged);
 
@@ -370,12 +388,12 @@ export const sessionTonnage = (session) => {
   return Math.round(total);
 };
 
-/** Series efectivas por grupo muscular en una sesión. */
+/** Series efectivas (`esSerieEfectiva`) por grupo muscular en una sesión. */
 export const sessionMuscleVolume = (session) => {
   const out = {};
   for (const entry of session?.entries || []) {
     const muscle = entry.muscle || 'Otros';
-    const count = (entry.sets || []).filter(isSetLogged).length;
+    const count = (entry.sets || []).filter(esSerieEfectiva).length;
     if (count > 0) out[muscle] = (out[muscle] || 0) + count;
   }
   return out;
@@ -710,8 +728,93 @@ export const previousSetsBefore = (microcycles, weekNumber) => {
 
 /** La clave del mapa anterior. En un solo sitio para que no diverja. */
 export function previousSetKey(exerciseName, setIndex) {
-  return `${exerciseName}#${setIndex}`;
+  return `${claveDeEjercicio(exerciseName)}#${setIndex}`;
 }
+
+// ── Qué ejercicio es el mismo ──────────────────────────────────────────────
+
+/**
+ * LA CLAVE DE UN EJERCICIO: su nombre sin espacios de más y en minúsculas.
+ *
+ * Es la ÚNICA manera en que la app decide que dos ejercicios son el mismo
+ * —el historial, la vez anterior, la última nota y los ajustes del cliente
+ * (`exercise_settings`, 0139)—, y por eso vive en un solo sitio: «Press banca»
+ * y «press  banca » tienen que ser lo mismo en todas partes o en ninguna.
+ *
+ * ── Por qué el nombre y no un id ──────────────────────────────────────────
+ * Porque el plan no guarda ningún id de ejercicio que dure: al añadirlo a una
+ * hoja se copian su nombre y su músculo, y el id del hueco cambia al clonar un
+ * microciclo (`reidExercises`).
+ * FASE FUTURA: guardar en cada ejercicio del plan el id de la librería o del
+ * catálogo, y cambiar esta clave por ese id. Hasta entonces, renombrar un
+ * ejercicio lo separa de su historial y de sus ajustes.
+ */
+export const claveDeEjercicio = (nombre) =>
+  String(nombre ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
+ * Las sesiones del programa con este ejercicio, de la más reciente a la más
+ * antigua, con su entrada. Por semana y luego por fecha, como
+ * `previousSetsBefore`: una sesión heredada sin fecha no puede colarse como la
+ * última.
+ */
+const sesionesDelEjercicio = (microcycles, nombre, { sinSesion = null, antesDe = null } = {}) => {
+  const clave = claveDeEjercicio(nombre);
+  if (!clave) return [];
+  return allSessions(microcycles)
+    .filter((s) => !sinSesion || s.id !== sinSesion)
+    .filter((s) => !antesDe || !s.date || String(s.date) <= String(antesDe))
+    .sort(
+      (a, b) =>
+        (a.weekNumber ?? 0) - (b.weekNumber ?? 0) || String(a.date || '').localeCompare(String(b.date || ''))
+    )
+    .reverse()
+    .map((session) => ({
+      session,
+      entry: (session.entries || []).find((e) => claveDeEjercicio(e.name) === clave) || null,
+    }))
+    .filter((x) => x.entry);
+};
+
+/**
+ * LA ÚLTIMA VEZ en un ejercicio: la sesión más reciente en la que se apuntó
+ * alguna serie de él, con sus series y su nota.
+ *
+ * ── UNA sesión, y no serie a serie ────────────────────────────────────────
+ * `previousSetsBefore` junta, serie por serie, lo último de cada índice: si la
+ * última vez hizo dos series, la tercera sale de otra sesión más vieja. Y solo
+ * mira microciclos anteriores, así que el jueves no veía el lunes de la misma
+ * semana. Esto es un día concreto, y lo que dice el bloque «La última vez» y
+ * lo que sale en gris en las casillas es lo mismo.
+ *
+ * ── Cualquier rutina y cualquier microciclo ───────────────────────────────
+ * Se busca por el ejercicio, no por el hueco en la hoja: el press del jueves
+ * ve el press del lunes aunque sean dos hojas distintas.
+ *
+ * @param sinSesion  La sesión que se está mirando: la suya no es «la última».
+ * @param antesDe    Su fecha (ISO). Pasar del papel el martes con el jueves
+ *   ya apuntado tiene que enseñar lo de antes del martes.
+ * @returns `{ fecha, weekNumber, dayName, series, sets, nota }` o `null`.
+ *   `sets` va alineado con los índices (`null` en la que no se hizo), para las
+ *   casillas; `series` son solo las hechas, para leerlas.
+ */
+export const ultimaVezDeEjercicio = (microcycles, nombre, opciones = {}) => {
+  for (const { session, entry } of sesionesDelEjercicio(microcycles, nombre, opciones)) {
+    const sets = (entry.sets || []).map((s) =>
+      isSetLogged(s) ? { kg: String(s.kg ?? ''), reps: String(s.reps ?? ''), rir: String(s.rir ?? '') } : null
+    );
+    if (!sets.some(Boolean)) continue;
+    return {
+      fecha: session.date || null,
+      weekNumber: session.weekNumber,
+      dayName: session.dayName,
+      series: sets.filter(Boolean),
+      sets,
+      nota: String(entry.clientNote || '').trim(),
+    };
+  }
+  return null;
+};
 
 // ── Lo que hiciste en un ejercicio, y tu marca ─────────────────────────────
 //
@@ -742,13 +845,13 @@ export function previousSetKey(exerciseName, setIndex) {
  * }[]}
  */
 export const historialDeEjercicio = (microcycles, nombre) => {
-  const buscado = String(nombre || '').trim();
+  const buscado = claveDeEjercicio(nombre);
   if (!buscado) return [];
 
   const dias = [];
   for (const session of allSessions(microcycles)) {
     for (const entry of session.entries || []) {
-      if (String(entry.name || '').trim() !== buscado) continue;
+      if (claveDeEjercicio(entry.name) !== buscado) continue;
       const sets = (entry.sets || [])
         .filter(isSetLogged)
         .map((s) => ({ kg: s.kg ?? '', reps: s.reps ?? '' }));
@@ -931,15 +1034,27 @@ export const resumenDeEntrada = (session, exerciseName) => {
 // ── La mejor marca, para saber cuándo hay un récord ────────────────────────
 
 /**
- * Una repetición máxima estimada (Epley). No es un dato: es la vara con la que
- * comparar dos series de distinto peso y distintas repeticiones —90 × 8 contra
- * 95 × 5— para decir cuál es mejor. Solo se usa para eso; nunca se enseña como
- * cifra.
+ * EPLEY, la única copia: kg × (1 + reps/30). No es un dato: es la vara con la
+ * que comparar dos series de distinto peso y distintas repeticiones —90 × 8
+ * contra 95 × 5— para decir cuál es mejor. Solo se usa para eso; la línea de
+ * tiempo nunca lo enseña como cifra, solo su variación en %.
+ *
+ * Hasta el 24 sep había dos copias (esta y `estimatedOneRm` en `training.js`)
+ * que no coincidían: aquella redondeaba, descartaba más de 12 repeticiones y
+ * pasaba la serie de 1 por la fórmula. Ahora la fórmula vive aquí y el tope lo
+ * pide quien lo necesita.
+ *
+ * @param hasta las repeticiones por encima de las cuales la serie no se mide
+ *              (la fórmula pierde precisión pasadas las 12). Sin tope si no
+ *              se pasa.
+ * @returns el número, o `0` si la serie no se puede medir. `0` y no `null`
+ *          porque quien compara hace `>` y `Math.max` con él.
  */
-export const e1rm = (kg, reps) => {
+export const e1rm = (kg, reps, { hasta = null } = {}) => {
   const k = toNum(kg) ?? 0;
   const r = toNum(reps) ?? 0;
   if (k <= 0 || r <= 0) return 0;
+  if (hasta !== null && r > hasta) return 0;
   return r === 1 ? k : k * (1 + r / 30);
 };
 

@@ -1,0 +1,202 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   EL CREADOR DEL PLAN — la pestaña Plan de «El plan»
+   ══════════════════════════════════════════════════════════════════════════
+
+   `roadmap/CreadorDelPlan`, `BarraDelPlan` y `MesaDelPlan`. El boceto aprobado
+   el 22 sep 2026 («El plan en barras», 3.ª vuelta): una barra segmentada, sin
+   cajas ni sombras. Lo único con relieve es el globo, que es el de la casa
+   (`ui/Globo`, en resumen.css).
+
+   ── El color ──────────────────────────────────────────────────────────────
+   El de la fase llega del dato, como variable (`--c`, el color de su
+   dirección, `goals.js`): este fichero no nombra ni una tinta de la paleta de
+   datos. Lo hecho va en sólido, lo que queda en tinte; los bloques, en tinta
+   neutra (`--fill*`), porque el bloque no tiene dirección.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.creador { display: grid; gap: var(--s4); min-width: 0; }
+
+/* ── La cabecera: tres datos que la barra no dice ─────────────────────────── */
+.creador-cab {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--s3) var(--s5);
+}
+.creador-dato {
+  all: unset; box-sizing: border-box; display: grid; gap: 2px; align-content: start;
+  padding: var(--s2) var(--s3); margin: calc(var(--s2) * -1) calc(var(--s3) * -1);
+  border-radius: var(--r-md); min-width: 0;
+}
+button.creador-dato { cursor: pointer; transition: background var(--fast) var(--ease); }
+button.creador-dato:hover { background: var(--fill-subtle); }
+button.creador-dato:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+.creador-dato-l { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.creador-dato-v {
+  font-size: var(--fs-xl); font-weight: 600; letter-spacing: -0.015em; line-height: 1.2;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.creador-dato-v small { font-size: var(--fs-sm); font-weight: 500; color: var(--text-secondary); }
+.creador-dato-v.is-frase { font-size: var(--fs-md); line-height: 1.35; letter-spacing: 0; text-wrap: balance; }
+.creador-dato-s { font-size: var(--fs-xs); color: var(--text-secondary); text-wrap: pretty; }
+
+.creador-acciones { display: flex; align-items: center; gap: var(--s1) var(--s3); flex-wrap: wrap; }
+.creador-deshacer { margin-left: auto; display: inline-flex; gap: var(--s1); }
+.creador-pista { margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+/* ── El lienzo y sus tiras ────────────────────────────────────────────────── */
+.creador-lienzo { position: relative; display: grid; gap: 18px; justify-content: start; }
+.creador-lienzo.is-arrastrando, .creador-lienzo.is-arrastrando * { cursor: ew-resize; }
+.creador-tira { position: relative; outline: none; border-radius: var(--r-sm); }
+.creador-tira:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.creador-tira > * { position: absolute; }
+
+.creador-banda { border-radius: 6px; background: var(--fill); pointer-events: none; }
+
+/* Lo que se mueve resbala con un muelle discreto: al alargar una fase, las de
+   detrás se apartan en vez de saltar. */
+.creador-sem, .creador-camino, .creador-bloque, .creador-bloque-rotulo, .creador-rotulo, .creador-asa,
+.creador-hecho, .creador-tallo, .creador-corte, .creador-peso, .creador-peso-tallo {
+  transition:
+    left 0.3s var(--spring), width 0.3s var(--spring), opacity var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+/* La fase: hecha en sólido, la de hoy rellena hasta hoy, lo que queda en tinte. */
+.creador-sem { cursor: pointer; }
+.creador-sem.is-hecha { background: var(--c, var(--hairline-strong)); }
+.creador-sem.is-futura { background: color-mix(in srgb, var(--c, var(--hairline-strong)) 24%, transparent); }
+.creador-sem.is-hoy {
+  background: linear-gradient(
+    90deg, var(--c, var(--hairline-strong)) 0 var(--llenado, 50%), color-mix(in srgb, var(--c, var(--hairline-strong)) 24%, transparent) var(--llenado, 50%)
+  );
+}
+/* La muesca donde baja el tallo de un hecho. */
+.creador-sem.con-muesca {
+  clip-path: polygon(0 0, calc(50% - 4.5px) 0, 50% 5px, calc(50% + 4.5px) 0, 100% 0, 100% 100%, 0 100%);
+}
+
+/* El cruce: una fila por camino, cada una del color de su dirección. No es
+   nada todavía, así que va rayada, pero con el color entero en la raya: dos
+   caminos de dos direcciones tienen que distinguirse de un vistazo. */
+.creador-camino {
+  cursor: pointer;
+  background: repeating-linear-gradient(
+    135deg, var(--c, var(--hairline-strong)) 0 2px, color-mix(in srgb, var(--c, var(--hairline-strong)) 26%, transparent) 2px 5px
+  );
+}
+.creador-camino-nombre { display: inline-flex; align-items: center; gap: 5px; }
+.creador-camino-nombre > i {
+  width: 8px; height: 8px; border-radius: 2px; background: var(--c, var(--hairline-strong));
+}
+
+.creador-rotulo {
+  display: flex; justify-content: space-between; gap: 10px; height: 18px;
+  font-size: 12px; line-height: 18px; white-space: nowrap; color: var(--text-secondary);
+  pointer-events: none; overflow: hidden;
+}
+.creador-rotulo > span { display: flex; gap: 6px; align-items: baseline; min-width: 0; }
+.creador-rotulo > span:last-child { gap: 14px; }
+.creador-rotulo .is-peso { color: var(--text); font-variant-numeric: tabular-nums; }
+.creador-rotulo .is-titulo { color: var(--text); font-weight: 600; }
+.creador-rotulo .is-flojo { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+.creador-rotulo.is-cruce { color: var(--text-secondary); }
+.creador-rotulo.is-cruce > span { gap: 10px; }
+
+/* El peso de una unión: encima, con un tallo hasta ella. Es el mismo número
+   para la salida de una fase y la entrada de la siguiente. */
+.creador-peso {
+  display: flex; justify-content: center; gap: var(--s2); height: 14px;
+  font-size: 12px; line-height: 14px; white-space: nowrap; color: var(--text);
+  font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.creador-peso.is-izq { justify-content: flex-start; }
+.creador-peso.is-der { justify-content: flex-end; }
+.creador-peso > span + span { color: var(--text-secondary); }
+.creador-peso-tallo { width: 1px; background: var(--hairline-strong); pointer-events: none; }
+
+/* ── Los bloques: tinta neutra, por días, UNA pastilla por bloque ───────── */
+.creador-bloque { cursor: pointer; background: var(--fill); }
+.creador-bloque.is-abierto { background: var(--fill-strong); }
+.creador-bloque.is-borrador {
+  background: repeating-linear-gradient(135deg, var(--fill-strong) 0 2px, transparent 2px 6px), var(--fill-subtle);
+}
+/* La descarga se reconoce sin texto: un trazo fino. En borrador, discontinuo. */
+.creador-bloque.is-descarga { background: var(--hairline-strong); }
+.creador-bloque.is-descarga.is-abierto { background: var(--text-secondary); }
+.creador-bloque.is-descarga.is-borrador {
+  background: repeating-linear-gradient(90deg, var(--hairline-strong) 0 3px, transparent 3px 5px);
+}
+/* El corte entre microciclos: una línea fina dentro de la pastilla. */
+.creador-corte { width: 1px; background: var(--surface); opacity: 0.9; pointer-events: none; }
+.creador-bloque-rotulo {
+  padding: 0 5px; font-size: 11px; font-weight: 500; line-height: 15px; white-space: nowrap; overflow: hidden;
+  color: var(--text-secondary); pointer-events: none;
+}
+.creador-bloque-rotulo.is-abierto { color: var(--text); }
+.creador-bloque-rotulo.is-borrador { color: var(--text-tertiary); }
+.creador-bloque-rotulo.is-letra { padding: 0; text-align: center; }
+
+/* Con algo elegido, lo demás se aparta: el foco sin cajas. */
+.creador-lienzo.hay-eleccion .creador-sem:not(.is-elegida),
+.creador-lienzo.hay-eleccion .creador-camino:not(.is-elegida),
+.creador-lienzo.hay-eleccion .creador-bloque:not(.is-elegido),
+.creador-lienzo.hay-eleccion .creador-hecho:not(.is-elegido) { opacity: 0.4; }
+
+/* ── Las asas: una píldora vertical, que dice «se estira» ─────────────────── */
+.creador-asa {
+  z-index: 2; width: 8px; height: 32px; margin: -16px 0 0 -4px; padding: 0; border: 0; border-radius: 4px;
+  background: var(--c, var(--text-tertiary)); box-shadow: 0 0 0 3px var(--surface);
+  cursor: ew-resize; touch-action: none; opacity: 0;
+}
+.creador-asa.is-fina { width: 6px; height: 23px; margin: -11.5px 0 0 -3px; border-radius: 3px; }
+.creador-asa.is-cerca, .creador-asa:focus-visible, .creador-asa.is-activa { opacity: 1; }
+.creador-asa:hover, .creador-asa.is-activa { transform: scaleX(1.35); }
+.creador-asa:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Sin ratón no hay «cerca»: en una pantalla táctil las asas se ven siempre. */
+@media (hover: none) {
+  .creador-asa { opacity: 1; }
+}
+
+/* ── Los hechos y la regla ────────────────────────────────────────────────── */
+.creador-tallo { width: 1px; background: var(--hairline-strong); pointer-events: none; }
+.creador-hecho {
+  display: flex; align-items: center; gap: 5px; height: 14px; white-space: nowrap; cursor: pointer;
+  font-size: 11.5px; font-weight: 500; line-height: 14px; color: var(--text);
+}
+.creador-hecho > svg { flex: none; }
+.creador-hoy { width: 5px; height: 5px; border-radius: 50%; background: var(--text); pointer-events: none; }
+.creador-regla {
+  transform: translateX(-50%); white-space: nowrap; font-size: 11px; line-height: 14px;
+  color: var(--text-tertiary); font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.creador-regla.is-hoy, .creador-regla.is-destino { color: var(--text); font-weight: 600; }
+.creador-regla.is-destino > i {
+  display: inline-block; width: 7px; height: 7px; margin-right: 6px; vertical-align: 1px;
+  background: var(--text); transform: rotate(45deg);
+}
+
+.creador-globo-fuerte { color: var(--text); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .creador-sem, .creador-camino, .creador-bloque, .creador-bloque-rotulo, .creador-rotulo, .creador-asa,
+  .creador-hecho, .creador-tallo, .creador-corte, .creador-peso, .creador-peso-tallo, button.creador-dato { transition: none; }
+}
+
+/* ── La mesa: lo elegido, debajo, sin caja ────────────────────────────────── */
+.creador-mesa { display: grid; gap: var(--s3); padding-top: var(--s4); border-top: 1px solid var(--hairline); }
+.creador-mesa-cab { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.creador-mesa-cab h3 { margin: 0; font-size: var(--fs-md); font-weight: 600; }
+.creador-ficha { display: grid; gap: var(--s3); }
+.creador-ficha-linea { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.creador-pesos { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s6); margin: 0; }
+.creador-pesos > div { display: grid; gap: 2px; }
+.creador-pesos dt { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.creador-pesos dd { margin: 0; }
+.creador-pesos dd.tnum { font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+.creador-pesos-nota { font-size: var(--fs-xs); color: var(--text-secondary); }
+.creador-atajo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s2) var(--s3); }
+.creador-atajo .field { margin: 0; }
+.creador-atajo-dice { margin: 0 0 6px; font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.creador-atajo-dice.is-error { color: var(--negative); }
+.creador-duracion { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.creador-duracion-n { min-width: 2ch; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.creador-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s3); }

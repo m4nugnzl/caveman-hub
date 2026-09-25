@@ -7,6 +7,7 @@ import { MealCard } from '@/components/nutrition/MealCard';
 import { PlanDia } from '@/components/nutrition/PlanDia';
 import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
 import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
+import { DiaEspecial } from './DiaEspecial';
 
 /**
  * «DIETA» EN EL MONITOR — la mesa y el costado del taller, sin sus verbos.
@@ -90,6 +91,7 @@ export const DietaEnMonitor = ({ datos }) => {
     sinCifras,
     menuSinCifras,
     porMacros,
+    especial = null,
   } = datos;
   const [diaAbierto, setDiaAbierto] = useState(false);
 
@@ -112,6 +114,8 @@ export const DietaEnMonitor = ({ datos }) => {
               {dias.length > 1 ? <TarjetasDeDia dias={dias} activo={diaVisible?.id} onDia={onDia} /> : null}
 
               <div className="dieta-cuerpo">
+                {/* Un refeed o un diet break hoy: sus cifras y la indicación, encima de todo. */}
+                {especial ? <DiaEspecial especial={especial} /> : null}
                 {porMacros ? (
                   /*
                     ── POR MACROS: LA MESA DEL TALLER, EN LECTURA ───────────
@@ -124,7 +128,7 @@ export const DietaEnMonitor = ({ datos }) => {
                     <p className="t-secondary">
                       Tu dieta va por cifras, y en tu app no se enseñan.
                     </p>
-                  ) : comidas.length === 0 ? (
+                  ) : comidas.length === 0 && especial?.cifras ? null /* Las cifras de hoy ya las dice el refeed: la de siempre, al lado. */ : comidas.length === 0 ? (
                     <MacroTargetCard
                       forma="mesa"
                       plan={lecturas?.plan}

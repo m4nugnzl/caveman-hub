@@ -2602,6 +2602,9 @@ margin-left: 0; padding-left: 0; white-space: normal;
 font-variant-numeric: normal; line-height: 1.35;
 }
 .menu-sep { border: 0; border-top: 1px solid var(--hairline); margin: var(--s1) 0; }
+/* El rótulo de un grupo del menú: dice qué sigue, no se pulsa. */
+.menu-grupo { margin: 0; padding: var(--s2) var(--s3) 2px; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-tertiary); }
+.menu-sep + .menu-grupo, .menu-grupo:first-child { padding-top: var(--s1); }
 
 /* ── Las semanas: una pastilla es un estado, no un botón más ─────────────── */
 .hoja-semana {
@@ -2833,6 +2836,22 @@ grid-template-columns: repeat(3, minmax(0, 1fr));
 font-family: var(--font); font-size: var(--fs-sm); font-weight: 600; color: var(--text-tertiary);
 }
 
+/* Cuatro cifras en el rendimiento del bloque; en teléfono, dos por dos. Y el
+ segundo rótulo —«desde 30×10», el nombre del ejercicio— en voz más baja. */
+.progresion-cifras.is-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.progresion-cifras > .bloque-cifra > .k.is-desde { color: var(--text-tertiary); font-weight: 500; overflow-wrap: anywhere; }
+@media (max-width: 639.98px) {
+  .progresion-cifras.is-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--s4); }
+  .progresion-cifras.is-4 > .bloque-cifra:nth-child(3) { border-left: 0; padding-left: 0; }
+}
+/* Las tres de la progresión, a dos columnas por debajo de 1024 (`.bloque-cifras`): la
+ tercera abre renglón, sin filete ni sangría. */
+@media (max-width: 1023.98px) {
+  .progresion-cifras.is-3 { row-gap: var(--s4); }
+  .progresion-cifras.is-3 > .bloque-cifra:nth-child(3) { border-left: 0; padding-left: 0; }
+}
+
+
 /* ── La curva: dos series, dos tintas y una de ellas punteada ──────────────
  Las dos salían en `--data-violet`, o sea que el gráfico dibujaba dos veces
  la misma línea con distinto recorrido (`metrics.js` lo dice por escrito:
@@ -2910,15 +2929,6 @@ color: var(--text-tertiary); letter-spacing: 0;
 font-size: var(--fs-control); font-weight: 500; color: var(--text-tertiary);
 font-variant-numeric: tabular-nums;
 }
-/* La sesión que estás mirando: acento y tinte, no el naranja del frame. En
- esta casa el naranja es un aviso —«esto ha bajado»— y la fila de hoy no
- tiene nada de malo; lo que tiene es que es donde estás. Y el canto va por
- dentro (`inset`) para que marcarla no mueva la tabla un píxel. */
-.progresion-fila.is-actual {
-background: var(--accent-wash); box-shadow: inset 0 0 0 1px var(--accent);
-}
-.progresion-fila.is-actual > .progresion-sem,
-.progresion-fila.is-actual > .progresion-fecha { color: var(--accent); font-weight: 700; }
 .progresion-celda {
 display: flex; align-items: baseline; justify-content: center; gap: 1px;
 min-width: 0; padding: 6px var(--s2); border-radius: var(--r-control);
@@ -2926,14 +2936,103 @@ background: var(--fill); font-size: var(--fs-control); font-weight: 700;
 color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 .progresion-celda > small { font-size: var(--fs-xs); font-weight: 600; color: var(--text-tertiary); margin-left: 3px; }
-/* Sin verde, igual que la tarjeta de la que esta ventana es la versión grande
- (ver `.comparativa-celda.is-baja`): las dos leen la misma tabla y tienen que
- teñir lo mismo, o al ampliar cambia el significado del color. El frame pinta
- de verde la mejor serie de la primera fila; aquí sólo la BAJADA lleva tinta,
- y por eso se tiñe la pastilla entera y no sólo su número. */
-.progresion-celda.is-baja { background: var(--negative-soft); color: var(--negative); }
-.progresion-celda.is-igual { color: var(--text-secondary); }
 .progresion-celda.is-vacia { background: transparent; color: var(--text-tertiary); font-weight: 500; }
+/* La serie que da el punto de la curva: un filo por dentro, del color de la
+ curva (`--filo`). Ni verde ni rojo: dice cuál se dibuja, no si es buena. */
+.progresion-celda.is-cuenta { box-shadow: inset 0 0 0 1.5px var(--filo, var(--accent)); }
+.progresion-sin { font-size: var(--fs-control); font-style: italic; color: var(--text-tertiary); }
+.progresion-indice { text-align: right; font-size: var(--fs-control); font-weight: 700; font-variant-numeric: tabular-nums; }
+.progresion-fila.is-head > span.progresion-indice { text-align: right; }
+
+/* ── EL RENDIMIENTO DEL BLOQUE (25 sep) ────────────────────────────────────
+ La ventana es la de la progresión (`.progresion`, sus cifras, su curva); aquí
+ solo lo suyo.
+
+ · Las cuatro cifras, SUELTAS: sin la caja hundida, que aquí la lleva la
+   lectura de abajo. Mismo cuerpo y mismos filetes.
+ · La leyenda se toca: punto, nombre y valor, sin borde ni fondo; la aislada
+   lleva un velo de SU color (`--c`, que llega de `metrics.js`).
+ · La lectura, lista agrupada: cada sección es UNA lista hundida con los
+   separadores sangrados, sin cajas por fila ni filos de color. El único
+   color es el punto de la cabecera, que dice a qué sección pertenece. */
+.progresion-cifras.is-suelta { padding: 0; border: 0; border-radius: 0; background: none; }
+
+.rend-mandos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s4); }
+.rend-rotulo { font-size: var(--fs-xs); color: var(--text-tertiary); }
+/* En teléfono, las cuatro vistas caben enteras en vez de deslizarse. */
+@media (max-width: 639.98px) { .rend-mandos .segmented-item { padding-inline: var(--s2); } }
+.rend-nota, .rend-pie { margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.rend-grafica { display: flex; flex-direction: column; gap: var(--s3); scroll-margin: var(--s4); }
+.rend-buscador { width: min(100%, 320px); }
+
+.rend-leyenda { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s2); }
+/* `--c` lo pone cada entrada con el color de su serie; éste es el respaldo. */
+.rend-chapa { --c: var(--text-tertiary); display: inline-flex; align-items: center; border-radius: var(--r-pill); }
+.rend-chapa.is-aislada { background: color-mix(in srgb, var(--c) 14%, transparent); }
+.rend-chapa-toque {
+  display: inline-flex; align-items: center; gap: var(--s2); min-height: 28px; padding: 0 var(--s2);
+  border: 0; border-radius: inherit; background: transparent; font: inherit; font-size: var(--fs-xs);
+  color: var(--text-secondary); cursor: pointer;
+}
+.rend-chapa-toque:hover, .rend-chapa.is-aislada .rend-chapa-toque { color: var(--text); }
+.rend-chapa-nombre { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rend-chapa-toque > b { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rend-chapa-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.rend-chapa-punto.is-punteada { width: 14px; height: 0; border-radius: 0; background: none; border-top: 2px dashed var(--c); }
+.rend-chapa-quitar {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin: 0 3px 0 -4px;
+  border: 0; border-radius: 50%; background: transparent; color: var(--text-tertiary); cursor: pointer;
+}
+.rend-chapa-quitar:hover { background: var(--fill); color: var(--text); }
+.rend-chapa-toque:focus-visible, .rend-chapa-quitar:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rend-leyenda-micro { font-size: var(--fs-xs); color: var(--text-tertiary); }
+
+.rend-lectura-cab {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s2) var(--s4);
+  padding-top: var(--s4); border-top: 1px solid var(--hairline);
+}
+.rend-lectura-cab > .section-label { margin: 0; }
+.rend-lectura { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s5); align-items: start; }
+.rend-lectura-col { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+@media (max-width: 639.98px) { .rend-lectura { grid-template-columns: minmax(0, 1fr); } }
+
+.rend-seccion { display: flex; flex-direction: column; gap: var(--s2); }
+.rend-seccion-cab { display: flex; align-items: center; gap: var(--s2); padding: 0 var(--s3); font-size: var(--fs-xs); color: var(--text-tertiary); }
+.rend-seccion-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.rend-seccion-titulo { font-weight: 600; }
+.rend-seccion-n { margin-left: auto; font-variant-numeric: tabular-nums; }
+.rend-seccion-vacia {
+  margin: 0; padding: var(--s3); border-radius: var(--r-md); background: var(--surface-sunken);
+  font-size: var(--fs-sm); color: var(--text-tertiary);
+}
+.rend-lista { list-style: none; margin: 0; padding: 0; overflow: hidden; border-radius: var(--r-md); background: var(--surface-sunken); }
+.rend-fila {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+  gap: var(--s3); width: 100%; min-height: 52px; padding: var(--s2) var(--s2) var(--s2) var(--s3);
+  border: 0; background: transparent; font: inherit; color: var(--text); text-align: left; cursor: pointer;
+}
+/* El separador, sangrado: empieza donde empieza el texto, como en iOS. */
+.rend-lista > li + li > .rend-fila::before {
+  content: ''; position: absolute; top: 0; left: var(--s3); right: 0; border-top: 1px solid var(--hairline);
+}
+.rend-fila:hover { background: var(--fill); }
+/* La que está aislada en la gráfica: el acento dice dónde estás. */
+.rend-fila.is-aislada { background: var(--fill); box-shadow: inset 2px 0 0 var(--accent); }
+.rend-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rend-fila-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rend-fila-nombre { font-size: var(--fs-sm); font-weight: 600; overflow-wrap: anywhere; }
+.rend-fila-sub { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.rend-fila-dato { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rend-fila-dato > b { font-size: var(--fs-sm); font-weight: 700; }
+.rend-fila-dato > span { font-size: var(--fs-xs); color: var(--text-tertiary); }
+.rend-fila-chevron { color: var(--text-tertiary); }
+.rend-fila.is-ligera { min-height: 40px; }
+.rend-fila.is-ligera .rend-fila-nombre { font-weight: 500; }
+.rend-fila.is-ligera .rend-fila-dato > b { font-weight: 600; color: var(--text-secondary); }
+@media (prefers-reduced-motion: no-preference) {
+  .rend-fila, .rend-chapa { transition: background var(--dur-micro) var(--ease); }
+}
+
 .bloque-cifras.is-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* ── La ventana del bloque: dos pantallas que se deslizan ─────────────────── */
@@ -3024,10 +3123,9 @@ border-color: var(--accent);
 .tarjeta-puerta:hover:not(:has(button:not(.task-hit):hover)) > .lado-cab .lado-titulo { color: var(--accent); }
 .tarjeta-puerta:has(> .task-hit:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* ── La progresión del bloque: lo que lleva semanas clavado ────────────────
- Filas de nombre y estado, en la voz baja del costado. «A la baja» va en
- ámbar y no en rojo: es una señal para el microciclo siguiente, no un
- vencimiento. */
+/* ── El rendimiento de cada hoja, en el costado ────────────────────────────
+ Nombre y %, en la voz baja del costado. Todos en la misma tinta: subir y
+ bajar son datos, no avisos (ver `TarjetaRendimiento`). */
 .progresion-quietos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .progresion-quietos > li {
 display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2);
@@ -3038,18 +3136,11 @@ padding: var(--s1) 0; border-top: 1px solid var(--hairline); min-width: 0;
 font-size: var(--fs-sm); font-weight: 500; min-width: 0;
 overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.progresion-quietos .d { font-size: var(--fs-2xs); color: var(--text-tertiary); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* Solo se tiñe lo que se sale. Subir es lo que se espera de un bloque, así que
- seis renglones verdes seguidos serían seis felicitaciones y ningún dato: el
- que sube se queda en voz baja y el color lo llevan el que se ha parado y el
- que va a menos. */
-.progresion-quietos .d.is-up { color: var(--text-tertiary); }
-.progresion-quietos .d.is-flat { color: var(--text-secondary); font-weight: 600; }
-.progresion-quietos .d.is-down { color: var(--warning); font-weight: 600; }
-/* Aquí vivía `.progresion-quietos .progresion-mas`, el estilo del renglón «y N
- más» cuando era un `<li>` de esta lista. Ya no lo es: es el verbo de la
- tarjeta, un `.lado-mas` fuera del `<ul>` —el mismo objeto que el del volumen,
- que es el que de verdad se pulsa—. Ver `TarjetaProgresion`. */
+.progresion-quietos .d { font-size: var(--fs-xs); font-weight: 600; color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* En el costado de Entreno, sin filetes: el aire separa, como en el volumen. */
+.entreno.is-conjunto .progresion-quietos { gap: var(--s2); }
+.entreno.is-conjunto .progresion-quietos > li { border-top: 0; padding: 0; }
+.entreno.is-conjunto .progresion-quietos .n { font-size: var(--fs-xs); font-weight: 400; }
 .lado-paso { display: inline-flex; gap: 1px; flex-shrink: 0; }
 .lado-paso .btn-icon { color: var(--text-tertiary); }
 .sensaciones-notas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s2); }

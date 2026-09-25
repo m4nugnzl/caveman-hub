@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { useApp } from '@/context/AppContext';
-import { planSnapshot } from '@/domain/reviews';
+import { fotoDeVersion } from '@/domain/reviews';
 import { semanasDelPlan } from '@/domain/semanasDelPlan';
 import { todayISO } from '@/lib/dates';
 
@@ -34,8 +34,10 @@ export const usePlanDelRoadmap = ({ reviews: dadas = null, desde = null, phases:
 
   const programa = workoutData?.[clientId] || null;
   const history = useMemo(() => anthropometry?.[clientId]?.history || [], [anthropometry, clientId]);
+  /* La pauta de hoy con la misma forma que las versiones fechadas, tipos de
+     día incluidos: es la versión de hoy aunque todavía no se haya cargado. */
   const planDeHoy = useMemo(
-    () => planSnapshot({ nutrition: nutrition?.[clientId], program: programa, client: activeClient }),
+    () => fotoDeVersion({ nutrition: nutrition?.[clientId], program: programa, client: activeClient }),
     [nutrition, clientId, programa, activeClient]
   );
 

@@ -171,7 +171,9 @@ const Estado = ({ estado }) =>
  * @param etiqueta     Lo que dice el botón que lo abre.
  * @param claseBoton   Su vestido: `.tira-sesion` en la hoja del entrenador,
  *                     `.fecha-sesion` en la cabecera del cliente.
- * @param sesion       `{ fecha, estado, fechaPor }` de la que se mira, o `null`.
+ * @param sesion       `{ fecha, estado, fechaPor, apuntadaEl }` de la que se
+ *                     mira, o `null`. `apuntadaEl`: el día en que se empezó a
+ *                     apuntar, si fue después del de la sesión (`apuntadaDespues`).
  * @param motivo       Por qué no se le puede cambiar el día; sin él, se puede.
  * @param sesiones     Todas las de la hoja en el microciclo, `{ id, fecha, estado }`.
  *                     La lista solo sale con dos o más.
@@ -234,7 +236,22 @@ export const PanelDeLaSesion = ({
               <Estado estado={sesion?.estado} />
             </div>
             {fecha && <p className="panel-sesion-dia">{diaYMes(fecha)}</p>}
-            {sesion?.fechaPor === 'cliente' && <p className="panel-sesion-nota">Día puesto por tu cliente</p>}
+            {/* Lo que el entrenador necesita saber de CÓMO llegó: si se apuntó
+                días después (desde el papel) y si el día lo puso el cliente.
+                Una línea, no dos avisos. Corregir una serie no deja marca. */}
+            {(sesion?.apuntadaEl || sesion?.fechaPor === 'cliente') && (
+              <p className="panel-sesion-nota">
+                {[
+                  sesion.apuntadaEl
+                    ? `Apuntada el ${weekdayName(sesion.apuntadaEl).slice(0, 3)} ${shortDate(sesion.apuntadaEl)}`
+                    : null,
+                  sesion.fechaPor === 'cliente' ? 'día puesto por tu cliente' : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                  .replace(/^./, (c) => c.toUpperCase())}
+              </p>
+            )}
           </header>
 
           {fecha && !motivo && onElegir && (

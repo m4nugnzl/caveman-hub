@@ -756,6 +756,47 @@ navegación** (Mi progreso / Análisis) → cabecera de bloque con su botón.
 > `reviewableWeeks`, ni el cierre, ni `planSnapshot`. La versión del cliente
 > (`/mi/evolucion/semanas[/:lunes]`) está propuesta y sin construir.
 
+> **Enmienda (23 de septiembre de 2026): el creador del plan, en barras.**
+>
+> La pestaña **Plan** de «El plan» deja de ser la lista de fases
+> (`roadmap/RoadmapPanel`, que se queda para el lado del cliente) y pasa a ser
+> el creador del boceto aprobado el 22 sep («El plan en barras», 3.ª vuelta):
+> `roadmap/CreadorDelPlan`, con su dibujo en `roadmap/BarraDelPlan`, sus fichas
+> en `roadmap/MesaDelPlan` y sus cuentas en `domain/creadorDelPlan`.
+>
+> | Pieza | Qué hace |
+> |---|---|
+> | **La cabecera** | tres datos que la barra no dice: el destino con su cuenta atrás y cómo llegan las fases (o los caminos del cruce), el peso objetivo con lo esperado al acabar la última fase, y la pregunta del cruce con su fecha. Cada uno abre su ficha para cambiarlo |
+> | **La barra** | una columna por semana natural, sin cajas ni sombras. La fase a 22 px del color de su dirección (hecha en sólido, la de hoy rellena hasta hoy con un punto debajo, lo que queda en tinte); los bloques a 15 px en tinta neutra y POR DÍAS, con un corte por microciclo (el rotativo, por vuelta), el borrador rayado y la descarga como trazo fino; los hechos con su icono y un tallo hasta una muesca; la regla cada cuatro semanas más hoy y el destino. Nada escrito dentro de los segmentos: al señalar una semana sale el globo de la casa (`ui/Globo`) |
+> | **Las tiras** | 26 semanas como mucho y nunca más estrechas de 14 px por semana: si no cabe, se parte antes (`partirEnTiras`). Nunca desplazamiento lateral |
+> | **El arrastre** | el final de una fase, del bloque abierto o de un borrador. Encaja en la semana, o en la vuelta si el bloque es rotativo, con un muelle discreto. Mientras se arrastra solo se dibuja; se escribe al soltar |
+> | **La mesa** | al pulsar una fase, un bloque, un hecho o el cruce se abre su ficha debajo de la barra, sin caja; con «+ fase», «+ bloque» (en borrador) y «+ hecho», su alta |
+>
+> Reglas que se añaden:
+>
+> - **Alargar una fase empuja TODAS las que empiezan detrás; acortarla las
+>   trae.** El destino y los bloques no se mueven. Una fase acabada no tiene asa
+>   y una en curso no puede acabar antes de hoy ni ninguna durar menos de una
+>   semana. Se hace en una transacción (`estirar_fase`, 0136): son varias filas
+>   y con el EXCLUDE de la 0028 el orden importa.
+> - **El asa del bloque abierto escribe su `plannedWeeks` y NO crea
+>   microciclos**, que se siguen montando en Entreno; no baja de los ya
+>   montados. La del borrador escribe el suyo, y los borradores de detrás se
+>   mueven solos porque su sitio se deriva. Un bloque cerrado no tiene asa.
+> - **Los pesos de los extremos son lecturas.** Entrada: si la fase empezó, la
+>   base de su recta de lo esperado (el mismo número que dibuja la línea); si
+>   es futura, lo esperado al acabar la anterior. Salida: entrada + ritmo ×
+>   semanas, o la vigente si se igualó (con la original en su ficha). Se guarda
+>   el ritmo; escribir el peso de salida enseña el ritmo que sale antes de
+>   aceptarlo. Con semanas igualadas el atajo no se ofrece: su ritmo de ahora
+>   sale del último igualado.
+> - **Deshacer en todo.** Cada gesto se apunta con su inverso: el aviso lleva
+>   «Deshacer», los mandos salen cuando hay algo que deshacer y ⌘Z / ⌘⇧Z
+>   funcionan con la ventana abierta. Un arrastre entero es un paso.
+> - **Una semana de un bloque semanal nombra el microciclo de su JUEVES**; la
+>   de un rotativo, todos los que toca («M3–M4»). La regla vive en un solo
+>   sitio: `microciclosDeLaSemana` (`domain/blocks`).
+
 ### 5.6 La lista corta de lo prohibido
 
 Para poder revisar un diff sin discutir:

@@ -37,13 +37,33 @@ import { EditorDelMicrociclo } from './EditorDelMicrociclo';
  * derecha de la ventana y la colocación lo empujaba de vuelta, así que acababa
  * lejos del mando que lo abre. La pastilla vive en la punta derecha de la
  * barra: es ese canto el que tienen en común.
+ *
+ * ── Otra cara, la misma capa ─────────────────────────────────────────────
+ * El split del bloque (`SplitDelBloque`) abre este mismo editor desde otra
+ * pieza: le da su cara (`children`, con `clase`, `etiqueta` y `titulo`) y su
+ * canto (`alineado`). La capa, el cierre y la hoja del teléfono son estos.
+ * `nombre`, `deducido` y `onNombrar` pasan tal cual al editor.
  */
-export const RitmoDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja = null, diaEnCurso = null }) => {
+export const RitmoDelMicrociclo = ({
+  microciclo,
+  hojas,
+  onCambiar,
+  onQuitarHoja = null,
+  diaEnCurso = null,
+  alineado = 'derecha',
+  clase = null,
+  etiqueta = null,
+  titulo = null,
+  nombre = null,
+  deducido = null,
+  onNombrar = null,
+  children = null,
+}) => {
   const esTelefono = useEsTelefono();
   const [abierto, setAbierto] = useState(false);
   const botonRef = useRef(null);
   const vida = useDismissable(abierto && !esTelefono);
-  const capa = useCapaFlotante(vida.mounted, botonRef, vida.ref, { alineado: 'derecha', capaSuperior: false });
+  const capa = useCapaFlotante(vida.mounted, botonRef, vida.ref, { alineado, capaSuperior: false });
 
   /* Se cierra al pulsar fuera, pero «fuera» no es lo que el propio editor abre
      encima: su menú de un día (top layer, dentro de la capa en el DOM), el
@@ -92,6 +112,9 @@ export const RitmoDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja 
       onCambiar={onCambiar}
       onQuitarHoja={onQuitarHoja}
       diaEnCurso={diaEnCurso}
+      nombre={nombre}
+      deducido={deducido}
+      onNombrar={onNombrar}
     />
   );
 
@@ -100,22 +123,24 @@ export const RitmoDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja 
       <button
         ref={botonRef}
         type="button"
-        className="tira-mas micro-ritmo"
+        className={clase || 'tira-mas micro-ritmo'}
         aria-haspopup="dialog"
         aria-expanded={abierto}
-        aria-label={`Microciclo ${rotativo ? 'rotativo' : 'semanal'}: ${texto}`}
-        title={rotativo ? `Rotativo, tandas ${texto}` : 'Semanal, de lunes a domingo'}
+        aria-label={etiqueta || `Microciclo ${rotativo ? 'rotativo' : 'semanal'}: ${texto}`}
+        title={titulo || (rotativo ? `Rotativo, tandas ${texto}` : 'Semanal, de lunes a domingo')}
         onClick={() => setAbierto((v) => !v)}
       >
-        <span className="micro-ritmo-puntos" aria-hidden="true">
-          {grupos.map((g, k) => (
-            <span key={k} className="micro-ritmo-tanda">
-              {g.map((d, j) => (
-                <span key={j} className={`micro-ritmo-punto${d.descanso ? ' is-descanso' : ''}`} />
-              ))}
-            </span>
-          ))}
-        </span>
+        {children || (
+          <span className="micro-ritmo-puntos" aria-hidden="true">
+            {grupos.map((g, k) => (
+              <span key={k} className="micro-ritmo-tanda">
+                {g.map((d, j) => (
+                  <span key={j} className={`micro-ritmo-punto${d.descanso ? ' is-descanso' : ''}`} />
+                ))}
+              </span>
+            ))}
+          </span>
+        )}
         <ChevronDown size={13} aria-hidden="true" />
       </button>
 

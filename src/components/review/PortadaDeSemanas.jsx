@@ -18,6 +18,7 @@ import { PlanDelRoadmap } from '@/components/roadmap/PlanDelRoadmap';
 import { TrazoDelPeso } from '@/components/roadmap/TrazoDelPeso';
 import { escalaPorColumnas } from '@/components/roadmap/geometria';
 import { conY, marcasDe, porFase, pxPorKilo } from '@/components/roadmap/escalaDePeso';
+import { LineaDeTiempo } from '@/components/temporada/LineaDeTiempo';
 import { useReviewRows } from './useReviewRows';
 import { useSemanasDeRevision } from './useSemanasDeRevision';
 import { CANAL, medirColumnas, partir } from './geometriaDeTiras';
@@ -59,6 +60,18 @@ import { PortadaDeEntreno } from './PortadaDeEntreno';
 const LENTES = [
   { id: 'nutricion', label: 'Nutrición' },
   { id: 'entreno', label: 'Entreno' },
+];
+
+/*
+  El conmutador de la portada (24 sep 2026): las tiras de siempre o la línea
+  de tiempo nueva (`components/temporada/`). Conviven mientras se construye la
+  línea, para poder compararlas con datos reales; en la fase 7 la línea pasa
+  a ser la portada y el conmutador desaparece. Va en la dirección
+  (`?vista=linea`) para que se pueda enlazar y sobreviva a recargar.
+*/
+const VISTAS_PORTADA = [
+  { id: 'tiras', label: 'Tiras' },
+  { id: 'linea', label: 'Línea de tiempo' },
 ];
 
 const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -337,7 +350,14 @@ const Fase = ({ grupo, tipo, abierta, onAlternar, medida, ppk, color, clientId, 
 export const PortadaDeSemanas = () => {
   const { activeClient, workoutData, ponerReferenciasDelBloque } = useApp();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const vista = params.get('vista') === 'linea' ? 'linea' : 'tiras';
+  const cambiarVista = (v) => {
+    const siguiente = new URLSearchParams(params);
+    if (v === 'linea') siguiente.set('vista', 'linea');
+    else siguiente.delete('vista');
+    setParams(siguiente, { replace: true });
+  };
   const telefono = useEsTelefono();
   const [refAncho, ancho] = useElementWidth(960);
   const [senalada, setSenalada] = useState(null);
@@ -404,6 +424,45 @@ export const PortadaDeSemanas = () => {
   /* `?en=hoy` venía del Resumen: ahora la semana de hoy tiene su dirección. */
   if (params.get('en') === 'hoy') return <Navigate to={semanaPath(activeClient.id, weekStart(hoy))} replace />;
 
+  /* Discreto, en texto: se va en la fase 7, cuando la línea de tiempo sea la portada. */
+  const conmutador = (
+    <div className="portada-vista" role="group" aria-label="Cómo ver sus semanas">
+      {VISTAS_PORTADA.map((v) => (
+        <button key={v.id} type="button" className="portada-vista-opcion" aria-pressed={vista === v.id} onClick={() => cambiarVista(v.id)}>
+          {v.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const aRevisar = estados?.aRevisar ? estados.porLunes.get(estados.aRevisar) : null;
+  const masPendientes = Math.max(0, (estados?.pendientes.length || 0) - 1);
+  const teToca =
+    !cargando && estados?.aRevisar ? (
+      <p className="semanas-toca">
+        Te toca revisar{' '}
+        <Link to={semanaPath(activeClient.id, estados.aRevisar)}>
+          {aRevisar?.numero ? `la S${aRevisar.numero}` : 'la semana'} · del {shortDate(estados.aRevisar)}
+        </Link>
+        {aRevisar && <span> · {aRevisar.entregada ? 'Entregó' : 'Sin subir'}</span>}
+        {masPendientes > 0 && (
+          <span> · y {masPendientes} {masPendientes === 1 ? 'más sin contestar' : 'más sin contestar'}</span>
+        )}
+      </p>
+    ) : null;
+
+  /* La línea de tiempo espera a las entregas, como las tiras: sin ellas no se
+     sabe el estado de ninguna semana. */
+  if (vista === 'linea') {
+    return (
+      <div className="revision-pagina cascada portada-semanas">
+        {teToca}
+        {conmutador}
+        {!cargando && <LineaDeTiempo plan={plan} estados={estados} />}
+      </div>
+    );
+  }
+
   /*
     Cada lente tiene su propio vacío, porque cada una mira otra cosa. Alguien
     que entrena y no se pesa nunca tiene semanas que contar en Nutrición y
@@ -445,24 +504,12 @@ export const PortadaDeSemanas = () => {
     setPlegado({ clientId: activeClient.id, abiertas });
   };
 
-  const aRevisar = estados?.aRevisar ? estados.porLunes.get(estados.aRevisar) : null;
-  const masPendientes = Math.max(0, (estados?.pendientes.length || 0) - 1);
   const abrir = (lunes) => navigate(semanaPath(activeClient.id, lunes));
 
   return (
     <div className="revision-pagina cascada portada-semanas">
-      {!cargando && estados?.aRevisar && (
-        <p className="semanas-toca">
-          Te toca revisar{' '}
-          <Link to={semanaPath(activeClient.id, estados.aRevisar)}>
-            {aRevisar?.numero ? `la S${aRevisar.numero}` : 'la semana'} · del {shortDate(estados.aRevisar)}
-          </Link>
-          {aRevisar && <span> · {aRevisar.entregada ? 'Entregó' : 'Sin subir'}</span>}
-          {masPendientes > 0 && (
-            <span> · y {masPendientes} {masPendientes === 1 ? 'más sin contestar' : 'más sin contestar'}</span>
-          )}
-        </p>
-      )}
+      {teToca}
+      {conmutador}
 
       <Tarjeta
         rotulo="Sus semanas"

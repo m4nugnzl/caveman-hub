@@ -66,7 +66,12 @@ const desdeEvento = (evento, hoy) => {
   };
 };
 
-export const AnclaDelPlan = ({ puedeEditar, hoy }) => {
+/*
+  `onPaso` (opcional): el creador del plan lo pasa para apuntar cada cambio en
+  su pila de Deshacer. Recibe `{ texto, deshacer, rehacer }`; sin él, esto se
+  comporta como siempre.
+*/
+export const AnclaDelPlan = ({ puedeEditar, hoy, onPaso = null }) => {
   const { activeClient, phases, anchors, loadEvents, saveAnchor, removeAnchor, shiftFuturePhases } = useApp();
   const [form, setForm] = useState(null);
   const [error, setError] = useState('');
@@ -88,6 +93,13 @@ export const AnclaDelPlan = ({ puedeEditar, hoy }) => {
     const res = await removeAnchor(evento.id);
     setBusy(false);
     setError(res.ok ? '' : res.error);
+    if (res.ok) {
+      onPaso?.({
+        texto: `«${evento.title}» ya no es el destino.`,
+        deshacer: () => saveAnchor(activeClient.id, { ...evento, id: evento.id }),
+        rehacer: () => removeAnchor(evento.id),
+      });
+    }
   };
 
   if (form) {
@@ -111,6 +123,7 @@ export const AnclaDelPlan = ({ puedeEditar, hoy }) => {
           }
 
           setBusy(true);
+          const antes = form.fechaAntes ? anchors.find((a) => a.id === form.id) || null : null;
           const res = await saveAnchor(activeClient.id, form);
           if (!res.ok) {
             setBusy(false);
@@ -122,8 +135,27 @@ export const AnclaDelPlan = ({ puedeEditar, hoy }) => {
              fases no caben, el destino ya está donde se pidió y se dice por
              qué ellas no se han movido. */
           const dias = form.fechaAntes ? daysBetween(form.fechaAntes, form.date) : 0;
-          if (form.moverFases && dias) {
-            const tope = anclasDelPlan(anchors).find((a) => a.id !== form.id && a.date > form.fechaAntes)?.date || null;
+          const tope = anclasDelPlan(anchors).find((a) => a.id !== form.id && a.date > form.fechaAntes)?.date || null;
+          const conFases = Boolean(form.moverFases && dias);
+          /* El Deshacer del creador: el destino a su sitio y, si se movieron,
+             las fases de vuelta los mismos días. */
+          const guardado = { ...form, id: res.anchor.id };
+          onPaso?.({
+            texto: antes ? `Destino: ${form.title.trim()}, ${form.date}.` : `Destino: ${form.title.trim()}.`,
+            deshacer: async () => {
+              if (conFases) {
+                const r = await shiftFuturePhases(activeClient.id, -dias, tope);
+                if (!r.ok) return r;
+              }
+              return antes ? saveAnchor(activeClient.id, { ...antes, id: antes.id }) : removeAnchor(res.anchor.id);
+            },
+            rehacer: async () => {
+              const r = await saveAnchor(activeClient.id, guardado);
+              if (r.ok && conFases) return shiftFuturePhases(activeClient.id, dias, tope);
+              return r;
+            },
+          });
+          if (conFases) {
             const movidas = await shiftFuturePhases(activeClient.id, dias, tope);
             if (!movidas.ok) {
               setBusy(false);

@@ -15,6 +15,7 @@ import {
   quitarDia,
   vecesDeCadaHoja,
 } from '@/domain/training';
+import { MAX_BLOCK_SPLIT } from '@/domain/blocks';
 import { useArrastreOrden } from '@/lib/useArrastreOrden';
 import { useCapaFlotante } from '@/lib/useCapaFlotante';
 import { useEsTelefono } from '@/lib/useMediaQuery';
@@ -121,8 +122,21 @@ export const useCambiosDelMicrociclo = (microciclo, onCambiar) => {
  * @param diaEnCurso  Qué día de la vuelta es hoy (`diaEnCursoDe`), o `null`.
  *                    Solo en rotativo: en semanal el día de hoy ya lo dice el
  *                    calendario, y aquí no hay nada que no se pueda deducir.
+ * @param nombre      El nombre del split que escribió el entrenador, o `null`.
+ * @param deducido    El que sale de sus hojas (`nombreDelSplit`): es el ejemplo
+ *                    del campo, y lo que se ve mientras esté vacío.
+ * @param onNombrar   `(nuevo | null) => void`. Sin él no hay campo de nombre.
  */
-export const EditorDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja = null, diaEnCurso = null }) => {
+export const EditorDelMicrociclo = ({
+  microciclo,
+  hojas,
+  onCambiar,
+  onQuitarHoja = null,
+  diaEnCurso = null,
+  nombre = null,
+  deducido = null,
+  onNombrar = null,
+}) => {
   const esTelefono = useEsTelefono();
   const rotativo = microciclo.tipo === 'rotativo';
   const dias = microciclo.dias;
@@ -415,6 +429,10 @@ export const EditorDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja
 
   return (
     <section className={`micro${rotativo ? ' is-rotativo' : ''}`} aria-label="Microciclo" ref={raizRef}>
+      {/* El nombre del split, lo primero: es lo que se lee en la cabecera del
+          bloque. Vacío, se ve el deducido, que va de ejemplo. */}
+      {onNombrar && <NombreDelSplit nombre={nombre} deducido={deducido} onNombrar={onNombrar} />}
+
       {/* UNA SOLA CABECERA: «Semanal | Rotativo   Tandas 2-1 ›   9 días · 6
           entrenos». Las tandas tenían su propio renglón debajo, y un renglón
           con una etiqueta y un valor, encima de otro con otra etiqueta y otro
@@ -528,6 +546,45 @@ export const EditorDelMicrociclo = ({ microciclo, hojas, onCambiar, onQuitarHoja
       {ficha.fantasma}
       {capa}
     </section>
+  );
+};
+
+/**
+ * El nombre del split. Se guarda al salir del campo o con Intro; Escape
+ * devuelve lo que había sin cerrar la capa de fuera. Vacío vuelve al deducido.
+ */
+const NombreDelSplit = ({ nombre, deducido, onNombrar }) => {
+  const [texto, setTexto] = useState(nombre || '');
+  /* Si el nombre cambia desde fuera (Deshacer), el campo lo sigue. */
+  const [previo, setPrevio] = useState(nombre);
+  if (previo !== nombre) {
+    setPrevio(nombre);
+    setTexto(nombre || '');
+  }
+  const guardar = () => {
+    const nuevo = texto.trim().slice(0, MAX_BLOCK_SPLIT) || null;
+    if (nuevo !== (nombre || null)) onNombrar(nuevo);
+  };
+  return (
+    <label className="micro-nombre">
+      <span className="micro-nombre-k">Nombre</span>
+      <input
+        className="input input-sm micro-nombre-campo"
+        value={texto}
+        maxLength={MAX_BLOCK_SPLIT}
+        placeholder={deducido || 'Torso / Pierna'}
+        spellCheck={false}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={guardar}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            setTexto(nombre || '');
+          }
+        }}
+      />
+    </label>
   );
 };
 

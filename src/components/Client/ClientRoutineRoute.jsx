@@ -18,15 +18,27 @@ import {
   allSessions,
   allSessionsOfDay,
   historialDeEjercicio,
+  isSetLogged,
   marcasDeEjercicio,
+  mergePlanWithSession,
   minutosDeSesion,
   registroDeEjercicios,
   sessionSetCount,
+  ultimaVezDeEjercicio,
 } from '@/domain/sessions';
+import { useReviewRows } from '@/components/review/useReviewRows';
+import { porQueNoSeEscribe } from '@/domain/fechaDeLaSesion';
 import { drillsForDay, unitLabel, unitLabelPlural } from '@/domain/training';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { useMediaQuery } from '@/lib/useMediaQuery';
-import { marcaDeEjercicio, pautaDe, proximaDelMicrociclo, sesionDeHoy } from './hoy';
+import {
+  aparicionesDelMicrociclo,
+  marcaDeEjercicio,
+  pautaDe,
+  proximaDelMicrociclo,
+  sesionDeHoy,
+} from './hoy';
+import { useAjustesDeEjercicio } from '@/context/useAjustesDeEjercicio';
 import { useFichaDe } from './useFichaDe';
 import { FichaDelEjercicio } from './movil/FichaDelEjercicio';
 import { EntrenoEnMonitor } from './EntrenoEnMonitor';
@@ -56,14 +68,20 @@ import { PantallaEntreno as EntrenoEnTelefono } from './movil/PantallaEntreno';
  * ellas. Ver `ClientLayout`.
  */
 export const ClientRoutineRoute = () => {
-  const { activeClient, workoutData, continueProgram } = useApp();
+  const { activeClient, workoutData, continueProgram, isCoach } = useApp();
   const navigate = useNavigate();
   const { seguir } = useSesionEnCurso();
   const fichaDe = useFichaDe();
+  /* Sus ajustes («banco al 3»), para leerlos en la hoja antes de empezar. */
+  const { ajustesDe } = useAjustesDeEjercicio(activeClient?.id);
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   const [ficha, setFicha] = useState(null);
   const [params, setParams] = useSearchParams();
   const hojaAbierta = params.get('hoja');
+  /* Qué aparición de esa hoja, si cae más de una vez en el microciclo. */
+  const vezAbierta = Number(params.get('vez')) || 0;
+  /* Sus entregas, para la frontera de las revisiones en la hoja. */
+  const { checkIns: entregas } = useReviewRows(activeClient?.id, { conEnlaces: false });
   /*
     QUÉ MICROCICLO SE ESTÁ MIRANDO, y por qué esto es nuevo.
 
@@ -181,8 +199,17 @@ export const ClientRoutineRoute = () => {
       }
     : null;
 
-  const irASesion = (dayName) => {
-    seguir({ weekNumber: semanaActual, dayName });
+  /* Entrar a la sesión. Con `aparicion`, a esa sesión concreta de la hoja —o a
+     una nueva si aún no existe—; con `ejercicio`, a su registro suelto; con
+     `cierre`, directo al cierre. Sin nada, la más reciente de la hoja (el PC). */
+  const irASesion = (dayName, { aparicion, ejercicio, cierre } = {}) => {
+    seguir({
+      weekNumber: semanaActual,
+      dayName,
+      ...(aparicion ? { vez: aparicion.vez, sessionId: aparicion.sessionId } : {}),
+      ...(ejercicio ? { ejercicio } : {}),
+      ...(cierre ? { cierre: true } : {}),
+    });
     navigate('/mi/rutina/sesion');
   };
 
@@ -270,40 +297,89 @@ export const ClientRoutineRoute = () => {
     que la portada: en el orden de la secuencia y contando cada aparición de
     una hoja que cae dos días.
   */
-  const siguiente =
-    micro && semanaActual !== null
-      ? proximaDelMicrociclo([micro], microcicloDeLaSemana(program, semanaActual, activeClient))
-      : null;
-  const laSiguiente = siguiente ? dias.find((d) => d.dayName === siguiente.dayName) : null;
+  const microciclo = semanaActual !== null ? microcicloDeLaSemana(program, semanaActual, activeClient) : null;
+  const siguiente = micro && semanaActual !== null ? proximaDelMicrociclo([micro], microciclo) : null;
+
+  /*
+    ══ CADA APARICIÓN, SU FILA (23 sep) ═══════════════════════════════════════
+    Una hoja que cae el lunes y el jueves son dos filas en «Sesiones del
+    microciclo», y cada una abre SU sesión, o la crea. Antes era una fila por
+    hoja y se entraba a «la más reciente»: el segundo Push se escribía encima
+    del primero. Qué sesión es de qué aparición lo dice `aparicionesDelMicrociclo`.
+
+    La de hoy, en el semanal, es la aparición que cae en el día de la semana de
+    hoy; sin reparto, la de la hoja que toca.
+  */
+  const apariciones = aparicionesDelMicrociclo(micro, microciclo).map((a) => ({
+    ...a,
+    esHoy:
+      !hoy?.descanso &&
+      hoy?.name === a.dayName &&
+      (a.diaDeLaSemana ? a.diaDeLaSemana === hoy?.key : true),
+  }));
+  const deHoy = apariciones.find((a) => a.esHoy) || null;
+  const laSiguiente = siguiente ? apariciones.find((a) => a.clave === siguiente.clave) || null : null;
   const proximaDia =
-    hojaDeHoy && (hojaDeHoy.series === 0 || hojaDeHoy.hechas < hojaDeHoy.series)
-      ? hojaDeHoy
-      : laSiguiente
-        ? { ...laSiguiente, hechas: siguiente.hechas, series: siguiente.series }
-        : null;
+    deHoy && (deHoy.series === 0 || deHoy.hechas < deHoy.series) ? deHoy : laSiguiente;
 
   /* La hoja ABIERTA antes de empezar, si la hay. Vive en la URL y no en un
      estado: el «atrás» del teléfono tiene que cerrarla, no sacarte de Entreno. */
-  const diaDeLaHoja = dias.find((d) => d.dayName === hojaAbierta) || null;
-  const abrirHoja = (dayName) => setParams({ hoja: dayName });
+  const laAbierta =
+    apariciones.find((a) => a.dayName === hojaAbierta && a.vez === vezAbierta) ||
+    apariciones.find((a) => a.dayName === hojaAbierta) ||
+    null;
+  const abrirHoja = (a) => setParams(a.vez > 0 ? { hoja: a.dayName, vez: String(a.vez) } : { hoja: a.dayName });
   const cerrarHoja = () => setParams({}, { replace: true });
 
   const protocolo = clientProtocol(activeClient.preferences);
   const conNotas = isModuleOn(protocolo, 'coachNote');
 
-  const hoja = diaDeLaHoja
+  const hoja = laAbierta
     ? (() => {
-        const day = diaDeLaHoja.day;
+        const day = laAbierta.day;
+        const session = laAbierta.session;
         const minutos = (() => {
           const hechas = allSessionsOfDay(micro, day.dayName).filter((s) => s.endedAt && sessionSetCount(s) > 0);
           return hechas.length > 0 ? minutosDeSesion(hechas[hechas.length - 1]) : null;
         })();
+        /* Lo que lleva cada ejercicio en ESTA aparición: la misma mezcla del
+           plan con la sesión que pinta el modo entreno. */
+        const llevado = new Map(
+          mergePlanWithSession(day, session?.isLegacy ? null : session).map((ex) => [
+            ex.id,
+            (ex.sets || []).filter(isSetLogged).length,
+          ])
+        );
+        /* La frontera de las revisiones: una semana revisada se mira, no se
+           escribe. Sin sesión todavía nace hoy, que nunca está cerrado. */
+        const bloqueo = session?.date
+          ? porQueNoSeEscribe({
+              fecha: session.date,
+              esCliente: !isCoach,
+              entregas,
+              preferences: activeClient.preferences,
+              startDate: activeClient.startDate,
+            })
+          : null;
         return {
           titulo: day.dayName,
-          sub: [porDonde ? porDonde.charAt(0).toUpperCase() + porDonde.slice(1) : null, bloque?.name]
+          sub: [
+            laAbierta.cuando,
+            porDonde ? porDonde.charAt(0).toUpperCase() + porDonde.slice(1) : null,
+            bloque?.name,
+          ]
             .filter(Boolean)
             .join(' · '),
-          resumen: { ejercicios: diaDeLaHoja.ejercicios, series: diaDeLaHoja.series, minutos },
+          resumen: { ejercicios: laAbierta.ejercicios, series: laAbierta.series, minutos },
+          bloqueo,
+          /* «Terminar la sesión» desde la hoja: quien la pasa del papel nunca
+             pasa por el «Terminar» del modo entreno, y ahí viven las preguntas
+             de su protocolo y la nota del cierre. Solo con algo apuntado y sin
+             cerrar. */
+          onTerminar:
+            !bloqueo && laAbierta.hechas > 0 && !session?.endedAt && !session?.isLegacy
+              ? () => irASesion(day.dayName, { aparicion: laAbierta, cierre: true })
+              : null,
           indicacion: conNotas ? String(day.coachNote || '').trim() : '',
           calentamiento: isModuleOn(protocolo, 'warmup')
             ? drillsForDay(bloque ? structureOfBlock(program, bloque) : program, day).filter((d) =>
@@ -319,17 +395,31 @@ export const ClientRoutineRoute = () => {
               musculo: ex.muscle || suya?.muscle || null,
               ultima: marcaDeEjercicio(micros, ex.name).marca,
               nota: conNotas ? String(ex.coachNote || '').trim() : '',
+              /* Y la SUYA: la nota de la última vez que lo hizo, y sus ajustes
+                 fijos. Su logbook. Ver `ultimaVezDeEjercicio`. */
+              notaTuya: (() => {
+                const uv = ultimaVezDeEjercicio(micros, ex.name, {
+                  sinSesion: session?.isLegacy ? null : session?.id,
+                  antesDe: session?.date || null,
+                });
+                return uv?.nota ? { texto: uv.nota, fecha: uv.fecha } : null;
+              })(),
+              ajustes: ajustesDe(ex.name).map((a) => a.text),
               conFicha: Boolean(suya),
               onFicha: () => setFicha({ ejercicio: ex, nombre: ex.name }),
+              /* Lo apuntado sobre lo pautado, y tocar la fila abre su registro. */
+              hechas: llevado.get(ex.id) || 0,
+              series: (ex.sets || []).length,
+              onRegistrar: ex.id ? () => irASesion(day.dayName, { aparicion: laAbierta, ejercicio: ex.id }) : null,
             };
           }),
           verbo:
-            diaDeLaHoja.series > 0 && diaDeLaHoja.hechas >= diaDeLaHoja.series
+            laAbierta.series > 0 && laAbierta.hechas >= laAbierta.series
               ? 'Abrir la sesión'
-              : diaDeLaHoja.hechas > 0
+              : laAbierta.hechas > 0
                 ? 'Continuar entrenamiento'
                 : 'Iniciar entrenamiento',
-          onEmpezar: () => irASesion(day.dayName),
+          onEmpezar: () => irASesion(day.dayName, { aparicion: laAbierta }),
           onVolver: cerrarHoja,
         };
       })()
@@ -357,16 +447,21 @@ export const ClientRoutineRoute = () => {
           hechas: proximaDia.hechas,
           series: proximaDia.series,
           verbo: proximaDia.hechas > 0 ? 'Continuar sesión' : 'Iniciar sesión',
-          onEmpezar: () => irASesion(proximaDia.dayName),
+          onEmpezar: () => irASesion(proximaDia.dayName, { aparicion: proximaDia }),
         }
       : null,
-    sesiones: dias.map((d) => ({
-      dayName: d.dayName,
-      meta: `${d.series} series · ${d.ejercicios} ejercicios`,
-      tono: d.tono === 'ok' ? 'hecho' : d.tono === 'espera' ? 'medias' : d.esHoy ? 'hoy' : 'nada',
-      estado: d.tono === 'ok' ? 'Hecho' : d.tono === 'espera' ? `${d.hechas}/${d.series}` : d.esHoy ? 'Hoy' : 'Pendiente',
-      onAbrir: () => abrirHoja(d.dayName),
-    })),
+    sesiones: apariciones.map((a) => {
+      const hecha = a.hechas > 0 && (a.series === 0 || a.hechas >= a.series);
+      const aMedias = a.hechas > 0 && !hecha;
+      return {
+        clave: a.clave,
+        dayName: a.dayName,
+        meta: [a.cuando, `${a.series} series · ${a.ejercicios} ejercicios`].filter(Boolean).join(' · '),
+        tono: hecha ? 'hecho' : aMedias ? 'medias' : a.esHoy ? 'hoy' : 'nada',
+        estado: hecha ? 'Hecho' : aMedias ? `${a.hechas}/${a.series}` : a.esHoy ? 'Hoy' : 'Pendiente',
+        onAbrir: () => abrirHoja(a),
+      };
+    }),
     cajon: registro.slice(0, 8).map((e) => ({
       nombre: e.nombre,
       cuando: e.date ? `la última vez el ${shortDate(e.date)}` : 'sin fecha',

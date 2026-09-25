@@ -21,8 +21,9 @@ import { Medidor, Medidores } from '@/components/ui/Medidor';
  * Se probó el MRV como una muesca en la pista, con holgura por detrás, y el
  * dueño lo rechazó con la pantalla delante: se queda la forma de producción
  * —la barra llena ES el MRV, «11,1 series de 20» al canto— con el acabado
- * plano del medidor de la casa. Pasarse del MRV lo dice la cifra en rojo; la
- * barra sigue en el color de las series (ley del color).
+ * plano del medidor de la casa. Pasarse del MRV lo dice la cifra en violeta,
+ * no en rojo: el MRV es una referencia y pasarse puede ser a propósito (24
+ * sep). La barra sigue en el color de las series (ley del color).
  *
  * ══ Y UNA PARTE DENTRO DEL TODO, para planificar con la hoja abierta ════════
  *
@@ -67,7 +68,7 @@ export const BarrasDeVolumen = ({ grupos }) => {
             de={pie}
             parte={dosTramos ? m.parte : null}
             tinta={metricColor('sets')}
-            alerta={pasado}
+            tintaCifra={pasado ? 'var(--data-violet)' : null}
             title={[
               dosTramos
                 ? `${m.name}: ${num(m.parte)} ${m.parte === 1 ? 'serie' : 'series'} en esta hoja, ${num(m.valor)} en el bloque`

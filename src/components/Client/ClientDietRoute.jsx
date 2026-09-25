@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 
 import { useData } from '@/context/AppContext';
-import { clientCycleSlots, semanaDelCliente } from '@/domain/blocks';
+import { clientCycleSlots, resolvedMicrocycles, semanaDelCliente } from '@/domain/blocks';
+import { casillaParaLaDieta, entrenaElDia, hoyLocal, sesionesDelPlan } from '@/domain/planDeSesiones';
 import {
   abreviarUnidad,
   cycleMap,
@@ -21,6 +22,7 @@ import {
   siglasDeDietas,
   targetsFor,
 } from '@/domain/nutrition';
+import { pautaEspecialDelDia } from '@/domain/pautaDelDia';
 import { clientProtocol, isModuleOn } from '@/domain/protocol';
 import { dietLog } from '@/domain/timeline';
 import { localeNumber, miles, todayISO, weekdayName } from '@/lib/dates';
@@ -62,7 +64,7 @@ export const ClientDietRoute = () => {
   /* El catálogo también: es quien sabe de familias (fruta, carne…) y alimenta
      las equivalencias. Lo puede leer cualquier usuario (0046), y los grupos de
      su entrenador le llegan por `equiv_groups` (0113). */
-  const { activeClient, nutrition, workoutData, anthropometry, catalogFoods, gruposEquiv } =
+  const { activeClient, nutrition, workoutData, anthropometry, catalogFoods, gruposEquiv, sessionPlans, hechos } =
     useData();
   const enMonitor = useMediaQuery('(min-width: 1024px)');
   const oculto = useOculto();
@@ -85,18 +87,34 @@ export const ClientDietRoute = () => {
     () => semanaDelCliente(activeClient, programa, casillas),
     [activeClient, programa, casillas]
   );
+  /* La dieta sigue al plan de sus sesiones (`LA_DIETA_SIGUE_AL_PLAN`): qué
+     casilla de la dieta toca cada día lo dice si ese día se entrena. */
+  const entrenaEl = useMemo(() => {
+    if (!programa || !activeClient) return () => null;
+    const hoy = hoyLocal();
+    const micros = resolvedMicrocycles(programa);
+    const items = sesionesDelPlan({
+      program: programa,
+      client: activeClient,
+      plans: (sessionPlans || []).filter((p) => p.client_id === activeClient.id),
+      hoy,
+    });
+    return (fecha) => entrenaElDia(fecha, { items, micros, hoy });
+  }, [programa, activeClient, sessionPlans]);
 
   if (!activeClient) return null;
 
   const plan = nutrition?.[activeClient.id];
-  const casillaDeHoy = semana?.find((d) => d.esHoy)?.key || null;
+  const casillaDe = (d) => casillaParaLaDieta(plan, casillas, d.key, entrenaEl(d.fecha));
+  const elDeHoy = semana?.find((d) => d.esHoy);
+  const casillaDeHoy = elDeHoy ? casillaDe(elDeHoy) : null;
   const deHoy = dietaDeHoy(plan, casillas, undefined, casillaDeHoy);
+  const hoyISO = todayISO();
   const dias = planDays(plan);
   const siglas = siglasDeDietas(dias);
   const mapa = cycleMap(plan, casillas);
   const diaVisible = diaElegido ? dayById(plan, diaElegido) : deHoy ? dayById(plan, deHoy.id) : dias[0];
 
-  const hoyISO = todayISO();
   const nombreDelDia = weekdayName(hoyISO);
   const fechado = `${nombreDelDia.charAt(0).toUpperCase()}${nombreDelDia.slice(1)} ${Number(hoyISO.slice(8, 10))}`;
 
@@ -120,6 +138,38 @@ export const ClientDietRoute = () => {
       }
     : null;
   const sinCifras = oculto.nutrition;
+
+  /*
+    ══ EL DÍA DE UN REFEED O UN DIET BREAK (25 sep) ═══════════════════════════
+
+    Su entrenador le sube (o le iguala) las kcal unos días concretos, y la
+    dieta que abría ese día decía las de siempre. Mirando HOY, las cifras del
+    día son las del refeed —las de su escalón, si es escalonado— y encima va
+    la indicación que le dejó. El menú no cambia: el refeed se pauta en
+    cifras, no en comidas. Otro día de la cinta es otro día: el suyo de siempre.
+  */
+  const especial = !diaElegido || diaElegido === deHoy?.id ? pautaEspecialDelDia(hechos, hoyISO) : null;
+  const conCifrasEspeciales = Boolean(especial) && (especial.kcals || 0) > 0;
+  const cifrasDelDia = conCifrasEspeciales
+    ? { kcals: especial.kcals, protein: especial.protein, carbs: especial.carbs, fats: especial.fats, sinMacros: !especial.macros }
+    : objetivos;
+  const diaEspecial = especial
+    ? {
+        kind: especial.kind,
+        titulo: `Hoy, ${especial.nombre.toLowerCase()}`,
+        cuando: especial.dias > 1 ? `día ${especial.dia} de ${especial.dias}` : null,
+        cifras:
+          sinCifras || !conCifrasEspeciales
+            ? null
+            : [
+                `${miles(especial.kcals)} kcal`,
+                ...(especial.macros
+                  ? [`${Math.round(especial.protein)} g de proteína`, `${Math.round(especial.carbs)} g de carbos`, `${Math.round(especial.fats)} g de grasas`]
+                  : []),
+              ],
+        nota: especial.nota,
+      }
+    : null;
 
   /*
     ══ LAS ALTERNATIVAS DE CADA ALIMENTO ══════════════════════════════════════
@@ -244,6 +294,7 @@ export const ClientDietRoute = () => {
   */
   const datosPC = {
     fecha: deHoy && !deHoy.unica ? `${fechado} · te toca ${deHoy.name}` : fechado,
+    especial: diaEspecial,
     dias,
     diaVisible,
     onDia: setDiaElegido,
@@ -315,7 +366,7 @@ export const ClientDietRoute = () => {
       /* Qué dieta le toca ese día. El mapa es el mismo con el que su entrenador
          reparte el ciclo, así que la sigla de la cinta y la dieta que se abre al
          pulsarla no pueden discrepar. */
-      const dayId = mapa[d.key] || null;
+      const dayId = mapa[casillaDe(d)] || null;
       return {
         key: d.fecha,
         /* La LETRA de la dieta que toca ese día. Es lo que sustituyó a la
@@ -346,18 +397,24 @@ export const ClientDietRoute = () => {
       en la cabecera de su comida.
     */
     dia:
-      sinCifras || !objetivos
+      sinCifras || !cifrasDelDia
         ? null
         : {
-            kcal: miles(objetivos.kcals || 0),
+            kcal: miles(cifrasDelDia.kcals || 0),
             /* Con su clave y su color de la casa: el teléfono dibuja qué parte
                de las kcal pone cada uno (`movil/PantallaComer · Arco`). */
-            macros: [
-              { key: 'protein', k: 'Proteína', v: Math.round(objetivos.protein || 0) },
-              { key: 'carbs', k: 'Carbos', v: Math.round(objetivos.carbs || 0) },
-              { key: 'fats', k: 'Grasas', v: Math.round(objetivos.fats || 0) },
-            ].map((m) => ({ ...m, color: MACROS.find((x) => x.key === m.key)?.color })),
+            /* Un refeed apuntado solo en kcal no tiene macros: no se inventan. */
+            macros: cifrasDelDia.sinMacros
+              ? []
+              : [
+                  { key: 'protein', k: 'Proteína', v: Math.round(cifrasDelDia.protein || 0) },
+                  { key: 'carbs', k: 'Carbos', v: Math.round(cifrasDelDia.carbs || 0) },
+                  { key: 'fats', k: 'Grasas', v: Math.round(cifrasDelDia.fats || 0) },
+                ].map((m) => ({ ...m, color: MACROS.find((x) => x.key === m.key)?.color })),
           },
+    /* Sin su línea de cifras: las kcal ya van en la cabecera y las macros en
+       los arcos, con las del refeed. Escritas en la caja salían dos veces. */
+    especial: diaEspecial ? { ...diaEspecial, cifras: null } : null,
     comidas,
     /* Lo que necesita la fila para calcular sus alternativas al desplegarse:
        el catálogo y los grupos de su entrenador, vacíos si no le toca verlas. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { proximaDelMicrociclo } from '@/components/Client/hoy';
+import { aparicionesDelMicrociclo, proximaDelMicrociclo } from '@/components/Client/hoy';
 import {
   blockSummary,
   cicloPorAbrir,
@@ -274,5 +274,42 @@ describe('adherencia con hojas fuera del plan', () => {
     for (const m of r.microciclos) expect(m.hechas).toBeLessThanOrEqual(m.planificadas);
     expect(r.adherencia).toBe(100);
     expect(r.extra).toBe(6);
+  });
+});
+
+/* ── Cada aparición, su fila (23 sep): la entrada del cliente es por aparición ── */
+
+describe('aparicionesDelMicrociclo', () => {
+  const ap = (p) => aparicionesDelMicrociclo(p.microcycles[0], microcicloDeLaSemana(p, 1, SEMANAL));
+
+  it('Push sale dos veces, en el orden de la semana y con su día', () => {
+    const lista = ap(semanal([]));
+    expect(lista.map((a) => a.clave)).toEqual(['Push#0', 'Pull#0', 'Push#1', 'Legs#0']);
+    expect(lista[0]).toMatchObject({ cuando: 'Lunes', veces: 2, session: null, sessionId: null });
+    expect(lista[2]).toMatchObject({ cuando: 'Jueves', diaDeLaSemana: 'Jueves' });
+    /* Una hoja que sale una vez no necesita decir cuándo. */
+    expect(lista[1].cuando).toBeNull();
+  });
+
+  it('la i-ésima sesión por fecha es la i-ésima aparición, y cada una sabe las fechas de sus hermanas', () => {
+    const lista = ap(semanal([sesion('Push', '2026-09-17', 1), sesion('Push', '2026-09-14')]));
+    const [lunes, , jueves] = lista;
+    expect(lunes).toMatchObject({ sessionId: 's-Push-2026-09-14', hechas: 2, siguientes: ['2026-09-17'], anteriores: [] });
+    expect(jueves).toMatchObject({ sessionId: 's-Push-2026-09-17', hechas: 1, anteriores: ['2026-09-14'], siguientes: [] });
+  });
+
+  it('la segunda aparición sin empezar no tiene sesión: abrirla crea una nueva', () => {
+    const [lunes, , jueves] = ap(semanal([sesion('Push', '2026-09-14')]));
+    expect(lunes.sessionId).toBe('s-Push-2026-09-14');
+    expect(jueves).toMatchObject({ session: null, sessionId: null, hechas: 0 });
+  });
+
+  it('proximaDelMicrociclo dice qué aparición es', () => {
+    const p = semanal([sesion('Push', '2026-09-14'), sesion('Pull', '2026-09-15')]);
+    expect(proximaDelMicrociclo(p.microcycles, microcicloDeLaSemana(p, 1, SEMANAL))).toMatchObject({
+      clave: 'Push#1',
+      vez: 1,
+      sessionId: null,
+    });
   });
 });

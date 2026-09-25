@@ -23,7 +23,8 @@ import {
  *   3. Que `log_session_discard` borra… y **solo lo que está sin cerrar**. Ese
  *      cerrojo es lo único que separa «limpiar un descuido» de «borrar
  *      histórico», y vive en una sola línea de PL/pgSQL.
- *   4. Que `log_exercise_note` escribe donde toca y rechaza lo que no existe.
+ *   4. Que `log_exercise_note` no la escribe el entrenador (0139; lo que sí hace
+ *      el cliente está en `ajustes-del-cliente.test.js`).
  *
  * Y hay un quinto motivo, que es el que más veces ha costado dinero en este
  * repositorio: **el GRANT**. Una función sin permiso falla con un 403 que la
@@ -174,7 +175,10 @@ describe.skipIf(!configurado)('la sesión tiene principio y fin (0119)', () => {
     expect(await sesionDe(clientId)).not.toBeNull();
   });
 
-  it('la nota del cliente se guarda en SU ejercicio', async () => {
+  /* La nota del ejercicio es SOLO del cliente desde la 0139: su entrenador la
+     lee y no la escribe. Lo que el cliente puede hacer con ella se prueba en
+     `ajustes-del-cliente.test.js`, con su propia cuenta. */
+  it('su entrenador no escribe la nota del ejercicio (0139)', async () => {
     const { coach, clientId } = await monta('nota');
     await anota(coach, clientId);
 
@@ -185,28 +189,8 @@ describe.skipIf(!configurado)('la sesión tiene principio y fin (0119)', () => {
       p_exercise_id: 'ex_press',
       p_note: 'Bajé el peso: dormí fatal.',
     });
-    expect(error).toBeNull();
-
-    const sesion = await sesionDe(clientId);
-    expect(sesion.entries[0].clientNote).toBe('Bajé el peso: dormí fatal.');
-    /* Y no se ha ido a la nota de la SESIÓN, que es otra cosa (la 0016): una
-       nota por ejercicio que acabe en el cuaderno del final se despega del
-       número que explica, que es justo el fallo que esto viene a arreglar. */
-    expect(sesion.clientNote).toBeUndefined();
-  });
-
-  it('una nota en un ejercicio que no está en la sesión se rechaza', async () => {
-    const { coach, clientId } = await monta('nota-fantasma');
-    await anota(coach, clientId);
-
-    const { error } = await coach.db.rpc('log_exercise_note', {
-      p_client: clientId,
-      p_week: 1,
-      p_session_id: 'ses_0119',
-      p_exercise_id: 'ex_inventado',
-      p_note: 'Algo',
-    });
-    expect(error?.message).toMatch(/no está en esta sesión/i);
+    expect(error?.message).toMatch(/Solo el cliente/i);
+    expect((await sesionDe(clientId)).entries[0].clientNote).toBeUndefined();
   });
 
   it('y ninguna de las tres se puede llamar sobre el cliente de otro', async () => {
@@ -225,7 +209,7 @@ describe.skipIf(!configurado)('la sesión tiene principio y fin (0119)', () => {
         p_session_id: 'ses_0119',
         ...args,
       });
-      expect(error?.message, fn).toMatch(/Sin permiso/i);
+      expect(error?.message, fn).toMatch(/Sin permiso|Solo el cliente/i);
     }
   });
 });

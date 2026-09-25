@@ -4,6 +4,7 @@ import { mmss } from '@/context/SesionEnCurso';
 import { miles, shortDate } from '@/lib/dates';
 import { objetivoDeSerie, serieEnCorto, siguientePorHacer, textoDelFallo } from '../sesion';
 import { Boton } from './Piezas';
+import { NotaDelLogbook } from '../LogbookDelEjercicio';
 import { FechaTocable } from '@/components/ui/CalendarioDeLaSesion';
 import { WarmupView } from '@/components/Coach/Workout/WarmupBlock';
 import { ComparativaEjercicio } from '@/components/Coach/Workout/ComparativaEjercicio';
@@ -65,9 +66,10 @@ export const PantallaSesion = ({ datos }) => {
     onFicha,
     onAcabar,
     guardado = null,
+    bloqueo = null,
     lecturas,
   } = datos;
-  const { microcycles, weekNumber, etiqueta, preguntas, ultimaConSensaciones } = lecturas;
+  const { microcycles, weekNumber, semanas, etiqueta, preguntas, ultimaConSensaciones } = lecturas;
 
   const porDefecto = Math.max(
     0,
@@ -105,6 +107,8 @@ export const PantallaSesion = ({ datos }) => {
           <i style={{ width: `${cabecera.series > 0 ? (cabecera.hechas / cabecera.series) * 100 : 0}%` }} />
         </div>
         {guardado ? <EstadoDelGuardado guardado={guardado} /> : null}
+        {/* La frontera de las revisiones: lo revisado se lee, no se escribe. */}
+        {bloqueo ? <p className="pc-puesto-bloqueo">{bloqueo}</p> : null}
 
         {/* Lo que se lee antes de empezar: la indicación del día y el
             calentamiento. Ver `ClientSesionRoute`. */}
@@ -160,6 +164,7 @@ export const PantallaSesion = ({ datos }) => {
                   {showRir ? <span>RIR</span> : null}
                   <span>La última vez</span>
                 </div>
+                <fieldset className="fieldset-plano" disabled={Boolean(bloqueo)}>
                 {e.series.map((s, i) => (
                   <div
                     key={i}
@@ -226,9 +231,10 @@ export const PantallaSesion = ({ datos }) => {
                     )}
                   </div>
                 ))}
+                </fieldset>
               </div>
 
-              <NotaDelEjercicio nombre={e.nombre} nota={e.nota} onNota={e.onNota} />
+              <NotaDelEjercicio nombre={e.nombre} nota={e.nota} onNota={e.onNota} ultimaVez={e.ultimaVez} ajustes={e.ajustes} />
             </section>
           );
         })}
@@ -275,7 +281,7 @@ export const PantallaSesion = ({ datos }) => {
           onClose={() => setVentana(null)}
           microcycles={microcycles}
           name={enFoco?.nombre || null}
-          weekNumber={weekNumber}
+          semanas={semanas}
         />
       ) : null}
       {ventana === 'sensaciones' ? (
@@ -316,43 +322,15 @@ const EstadoDelGuardado = ({ guardado }) => {
  * TU NOTA DE ESTE EJERCICIO — el pie de la caja.
  *
  * Va al pie porque es donde se escribe: al acabar la última serie, con los
- * kilos delante. En reposo es una sola palabra, y sin sesión empezada dice qué
- * falta en vez de abrir un campo que no guardaría nada.
+ * kilos delante. Sus ajustes, la nota de la última vez y la de hoy, cada uno
+ * en su renglón. La pieza es la del teléfono
+ * (`LogbookDelEjercicio`), con las clases de aquí.
  */
-const NotaDelEjercicio = ({ nombre, nota, onNota }) => {
-  const [abierta, setAbierta] = useState(false);
-  const escrita = String(nota || '').trim().length > 0;
-
-  if (!abierta && !escrita) {
-    return (
-      <div className="pc-ej-nota">
-        <button type="button" className="pc-nota-mas" onClick={() => setAbierta(true)}>
-          + Nota
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="pc-ej-nota">
-      {onNota ? (
-        <label className="pc-nota-campo">
-          <span className="pc-rot">Tu nota</span>
-          <textarea
-            rows={2}
-            value={nota || ''}
-            placeholder="Lo que quieras recordar de este ejercicio."
-            aria-label={`Tu nota de ${nombre}`}
-            onChange={(ev) => onNota(ev.target.value)}
-          />
-          <span className="pc-nota-pie">La lee tu entrenador, con tus series.</span>
-        </label>
-      ) : (
-        <p className="pc-nota-pie">Apunta una serie de este ejercicio y podrás anotar aquí.</p>
-      )}
-    </div>
-  );
-};
+const NotaDelEjercicio = ({ nombre, nota, onNota, ultimaVez = null, ajustes = null }) => (
+  <div className="pc-ej-nota">
+    <NotaDelLogbook pre="pc" nombre={nombre} nota={nota} onNota={onNota} ultimaVez={ultimaVez} ajustes={ajustes} />
+  </div>
+);
 
 /**
  * LA CUENTA ATRÁS DEL DESCANSO, en la cabecera.

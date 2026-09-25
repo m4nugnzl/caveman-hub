@@ -62,6 +62,14 @@ export const emptyNutrition = () => ({
 
 export const TARGET_FIELDS = ['targetKcals', 'proteinGrams', 'carbsGrams', 'fatsGrams'];
 
+/*
+  Los pasos PROPIOS de un día (24 sep 2026): opcionales, dentro de su objetivo
+  y no en una columna, así que viajan fechados con la dieta (0124) sin
+  migración. Vacío es «los del plan» (`stepsGoal`): ver `pasosDelDia`. Como los
+  micros, solo se guardan cuando están puestos.
+*/
+export const DAY_STEPS_FIELD = 'steps';
+
 /* ==========================================================================
    LOS DÍAS DE LA DIETA
    --------------------------------------------------------------------------
@@ -112,7 +120,7 @@ const hayObjetivo = (targets) =>
  */
 const soloTargets = (raw) => {
   const base = Object.fromEntries(TARGET_FIELDS.map((k) => [k, raw?.[k] ?? null]));
-  for (const k of MICRO_TARGET_FIELDS) {
+  for (const k of [...MICRO_TARGET_FIELDS, DAY_STEPS_FIELD]) {
     if (raw?.[k] !== null && raw?.[k] !== undefined && raw?.[k] !== '') base[k] = raw[k];
   }
   return base;
@@ -409,10 +417,11 @@ export const setDayTargets = (nutrition, dayId, fields) => {
          macros no guardaba nada: los tres macros iban vacíos en el formulario.
      Las cuatro del envase y las cuatro del objetivo, por lo mismo. */
   const limpio = { ...(fields || {}) };
-  for (const k of [...TARGET_FIELDS, ...MICRO_TARGET_FIELDS]) {
+  for (const k of [...TARGET_FIELDS, ...MICRO_TARGET_FIELDS, DAY_STEPS_FIELD]) {
     if (k in limpio && (limpio[k] === '' || limpio[k] === undefined)) limpio[k] = null;
   }
-  const pide = MICRO_TARGET_FIELDS.some((k) => limpio[k] !== null && limpio[k] !== undefined);
+  /* Los micros y los pasos del día solo caben en la lista de días. */
+  const pide = [...MICRO_TARGET_FIELDS, DAY_STEPS_FIELD].some((k) => limpio[k] !== null && limpio[k] !== undefined);
 
   const base = pide ? withDays(nutrition || emptyNutrition()) : nutrition || emptyNutrition();
   const dia = dayById(base, dayId);
@@ -714,6 +723,46 @@ export const dayKcalTarget = (nutrition, dayId) => {
   if (escrito > 0) return escrito;
   const suma = macroSplit(targets).total;
   return suma > 0 ? Math.round(suma) : 0;
+};
+
+/**
+ * Los pasos PAUTADOS de un día: los suyos si los tiene, si no los del plan.
+ * `null` si no hay ninguno.
+ */
+export const pasosDelDia = (nutrition, dayId) => {
+  const propios = toNum(dayById(nutrition, dayId)?.targets?.[DAY_STEPS_FIELD]);
+  return propios !== null && propios > 0 ? propios : toNum(nutrition?.stepsGoal);
+};
+
+/**
+ * LOS TIPOS DE DÍA DE UNA DIETA, con lo que pide cada uno y en qué casillas
+ * del ciclo cae (24 sep 2026).
+ *
+ * Es lo que lee la línea de tiempo para enseñar la pauta por tipo de día
+ * («alta 3.000 · baja 2.800») y, con las casillas, la de cada día concreto.
+ * Los nombres son los del entrenador: no hay «entreno» ni «descanso» fijos.
+ *
+ * No va en la foto que se guarda en la base (`cycleFoto`): se calcula al leer
+ * cada versión fechada (`fotoDeVersion`), así que no engorda nada guardado.
+ *
+ * @param slots `clientCycleSlots(...)`.
+ * @returns `[{ id, n, kcals, protein, carbs, fats, steps, casillas }]`, o `[]`.
+ */
+export const tiposDelCiclo = (nutrition, slots = []) => {
+  const dias = planDays(nutrition);
+  if (dias.length === 0) return [];
+  const mapa = cycleMap(nutrition, slots);
+  return dias.map((d) => ({
+    id: d.id,
+    n: String(d.name || '').slice(0, DAY_NAME_MAX),
+    kcals: dayKcalTarget(nutrition, d.id) || null,
+    protein: toNum(d.targets?.proteinGrams),
+    carbs: toNum(d.targets?.carbsGrams),
+    fats: toNum(d.targets?.fatsGrams),
+    steps: pasosDelDia(nutrition, d.id),
+    /* Un plan de un día cubre todas las casillas; con varios, las suyas. */
+    casillas: dias.length === 1 ? slots.map((s) => s.key) : slots.filter((s) => mapa[s.key] === d.id).map((s) => s.key),
+  }));
 };
 
 /**

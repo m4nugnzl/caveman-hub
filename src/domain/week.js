@@ -30,8 +30,8 @@ import { weekAdherence } from './analytics';
 import { linearTrend } from './analytics';
 import { weeklyCheckIn } from './anthropometry';
 import { groupByWeek, photoWeek, weekFromStart, weekStartOfProgramWeek } from './photos';
-import { executedSessions, sessionSetCount, sessionTonnage } from './sessions';
-import { countSets, findMicrocycle, weekTonnage, estimatedOneRm } from './training';
+import { e1rm, executedSessions, sessionSetCount, sessionTonnage } from './sessions';
+import { countSets, findMicrocycle, weekTonnage } from './training';
 
 /** Los días de una semana con lo programado y lo ejecutado, en el orden del plan. */
 const daysOfWeek = (micro) => {
@@ -376,7 +376,7 @@ export const exerciseTrend = ({ microcycles = [], name = '', weekNumber = null }
 
   /* Lo que se CLASIFICA: el 1RM estimado de esa misma serie tope. */
   const fuerza = sessions
-    .map((f) => ({ label: `S${f.week}`, value: estimatedOneRm(f.top?.kg, f.top?.reps) }))
+    .map((f) => ({ label: `S${f.week}`, value: e1rm(f.top?.kg, f.top?.reps, { hasta: 12 }) || null }))
     .filter((punto) => punto.value !== null);
 
   const trend = linearTrend(fuerza);

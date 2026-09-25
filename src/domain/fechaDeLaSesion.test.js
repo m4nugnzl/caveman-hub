@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  apuntadaDespues,
   conFechaDeSesion,
+  diaPorDefecto,
   diaElegible,
   diasConOtraSesion,
   estadoDeLaSesion,
+  limitesDeLaAparicion,
   limitesDeLaSesion,
   mesDe,
+  porQueNoSeEscribe,
   porQueNoSeMueve,
   semanasDelMes,
 } from './fechaDeLaSesion';
@@ -107,5 +111,57 @@ describe('la escritura', () => {
   it('los días con otra sesión de la hoja, en todo el programa', () => {
     const ocupados = diasConOtraSesion(micros, 'Pierna', 'c');
     expect([...ocupados].sort()).toEqual(['2026-09-02', '2026-09-20']);
+  });
+});
+
+describe('las apariciones de una hoja no se cruzan', () => {
+  const base = { desde: '2026-09-14', hasta: '2026-09-23' };
+
+  it('entre la última de antes y la primera de después', () => {
+    expect(limitesDeLaAparicion(base, { anteriores: ['2026-09-15'], siguientes: ['2026-09-19'] })).toEqual({
+      desde: '2026-09-15',
+      hasta: '2026-09-19',
+    });
+  });
+
+  it('sin hermanas, los del microciclo', () => {
+    expect(limitesDeLaAparicion(base, {})).toEqual(base);
+  });
+
+  it('nunca amplía los del microciclo', () => {
+    expect(limitesDeLaAparicion(base, { anteriores: ['2026-09-10'], siguientes: ['2026-09-30'] })).toEqual(base);
+  });
+
+  it('por defecto, hoy; y si hoy no cabe, el borde más cercano', () => {
+    expect(diaPorDefecto(base, '2026-09-20')).toBe('2026-09-20');
+    expect(diaPorDefecto({ desde: '2026-09-14', hasta: '2026-09-17' }, '2026-09-20')).toBe('2026-09-17');
+    expect(diaPorDefecto({ desde: '2026-09-22', hasta: '2026-09-23' }, '2026-09-20')).toBe('2026-09-22');
+  });
+});
+
+describe('quién escribe las series', () => {
+  const entregas = [{ weekStart: '2026-09-14', reviewedAt: '2026-09-21T10:00:00Z', submittedAt: '2026-09-20T10:00:00Z' }];
+  const preferences = { checkin: { weekday: 0, everyWeeks: 1 } };
+
+  it('el entrenador siempre', () => {
+    expect(porQueNoSeEscribe({ fecha: '2026-09-15', entregas, preferences, hoy: '2026-09-23' })).toBeNull();
+  });
+
+  it('el cliente, no en una semana revisada ni fuera de plazo', () => {
+    const cliente = { esCliente: true, entregas, preferences, startDate: '2026-08-03', hoy: '2026-09-23' };
+    expect(porQueNoSeEscribe({ ...cliente, fecha: '2026-09-15' })).toMatch(/revisado/);
+    expect(porQueNoSeEscribe({ ...cliente, fecha: '2026-07-01' })).toMatch(/fuera de plazo/);
+    expect(porQueNoSeEscribe({ ...cliente, fecha: '2026-09-22' })).toBeNull();
+  });
+});
+
+describe('lo apuntado días después', () => {
+  it('marca el día en que se empezó a apuntar, si es posterior', () => {
+    expect(apuntadaDespues({ date: '2026-09-22', startedAt: '2026-09-25T18:00:00Z' })).toBe('2026-09-25');
+  });
+
+  it('el mismo día no marca nada, ni sin sello', () => {
+    expect(apuntadaDespues({ date: '2026-09-22', startedAt: '2026-09-22T23:30:00Z' })).toBeNull();
+    expect(apuntadaDespues({ date: '2026-09-22' })).toBeNull();
   });
 });

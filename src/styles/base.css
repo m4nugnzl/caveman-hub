@@ -402,6 +402,11 @@ h1, h2, h3, h4, h5 { line-height: var(--lh-tight); letter-spacing: -0.021em; fon
   overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
+/* Un fieldset que solo APAGA lo de dentro (`disabled`) y no dibuja nada: sus
+   hijos siguen siendo hijos del contenedor, con su rejilla o su columna. Lo
+   usa la frontera de las revisiones en las series del cliente. */
+.fieldset-plano { display: contents; margin: 0; padding: 0; border: 0; min-inline-size: 0; }
+
 /* ══ LA CASCADA: cómo se presenta una pantalla ═════════════════════════════
    El sistema de movimiento existía (--fast/--normal/--slow) y ninguna
    pantalla lo usaba para PRESENTARSE: todo montaba de golpe. Esta es la
