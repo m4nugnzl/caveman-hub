@@ -46,7 +46,7 @@
 import { newId } from '@/lib/ids';
 import { TIPO } from '@/lib/portapapeles';
 import { toNum0 } from '@/lib/num';
-import { buildFoodEntry, optionMacros, rescaleMeals } from './nutrition';
+import { buildFoodEntry, displayAsUnits, optionMacros, rescaleMeals } from './nutrition';
 import { freezeMicros } from './micros';
 
 /**
@@ -81,7 +81,9 @@ export const comoMaterial = (entry) => ({
   fatsPer100: toNum0(entry?.fatsPer100),
   unitLabel: entry?.unitLabel ?? null,
   unitGrams: entry?.unitGrams ?? null,
-  showAs: entry?.showAs === 'units' ? 'units' : 'grams',
+  /* Lo que se VE, no la clave a secas: una entrada antigua sin `showAs` se
+     pinta en unidades, y guardarla como plato no le cambia la lente. */
+  showAs: displayAsUnits(entry) ? 'units' : 'grams',
   /* Lo que declare la entrada, y solo eso: los micros viajan congelados igual
      que los macros, y lo que no dice sigue sin decir nada (ver `micros.js`). */
   ...freezeMicros(entry),
@@ -162,9 +164,12 @@ export const piezaDePlato = ({ name, foods = [], origen = null }) => {
  * puesta desde un plato sea indistinguible de una puesta a mano: mismo id
  * nuevo, misma unidad, mismo `showAs`. Dos formas de crear la misma cosa es
  * como se acaba con dos comportamientos.
+ *
+ * El `showAs` del plato se le PASA: sin él, `buildFoodEntry` volvía a decidir
+ * con su defecto y 40 g de aguacate llegaban al cliente como «0,3 ud».
  */
 export const platoFoods = (plato) =>
-  (plato?.foods || []).map((item) => buildFoodEntry(item, item.grams));
+  (plato?.foods || []).map((item) => buildFoodEntry(item, item.grams, { showAs: item.showAs }));
 
 /**
  * El nombre con el que un plato entra en tu vitrina sin pisar otro que ya se

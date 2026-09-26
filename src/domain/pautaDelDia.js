@@ -97,26 +97,35 @@ export const intervencionDelDia = (hechos, fecha) => {
  * LO QUE LE TOCA HOY AL CLIENTE si un refeed o un diet break cubre el día
  * (25 sep 2026): su pauta de ESE día (la de su escalón, si es escalonado) y la
  * indicación que le dejó su entrenador. La dieta de hoy del cliente la enseña
- * en lugar de la del plan: el menú no cambia, las cifras sí.
+ * en lugar de la del plan. El menú de ese día es el SUYO (0144) o ninguno:
+ * el de la base es de otras cifras y no se enseña (26 sep).
  *
  * Solo lo que el cliente puede ver: el motivo del entrenador vive en otra
  * tabla (`client_interventions`) y aquí no llega.
  *
+ * Va con la FECHA, no con la dieta: un ciclo repite la misma dieta varios
+ * días y el refeed solo cae en los suyos. Sin fecha (en el monitor se elige
+ * una dieta, no un día) no hay ninguno.
+ *
  * @returns `{ kind, nombre, dia, dias, kcals, protein, carbs, fats, macros,
- *   nota }` o `null`. `dia` cuenta desde 1; `macros`, si trae las tres.
+ *   nota, menu }` o `null`. `dia` cuenta desde 1; `macros`, si trae las tres;
+ *   `menu`, las comidas de ese día o `null` si ese día no tiene.
  */
 export const pautaEspecialDelDia = (hechos, fecha) => {
+  if (!fecha) return null;
   const e = intervencionDelDia(hechos, fecha);
   if (!e) return null;
   const p = pautaDeIntervencion(e, fecha);
+  const i = daysBetween(e.date, fecha) ?? 0;
   return {
     kind: e.kind,
     nombre: e.kind === 'refeed' ? 'Refeed' : 'Diet break',
-    dia: (daysBetween(e.date, fecha) ?? 0) + 1,
+    dia: i + 1,
     dias: (daysBetween(e.date, finDe(e)) ?? 0) + 1,
     ...p,
     macros: p.protein !== null && p.carbs !== null && p.fats !== null,
     nota: String(e.nota ?? '').trim() || null,
+    menu: Array.isArray(e.menus?.[i]) && e.menus[i].length ? e.menus[i] : null,
   };
 };
 

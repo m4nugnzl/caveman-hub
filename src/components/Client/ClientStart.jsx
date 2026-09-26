@@ -743,6 +743,21 @@ export const ClientStart = () => {
       onAbrir: abrirDelCalendario,
       onAtrasar: atrasar,
     },
+    /* Un refeed o un diet break hoy: una línea arriba que lleva a «Comer»,
+       donde están sus cifras y su indicación. Sin kcal si se las ocultan. */
+    especial: especial
+      ? {
+          kind: especial.kind,
+          texto: [
+            `Hoy, ${especial.nombre.toLowerCase()}`,
+            especial.dias > 1 ? `día ${especial.dia} de ${especial.dias}` : null,
+            kcalVisible ? `${miles(kcalDeHoy)} kcal` : null,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          to: '/mi/dieta',
+        }
+      : null,
     entreno: heroe
       ? {
           ...heroe,

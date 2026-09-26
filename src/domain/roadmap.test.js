@@ -8,6 +8,7 @@ import {
   esperadoOriginalEn,
   expectativaDeFase,
   expectativasDelPlan,
+  juntarMotivos,
   nextPhaseAfter,
   nextPhaseDraft,
   overlapping,
@@ -16,6 +17,7 @@ import {
   phaseProgress,
   phaseProjection,
   phaseWeeks,
+  quitarMotivo,
   replanteosDe,
   roadmapState,
   sinReplanteo,
@@ -519,5 +521,39 @@ describe('expectativasDelPlan — las fases futuras se encadenan', () => {
     const abierta = { ...volumen, endsOn: null };
     const mapa = expectativasDelPlan([abierta, minicut], history, '2026-09-24');
     expect(mapa.get('m').original.base).toBe(80);
+  });
+});
+
+describe('juntarMotivos: los «¿Por qué?» de una misma versión', () => {
+  it('el primero es la nota', () => {
+    expect(juntarMotivos(null, ' Viaje de trabajo ')).toBe('Viaje de trabajo');
+  });
+  it('los siguientes se juntan con « · » y no se repiten', () => {
+    expect(juntarMotivos('Viaje', 'Lesión de hombro')).toBe('Viaje · Lesión de hombro');
+    expect(juntarMotivos('Viaje · Lesión de hombro', 'Viaje')).toBe('Viaje · Lesión de hombro');
+  });
+  it('un motivo vacío deja la nota como estaba', () => {
+    expect(juntarMotivos('Viaje', '  ')).toBe('Viaje');
+  });
+});
+
+describe('quitarMotivo: deshacer el paso que trajo el motivo', () => {
+  it('quita solo ese motivo', () => {
+    expect(quitarMotivo('Viaje · Lesión de hombro', 'Lesión de hombro')).toBe('Viaje');
+    expect(quitarMotivo('Viaje · Lesión de hombro', 'Viaje')).toBe('Lesión de hombro');
+  });
+  it('el único motivo deja la nota vacía', () => {
+    expect(quitarMotivo('Viaje', ' Viaje ')).toBe('');
+  });
+  it('un motivo con « · » dentro sale entero', () => {
+    expect(quitarMotivo('Viaje · Rodilla · tobillo · Otro', 'Rodilla · tobillo')).toBe('Viaje · Otro');
+  });
+  it('si no está, la nota no cambia', () => {
+    expect(quitarMotivo('Viaje', 'Lesión')).toBe('Viaje');
+    expect(quitarMotivo(null, 'Lesión')).toBe('');
+  });
+  it('juntar y quitar se deshacen', () => {
+    const nota = juntarMotivos('Viaje', 'Lesión');
+    expect(quitarMotivo(nota, 'Lesión')).toBe('Viaje');
   });
 });

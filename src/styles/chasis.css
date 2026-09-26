@@ -2267,3 +2267,57 @@ button.side-link {
     grid-area: 1 / 4 / 3 / 5; align-self: center; margin-left: var(--s4);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CABECERA EN EL TELÉFONO: EL NOMBRE NO CEDE (26 sep)
+   --------------------------------------------------------------------------
+   A 390 px, los días que había algo que revisar, el cobro y «Revisar semana»
+   se quedaban con 290 px de la línea y la ficha con lo que sobraba: el
+   selector —que ES el nombre en el teléfono— se quedaba en la cara y el
+   galón, y el microciclo se cortaba a media palabra («Microcic», «en cur»).
+
+   El orden en que cede cada cosa, de primero a último:
+     1. el verbo pierde el rótulo y queda su icono (por debajo de 640 px);
+     2. el cobro baja al renglón de los datos, a la derecha;
+     3. los datos (microciclo) se recortan por el final;
+     4. el nombre, el último, y con puntos suspensivos.
+
+   Una rejilla, como en escritorio, y por lo mismo: `display: contents` deja
+   pasar los envoltorios sin tocar el marcado.
+
+       ←  [RC Rubén Castro ▾] ☁ Por revisar      [▣]
+          Microciclo 38 · en curso   Renueva el 3 oct
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1023.98px) {
+  .cliente-cab .cliente-cab-linea {
+    display: grid;
+    /* la vuelta · la ficha · el cobro · el verbo */
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    column-gap: var(--s3); row-gap: var(--s1);
+  }
+  .cliente-cab .cliente-cab-quien,
+  .cliente-cab .cliente-cab-ficha,
+  .cliente-cab .cliente-cab-say,
+  .cliente-cab .cliente-cab-acciones { display: contents; }
+
+  .cliente-cab .cliente-cab-volver,
+  .cliente-cab .cliente-cab-atras { grid-area: 1 / 1 / 2 / 2; }
+  /* El renglón del nombre llega hasta el verbo: el cobro ya no está en él. */
+  .cliente-cab .cliente-cab-fila { grid-area: 1 / 2 / 2 / 4; }
+  .cliente-cab .cliente-cab-selector { flex: 0 1 auto; }
+  .cliente-cab .cliente-cab-estado { flex-shrink: 0; }
+  .cliente-cab .cliente-cab-meta { grid-area: 2 / 2 / 3 / 3; }
+  .cliente-cab .cliente-cab-meta > :last-child { overflow: hidden; text-overflow: ellipsis; }
+  .cliente-cab .cliente-cab-cobro {
+    grid-area: 2 / 3 / 3 / 5; justify-self: end;
+    flex-direction: row; align-items: baseline; gap: var(--s2);
+  }
+  .cliente-cab .cliente-cab-cobro-cuando,
+  .cliente-cab .cliente-cab-cobro-tarifa { line-height: var(--linea-datos); font-size: var(--fs-xs); }
+  .cliente-cab .cliente-cab-acciones > .btn { grid-area: 1 / 4 / 2 / 5; }
+}
+@media (max-width: 639.98px) {
+  .cliente-cab .cliente-cab-verbo { width: var(--h-control); padding: 0; justify-content: center; }
+  .cliente-cab .cliente-cab-verbo-rotulo { display: none; }
+}

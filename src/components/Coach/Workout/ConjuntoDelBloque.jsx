@@ -8,13 +8,18 @@ import {
   isCurrentBlock,
   microcicloDelBloque,
   nombresDeLaHoja,
+  pautaEditableEn,
+  pautaEfectiva,
   pautaHeredada,
   queDifiere,
+  semanaAnteriorDelBloque,
   setsDesdeTramos,
+  tienePautaPropia,
   tramosDeSeries,
   untrainedWeeksOfDay,
   weeksOfBlock,
 } from '@/domain/blocks';
+import { cambiosEntre, conOtraSerie, gruposDeSeries, marcasDeGrupos, pideCampo, primerosIguales } from '@/domain/pautas';
 import {
   MUSCLE_GROUPS,
   WEEK_DAYS,
@@ -43,6 +48,14 @@ import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 import { useCambiosDelMicrociclo } from './EditorDelMicrociclo';
 import { diaCorto } from '@/domain/planDeSesiones';
+import {
+  AvisoDePauta,
+  CabeceraDeTabla,
+  LineasDePauta,
+  anchoDe,
+  posicionesDeTabla,
+  useTablasApiladas,
+} from './PautaDelMicrociclo';
 
 /**
  * EL BLOQUE EN CONJUNTO: sus hojas, su estructura y su información, a la vez.
@@ -135,15 +148,15 @@ const leerRango = (texto) => {
 /* Con varios rangos cada casilla mide lo escrito (y su relleno), no la caja
    de una pauta de un tramo: tres rangos no caben en una columna de 110 px con
    casillas de 44. El último rango guarda el ancho fijo de `.plan-reps` para que
-   la pauta de todas las filas acabe en la misma vertical. */
-/* Un guion o una coma miden media cifra: contarlos enteros dejaba aire detrás. */
-const anchoDe = (texto, minimo = 2) => {
-  const t = String(texto ?? '');
-  const estrechos = (t.match(/[-.,\s]/g) || []).length;
-  return `calc(${Math.max(minimo, t.length - estrechos * 0.45).toFixed(2)}ch + 6px)`;
-};
+   la pauta de todas las filas acabe en la misma vertical. La medida
+   (`anchoDe`) vive con las piezas de la pauta por microciclo, que la usan
+   igual (`PautaDelMicrociclo`). */
 
-const PautaEnLinea = ({ tramos, nombre, idBase, onCambiar = null, puedePartir = false }) => {
+/* El punto de «cambia respecto al microciclo anterior»: neutro y mudo, como en
+   la fila en tabla. `cambios` es `{ n, reps }` o `null` (primer microciclo). */
+const Cambio = () => <span className="pauta-cambio" aria-hidden="true" />;
+
+const PautaEnLinea = ({ tramos, nombre, idBase, onCambiar = null, puedePartir = false, cambios = null }) => {
   const [nuevo, setNuevo] = useState(false);
   const editable = Boolean(onCambiar);
   const rampa = tramos.length > 1 && tramos.every((t) => t.n === 1);
@@ -257,6 +270,7 @@ const PautaEnLinea = ({ tramos, nombre, idBase, onCambiar = null, puedePartir = 
           >
             {tramos.length}
           </span>
+          {cambios?.n && <Cambio />}
           {por}
         </>
       )}
@@ -265,8 +279,10 @@ const PautaEnLinea = ({ tramos, nombre, idBase, onCambiar = null, puedePartir = 
            «2 × 6-8 /» se lee como «sigue», y una «/» al principio de renglón no. */
         <span className="plan-esq-tramo" key={`${idBase}-t${i}`}>
           {!rampa && series(t, i)}
+          {!rampa && i === 0 && cambios?.n && <Cambio />}
           {!rampa && por}
           {reps(t, i)}
+          {i === ultimo && cambios?.reps && <Cambio />}
           {(i < ultimo || nuevo) && barra}
         </span>
       ))}
@@ -554,6 +570,21 @@ export const ConjuntoDelBloque = ({
      los dos de arriba y una pauta de varios tramos se lee y no se toca — es lo
      que ve el cliente en su portal. Ver `PautaEnLinea`. */
   onEsquema = null,
+  /*
+    ══ LA PAUTA DE CADA MICROCICLO (25 sep) ═════════════════════════════════
+    `semana` es el microciclo que se está mirando (el de la tira de arriba).
+    Con él, cada fila enseña la pauta de ESE microciclo —la del anterior con lo
+    que cambia en este— y un punto neutro junto a lo que cambia respecto al
+    anterior. Sin él (el compositor) la fila es la de siempre.
+
+    `onPauta(dayName, exerciseId, sets)` la escribe en ese microciclo y
+    devuelve lo que hizo: `{ aplicadas, propia, soloAqui, deshacer }`. Sin él
+    (el portal del cliente) se lee. `onVolverAlAnterior(dayName, exerciseId)`
+    es «Volver a como estaba en M(n-1)». Ver `domain/pautas`.
+  */
+  semana = null,
+  onPauta = null,
+  onVolverAlAnterior = null,
   onAnadirHoja,
   onRenombrarHoja,
   /* `(dayName) => motivo | null`: por qué esa hoja no se puede renombrar
@@ -615,7 +646,43 @@ export const ConjuntoDelBloque = ({
 
   /* Componiendo: el plan llega de fuera y no hay bloque guardado detrás. */
   const componiendo = planDado !== null;
-  const plan = planDado || blockPlan(program, bloque);
+  /* Con un microciclo delante y el plan dentro del bloque, cada fila lee la
+     pauta de ese microciclo. Y se escribe en él si llega `onPauta`. */
+  const porMicro = !componiendo && Number.isFinite(semana) && hasBlockPlan(bloque);
+  const escribePorMicro = porMicro && Boolean(onPauta);
+  const plan = planDado || blockPlan(program, bloque, { semana: porMicro ? semana : null });
+  /* El anterior del bloque, para marcar lo que cambia. En el primero, nada. */
+  const semanaAnterior = porMicro ? semanaAnteriorDelBloque(program, semana) : null;
+  /* La fila que se está editando (una a la vez), las filas con la primera
+     serie separada y la línea de lo que acaba de hacer un cambio. */
+  const [editando, setEditando] = useState(null);
+  const [separadas, setSeparadas] = useState(() => new Set());
+  const [aviso, setAviso] = useState(null);
+  /* Qué tarjetas en tabla llevan el nombre encima de sus cifras. */
+  const tablas = useTablasApiladas();
+  /* Otro microciclo es otra pauta: lo editado y el aviso eran del de antes. */
+  useEffect(() => {
+    setEditando(null);
+    setAviso(null);
+    setSeparadas(new Set());
+  }, [semana, bloque?.id]);
+  /* Tocar fuera de la fila en edición la cierra. El menú y la capa de cambiar
+     el ejercicio viven dentro de la fila, así que usarlos no la cierra. */
+  useEffect(() => {
+    if (editando === null) return undefined;
+    const fuera = (e) => {
+      if (!e.target.closest?.(`[data-fila="${CSS.escape(editando)}"]`)) setEditando(null);
+    };
+    document.addEventListener('pointerdown', fuera, true);
+    return () => document.removeEventListener('pointerdown', fuera, true);
+  }, [editando]);
+  /* La línea es discreta y se va sola: lo que ofrece («Solo en…», «Deshacer»)
+     vale justo después del cambio, no para siempre. */
+  useEffect(() => {
+    if (!aviso) return undefined;
+    const t = setTimeout(() => setAviso(null), 12000);
+    return () => clearTimeout(t);
+  }, [aviso]);
   /* Lo que se está componiendo es, por definición, lo que se va a entrenar:
      se escribe entero. */
   const esActual = componiendo || isCurrentBlock(program, bloque);
@@ -1010,6 +1077,22 @@ export const ConjuntoDelBloque = ({
                          encabezado de arriba ya dice que son series. */
                       { tono: 'warn', texto: `a medias · ${seriesHechas}/${hoja.series}` };
 
+              /*
+                ── LA TARJETA EN TABLA (26 sep) ───────────────────────────────
+                Con un microciclo delante y algún ejercicio de ESTA hoja que
+                pauta carga o RIR, la tarjeta es una tabla: Nombre · Series ·
+                Carga · RIR, cada columna solo si alguien la pauta. Sin ninguno,
+                la tarjeta es la de siempre. Ver `PautaDelMicrociclo`.
+              */
+              const columnas = porMicro
+                ? {
+                    carga: hoja.exercises.some((ex) => pideCampo(ex.sets, 'targetKg')),
+                    rir: hoja.exercises.some((ex) => pideCampo(ex.sets, 'targetRir')),
+                  }
+                : null;
+              const enTabla = Boolean(columnas && (columnas.carga || columnas.rir));
+              const apilada = enTabla && tablas.apilada(hoja.dayName);
+
               return (
                 /* El semáforo sube también a la CLASE de la columna: en la
                    rejilla del ciclo se pinta como filo superior, y la palabra
@@ -1387,7 +1470,12 @@ export const ConjuntoDelBloque = ({
                   </header>
                   </div>
 
-                  <ol className="plan-ejs">
+                  <ol
+                    className={`plan-ejs${enTabla ? ' is-tabla' : ''}${apilada ? ' is-apilada' : ''}`}
+                    ref={enTabla ? tablas.refDe(hoja.dayName) : undefined}
+                    style={enTabla ? { '--secundarias': Number(columnas.carga) + Number(columnas.rir) } : undefined}
+                  >
+                    {enTabla && <CabeceraDeTabla columnas={columnas} apilada={apilada} />}
                     {hoja.exercises.map((ex, i) => {
                       const piezaEj = { tipo: 'ej', hoja: hoja.dayName, index: i, nombre: ex.name };
                       /*
@@ -1426,6 +1514,94 @@ export const ConjuntoDelBloque = ({
                          y las casillas escribirían una pauta distinta de la que
                          enseñan. Entonces se lee y no se toca. */
                       const editable = Boolean(onSeries && onReps && (onEsquema || tramos.length === 1));
+                      /*
+                        ── LA PAUTA DE ESTE MICROCICLO ─────────────────────────
+                        Con un microciclo delante, `ex.sets` ya es su pauta
+                        (`blockPlan` con `semana`). Se escribe en él solo si no
+                        está terminado —y en el que está en curso, si esta hoja
+                        aún no se ha hecho (`pautaEditableEn`)—. En una tarjeta
+                        en tabla, la fila es una línea por grupo en sus columnas;
+                        si no, la de siempre.
+                      */
+                      const escribeAqui =
+                        escribePorMicro && pautaEditableEn(program, semana, hoja.dayName, semanaEnCurso, cliente);
+                      const previas =
+                        semanaAnterior !== null ? pautaEfectiva(program, semanaAnterior, hoja.dayName, ex.id) : null;
+                      const cambios = porMicro && !enTabla ? cambiosEntre(previas, ex.sets) : null;
+                      const separada = separadas.has(ex.id);
+                      const grupos = enTabla ? gruposDeSeries(ex.sets, { separarPrimera: separada }) : null;
+                      const marcasFila = enTabla ? marcasDeGrupos(previas, grupos, { separarPrimera: separada }) : null;
+                      const posiciones = enTabla ? posicionesDeTabla(columnas, apilada, grupos.length) : null;
+                      const escribir = (nuevas) => {
+                        const efecto = onPauta(hoja.dayName, ex.id, nuevas);
+                        setAviso(efecto && efecto.aplicadas.length > 0 ? { exId: ex.id, ...efecto } : null);
+                      };
+                      const otraSerie = escribeAqui && enTabla ? conOtraSerie(ex.sets) : null;
+                      const olvidarSeparada = () =>
+                        setSeparadas((s) => {
+                          const sin = new Set(s);
+                          sin.delete(ex.id);
+                          return sin;
+                        });
+                      /* El menú de la fila. «Juntar» solo cuando la primera,
+                         separada a mano, vuelve a pedir lo mismo que las demás:
+                         es deshacer «Separar», y no escribe nada. */
+                      const itemsDePauta = escribeAqui
+                        ? [
+                            enTabla && !separada && grupos[0]?.n > 1
+                              ? {
+                                  label: 'Separar la primera serie',
+                                  sub: `${grupos[0].n} → 1 + ${grupos[0].n - 1}`,
+                                  run: () => setSeparadas((s) => new Set(s).add(ex.id)),
+                                }
+                              : undefined,
+                            enTabla && separada && primerosIguales(grupos)
+                              ? { label: 'Juntar', sub: 'La primera vuelve a su línea', run: olvidarSeparada }
+                              : undefined,
+                            otraSerie
+                              ? { label: 'Añadir serie', sub: 'Copia la última', run: () => escribir(otraSerie) }
+                              : undefined,
+                            semanaAnterior !== null && tienePautaPropia(program, semana, ex.id)
+                              ? {
+                                  label: `Volver a como estaba en ${etiqueta(semanaAnterior)}`,
+                                  sub: `Deja de tener pauta propia en ${etiqueta(semana)}`,
+                                  run: () => {
+                                    onVolverAlAnterior?.(hoja.dayName, ex.id);
+                                    olvidarSeparada();
+                                    setAviso(null);
+                                  },
+                                }
+                              : undefined,
+                          ].filter(Boolean)
+                        : [];
+                      /* En tabla, la papelera va siempre dentro del menú: el
+                         «···» es el único mando de la fila. */
+                      const conMenu = itemsDePauta.length > 0 || (enTabla && Boolean(onQuitarEjercicio));
+                      const editaFila = enTabla && conMenu && !cerrada;
+                      const enEdicion = editaFila && editando === ex.id;
+                      const entrarEnEdicion = (e) => {
+                        if (e.target.closest?.('.ej-cambiar, .plan-asa')) return;
+                        setEditando(ex.id);
+                      };
+                      /*
+                        El remate, si esa hoja lo pauta: una marca, no la
+                        frase. Que un ejercicio acabe en bajada es parte del
+                        plan y esta rejilla no lo decía en ninguna parte —había
+                        que abrir la hoja para enterarse—; la frase entera
+                        («bajada ×2, −20 %») no cabe en 310 px y su sitio es la
+                        fila de la serie que remata. Ver `HojaDeSeries`.
+                      */
+                      const remate =
+                        rematesDe(ex).length > 0 ? (
+                          <span
+                            className="plan-ej-remate"
+                            title={rematesDe(ex)
+                              .map((r) => `serie ${r.serie}: ${tecnicaFrase(r.tecnica)}`)
+                              .join(' · ')}
+                          >
+                            <Zap size={13} aria-hidden="true" />
+                          </span>
+                        ) : null;
                       const real = ultimaDeSemana ? resumenDeEntrada(ultimaDeSemana, ex.name) : null;
                       const fantasma = !real && pasada ? resumenDeEntrada(pasada, ex.name) : null;
                       const hecho = real ? (real.series >= ex.series ? 'ok' : 'warn') : null;
@@ -1436,9 +1612,23 @@ export const ConjuntoDelBloque = ({
                           : ex.name;
                       return (
                         <li
-                          className={`plan-ej${marcas(piezaEj)}`}
+                          className={`plan-ej${enTabla ? ' is-tabla' : ''}${enEdicion ? ' is-editando' : ''}${marcas(piezaEj)}`}
                           key={ex.id}
                           {...(cerrada ? {} : receptor(piezaEj))}
+                          /* Tocar la fila la pone en edición; tocar el nombre
+                             sigue siendo cambiar el ejercicio. Escape la cierra. */
+                          {...(editaFila
+                            ? {
+                                'data-fila': ex.id,
+                                onClick: entrarEnEdicion,
+                                onFocus: entrarEnEdicion,
+                                onKeyDown: (e) => {
+                                  if (e.key !== 'Escape' || editando !== ex.id) return;
+                                  setEditando(null);
+                                  if (e.currentTarget.contains(document.activeElement)) document.activeElement.blur();
+                                },
+                              }
+                            : {})}
                         >
                           {!cerrada && onMoverEjercicio && hoja.exercises.length > 1 && (
                             <button
@@ -1483,7 +1673,11 @@ export const ConjuntoDelBloque = ({
                               pintaba exactamente nada—, mientras
                               `.plan-ej-real.is-warn` sí existía y no se lo ponía
                               nadie. Las dos puntas de la misma avería. */}
-                          <span className="plan-ej-nombre" title={dicho}>
+                          <span
+                            className="plan-ej-nombre"
+                            title={dicho}
+                            style={enTabla ? posiciones.nombre : undefined}
+                          >
                             {!cerrada && onRenombrarEjercicio ? (
                               <CambiarEjercicio
                                 ejercicio={ex}
@@ -1500,9 +1694,12 @@ export const ConjuntoDelBloque = ({
                                   onRenombrarEjercicio(hoja.dayName, ex.name, nombre, opciones)
                                 }
                               />
+                            ) : enTabla ? (
+                              <span className="plan-ej-nombre-texto">{ex.name}</span>
                             ) : (
                               ex.name
                             )}
+                            {enTabla && remate}
                           </span>
                           {/*
                             ── Y SE DICE QUE ES LO QUE HIZO ──────────────────
@@ -1528,12 +1725,23 @@ export const ConjuntoDelBloque = ({
                             para el fantasma de la vez pasada —que no juzga
                             nada, solo recuerda—.
                           */}
-                          {(real || fantasma) && (
+                          {!enTabla && (real || fantasma) && (
                             <span className={`plan-ej-real${hecho ? ` is-${hecho}` : ''}`}>
                               <span className="plan-ej-real-k">{real ? 'hizo' : 'antes'}</span>
                               {resumenTexto(real || fantasma)}
                             </span>
                           )}
+                          {enTabla ? (
+                            <LineasDePauta
+                              sets={ex.sets}
+                              grupos={grupos}
+                              marcas={marcasFila}
+                              columnas={columnas}
+                              apilada={apilada}
+                              nombre={ex.name}
+                              onEscribir={escribeAqui ? escribir : null}
+                            />
+                          ) : (
                           <span className="plan-ej-pauta">
                             {pesoPautado(ex) && (
                               <span className="plan-ej-peso" title="Peso pautado en la hoja">
@@ -1575,9 +1783,14 @@ export const ConjuntoDelBloque = ({
                               tramos={tramos}
                               nombre={ex.name}
                               idBase={`p-${ex.id}`}
-                              puedePartir={Boolean(onEsquema)}
+                              puedePartir={porMicro ? escribeAqui : Boolean(onEsquema)}
+                              cambios={cambios}
                               onCambiar={
-                                editable
+                                porMicro
+                                  ? escribeAqui
+                                    ? (nuevos) => escribir(setsDesdeTramos(nuevos, ex.sets))
+                                    : null
+                                  : editable
                                   ? (nuevos) => {
                                       const antes = esquemaDicho(tramos);
                                       if (tramos.length === 1 && nuevos.length === 1) {
@@ -1600,37 +1813,64 @@ export const ConjuntoDelBloque = ({
                                   : null
                               }
                             />
-                            {/*
-                              El remate, si esa hoja lo pauta: una marca, no la
-                              frase. Que un ejercicio acabe en bajada es parte
-                              del plan y esta rejilla no lo decía en ninguna
-                              parte —había que abrir la hoja para enterarse—;
-                              la frase entera («bajada ×2, −20 %») no cabe en
-                              310 px y su sitio es la fila de la serie que
-                              remata. Ver `HojaDeSeries`.
-                            */}
-                            {rematesDe(ex).length > 0 && (
-                              <span
-                                className="plan-ej-remate"
-                                title={rematesDe(ex)
-                                  .map((r) => `serie ${r.serie}: ${tecnicaFrase(r.tecnica)}`)
-                                  .join(' · ')}
-                              >
-                                <Zap size={13} aria-hidden="true" />
-                              </span>
-                            )}
+                            {remate}
                           </span>
+                          )}
                           {/* La papelera no gasta ancho: se posa encima del
                               carril de la pauta al acercarse a la fila. */}
-                          {onQuitarEjercicio && (
-                            <button
-                              type="button"
-                              className="btn btn-icon btn-icon-compact btn-icon-danger plan-ej-quitar"
-                              aria-label={`Quitar ${ex.name}`}
-                              onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                          {/* Con algo que hacer con la pauta de este microciclo
+                              —volver al anterior, separar, juntar—, el carril
+                              de la papelera lleva el «···» de la fila, y quitar
+                              va dentro, al final. Un mando por carril: dos
+                              iconos no caben en 20 px. En tabla, siempre el
+                              «···», sin carril propio: sale al editar la fila,
+                              al final del nombre, y en reposo no ocupa nada. */}
+                          {conMenu && (enTabla || itemsDePauta.length > 0) ? (
+                            <span className="plan-ej-mas" style={enTabla ? posiciones.menu : undefined}>
+                              <MenuAcciones
+                                clase="btn btn-icon btn-icon-compact"
+                                ariaLabel={`Más acciones de ${ex.name}`}
+                                descriptivo
+                                items={[
+                                  ...itemsDePauta,
+                                  onQuitarEjercicio ? null : undefined,
+                                  onQuitarEjercicio
+                                    ? {
+                                        label: `Quitar ${ex.name}`,
+                                        danger: true,
+                                        run: () => onQuitarEjercicio(hoja.dayName, ex.name),
+                                      }
+                                    : undefined,
+                                ]}
+                              />
+                            </span>
+                          ) : (
+                            onQuitarEjercicio && (
+                              <button
+                                type="button"
+                                className="btn btn-icon btn-icon-compact btn-icon-danger plan-ej-quitar"
+                                aria-label={`Quitar ${ex.name}`}
+                                onClick={() => onQuitarEjercicio(hoja.dayName, ex.name)}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )
+                          )}
+                          {aviso?.exId === ex.id && (
+                            <AvisoDePauta
+                              aviso={aviso}
+                              style={enTabla ? posiciones.aviso : undefined}
+                              semana={semana}
+                              etiqueta={etiqueta}
+                              onSolo={() => {
+                                aviso.soloAqui();
+                                setAviso(null);
+                              }}
+                              onDeshacer={() => {
+                                aviso.deshacer();
+                                setAviso(null);
+                              }}
+                            />
                           )}
                         </li>
                       );

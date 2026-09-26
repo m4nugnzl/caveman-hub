@@ -69,6 +69,11 @@ import {
   hasBlockPlan,
   proyectarPlanEnDias,
   resolvedMicrocycles,
+  ponerPautaIn,
+  volverAlAnteriorIn,
+  soloEnIn,
+  restaurarPautaIn,
+  sellarPautasIn,
   fechaDelCicloSiguiente,
   conRepartoDelAbierto,
   materializarMicrociclos,
@@ -184,7 +189,11 @@ export const useWorkout = ({
       const current = workoutRef.current[clientId] || emptyWorkoutData();
       /* `weekly_split` se copia del bloque abierto aquí y en ningún otro sitio:
          ver `conRepartoDelAbierto`. */
-      const next = conRepartoDelAbierto(updater(current));
+      /* Y la foto de la pauta en las sesiones hechas cuya hoja cambia, venga el
+         cambio de donde venga: ver `sellarPautasIn`. No en el camino del cliente
+         (`skipPersist`), que solo anota series y no toca ninguna pauta. */
+      const hecho = updater(current);
+      const next = conRepartoDelAbierto(skipPersist ? hecho : sellarPautasIn(current, hecho));
       if (next === current) return current;
 
       setWorkoutData({ ...workoutRef.current, [clientId]: next });
@@ -1441,6 +1450,8 @@ export const useWorkout = ({
         plannedWeeks = null,
         intent = null,
         note = null,
+        /* El split previsto del borrador que empieza (su nombre de split). */
+        split = null,
         /* La temporada del borrador que empieza. Sin ella (`undefined`), el
            bloque que nace hereda la del que cierra (`openNextBlock`). */
         folder = undefined,
@@ -1512,7 +1523,7 @@ export const useWorkout = ({
                       ...b,
                       ...(suMicrociclo ? { microciclo: suMicrociclo } : {}),
                       ...Object.fromEntries(
-                        Object.entries(blockTraits({ plannedWeeks, intent, note })).filter(
+                        Object.entries(blockTraits({ plannedWeeks, intent, note, split })).filter(
                           ([, v]) => v !== null
                         )
                       ),
@@ -1551,7 +1562,7 @@ export const useWorkout = ({
                   /* Las características, saneadas por el dominio y sin
                      guardar las vacías: ver `blockTraits`. */
                   ...Object.fromEntries(
-                    Object.entries(blockTraits({ plannedWeeks, intent, note })).filter(([, v]) => v !== null)
+                    Object.entries(blockTraits({ plannedWeeks, intent, note, split })).filter(([, v]) => v !== null)
                   ),
                 }
           ),
@@ -1933,6 +1944,45 @@ export const useWorkout = ({
         },
         { immediate: false }
       ),
+    [applyPlan]
+  );
+
+  /*
+    ── LA PAUTA DE UN MICROCICLO ─────────────────────────────────────────────
+    Desde la vista de bloque, con un microciclo delante: se guarda solo lo que
+    cambia en él y sigue hacia delante (`ponerPautaIn`). Devuelve el programa
+    de antes —ya migrado— y el de después: con los dos la pantalla dice qué hizo
+    el cambio y ofrece «Solo en…» y «Deshacer». Ver `domain/pautas`.
+  */
+  const ponerPautaDelMicrociclo = useCallback(
+    (clientId, weekNumber, dayName, exerciseId, sets) => {
+      let antes = null;
+      const despues = applyPlan(clientId, (cd) => {
+        antes = cd;
+        return ponerPautaIn(cd, weekNumber, dayName, exerciseId, sets);
+      });
+      return { antes, despues };
+    },
+    [applyPlan]
+  );
+
+  /* «Volver a como estaba en el anterior»: ese microciclo suelta su pauta propia. */
+  const volverPautaAlAnterior = useCallback(
+    (clientId, weekNumber, exerciseId) => applyPlan(clientId, (cd) => volverAlAnteriorIn(cd, weekNumber, exerciseId)),
+    [applyPlan]
+  );
+
+  /* «Solo en M3» y «Deshacer» de la línea que sale bajo la fila, con el programa
+     de antes del cambio que devolvió `ponerPautaDelMicrociclo`. */
+  const pautaSoloEn = useCallback(
+    (clientId, antes, weekNumber, dayName, exerciseId) =>
+      applyPlan(clientId, (cd) => soloEnIn(cd, antes, weekNumber, dayName, exerciseId)),
+    [applyPlan]
+  );
+
+  const restaurarPauta = useCallback(
+    (clientId, antes, weekNumber, dayName, exerciseId) =>
+      applyPlan(clientId, (cd) => restaurarPautaIn(cd, antes, weekNumber, dayName, exerciseId)),
     [applyPlan]
   );
 
@@ -2740,6 +2790,10 @@ export const useWorkout = ({
     moveBlockExercise,
     setBlockExerciseSets,
     setBlockExerciseScheme,
+    ponerPautaDelMicrociclo,
+    volverPautaAlAnterior,
+    pautaSoloEn,
+    restaurarPauta,
     setBlockExerciseTarget,
     setBlockExerciseGrammar,
     updatePlanExercise,

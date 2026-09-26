@@ -2,13 +2,14 @@ import { useState } from 'react';
 
 import { WEEKDAYS } from '@/domain/calendar';
 import { VALORACIONES } from '@/domain/intervenciones';
+import { estadoDeLaProgramada } from '@/domain/dietaProgramada';
 import { pautaDeIntervencion } from '@/domain/pautaDelDia';
 import { PESAJES_FIRMES, pesajesTexto } from '@/domain/tendenciaDelPeso';
 import { variacionTexto } from '@/domain/rendimiento';
-import { addDays, daysBetween, localeNumber } from '@/lib/dates';
+import { addDays, daysBetween, localeNumber, shortDate } from '@/lib/dates';
 import { BotonAccion, Notice, useAccionDeBoton } from '@/components/ui/primitives';
 import { entero, kg, pctSemana } from './lectura';
-import { Cifras, Columna, esNumero, macrosCortas, tramoCorto } from './PiezasDelInspector';
+import { Cifras, Columna, cifrasDeLaClave, esNumero, fechasDeIntervencion, macrosCortas, nombreConTipo, tramoCorto } from './PiezasDelInspector';
 
 /** «Jue 11». */
 const diaCorto = (fecha) => `${WEEKDAYS[(new Date(`${fecha}T00:00:00Z`).getUTCDay() + 6) % 7]} ${Number(fecha.slice(8, 10))}`;
@@ -61,7 +62,8 @@ const cifrasDeLaPauta = (x, kcal) => {
       if (c.clave === 'kcals') {
         cifras.push({
           id: 'kcals',
-          etiqueta: 'Kcal medias',
+          /* Pendiente, aún no hay días vividos: es la media del ciclo de la copia. */
+          etiqueta: x.programada?.estado === 'pendiente' ? 'Kcal previstas' : 'Kcal medias',
           valor: esNumero(kcal?.despues) ? entero(kcal.despues) : null,
           compara: esNumero(kcal?.antes) ? `antes ${entero(kcal.antes)}` : null,
         });
@@ -85,7 +87,8 @@ const cifrasDeLaPauta = (x, kcal) => {
       id: 'split',
       etiqueta: 'Split',
       valor: x.bloque.split || null,
-      compara: x.anterior?.split && x.anterior.split !== x.bloque.split ? `antes ${x.anterior.split}` : x.anterior ? 'el mismo' : null,
+      /* Sin split en el de antes no hay con qué comparar: ni «antes» ni «el mismo». */
+      compara: !x.anterior?.split ? null : x.anterior.split !== x.bloque.split ? `antes ${x.anterior.split}` : 'el mismo',
     },
   ];
 };
@@ -188,15 +191,20 @@ const Tabla = ({ x, ventanas, estado, impacto, objetivo, hoy }) => {
 /**
  * FRANJA 3, LO QUE PIENSAS: el motivo (solo lo ves tú) y la valoración, a
  * mano. Se guardan juntos con «Guardar». La indicación para el cliente, si la
- * hay, se lee aquí y se cambia en su calendario.
+ * hay, se lee aquí y se cambia con «Editar pauta».
+ *
+ * El motivo se escribe siempre. «¿Funcionó?» no sale en una prevista y, en
+ * curso, solo dice cuándo se podrá valorar: hasta que acaba el después no hay
+ * con qué juzgarla. Una ya valorada conserva sus botones, para cambiarla.
  */
-const LoQuePiensas = ({ x, onGuardar }) => {
+const LoQuePiensas = ({ x, estado, fin, onGuardar }) => {
   const capa = x.capa || {};
   const [motivo, setMotivo] = useState(capa.motivo || '');
   const [valoracion, setValoracion] = useState(capa.valoracion || null);
   const [nota, setNota] = useState(capa.valoracionNota || '');
   const [error, setError] = useState('');
   const envio = useAccionDeBoton();
+  const valorable = estado === 'hecha' || Boolean(capa.valoracion);
   const tocado =
     motivo.trim() !== (capa.motivo || '') || (valoracion || null) !== (capa.valoracion || null) || nota.trim() !== (capa.valoracionNota || '');
 
@@ -231,32 +239,38 @@ const LoQuePiensas = ({ x, onGuardar }) => {
           onChange={(e) => setMotivo(e.target.value)}
         />
       </Columna>
-      <Columna titulo="¿Funcionó?">
-        <div className="rail-wrap" role="group" aria-label="Tu valoración">
-          {VALORACIONES.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              className="chip"
-              aria-pressed={valoracion === v.id}
-              onClick={() => setValoracion(valoracion === v.id ? null : v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-        {valoracion && (
-          <textarea
-            className="input textarea"
-            rows={2}
-            maxLength={280}
-            placeholder="Qué te hace pensarlo."
-            aria-label="Nota de la valoración"
-            value={nota}
-            onChange={(e) => setNota(e.target.value)}
-          />
-        )}
-      </Columna>
+      {estado !== 'prevista' && (
+        <Columna titulo="¿Funcionó?">
+          {valorable ? (
+            <div className="rail-wrap" role="group" aria-label="Tu valoración">
+              {VALORACIONES.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  className="chip"
+                  aria-pressed={valoracion === v.id}
+                  onClick={() => setValoracion(valoracion === v.id ? null : v.id)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="tl-ins-nada">Podrás valorarla cuando acabe el después ({shortDate(fin)}).</p>
+          )}
+          {valorable && valoracion && (
+            <textarea
+              className="input textarea"
+              rows={2}
+              maxLength={280}
+              placeholder="Qué te hace pensarlo."
+              aria-label="Nota de la valoración"
+              value={nota}
+              onChange={(e) => setNota(e.target.value)}
+            />
+          )}
+        </Columna>
+      )}
       {error && <Notice tone="error">{error}</Notice>}
       <div className="tl-imp-guardar">
         <BotonAccion type="submit" className="btn btn-primary btn-sm" estado={envio.estado} disabled={!tocado}>
@@ -268,41 +282,144 @@ const LoQuePiensas = ({ x, onGuardar }) => {
 };
 
 /**
- * LA TARJETA DE IMPACTO de una intervención (25 sep 2026): qué fue, qué pasó
- * antes, durante y después, y lo que piensa el entrenador.
+ * «Coincide con: Refeed 24 – 26 sep, Cambio de dieta 1 sep»: lo que cae dentro
+ * de sus ventanas. No las recorta (`ventanasDe`); se dice, y cada una abre
+ * su tarjeta.
+ */
+const Coinciden = ({ otras, hoy, onAbrir }) => (
+  <p className="tl-ins-nada">
+    Coincide con:{' '}
+    {otras.map((o, i) => (
+      <span key={o.id}>
+        {i > 0 && ', '}
+        <button type="button" className="tl-ins-enlace" onClick={() => onAbrir(o.id)}>
+          {nombreConTipo(o)} {fechasDeIntervencion(o, hoy)}
+        </button>
+      </span>
+    ))}
+  </p>
+);
+
+/**
+ * LA TARJETA DE IMPACTO de una intervención (25 sep 2026): su cifra clave
+ * (26 sep: la tendencia del peso antes → después o, en un bloque, sus
+ * referencias y la fatiga), qué fue, qué pasó antes, durante y después, y lo
+ * que piensa el entrenador.
  *
  * Ningún color de juicio, ninguna flecha verde o roja: cifras en columnas.
  * Si funcionó lo dice él, con su valoración.
  *
- * @param datos `{ x, ventanas, estado, impacto, objetivo, hoy, kcal }`: la
+ * @param datos `{ x, ventanas, estado, impacto, clave, objetivo, hoy, kcal }`: la
  *   intervención (`intervencionesDelCliente`), sus ventanas (`ventanasDe`),
  *   su estado, su tabla (`impactoDe`), el ritmo objetivo de su fase y, en un
  *   cambio de dieta, sus kcal de antes y de después (`kcalDelCambio`).
  * @param onGuardar `(campos) => Promise<{ ok, error }>`: escribe su capa.
  * @param onVentanasPorDefecto vuelve a las ventanas de 7 días.
+ * @param onAbrir `(id)` abre otra intervención (las que coinciden).
+ * @param onEditarPauta abre la ventana de la variación (un refeed o un diet
+ *   break): sus fechas, sus cifras, su menú y su indicación. Solo con evento.
+ * @param onAbrirProgramada abre en la Dieta la copia de un cambio programado
+ *   (0146); `onEditarProgramada`, su día y su motivo. Solo si está pendiente.
+ * @param onMontarBloque abre en Entreno un bloque previsto (letra c);
+ *   `onEditarBloque`, su ventana (nombre, duración, split y motivo).
  */
-export const TarjetaDeImpacto = ({ datos, onGuardar, onVentanasPorDefecto }) => {
-  const { x, ventanas } = datos;
+export const TarjetaDeImpacto = ({
+  datos,
+  onGuardar,
+  onVentanasPorDefecto,
+  onAbrir,
+  onEditarPauta = null,
+  onAbrirProgramada = null,
+  onEditarProgramada = null,
+  onMontarBloque = null,
+  onEditarBloque = null,
+}) => {
+  const { x, ventanas, estado, clave } = datos;
   const movidas = ventanas.movidas.antes || ventanas.movidas.despues;
+  const programada = x.programada || null;
+  /* Una pendiente no tiene aún versión de la que colgar lo que se piensa. */
+  const pendiente = programada?.estado === 'pendiente';
   return (
     <div className="tl-ins-cuerpo">
-      <Cifras cifras={cifrasDeLaPauta(x, datos.kcal)} />
+      {/* Cómo entra (o entró) un cambio programado: «Cambio programado para
+          el 1 oct · el cliente no lo ve», «Se aplicó el 3 oct; sustituyó un
+          retoque de menú del 2 oct». */}
+      {programada && (
+        <p className="tl-ins-texto">
+          {estadoDeLaProgramada(programada)}.
+          {onAbrirProgramada && (
+            <>
+              {' '}
+              <button type="button" className="tl-ins-enlace" onClick={onAbrirProgramada}>
+                Abrir en Dieta
+              </button>
+            </>
+          )}
+          {onEditarProgramada && (
+            <>
+              {' · '}
+              <button type="button" className="tl-ins-enlace" onClick={onEditarProgramada}>
+                Día y motivo
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {/* Un bloque previsto: aún es un borrador, se monta en Entreno. */}
+      {x.bloque?.borrador && (
+        <p className="tl-ins-texto">
+          Previsto del {shortDate(x.bloque.desde)} al {shortDate(x.bloque.hasta)} · el cliente no lo ve.
+          {onMontarBloque && (
+            <>
+              {' '}
+              <button type="button" className="tl-ins-enlace" onClick={onMontarBloque}>
+                Montarlo en Entreno
+              </button>
+            </>
+          )}
+          {onEditarBloque && (
+            <>
+              {' · '}
+              <button type="button" className="tl-ins-enlace" onClick={onEditarBloque}>
+                Nombre y split
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {/* La cifra clave, lo primero que se lee (una prevista aún no tiene), y
+          detrás la pauta, en la misma fila. */}
+      <Cifras cifras={[...(estado !== 'prevista' ? cifrasDeLaClave(clave) : []), ...cifrasDeLaPauta(x, datos.kcal)]} />
+      {onEditarPauta && (
+        <button type="button" className="tl-ins-enlace tl-imp-editar" onClick={onEditarPauta}>
+          Editar pauta
+        </button>
+      )}
       <Tabla {...datos} />
-      <p className="tl-ins-nada">
-        {movidas ? 'Ventanas movidas a mano. ' : 'Ventanas de 7 días. '}
-        Arrastra el principio de «antes» o el final de «después» en la gráfica para cambiarlas.
-        {movidas && (
-          <>
-            {' '}
-            <button type="button" className="tl-ins-enlace" onClick={onVentanasPorDefecto}>
-              Volver a 7 días
-            </button>
-          </>
-        )}
-      </p>
+      {ventanas.coinciden?.length > 0 && <Coinciden otras={ventanas.coinciden} hoy={datos.hoy} onAbrir={onAbrir} />}
+      {!pendiente && (
+        <p className="tl-ins-nada">
+          {movidas ? 'Ventanas movidas a mano. ' : 'Ventanas de 7 días. '}
+          Arrastra el principio de «antes» o el final de «después» en la gráfica para cambiarlas.
+          {movidas && (
+            <>
+              {' '}
+              <button type="button" className="tl-ins-enlace" onClick={onVentanasPorDefecto}>
+                Volver a 7 días
+              </button>
+            </>
+          )}
+        </p>
+      )}
       <div className="tl-ins-contexto">
         {/* `key`: al pasar a otra intervención, el formulario vuelve a leer la suya. */}
-        <LoQuePiensas key={x.id} x={x} onGuardar={onGuardar} />
+        {pendiente ? (
+          <Columna titulo="Por qué">
+            <p className="tl-ins-texto">{programada.motivo || 'Sin motivo escrito.'}</p>
+          </Columna>
+        ) : (
+          <LoQuePiensas key={x.id} x={x} estado={estado} fin={ventanas.despues?.hasta || x.hasta} onGuardar={onGuardar} />
+        )}
         {x.evento?.nota && (
           <Columna titulo="Indicación para el cliente">
             <p className="tl-ins-texto">{x.evento.nota}</p>

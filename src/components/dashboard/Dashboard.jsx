@@ -25,20 +25,19 @@ import { TarjetaPlan } from './TarjetaPlan';
 import { TarjetaSensaciones } from './TarjetaSensaciones';
 import { TarjetaHilo } from './TarjetaHilo';
 import { TarjetaRoadmap } from './TarjetaRoadmap';
+import { TarjetaTemporada } from './TarjetaTemporada';
 
 /*
   ══ Las ventanas, diferidas ═══════════════════════════════════════════════
 
   Las dos —el cuerpo a fondo y el entreno a fondo— se abren un día y se
-  consultan muchos, igual que el plan del roadmap (`roadmap/PlanDelRoadmap`),
-  que se abre desde su tarjeta. Van con `lazyRoute` —el mismo cargador de las
+  consultan muchos. Van con `lazyRoute` —el mismo cargador de las
   rutas, con su reintento contra el despliegue que cambia los hashes— y con
   su propia frontera de `Suspense`, y se montan solo abiertas: cerradas no
   calculan nada.
 */
 const PanelCuerpo = lazyRoute(() => import('./PanelCuerpo').then((m) => ({ default: m.PanelCuerpo })));
 const PanelEntreno = lazyRoute(() => import('./PanelEntreno').then((m) => ({ default: m.PanelEntreno })));
-const PlanDelRoadmap = lazyRoute(() => import('@/components/roadmap/PlanDelRoadmap').then((m) => ({ default: m.PlanDelRoadmap })));
 
 /**
  * RESUMEN — lo que pasa a la izquierda, lo que le has puesto a la derecha.
@@ -251,11 +250,9 @@ export const Dashboard = ({ audience = 'coach' }) => {
   /* Donde el coach anota un pesaje: la revisión, con su alta de registros.
      Solo coach — el vacío del portal habla del check-in, no de esta puerta. */
   const aPesaje = isClient ? null : clientPath(activeClient.id, 'revision');
-  /* El roadmap se LEE en Revisiones: su tarjeta lleva a la semana de hoy, por
-     su lunes. Se EDITA en la ventana del plan. El cliente lo lee en su
-     revisión, encima de «Tus semanas» (`TuRoadmap`). */
+  /* El roadmap del cliente se lee en su revisión, encima de «Tus semanas»
+     (`TuRoadmap`); el del entrenador se lee y se edita en la Temporada. */
   const aRevisionesRoadmap = isClient ? '/mi/evolucion/semanas' : semanaPath(activeClient.id, weekStart(todayISO()));
-  const abrirPlan = isClient ? null : () => setVentana('plan');
 
   const ventanas = (
     <Suspense fallback={null}>
@@ -275,7 +272,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
           pregunta={preguntaVentana}
         />
       )}
-      {ventana === 'plan' && <PlanDelRoadmap onClose={() => setVentana(null)} />}
       {ventana === 'entreno' && (
         <PanelEntreno
           open
@@ -327,7 +323,6 @@ export const Dashboard = ({ audience = 'coach' }) => {
             program={program}
             conEntreno={conEntreno}
             conDieta={conDieta}
-            onPlan={abrirPlan}
           />
         </div>
         {ventanas}
@@ -462,9 +457,14 @@ export const Dashboard = ({ audience = 'coach' }) => {
             que él contesta y lo que ha hecho—, y cada una se lee por separado.
             Con las cajas, además, las dos columnas vuelven a hablar igual. */}
         <aside className="resumen-lado">
-          {/* El roadmap: la fase, el peso contra lo esperado y lo que viene.
-              Lleva a Revisiones, donde vive su línea. */}
-          <TarjetaRoadmap aRevisiones={aRevisionesRoadmap} onPlan={abrirPlan} isClient={isClient} />
+          {/* El roadmap: al entrenador, su temporada en miniatura, que abre
+              la pestaña «Temporada» (26 sep 2026); al cliente, la fase, el
+              peso contra lo esperado y lo que viene. */}
+          {isClient ? (
+            <TarjetaRoadmap aRevisiones={aRevisionesRoadmap} isClient={isClient} />
+          ) : (
+            <TarjetaTemporada />
+          )}
           <TarjetaPlan
             goal={goal}
             pesoActual={pesoActual}

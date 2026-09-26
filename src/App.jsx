@@ -5,6 +5,9 @@ import { track } from '@/lib/analytics';
 
 import { useActions, useApp } from '@/context/AppContext';
 import { lazyRoute } from '@/lib/lazyRoute';
+import { CLAVE_COPIADO_EN_EL_CHOQUE } from '@/lib/portapapeles';
+import { useEsTelefono } from '@/lib/useMediaQuery';
+import { useToast } from '@/components/ui/ToastProvider';
 import { Header } from '@/components/Header';
 import { PreviewBar } from '@/components/PreviewBar';
 import { Login } from '@/components/Auth/Login';
@@ -44,6 +47,9 @@ const ProtocoloDelCliente = lazyRoute(() => import('@/components/Coach/Protocolo
 const WeekReview = lazyRoute(() => import('@/components/Coach/WeekReview').then((m) => ({ default: m.WeekReview })));
 const PortadaDeSemanas = lazyRoute(() =>
   import('@/components/review/PortadaDeSemanas').then((m) => ({ default: m.PortadaDeSemanas }))
+);
+const PaginaDeTemporada = lazyRoute(() =>
+  import('@/components/temporada/PaginaDeTemporada').then((m) => ({ default: m.PaginaDeTemporada }))
 );
 const TeamPanel = lazyRoute(() => import('@/components/Coach/Settings/TeamPanel').then((m) => ({ default: m.TeamPanel })));
 const SettingsLayout = lazyRoute(() => import('@/components/Coach/Settings/SettingsLayout').then((m) => ({ default: m.SettingsLayout })));
@@ -122,6 +128,7 @@ import { EstadoDeRed } from '@/components/ui/EstadoDeRed';
 import { ManoDelPortapapeles } from '@/components/Coach/ManoDelPortapapeles';
 import { CommandPalette, CommandPaletteProvider } from '@/components/ui/CommandPalette';
 import { Aprende, AprendeProvider } from '@/components/Aprende';
+import { diaCorto } from '@/domain/dietaProgramada';
 
 /**
  * Mapa de rutas.
@@ -300,6 +307,29 @@ const InicioDelCliente = () => {
   return <Navigate to={clientHomeFor(clientProtocol(activeClient?.preferences))} replace />;
 };
 
+/**
+ * Tras «Copiar mis cambios» la página se recarga: ya cargada, se dice dónde
+ * quedó la pieza. En el teléfono la dieta entera no se pega (la mano solo sale
+ * donde hay destino), así que se dice desde dónde sí.
+ */
+const AvisoTrasCopiar = () => {
+  const toast = useToast();
+  const telefono = useEsTelefono();
+  useEffect(() => {
+    let copiada = false;
+    try {
+      copiada = sessionStorage.getItem(CLAVE_COPIADO_EN_EL_CHOQUE) === '1';
+      sessionStorage.removeItem(CLAVE_COPIADO_EN_EL_CHOQUE);
+    } catch {
+      /* Sin almacenamiento de la pestaña no hay aviso que dar. */
+    }
+    if (copiada && telefono) toast({ text: 'Guardada en tu portapapeles; pégala desde el ordenador.' });
+    // Solo al cargar: la marca es de la recarga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+};
+
 const ConServicio = ({ servicio, to = null, children }) => {
   const { activeClient } = useApp();
   const protocol = clientProtocol(activeClient?.preferences);
@@ -436,6 +466,7 @@ export default function App() {
             pantalla de Ajustes porque nadie entra en Ajustes: la prueba se
             acababa sin que el entrenador hubiera visto un solo aviso. */}
         <PlanNotice />
+        <AvisoTrasCopiar />
 
         {/*
           Conflicto de escritura: alguien ha tocado los mismos datos mientras
@@ -446,7 +477,32 @@ export default function App() {
           Las dos salidas se nombran por lo que HACEN, no por lo que son: «quedarme
           con lo suyo» y «imponer lo mío», en vez de «recargar» y «forzar».
         */}
-        {conflict && (
+        {/* La dieta cambió sin nadie delante: entró en vigor un cambio
+            programado (0146). No hay «imponer lo mío»: pisaría la dieta que
+            acaba de empezar. Lo escrito se puede llevar en la mano. */}
+        {conflict?.motivo === 'programada' && (
+          <div className="layout" style={{ paddingBottom: 0 }}>
+            <Notice
+              tone="warn"
+              action={
+                <span className="row gap-2 shrink-0">
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => resolveConflict('copiar')}>
+                    Copiar mis cambios
+                  </button>
+                  <button type="button" className="btn btn-primary btn-sm" onClick={() => resolveConflict('reload')}>
+                    Ver la dieta actual
+                  </button>
+                </span>
+              }
+            >
+              Esta dieta cambió: entró en vigor el cambio programado del {diaCorto(conflict.programada?.empieza)}. Tus
+              cambios <strong>no se han guardado</strong>. «Copiar mis cambios» se lleva tu dieta entera, con su
+              pauta, al portapapeles antes de abrir la dieta actual.
+            </Notice>
+          </div>
+        )}
+
+        {conflict && conflict.motivo !== 'programada' && (
           <div className="layout" style={{ paddingBottom: 0 }}>
             <Notice
               tone="warn"
@@ -591,10 +647,10 @@ export default function App() {
                       dirección, por su lunes (22 sep 2026). */}
                   <Route path="semana" element={<PortadaDeSemanas />} />
                   <Route path="semana/:lunes" element={<WeekReview />} />
-                  {/* La temporada como línea de tiempo (24 sep 2026). Vive en
-                      la portada de Revisiones, detrás de su conmutador, hasta
-                      que sustituya a las tiras (fase 7). */}
-                  <Route path="temporada" element={<Navigate to="../semana?vista=linea" replace />} />
+                  {/* La temporada como línea de tiempo (24 sep 2026), con
+                      pestaña propia desde el 26: Revisiones vuelve a sus
+                      tiras, y su `?vista=linea` de antes redirige aquí. */}
+                  <Route path="temporada" element={<PaginaDeTemporada />} />
                   {/* El resumen ES el análisis: una sola pantalla, y lo que
                       antes era la segunda —los diez gráficos con su barra de
                       cuatro pestañas— se abre ahora en ventanas desde el título

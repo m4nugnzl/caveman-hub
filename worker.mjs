@@ -92,7 +92,7 @@ export default {
    * que además es la única que tiene la clave de servicio. Un worker que
    * decidiera algo sería un cuarto sitio donde se contesta «qué va mal».
    */
-  async scheduled(_evento, env, ctx) {
+  async scheduled(evento, env, ctx) {
     const { SUPABASE_URL, RADIOGRAFIA_CRON_SECRET, LATIDO_CRON_SECRET } = env;
 
     if (!SUPABASE_URL) {
@@ -129,8 +129,19 @@ export default {
       );
     };
 
-    llamar('radiografía', 'telegram?empujar', RADIOGRAFIA_CRON_SECRET);
-    llamar('latido', 'latido', LATIDO_CRON_SECRET);
+    /*
+      El reloj suena cada hora (ver `wrangler.jsonc`), pero el informe y el
+      latido completo son de la mañana: a las 7:00 UTC. Las otras horas solo se
+      aplican las dietas programadas de quien acaba de empezar su día en su zona
+      horaria (0146), que es lo único que no puede esperar a la mañana de Madrid.
+    */
+    const hora = new Date(evento?.scheduledTime ?? Date.now()).getUTCHours();
+    if (hora === 7) {
+      llamar('radiografía', 'telegram?empujar', RADIOGRAFIA_CRON_SECRET);
+      llamar('latido', 'latido', LATIDO_CRON_SECRET);
+    } else {
+      llamar('latido', 'latido?dietas', LATIDO_CRON_SECRET);
+    }
   },
 
   async fetch(request, env) {

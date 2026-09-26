@@ -9,9 +9,12 @@ import { sensacionesDeLaSemana, sensacionesDeLaSesion, textosDeLaSemana } from '
 import { variacionTexto } from '@/domain/rendimiento';
 import { cardioCorto, llegadaTexto, ritmoTexto, tramoDeFechas } from '@/domain/semanasDelPlan';
 import { PESAJES_FIRMES, pesajesTexto, tendenciaDelPeso } from '@/domain/tendenciaDelPeso';
+import { cuandoDeLaVersion } from '@/domain/versionesDelPlan';
 import { addDays, daysBetween, localeNumber, shortDate } from '@/lib/dates';
+import { BotonMas } from '@/components/ui/BotonMas';
 import { Modal } from '@/components/ui/Modal';
 import { HojaAMedias } from './HojaAMedias';
+import { HistorialDeIntervenciones } from './HistorialDeIntervenciones';
 import {
   conSigno,
   diaTexto,
@@ -44,6 +47,7 @@ import {
 } from './PiezasDelInspector';
 import { tintaDe, tintaDeIntervencion } from './series';
 import { TarjetaDeImpacto } from './TarjetaDeImpacto';
+import { DeVersion, ListaDeVersiones } from './VersionesDelPlan';
 
 const ESTADO = {
   revisada: 'Revisada',
@@ -165,7 +169,7 @@ const cifrasDeSemana = ({ s, anterior, ctx, entreno }) => {
   const conTendencia = esNumero(t?.ritmo);
   cifras.push({
     id: 'tendencia',
-    etiqueta: 'Tendencia',
+    etiqueta: 'Tendencia · 2 semanas',
     valor: conTendencia ? pctSemana(t.ritmo).replace(' %/sem', '') : null,
     unidad: '%/sem',
     debil: conTendencia && t.pesajes < PESAJES_FIRMES,
@@ -536,6 +540,7 @@ const contar = (pieza, ctx) => {
         cuerpo: <FichaDeSemana s={s} ctx={ctx} />,
         revision,
         mover: 'semana',
+        variacion: { desde: s.lunes, hasta: s.domingo },
       };
     }
     return {
@@ -544,10 +549,13 @@ const contar = (pieza, ctx) => {
       cuerpo: <FichaDelDia fecha={fecha} s={s} ctx={ctx} />,
       revision,
       mover: 'dia',
+      variacion: { desde: fecha, hasta: fecha },
     };
   }
   if (pieza.tipo === 'fase') {
-    const f = pieza.fase;
+    /* La de ahora: si se cambió o se borró desde su ventana, lo dice. */
+    const f = ctx.faseDe ? ctx.faseDe(pieza.fase.id) : pieza.fase;
+    if (!f) return null;
     const n = semanasDeFase(f);
     return {
       titulo: nombreDeFase(f),
@@ -556,6 +564,7 @@ const contar = (pieza, ctx) => {
         ...(n ? [{ id: 'n', texto: `${n} semanas` }] : []),
       ],
       cuerpo: <DeFase fase={f} semanas={ctx.semanas} expectativas={ctx.expectativas} hoy={hoy} />,
+      accion: ctx.puedeEditar ? { texto: 'Cambiar', onClick: () => ctx.editarFase(f) } : null,
     };
   }
   if (pieza.tipo === 'hechos') {
@@ -570,16 +579,81 @@ const contar = (pieza, ctx) => {
       ),
     };
   }
+  if (pieza.tipo === 'intervenciones') {
+    const n = ctx.historial.length;
+    return {
+      titulo: 'Intervenciones',
+      pildoras: [{ id: 'n', texto: n === 1 ? '1 en total' : `${n} en total` }],
+      cuerpo: (
+        <HistorialDeIntervenciones
+          entradas={ctx.historial}
+          hoy={hoy}
+          filtro={ctx.filtroDelHistorial}
+          onFiltro={ctx.filtrarHistorial}
+          onAbrir={ctx.abrirDelHistorial}
+        />
+      ),
+      media: true,
+    };
+  }
+  if (pieza.tipo === 'versiones') {
+    const n = ctx.versiones?.length ?? null;
+    return {
+      titulo: 'Versiones del plan',
+      pildoras: n ? [{ id: 'n', texto: n === 1 ? '1 versión' : `${n} versiones` }] : [],
+      cuerpo: <ListaDeVersiones versiones={ctx.versiones} error={ctx.errorDeVersiones} quienDe={ctx.quienDe} onAbrir={ctx.abrirVersion} />,
+      media: true,
+    };
+  }
+  if (pieza.tipo === 'version') {
+    const v = ctx.versionElegida;
+    const n = ctx.versiones?.length ?? 0;
+    const volver = { texto: `Versiones · ${n}`, onClick: ctx.abrirVersiones };
+    if (!v) {
+      return {
+        volver,
+        media: true,
+        titulo: 'Versión del plan',
+        pildoras: [],
+        cuerpo: <ListaDeVersiones versiones={ctx.versiones ? [] : null} error={ctx.errorDeVersiones} quienDe={ctx.quienDe} onAbrir={ctx.abrirVersion} />,
+      };
+    }
+    const original = ctx.versiones?.[n - 1]?.id === v.id;
+    return {
+      volver,
+      media: true,
+      titulo: `Versión del ${cuandoDeLaVersion(v)}`,
+      pildoras: [
+        { id: 'quien', texto: ctx.quienDe(v) },
+        ...(ctx.esLaDeAhora ? [{ id: 'ahora', texto: 'La de ahora' }] : original ? [{ id: 'original', texto: 'Original' }] : []),
+      ],
+      cuerpo: (
+        <DeVersion
+          key={v.id}
+          version={v}
+          cambios={ctx.cambiosDeLaElegida}
+          esLaDeAhora={ctx.esLaDeAhora}
+          onRestaurar={ctx.restaurarVersion ? () => ctx.restaurarVersion(v) : null}
+        />
+      ),
+    };
+  }
   if (pieza.tipo === 'intervencion') {
     const datos = ctx.intervencion;
     if (!datos || datos.x.id !== pieza.id) return null;
     const { x, estado } = datos;
     const valorada = VALORACIONES.find((v) => v.id === x.capa?.valoracion);
     return {
+      /* La vuelta a la lista de todas. */
+      volver: { texto: `Intervenciones · ${ctx.historial.length}`, onClick: ctx.abrirHistorial },
+      media: true,
       titulo: nombreDeIntervencion(x),
       pildoras: [
         { id: 'tipo', punto: tintaDe(x), texto: x.evento ? delAl(x.desde, x.hasta) : `desde el ${shortDate(x.desde)}` },
-        { id: 'estado', texto: ESTADO_DE_INTERVENCION[estado] },
+        {
+          id: 'estado',
+          texto: x.programada?.estado === 'pendiente' ? 'Programada' : x.bloque?.borrador ? 'En borrador' : ESTADO_DE_INTERVENCION[estado],
+        },
         ...(valorada ? [{ id: 'valoracion', texto: valorada.label }] : []),
       ],
       cuerpo: (
@@ -587,6 +661,12 @@ const contar = (pieza, ctx) => {
           datos={datos}
           onGuardar={(campos) => ctx.guardarIntervencion(x, campos)}
           onVentanasPorDefecto={() => ctx.guardarIntervencion(x, { antesDesde: null, despuesHasta: null })}
+          onAbrir={(id) => ctx.elegir({ tipo: 'intervencion', id })}
+          onEditarPauta={x.evento ? () => ctx.editarVariacion(x.evento) : null}
+          onAbrirProgramada={x.programada?.estado === 'pendiente' ? () => ctx.abrirCambioDeDieta(x.programada) : null}
+          onEditarProgramada={x.programada?.estado === 'pendiente' && ctx.puedeEditar ? () => ctx.editarCambioDeDieta(x.programada) : null}
+          onMontarBloque={x.bloque?.borrador && ctx.puedeEditar ? () => ctx.montarBloque(x.bloque.id) : null}
+          onEditarBloque={x.bloque?.borrador && ctx.puedeEditar ? () => ctx.editarBloquePrevisto(x.bloque.id) : null}
         />
       ),
     };
@@ -596,6 +676,7 @@ const contar = (pieza, ctx) => {
       titulo: ctx.destino.title || 'Destino',
       pildoras: [{ id: 'tipo', texto: kindMeta(ctx.destino.kind).label }],
       cuerpo: <DeDestino destino={ctx.destino} objetivoKg={ctx.objetivoKg} hoy={hoy} />,
+      accion: ctx.puedeEditar ? { texto: 'Cambiar', onClick: ctx.editarDestino } : null,
     };
   }
   if (pieza.tipo === 'decision' && ctx.cruce) {
@@ -606,10 +687,33 @@ const contar = (pieza, ctx) => {
         { id: 'fecha', texto: shortDate(ctx.cruce.decide) },
       ],
       cuerpo: <DeDecision cruce={ctx.cruce} />,
+      accion: ctx.puedeEditar ? { texto: 'Elegir o cambiar', onClick: ctx.abrirDecision } : null,
     };
   }
   return null;
 };
+
+/**
+ * «+ refeed · + diet break» con las fechas de lo elegido puestas: la semana,
+ * el día o las semanas elegidas en el calendario. Abre la misma ventana que
+ * la Dieta (`VentanaDeVariacion`).
+ *
+ * Y «+ cambio de dieta» (0146): una dieta nueva que empieza ese día —o
+ * mañana, si ya pasó—. Se prepara después en la Dieta.
+ */
+const NuevaVariacion = ({ desde, hasta, ctx }) => (
+  <span className="tl-ins-variacion">
+    <BotonMas palabra="refeed" title="Un refeed en estos días" onClick={() => ctx.nuevaVariacion('refeed', desde, hasta)} />
+    <BotonMas palabra="diet break" title="Un diet break en estos días" onClick={() => ctx.nuevaVariacion('diet_break', desde, hasta)} />
+    {ctx.puedeEditar && (
+      <BotonMas palabra="cambio de dieta" title="Una dieta nueva que empieza este día" onClick={() => ctx.nuevoCambioDeDieta(desde)} />
+    )}
+    {/* El bloque no se pone en estos días: va detrás del último (ver la ventana). */}
+    {ctx.puedeEditar && ctx.conEntreno && (
+      <BotonMas palabra="bloque previsto" title="Planificar un bloque detrás del último" onClick={ctx.nuevoBloquePrevisto} />
+    )}
+  </span>
+);
 
 /** La cabecera: a la izquierda, flechas y título; a la derecha, contexto y acciones. */
 const Cabeza = ({ titulo, sub = null, pildoras = [], flechas = null, children }) => (
@@ -662,12 +766,14 @@ const Flechas = ({ mover, onMover }) => (
  *     entreno de su bloque y las notas;
  *   · un día → cifras del día, el parte de su sesión y sus notas;
  *   · una intervención → su tarjeta de impacto (`TarjetaDeImpacto`): qué
- *     fue, antes / durante / después y lo que piensa el entrenador;
+ *     fue, antes / durante / después y lo que piensa el entrenador, con la
+ *     vuelta a la lista de todas;
+ *   · el historial de intervenciones (`HistorialDeIntervenciones`);
  *   · una fase, un hecho, el destino o el punto de decisión → lo suyo.
  *
  * Todo con la misma gramática (`PiezasDelInspector`). En el teléfono lo
- * elegido sube como hoja (`Modal size="side"`); una intervención, como hoja
- * a media altura y sin velo (`HojaAMedias`), porque se lee contra sus
+ * elegido sube como hoja (`Modal size="side"`); una intervención y el
+ * historial, como hoja a media altura y sin velo (`HojaAMedias`), porque se lee contra sus
  * ventanas en la gráfica.
  *
  * Solo enseña: ningún texto sugiere qué hacer.
@@ -698,6 +804,7 @@ export const Inspector = ({ pieza, ctx, periodo, rango, telefono, onCerrar, onMo
             </button>
           </p>
         )}
+        {rango && <NuevaVariacion desde={rango.desde} hasta={rango.hasta} ctx={ctx} />}
         {rango && (
           <button type="button" className="btn btn-icon btn-icon-compact" aria-label="Soltar las semanas elegidas" onClick={onQuitarRango}>
             <X size={16} />
@@ -708,12 +815,23 @@ export const Inspector = ({ pieza, ctx, periodo, rango, telefono, onCerrar, onMo
     </section>
   );
 
-  if (telefono && contado && pieza.tipo === 'intervencion') {
+  /* «← Intervenciones · 7»: de una tarjeta, a la lista de todas. */
+  const volver = contado?.volver ? (
+    <button type="button" className="tl-ins-enlace tl-ins-volver" onClick={contado.volver.onClick}>
+      <ChevronLeft size={14} aria-hidden="true" />
+      {contado.volver.texto}
+    </button>
+  ) : null;
+
+  /* La lista y la tarjeta se leen contra la gráfica: a media altura. */
+  if (telefono && contado?.media) {
     return (
       <>
         {resumenDe}
-        <HojaAMedias titulo={contado.titulo} onCerrar={onCerrar}>
+        {/* `key`: de la lista a una tarjeta (o de una a otra) la hoja vuelve arriba. */}
+        <HojaAMedias key={pieza.id || pieza.tipo} titulo={contado.titulo} onCerrar={onCerrar}>
           <div className="tl-ins is-hoja">
+            {volver}
             <Pildoras pildoras={contado.pildoras} />
             {contado.sub && <p className="tl-ins-sub">{contado.sub}</p>}
             {contado.cuerpo}
@@ -734,9 +852,15 @@ export const Inspector = ({ pieza, ctx, periodo, rango, telefono, onCerrar, onMo
             title={contado.titulo}
             onClose={onCerrar}
             footer={
-              contado.mover || contado.revision ? (
+              contado.mover || contado.revision || contado.accion ? (
                 <div className="tl-ins-pie-hoja">
+                  {contado.accion && (
+                    <button type="button" className="btn btn-primary" onClick={contado.accion.onClick}>
+                      {contado.accion.texto}
+                    </button>
+                  )}
                   {contado.mover && <Flechas mover={contado.mover} onMover={onMover} />}
+                  {contado.variacion && <NuevaVariacion {...contado.variacion} ctx={ctx} />}
                   {contado.revision && (
                     <button type="button" className="btn btn-primary" onClick={() => onAbrirRevision(contado.revision)}>
                       {contado.mover === 'dia' ? 'Abrir la revisión de la semana' : 'Abrir revisión'}
@@ -768,6 +892,13 @@ export const Inspector = ({ pieza, ctx, periodo, rango, telefono, onCerrar, onMo
             pildoras={contado.pildoras}
             flechas={contado.mover ? <Flechas mover={contado.mover} onMover={onMover} /> : null}
           >
+            {volver}
+            {contado.variacion && <NuevaVariacion {...contado.variacion} ctx={ctx} />}
+            {contado.accion && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={contado.accion.onClick}>
+                {contado.accion.texto}
+              </button>
+            )}
             {contado.revision && (
               <button type="button" className="btn btn-primary btn-sm" onClick={() => onAbrirRevision(contado.revision)}>
                 {contado.mover === 'dia' ? 'Abrir la revisión de la semana' : 'Abrir revisión'}

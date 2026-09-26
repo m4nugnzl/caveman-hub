@@ -29,6 +29,7 @@ import {
 import { shortDate, todayISO } from '@/lib/dates';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 import { EmptyState, RenombrarEnSitio } from '@/components/ui/primitives';
+import { DetalleDelPase } from './DetalleDelPase';
 import { PaseDeBloque, rangoDeFechas } from './PaseDeBloque';
 
 /**
@@ -41,10 +42,15 @@ import { PaseDeBloque, rangoDeFechas } from './PaseDeBloque';
  * ══ Dos pantallas en la misma URL ══════════════════════════════════════════
  *   · La portada (`?v=lista`): lo de hoy —el pase del bloque abierto o, sin
  *     él, el primer previsto— y las fundas, de la más reciente a la más antigua.
- *   · Una temporada abierta (`?v=lista&t=clave`): sus pases en cascada, del
- *     más antiguo arriba al más reciente abajo; de cada uno asoma su cabecera
- *     y el último se ve entero. Va en la URL porque es dónde estás: «‹ Bloques»
- *     y el botón de atrás hacen lo mismo.
+ *   · Una temporada abierta (`?v=lista&t=clave`): una vista dividida, como
+ *     Mail en el iPad. A la izquierda sus pases en cascada compacta, del más
+ *     antiguo arriba al más reciente abajo; a la derecha el elegido,
+ *     desplegado (`DetalleDelPase`): por defecto el de ahora o, en una temporada
+ *     cerrada, el último. Un toque elige, dos abren el bloque. En estrecho,
+ *     una columna: el pase desplegado se abre a pantalla entera con
+ *     «‹ temporada».
+ *     La temporada va en la URL porque es dónde estás: «‹ Bloques» y el
+ *     botón de atrás hacen lo mismo.
  *
  * ══ Editar ═════════════════════════════════════════════════════════════════
  * Un modo, como en iOS: los pases se arrastran a otra funda (y los previstos,
@@ -269,7 +275,9 @@ export const ListaDeBloques = ({
   /* Las temporadas nuevas que aún no tienen bloque. */
   const [nuevas, setNuevas] = useState([]);
   const [nombrando, setNombrando] = useState(false);
-  const [entero, setEntero] = useState(null);
+  const [elegido, setElegido] = useState(null);
+  /* En estrecho, el detalle tapa la cascada hasta «‹ temporada». */
+  const [viendo, setViendo] = useState(false);
   const [renombrando, setRenombrando] = useState(null);
   const [renombrandoTemporada, setRenombrandoTemporada] = useState(false);
 
@@ -323,7 +331,8 @@ export const ListaDeBloques = ({
     if (clave) siguiente.set('t', clave);
     else siguiente.delete('t');
     setParams(siguiente);
-    setEntero(null);
+    setElegido(null);
+    setViendo(false);
     setEditando(false);
     setRenombrandoTemporada(false);
   };
@@ -406,11 +415,12 @@ export const ListaDeBloques = ({
 
   /* ── Una temporada abierta ──────────────────────────────────────────────── */
   if (abierta) {
-    const cascada = cascadaDeLaTemporada(abierta, entero);
+    const cascada = cascadaDeLaTemporada(abierta, elegido);
+    const visto = cascada.find((p) => p.elegido);
     const previstos = borradoresDe(program);
     const otras = temporadas.filter((t) => t.clave !== abierta.clave);
     return (
-      <div className="pases-pagina is-temporada">
+      <div className={`pases-pagina is-temporada${viendo ? ' is-viendo' : ''}`}>
         <nav className="pases-barra">
           <button type="button" className="pases-atras" onClick={() => irA(null)}>
             <ChevronLeft size={20} aria-hidden="true" /> Bloques
@@ -472,35 +482,58 @@ export const ListaDeBloques = ({
           <Renombrando bloque={bloqueRenombrando} onRenombrar={onRenombrarBloque} onDone={() => setRenombrando(null)} />
         )}
 
-        <ol className="cascada-de-pases" aria-label={`Bloques de ${abierta.nombre}, del más antiguo al más reciente`}>
-          {cascada.map((pase) => {
-            const i = previstos.findIndex((x) => x.id === pase.id);
-            /* Soltar un previsto sobre otro lo pone en su sitio. */
-            const soltar =
-              editando && pase.tipo === 'borrador' && onMoverBorrador
-                ? alSoltar((id) => {
-                    if (id !== pase.id && previstos.some((x) => x.id === id)) onMoverBorrador(id, i);
-                  })
-                : {};
-            return (
-              <li key={pase.id} className={`cascada-hueco${pase.entero ? ' is-entero' : ''}`} {...soltar}>
-                <PaseDeBloque
-                  pase={pase}
-                  program={program}
-                  cliente={cliente}
-                  variante="temporada"
-                  entero={pase.entero}
-                  hoy={hoy}
-                  onAbrir={() => abrir(pase)}
-                  onDesplegar={() => setEntero(pase.id)}
-                  acciones={acciones(pase, abierta.clave)}
-                  mando={empezar(pase)}
-                  arrastre={editando ? arrastreDe(pase.id) : null}
-                />
-              </li>
-            );
-          })}
-        </ol>
+        <div className="temporada-dividida">
+          <ol className="cascada-de-pases" aria-label={`Bloques de ${abierta.nombre}, del más antiguo al más reciente`}>
+            {cascada.map((pase) => {
+              const i = previstos.findIndex((x) => x.id === pase.id);
+              /* Soltar un previsto sobre otro lo pone en su sitio. */
+              const soltar =
+                editando && pase.tipo === 'borrador' && onMoverBorrador
+                  ? alSoltar((id) => {
+                      if (id !== pase.id && previstos.some((x) => x.id === id)) onMoverBorrador(id, i);
+                    })
+                  : {};
+              return (
+                <li key={pase.id} className={`cascada-hueco${pase.elegido ? ' is-elegido' : ''}`} {...soltar}>
+                  <PaseDeBloque
+                    pase={pase}
+                    program={program}
+                    cliente={cliente}
+                    variante="temporada"
+                    elegido={pase.elegido}
+                    hoy={hoy}
+                    onAbrir={() => abrir(pase)}
+                    onElegir={() => {
+                      setElegido(pase.id);
+                      setViendo(true);
+                    }}
+                    arrastre={editando ? arrastreDe(pase.id) : null}
+                  />
+                </li>
+              );
+            })}
+          </ol>
+
+          {visto && (
+            <div className="temporada-detalle">
+              <DetalleDelPase
+                pase={visto}
+                program={program}
+                cliente={cliente}
+                hoy={hoy}
+                semanaEnCurso={semanaEnCurso}
+                onAbrir={() => abrir(visto)}
+                acciones={acciones(visto, abierta.clave)}
+                mando={empezar(visto)}
+                volver={
+                  <button type="button" className="pases-atras detalle-volver" onClick={() => setViendo(false)}>
+                    <ChevronLeft size={20} aria-hidden="true" /> {abierta.nombre}
+                  </button>
+                }
+              />
+            </div>
+          )}
+        </div>
       </div>
     );
   }

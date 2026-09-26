@@ -101,8 +101,24 @@ const ORDEN = [
   */
   'nutrition_plan_versions',
   'nutrition_plans',
+  /* Las dietas que empiezan otro día (0146). Su disparador no deja escribir
+     una para hoy ni tocar una aplicada; restaurando, con `x-sin-versiones`,
+     no actúa y vuelven tal cual. Una pendiente cuyo día ya pasó se aplica la
+     próxima vez que alguien abra al cliente. */
+  'nutrition_plan_programadas',
   'progress_photos',
   'check_ins',
+  /*
+    ══ LAS VERSIONES DEL PLAN, ANTES QUE LAS FASES Y LOS EVENTOS (0140) ══════
+
+    Escribir `client_events` o `client_phases` dispara `guardar_version_del_plan`,
+    que compara la foto de ahora con la última versión del cliente. Con las de
+    la copia ya puestas, el plan restaurado entero es igual a la última y no
+    deja rastro. Y el paso intermedio —eventos ya restaurados, fases todavía
+    no— tampoco: desde la 0145 `x-sin-versiones` para también estas versiones,
+    como las de la dieta.
+  */
+  'client_plan_versions',
   'client_events',
   /* Lo que el entrenador piensa de cada intervención (0143): el motivo y la
      valoración. Después de client_events, nutrition_plan_versions y
@@ -114,6 +130,18 @@ const ORDEN = [
   'client_actions',
   /* Las series que su teléfono no pudo guardar (0132). Cuelgan de `clients`. */
   'series_no_guardadas',
+  /* Las fechas atrasadas de las sesiones y cada atraso (0138). DESPUÉS de
+     `workout_data`: reescribir sus bloques dispara
+     `tg_planes_siguen_a_la_hoja`, que mueve las filas de `session_plans` que
+     ya estuvieran puestas. */
+  'session_plans',
+  'session_delays',
+  /* El asiento, el agarre y la nota del cliente por ejercicio (0139). El
+     disparador `exercise_settings_sello` las fecha a ahora al escribir; con
+     `x-sin-versiones` respeta las de la copia (0145). */
+  'exercise_settings',
+  /* El cajón del entrenador (0112). Cuelga de `profiles` y `teams`. */
+  'coach_templates',
   /* Lesiones, patologías y alergias (0077), y la maquinaria de su gimnasio
      (0079). Las copiaba `backup.mjs` y esta lista no las nombraba, así que sus
      archivos se escribían en la copia y nadie los volvía a leer: la
@@ -183,6 +211,8 @@ const CLAVE = {
   platform_snapshots: 'dia',
   /* Una versión de la pauta por cliente y día (0124), sin `id`. */
   nutrition_plan_versions: 'client_id,dia',
+  /* Una fecha por aparición de sesión (0138), sin `id`. */
+  session_plans: 'client_id,week_number,hoja,vez',
 };
 
 /*
@@ -327,6 +357,15 @@ const clienteDeRestauracion = (url, key) =>
     global: { headers: { 'x-sin-versiones': '1' } },
   });
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** «Original tras restaurar la copia del 25 sep 2026», con la fecha de la copia. */
+const notaDelOriginal = (generado) => {
+  const d = new Date(generado);
+  const fecha = Number.isNaN(d.getTime()) ? '' : ` del ${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+  return `Original tras restaurar la copia${fecha}`;
+};
+
 /**
  * Escribe las filas de UNA tabla. Devuelve el mensaje de error, o `null`.
  *
@@ -447,6 +486,20 @@ const main = async () => {
   }
   log(`     ${total} filas en total`);
 
+  /*
+    El original del plan de quien no lo traía. Con las versiones en pausa, un
+    cliente cuya copia no tenía versiones del plan (anterior a 0140) se
+    quedaba sin original hasta su primer cambio. Solo a los que no tienen
+    ninguna: repetir la restauración no crea otro (0145).
+  */
+  if (escribir) {
+    const { data: originales, error } = await db.rpc('crear_originales_del_plan', {
+      p_nota: notaDelOriginal(manifest.generado),
+    });
+    if (error) fail(`El original del plan: ${error.message}`);
+    if (originales > 0) log(`  ✓  ${'original del plan'.padEnd(22)} ${originales}  (clientes sin versiones)`);
+  }
+
   // ── 3. Los archivos ──────────────────────────────────────────────────────
   const raizFotos = join(dir, 'fotos');
   const archivos = await listaArchivos(raizFotos);
@@ -509,4 +562,4 @@ if (llamadoDirectamente) {
   main().catch((e) => fail(e?.message || String(e)));
 }
 
-export { ORDEN, clienteDeRestauracion, restauraTabla };
+export { ORDEN, clienteDeRestauracion, notaDelOriginal, restauraTabla };

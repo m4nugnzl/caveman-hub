@@ -161,6 +161,15 @@ const CobroDeLaCabecera = ({ client }) => {
  */
 const UMBRAL_FILTRO = 8;
 
+/** Las secciones del cliente en el orden de la barra del pulgar: las que ceden
+    su sitio (`enMasEnElMovil`) van justo detrás de las cuatro que caben, o
+    sea, las primeras de «Más». */
+const cederEnElMovil = (secciones) => {
+  const quedan = secciones.filter(({ seccion }) => !seccion.enMasEnElMovil);
+  const ceden = secciones.filter(({ seccion }) => seccion.enMasEnElMovil);
+  return [...quedan.slice(0, 4), ...ceden, ...quedan.slice(4)];
+};
+
 /** La chapa de quien está dado de alta y sin arrancar: el nombre de su tramo en
     la cartera («Pendientes»), en azul como la cola «Poner en marcha». */
 const PENDIENTE = { id: 'pending', label: 'Pendiente', hint: 'Dado de alta y sin empezar todavía', tone: 'info' };
@@ -1273,9 +1282,16 @@ export const CoachLayout = () => {
                 {chapas}
                 {bandeja.esperando.has(activeClient.id) &&
                   !isSectionActive(location.pathname, SECCION_SEMANA, '/c/[^/]+') && (
-                    <Link className="btn btn-primary btn-sm" to={semanaPath(clientId, checkIns[clientId]?.weekStart)}>
+                    <Link
+                      className="btn btn-primary btn-sm cliente-cab-verbo"
+                      to={semanaPath(clientId, checkIns[clientId]?.weekStart)}
+                      aria-label="Revisar semana"
+                      title="Revisar semana"
+                    >
                       <CalendarCheck size={15} aria-hidden="true" />
-                      Revisar semana
+                      {/* En el teléfono se retira el rótulo y queda el icono:
+                          el nombre de la persona no cede sitio a un verbo. */}
+                      <span className="cliente-cab-verbo-rotulo">Revisar semana</span>
                     </Link>
                   )}
               </div>
@@ -1360,8 +1376,11 @@ export const CoachLayout = () => {
                  frecuencia de uso (revisión delante de nutrición) y se
                  deshizo: tres órdenes distintos para las mismas secciones
                  —la cabecera del cliente, el portal y el pulgar— cuestan más
-                 de memorizar que lo que ahorra un toque en «Más». */
-              ? seccionesDeCliente.map(({ seccion }) => ({
+                 de memorizar que lo que ahorra un toque en «Más».
+                 La única excepción la declara la propia sección
+                 (`enMasEnElMovil`, la Temporada): cede su sitio para que Dieta
+                 y Revisiones quepan entre las cuatro, y abre «Más». */
+              ? cederEnElMovil(seccionesDeCliente).map(({ seccion }) => ({
                   to: clientPath(clientId, seccion.path),
                   label: seccion.short || seccion.label,
                   icon: seccion.icon,

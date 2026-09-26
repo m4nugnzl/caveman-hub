@@ -23,6 +23,7 @@ import {
   targetsFor,
 } from '@/domain/nutrition';
 import { pautaEspecialDelDia } from '@/domain/pautaDelDia';
+import { variacionDeManana } from '@/domain/variaciones';
 import { clientProtocol, isModuleOn } from '@/domain/protocol';
 import { dietLog } from '@/domain/timeline';
 import { localeNumber, miles, todayISO, weekdayName } from '@/lib/dates';
@@ -60,6 +61,8 @@ import { PantallaComer as ComerEnTelefono } from './movil/PantallaComer';
  * entrenador tenga que ver ni que la aplicación tenga que recordar. Es mirar la
  * otra mitad del menú.
  */
+const mayuscula = (t) => `${t.charAt(0).toUpperCase()}${t.slice(1)}`;
+
 export const ClientDietRoute = () => {
   /* El catálogo también: es quien sabe de familias (fruta, carne…) y alimenta
      las equivalencias. Lo puede leer cualquier usuario (0046), y los grupos de
@@ -70,8 +73,12 @@ export const ClientDietRoute = () => {
   const oculto = useOculto();
   /* Qué opción se está mirando de cada comida, por id. Local: ver arriba. */
   const [opciones, setOpciones] = useState({});
-  /* Qué dieta se mira, cuando tiene varias. Sin elegir, la de hoy. */
-  const [diaElegido, setDiaElegido] = useState(null);
+  /* Qué se mira, cuando tiene varias dietas: `{ dayId, fecha }`. Sin elegir,
+     hoy. La fecha va aparte porque la dieta no dice el día: un ciclo repite la
+     misma dieta varios días, y un refeed cae en SUS fechas, no en su dieta. En
+     el monitor se eligen dietas, no días: ahí `fecha` es nula. */
+  const [elegido, setElegido] = useState(null);
+  const diaElegido = elegido?.dayId ?? null;
   /* Las revisiones traen la otra mitad del histórico de su pauta: la foto que
      queda escrita al cerrar cada una. Mismo gancho que usa «Progreso». */
   const { rows: reviews } = useReviewRows(activeClient?.id, { conEnlaces: false });
@@ -116,9 +123,9 @@ export const ClientDietRoute = () => {
   const diaVisible = diaElegido ? dayById(plan, diaElegido) : deHoy ? dayById(plan, deHoy.id) : dias[0];
 
   const nombreDelDia = weekdayName(hoyISO);
-  const fechado = `${nombreDelDia.charAt(0).toUpperCase()}${nombreDelDia.slice(1)} ${Number(hoyISO.slice(8, 10))}`;
+  const fechado = `${mayuscula(nombreDelDia)} ${Number(hoyISO.slice(8, 10))}`;
 
-  const comidasCrudas = diaVisible ? mealsForVariant(plan, diaVisible.id) : [];
+  const comidasDeLaDieta = diaVisible ? mealsForVariant(plan, diaVisible.id) : [];
   /*
     LO PAUTADO DE ESE DÍA, con los nombres de la casa traducidos una vez.
 
@@ -145,10 +152,33 @@ export const ClientDietRoute = () => {
     Su entrenador le sube (o le iguala) las kcal unos días concretos, y la
     dieta que abría ese día decía las de siempre. Mirando HOY, las cifras del
     día son las del refeed —las de su escalón, si es escalonado— y encima va
-    la indicación que le dejó. El menú no cambia: el refeed se pauta en
-    cifras, no en comidas. Otro día de la cinta es otro día: el suyo de siempre.
+    la indicación que le dejó. Va con sus fechas: otro día de la cinta, aunque abra la misma
+    dieta que hoy, es el suyo de siempre; uno que cae dentro del refeed lo
+    enseña con su nombre («Sábado, refeed»).
+
+    EL MENÚ ES EL SUYO O NINGUNO (26 sep): el de la dieta base es de otras
+    cifras, así que durante una variación no se enseña. Si su entrenador le
+    montó menú a ese día (0144), ese; si no, las cifras y la indicación.
   */
-  const especial = !diaElegido || diaElegido === deHoy?.id ? pautaEspecialDelDia(hechos, hoyISO) : null;
+  const fechaVista = elegido ? elegido.fecha : hoyISO;
+  const especial = pautaEspecialDelDia(hechos, fechaVista);
+  const comidasCrudas = especial ? especial.menu || [] : comidasDeLaDieta;
+  /* LA VÍSPERA: el día antes de una variación, una línea para organizarse
+     («Mañana: refeed · día 1 de 3»). Solo mirando hoy, y sin kcal si las
+     tiene ocultas. */
+  const deManana = fechaVista === hoyISO ? variacionDeManana(hechos, hoyISO) : null;
+  const manana = deManana
+    ? {
+        kind: deManana.kind,
+        texto: [
+          deManana.nombre.toLowerCase(),
+          deManana.dias > 1 ? `día 1 de ${deManana.dias}` : null,
+          !oculto.nutrition && deManana.kcals ? `${miles(deManana.kcals)} kcal` : null,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+      }
+    : null;
   const conCifrasEspeciales = Boolean(especial) && (especial.kcals || 0) > 0;
   const cifrasDelDia = conCifrasEspeciales
     ? { kcals: especial.kcals, protein: especial.protein, carbs: especial.carbs, fats: especial.fats, sinMacros: !especial.macros }
@@ -156,7 +186,7 @@ export const ClientDietRoute = () => {
   const diaEspecial = especial
     ? {
         kind: especial.kind,
-        titulo: `Hoy, ${especial.nombre.toLowerCase()}`,
+        titulo: `${fechaVista === hoyISO ? 'Hoy' : mayuscula(weekdayName(fechaVista))}, ${especial.nombre.toLowerCase()}`,
         cuando: especial.dias > 1 ? `día ${especial.dia} de ${especial.dias}` : null,
         cifras:
           sinCifras || !conCifrasEspeciales
@@ -297,7 +327,8 @@ export const ClientDietRoute = () => {
     especial: diaEspecial,
     dias,
     diaVisible,
-    onDia: setDiaElegido,
+    /* Volver a la dieta de hoy es volver a hoy. */
+    onDia: (id) => setElegido(id === deHoy?.id ? null : { dayId: id, fecha: null }),
     /*
       ══ POR MACROS NO ES UNA DIETA VACÍA (19 sep) ════════════════════════════
 
@@ -312,8 +343,14 @@ export const ClientDietRoute = () => {
       Con algo pautado: `emptyNutrition()` también nace por macros, y un plan
       sin una cifra sí es el vacío de «cuando te la monten».
     */
+    /* El menú de una variación son comidas con alimentos, no filas del
+       reparto: se lee como un menú cerrado. */
     porMacros:
-      Boolean(plan) && plan.type !== 'closed' && ((objetivos?.kcals || 0) > 0 || comidasCrudas.length > 0),
+      !especial?.menu &&
+      Boolean(plan) &&
+      plan.type !== 'closed' &&
+      ((objetivos?.kcals || 0) > 0 || comidasCrudas.length > 0),
+    manana,
     /* Las comidas EN CRUDO: `MealCard` trabaja sobre la comida del plan, con
        sus opciones y sus alimentos, no sobre una copia aplanada. */
     comidas: comidasCrudas,
@@ -345,8 +382,9 @@ export const ClientDietRoute = () => {
             catalogo: null,
           },
     notas: notas.map((n) => ({ id: n.id, titulo: n.title, cuerpo: n.body })),
-    vacia:
-      dias.length > 1
+    vacia: especial
+      ? 'Estos días van sin menú: guíate por las cifras y la indicación.'
+      : dias.length > 1
         ? `Tus dietas: ${reparto.map((d) => `${d.name} · ${d.dias} días`).join(' · ')}`
         : 'Cuando te la monten, aparecerá aquí.',
   };
@@ -374,7 +412,7 @@ export const ClientDietRoute = () => {
         sigla: dayId ? siglas[dayId] || '·' : '·',
         letra: d.corto,
         esHoy: d.esHoy,
-        onElegir: dayId ? () => setDiaElegido(dayId) : null,
+        onElegir: dayId ? () => setElegido({ dayId, fecha: d.fecha }) : null,
       };
     }),
     /*
@@ -415,6 +453,7 @@ export const ClientDietRoute = () => {
     /* Sin su línea de cifras: las kcal ya van en la cabecera y las macros en
        los arcos, con las del refeed. Escritas en la caja salían dos veces. */
     especial: diaEspecial ? { ...diaEspecial, cifras: null } : null,
+    manana,
     comidas,
     /* Lo que necesita la fila para calcular sus alternativas al desplegarse:
        el catálogo y los grupos de su entrenador, vacíos si no le toca verlas. */

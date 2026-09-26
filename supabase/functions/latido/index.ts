@@ -51,6 +51,28 @@ Deno.serve(async (request) => {
     { auth: { persistSession: false } }
   );
 
+  /*
+    Las dietas programadas que ya tocan (0146), antes que lo demás y aparte:
+    si esto falla, el latido sigue —la aplicación las vuelve a intentar al
+    abrir al cliente— y se dice en el registro con su código.
+  */
+  const dietas = await supabase.rpc('aplicar_dietas_programadas', { p_client: null });
+  if (dietas.error) console.error('latido: dietas programadas', dietas.error.code || '', dietas.error.message);
+  else console.log('latido', 'dietas programadas', dietas.data ?? 0);
+
+  /*
+    `?dietas`: el toque de cada hora (ver `worker.mjs`). Solo las programadas:
+    la base decide con el día de CADA cliente en su zona (`dia_del_cliente`),
+    así que a cada uno le entra la suya en la primera hora de su día. Lo demás
+    del latido es de la mañana y no se repite.
+  */
+  if (new URL(request.url).searchParams.has('dietas')) {
+    return new Response(JSON.stringify({ ok: !dietas.error, dietas: dietas.error ? null : dietas.data ?? 0 }), {
+      status: dietas.error ? 500 : 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+    });
+  }
+
   const { data, error } = await supabase.rpc('correr_el_latido');
 
   if (error) {
@@ -70,7 +92,7 @@ Deno.serve(async (request) => {
      cuando reparte algo no se distinguiría de un cron que dejó de correr. */
   console.log('latido', 'repartidas', data ?? 0);
 
-  return new Response(JSON.stringify({ ok: true, repartidas: data ?? 0 }), {
+  return new Response(JSON.stringify({ ok: true, repartidas: data ?? 0, dietas: dietas.error ? null : dietas.data ?? 0 }), {
     status: 200,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });

@@ -134,6 +134,16 @@ describe('refeeds y diet breaks', () => {
     expect(pautaEspecialDelDia(eventos, '2026-09-28')).toBeNull();
   });
 
+  it('va con sus fechas y no con la dieta: otro día de la misma dieta es el de siempre', () => {
+    const refeed = { kind: 'refeed', date: '2026-09-24', hasta: '2026-09-26', kcal: 2600 };
+    /* El 24 y el 29 abren la misma dieta (alta); solo el 24 es refeed. */
+    expect(dieta.week.Jueves).toBe(dieta.week.Martes);
+    expect(pautaEspecialDelDia([refeed], '2026-09-24')).toMatchObject({ dia: 1, kcals: 2600 });
+    expect(pautaEspecialDelDia([refeed], '2026-09-29')).toBeNull();
+    /* Una dieta elegida sin día (el monitor) tampoco lo es. */
+    expect(pautaEspecialDelDia([refeed], null)).toBeNull();
+  });
+
   it('los g/kg con el peso real', () => {
     expect(gPorKg(180, 80)).toBeCloseTo(2.25, 5);
     expect(gPorKg(180, null)).toBeNull();

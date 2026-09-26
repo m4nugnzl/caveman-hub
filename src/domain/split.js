@@ -105,11 +105,14 @@ const CORTOS = {
 };
 
 /**
- * El ritmo de un rotativo, como lo escribió el entrenador. Es `cadenaDe` salvo
- * en un caso: «2-1» con tres hojas genera P P · L · (`generarSecuencia` con
- * una tanda cierra la última aunque quede corta), que `cadenaDe` lee
+ * El ritmo de un rotativo, si se escribe con UNA tanda: «2-1». Es `cadenaDe`
+ * salvo en un caso: «2-1» con tres hojas genera P P · L · (`generarSecuencia`
+ * con una tanda cierra la última aunque quede corta), que `cadenaDe` lee
  * «2-1 1-1». Para el nombre es «2-1»: todas las tandas iguales menos la
  * última, más corta y con el mismo descanso, es una tanda repetida.
+ *
+ * Una cadena de tandas distintas («2-1 2-1 3-1») no es un ritmo que se diga
+ * en un nombre: `null`, y el nombre cuenta los días (25 sep 2026).
  */
 const ritmoDe = (dias) => {
   const tandas = tandasDe(dias);
@@ -120,7 +123,26 @@ const ritmoDe = (dias) => {
     tandas.slice(0, -1).every((t) => t.entreno === primera.entreno && t.descanso === primera.descanso) &&
     ultima.entreno < primera.entreno &&
     ultima.descanso === primera.descanso;
-  return repetida ? `${primera.entreno}-${primera.descanso}` : cadenaDe(dias);
+  if (repetida) return `${primera.entreno}-${primera.descanso}`;
+  const cadena = cadenaDe(dias);
+  return cadena && !cadena.includes(' ') ? cadena : null;
+};
+
+/**
+ * Los tipos, con los de UN día aparte cuando los demás se repiten: en «Torso,
+ * Pierna, Torso, Pierna, Full» el split es Torso / Pierna y el Full es un día
+ * más, «Torso / Pierna + Full body». Solo si lo que se repite son dos tipos o
+ * más: con Pierna sola repitiéndose (PPL + Torso / Pierna) no hay split que
+ * nombrar aparte, y se nombran todos juntos.
+ *
+ * @returns `{ principal, extra }`: el nombre de lo que se repite y el de lo
+ *   de un día (o `null`).
+ */
+const nombrarTipos = (tipos, veces) => {
+  const principales = tipos.filter((t) => (veces.get(t) || 0) >= 2);
+  const sueltos = tipos.filter((t) => (veces.get(t) || 0) < 2);
+  if (principales.length < 2 || sueltos.length === 0) return { principal: nombreDeTipos(tipos), extra: null };
+  return { principal: nombreDeTipos(principales), extra: nombreDeTipos(sueltos) };
 };
 
 /**
@@ -139,22 +161,36 @@ const deducir = (bloque, hojas, microciclo) => {
   for (const h of lista) if (!orden.includes(h.dayName)) orden.push(h.dayName);
 
   const tipos = [];
+  const tipoDe = new Map();
   for (const nombre of orden) {
     const tipo = tipoDeHoja(lista.find((h) => h.dayName === nombre) || { dayName: nombre });
+    tipoDe.set(nombre, tipo);
     if (tipo && !tipos.includes(tipo)) tipos.push(tipo);
   }
+  /* Cuántos días de la vuelta es cada tipo. */
+  const veces = new Map();
+  for (const d of mc?.dias || []) {
+    const t = !d.descanso && d.hoja ? tipoDe.get(d.hoja) : null;
+    if (t) veces.set(t, (veces.get(t) || 0) + 1);
+  }
 
-  const dias = `${entrenos} ${entrenos === 1 ? 'día' : 'días'}`;
   const ritmo = mc?.tipo === 'rotativo' ? ritmoDe(mc.dias) : null;
-  return { tipos: tipos.length > 0 ? nombreDeTipos(tipos) : null, dias, ritmo, entrenos };
+  /* Un rotativo sin ritmo de una tanda cuenta sus días en la vuelta. */
+  const vuelta = mc?.tipo === 'rotativo' && !ritmo ? mc.dias.length : null;
+  const dias = vuelta ? `${entrenos} de cada ${vuelta} días` : `${entrenos} ${entrenos === 1 ? 'día' : 'días'}`;
+  const diasCortos = vuelta ? `${entrenos}/${vuelta}d` : `${entrenos}d`;
+  return { tipos: tipos.length > 0 ? nombrarTipos(tipos, veces) : null, dias, diasCortos, ritmo, entrenos };
 };
 
 /**
  * EL NOMBRE DEL SPLIT de un bloque.
  *
  *   · Semanal:  «Torso / Pierna · 4 días».
- *   · Rotativo: «Push Pull Legs 2-1», «Torso / Pierna 3-1», con su cadena
- *     (`ritmoDe`; los asimétricos, deletreados).
+ *   · Rotativo: «Push Pull Legs 2-1», «Torso / Pierna 3-1», con su tanda
+ *     (`ritmoDe`); una cadena de tandas distintas cuenta sus días:
+ *     «Push Pull Legs · 7 de cada 10 días».
+ *   · Un tipo de un solo día, cuando los demás se repiten, va detrás:
+ *     «Torso / Pierna + Full body · 5 días» (`nombrarTipos`).
  *   · Sin tipos que deducir (sin hojas o sin series): solo «4 días».
  *   · Con nombre del entrenador (`bloque.split`): el suyo, sin más.
  *
@@ -171,7 +207,8 @@ export const nombreDelSplit = (bloque, hojas = [], microciclo = null) => {
   const { tipos, dias, ritmo, entrenos } = deducir(bloque, hojas, microciclo);
   if (entrenos === 0) return null;
   if (!tipos) return dias;
-  return ritmo ? `${tipos} ${ritmo}` : `${tipos} · ${dias}`;
+  const nombre = tipos.extra ? `${tipos.principal} + ${tipos.extra}` : tipos.principal;
+  return ritmo ? `${nombre} ${ritmo}` : `${nombre} · ${dias}`;
 };
 
 /**
@@ -181,10 +218,10 @@ export const nombreDelSplit = (bloque, hojas = [], microciclo = null) => {
 export const nombreCortoDelSplit = (bloque, hojas = [], microciclo = null) => {
   const propio = String(bloque?.split ?? '').trim();
   if (propio) return propio;
-  const { tipos, ritmo, entrenos } = deducir(bloque, hojas, microciclo);
+  const { tipos, diasCortos, ritmo, entrenos } = deducir(bloque, hojas, microciclo);
   if (entrenos === 0) return null;
-  const dias = `${entrenos}d`;
-  if (!tipos) return dias;
-  const corto = CORTOS[tipos] || tipos;
-  return ritmo ? `${corto} ${ritmo}` : `${corto} · ${dias}`;
+  if (!tipos) return diasCortos;
+  /* Lo de un día no cabe en la forma corta: solo lo que se repite. */
+  const corto = CORTOS[tipos.principal] || tipos.principal;
+  return ritmo ? `${corto} ${ritmo}` : `${corto} · ${diasCortos}`;
 };

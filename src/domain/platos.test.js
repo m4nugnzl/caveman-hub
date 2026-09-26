@@ -123,6 +123,37 @@ describe('platoFoods', () => {
     // La unidad se conserva: «1 plátano», no 120 g.
     expect(a[1].showAs).toBe('units');
   });
+
+  /*
+    El caso que lo destapó: el entrenador pone 40 g de aguacate —un alimento que
+    SÍ tiene unidad— y el cliente veía «0,3 ud». El plato guardaba «gramos», y al
+    aplicarlo `buildFoodEntry` volvía a decidir por su cuenta.
+  */
+  it('conserva la medida que eligió el entrenador aunque el alimento tenga unidad', () => {
+    const aguacate = {
+      name: 'Aguacate',
+      grams: 40,
+      proteinPer100: 2,
+      carbsPer100: 9,
+      fatsPer100: 15,
+      unitLabel: 'ud',
+      unitGrams: 150,
+      showAs: 'grams',
+    };
+    const [entrada] = platoFoods(buildPlato({ name: 'Tostada', foods: [aguacate] }));
+    expect(entrada.showAs).toBe('grams');
+    expect(entrada.grams).toBe(40);
+  });
+});
+
+describe('guardar como plato una entrada antigua', () => {
+  /* Las entradas de antes del interruptor no tienen `showAs` y se VEN en
+     unidades (`displayAsUnits`). Guardarlas como plato no les cambia la lente. */
+  it('sin showAs y con unidad, el plato la guarda en unidades', () => {
+    const { showAs: _sin, ...antigua } = desayuno[1];
+    const plato = buildPlato({ name: 'Viejo', foods: [antigua] });
+    expect(plato.foods[0].showAs).toBe('units');
+  });
 });
 
 describe('freePlatoName', () => {

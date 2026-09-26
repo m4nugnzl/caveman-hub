@@ -7,7 +7,7 @@ import { MealCard } from '@/components/nutrition/MealCard';
 import { PlanDia } from '@/components/nutrition/PlanDia';
 import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
 import { LecturasDeLaDieta } from '@/components/nutrition/LecturasDeLaDieta';
-import { DiaEspecial } from './DiaEspecial';
+import { DiaDeManana, DiaEspecial } from './DiaEspecial';
 
 /**
  * «DIETA» EN EL MONITOR — la mesa y el costado del taller, sin sus verbos.
@@ -92,6 +92,7 @@ export const DietaEnMonitor = ({ datos }) => {
     menuSinCifras,
     porMacros,
     especial = null,
+    manana = null,
   } = datos;
   const [diaAbierto, setDiaAbierto] = useState(false);
 
@@ -114,6 +115,8 @@ export const DietaEnMonitor = ({ datos }) => {
               {dias.length > 1 ? <TarjetasDeDia dias={dias} activo={diaVisible?.id} onDia={onDia} /> : null}
 
               <div className="dieta-cuerpo">
+                {/* Mañana empieza un refeed o un diet break: una línea para organizarse. */}
+                {manana ? <DiaDeManana manana={manana} /> : null}
                 {/* Un refeed o un diet break hoy: sus cifras y la indicación, encima de todo. */}
                 {especial ? <DiaEspecial especial={especial} /> : null}
                 {porMacros ? (
@@ -232,8 +235,11 @@ export const DietaEnMonitor = ({ datos }) => {
                 tituloObjetivo={diaVisible?.name || null}
                 /* Por macros y sin reparto el objetivo ya está en la mesa, en
                    grande: repetirlo aquí sería la segunda lista de los mismos
-                   cuatro números. Misma regla que el taller. */
-                conElDia={!(porMacros && comidas.length === 0)}
+                   cuatro números. Misma regla que el taller.
+                   Y un día de refeed o diet break tampoco: sus cifras las dice
+                   su caja de arriba, y medir su menú contra el objetivo de la
+                   dieta base sería medirlo con otra vara. */
+                conElDia={!especial && !(porMacros && comidas.length === 0)}
                 catalogo={lecturas.catalogo}
                 /* LO PAUTADO Y NADA MÁS. Ver `ObjetivoDelDia`: aquí salía
                    «Proteína 111/120 g · −9 g» en rojo, que es el descuadre

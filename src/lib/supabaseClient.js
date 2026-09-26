@@ -80,6 +80,33 @@ const conZonaHoraria = (url, init) => {
   return { ...init, headers };
 };
 
+/*
+  ══ Las peticiones que se cortan al irse ═══════════════════════════════════
+
+  Al recargar o salir, el navegador corta lo que estaba en vuelo y cada corte
+  llega aquí como «Failed to fetch». No es un fallo de red: es la página
+  yéndose. Tampoco lo es un `AbortError`, que es alguien cancelando a propósito.
+  Se siguen apuntando en memoria, pero marcados `cortada`, y el registro del
+  servidor (`lib/analytics`) no los guarda. `beforeunload` se puede cancelar
+  (un aviso de «tienes cambios»), así que su marca caduca sola; `pagehide` ya
+  no tiene vuelta atrás salvo la caché de páginas, que avisa con `pageshow`.
+*/
+let saliendo = false;
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    saliendo = true;
+    setTimeout(() => {
+      saliendo = false;
+    }, 3000);
+  });
+  window.addEventListener('pagehide', () => {
+    saliendo = true;
+  });
+  window.addEventListener('pageshow', () => {
+    saliendo = false;
+  });
+}
+
 const fetchConRegistro = async (input, init) => {
   const url = typeof input === 'string' ? input : input?.url || '';
   const metodo = init?.method || 'GET';
@@ -105,7 +132,9 @@ const fetchConRegistro = async (input, init) => {
       petición que no ha llegado.
     */
     apuntarSilencio();
-    recordIssue('red', `${metodo} ${rutaLimpia(url)} — sin respuesta: ${e?.message || e}`);
+    recordIssue('red', `${metodo} ${rutaLimpia(url)} — sin respuesta: ${e?.message || e}`, {
+      cortada: e?.name === 'AbortError' || saliendo,
+    });
     throw e;
   }
 

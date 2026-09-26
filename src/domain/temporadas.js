@@ -1,12 +1,19 @@
 import {
+  blockPlannedVolume,
   blocksOf,
+  blockSummary,
   blockTraits,
   carpetaDelBloque,
   intentColor,
+  microcicloDelBloque,
+  splitDelBloque,
   tramoDelBloque,
   weeksOfBlock,
 } from './blocks';
 import { borradoresDe, diasDelBorrador } from './borradores';
+import { cambioMedio, indiceMedio, rendimientoDelBloque } from './rendimiento';
+import { nombreDelSplit } from './split';
+import { dayPlannedVolume, entrenosDe, MRV_GOALS, normalizaMicrociclo, WEEK_DAYS } from './training';
 import { addDays, daysBetween, todayISO } from '@/lib/dates';
 
 /**
@@ -179,15 +186,117 @@ export const tirasDeLasTemporadas = (temporadas = []) => {
 
 /**
  * La cascada de una funda abierta: de lo más antiguo (arriba) a lo más nuevo
- * (abajo), con UNO entero. Por defecto el último; si `entero` no está en la
- * funda, también.
+ * (abajo), con UNO elegido —el que enseña el detalle—. Por defecto el bloque
+ * de ahora si está en la funda y, si no, el último; lo mismo si el pedido no
+ * es de esta funda.
  *
- * @returns los pases con `entero: boolean`.
+ * @returns los pases con `elegido: boolean`.
  */
-export const cascadaDeLaTemporada = (temporada, entero = null) => {
+export const cascadaDeLaTemporada = (temporada, elegido = null) => {
   const pases = temporada?.pases || [];
-  const elegido = pases.some((p) => p.id === entero) ? entero : pases.at(-1)?.id;
-  return pases.map((p) => ({ ...p, entero: p.id === elegido }));
+  const id = pases.some((p) => p.id === elegido)
+    ? elegido
+    : (pases.find((p) => p.abierto) || pases.at(-1))?.id;
+  return pases.map((p) => ({ ...p, elegido: p.id === id }));
+};
+
+/* ══ LAS CIFRAS DE UN PASE ══════════════════════════════════════════════════
+   Todo sale de ESE bloque: sus microciclos, su plan y su microciclo guardado
+   (o su reparto congelado, si es un cerrado sin él). Nada se lee de la
+   plantilla de hoy: un bloque de adaptación de tres días dice tres días
+   aunque ahora se entrenen cinco. */
+
+const INICIAL = { Miércoles: 'X' };
+const inicialDe = (dia) => INICIAL[dia] || dia[0];
+
+/**
+ * La semana del split, casilla a casilla. Semanal: de lunes a domingo. Una
+ * vuelta rotativa no cae en días de la semana: sus casillas se numeran.
+ */
+const semanaDelSplit = (microciclo) => {
+  const dias = microciclo?.dias || [];
+  const semanal = microciclo?.tipo !== 'rotativo' && dias.length === 7;
+  return dias.map((d, i) => ({
+    rotulo: semanal ? inicialDe(WEEK_DAYS[i]) : String(i + 1),
+    dia: semanal ? WEEK_DAYS[i] : `Día ${i + 1}`,
+    hoja: d.descanso ? null : d.hoja || null,
+  }));
+};
+
+/** Las series por semana de cada grupo, de más a menos, con su MEV y su MRV. */
+const gruposConReferencias = (porGrupo) =>
+  Object.entries(porGrupo)
+    .map(([nombre, series]) => ({
+      nombre,
+      series: Math.round(series * 10) / 10,
+      mev: MRV_GOALS[nombre]?.mev ?? null,
+      mrv: MRV_GOALS[nombre]?.mrv ?? null,
+    }))
+    .filter((g) => g.series > 0)
+    .sort((a, b) => b.series - a.series);
+
+/**
+ * Lo que se cuenta de un pase, en la cascada y en su detalle.
+ *
+ * Un previsto no ha pasado: sus series son las de sus hojas (una vez cada una
+ * por microciclo, como las del plan de un bloque) y no tiene ni pautado ni
+ * rendimiento.
+ *
+ * @returns `{ split, dias, semana, series, adherencia, curva, pct, sube,
+ *   baja, grupos }`:
+ *   · `split` el nombre con sus días («Torso / Pierna · 4 días»);
+ *   · `semana` `[{ rotulo, dia, hoja }]`, `hoja` nula en los descansos;
+ *   · `series` la media por semana, redondeada; `adherencia` el % pautado;
+ *   · `curva` `[{ semana, indice }]` el índice medio por microciclo (`null`
+ *     donde no hay dato) y `pct` su cambio medio;
+ *   · `sube` y `baja` `{ nombre, cambio }` el ejercicio que más y el que menos
+ *     cambia (`baja` solo si hay dos o más medidos);
+ *   · `grupos` `[{ nombre, series, mev, mrv }]` por semana.
+ */
+export const cifrasDelPase = (pase, program, cliente = null) => {
+  const b = pase.bloque;
+  if (pase.tipo === 'borrador') {
+    const hojas = b.sessions || [];
+    const microciclo = normalizaMicrociclo(b.microciclo);
+    const porGrupo = {};
+    for (const h of hojas)
+      for (const [grupo, n] of Object.entries(dayPlannedVolume(h))) porGrupo[grupo] = (porGrupo[grupo] || 0) + n;
+    const series = Object.values(porGrupo).reduce((n, v) => n + v, 0);
+    const entrenos = entrenosDe(microciclo);
+    return {
+      split: nombreDelSplit(b, hojas, microciclo),
+      dias: entrenos > 0 ? entrenos : null,
+      semana: semanaDelSplit(microciclo),
+      series: hojas.length ? Math.round(series) : null,
+      adherencia: null,
+      curva: [],
+      pct: null,
+      sube: null,
+      baja: null,
+      grupos: gruposConReferencias(porGrupo),
+    };
+  }
+
+  const resumen = blockSummary(program, b, cliente);
+  const sp = splitDelBloque(program, b, cliente);
+  const split = sp?.texto ? (sp.dias && !sp.texto.includes(sp.dias) ? `${sp.texto} · ${sp.dias}` : sp.texto) : null;
+  const microciclo = microcicloDelBloque(program, b, cliente);
+  const { ejercicios } = rendimientoDelBloque(program, b);
+  const medidos = ejercicios.filter((e) => e.cambio).sort((x, y) => y.cambio.indice - x.cambio.indice);
+  const porMusculo = blockPlannedVolume(program, b).porMusculo;
+  const entrenos = entrenosDe(microciclo);
+  return {
+    split,
+    dias: entrenos > 0 ? entrenos : null,
+    semana: semanaDelSplit(microciclo),
+    series: resumen.series === null ? null : Math.round(resumen.series),
+    adherencia: resumen.adherencia,
+    curva: medidos.length ? indiceMedio(medidos.map((e) => e.linea)).map(({ semana, indice }) => ({ semana, indice })) : [],
+    pct: cambioMedio(medidos),
+    sube: medidos.length ? { nombre: medidos[0].nombre, cambio: medidos[0].cambio } : null,
+    baja: medidos.length > 1 ? { nombre: medidos.at(-1).nombre, cambio: medidos.at(-1).cambio } : null,
+    grupos: gruposConReferencias(Object.fromEntries(Object.entries(porMusculo).map(([m, v]) => [m, v.media || 0]))),
+  };
 };
 
 /** Los cantos que asoman por detrás de una funda: sus tres últimos pases, el más nuevo delante. */

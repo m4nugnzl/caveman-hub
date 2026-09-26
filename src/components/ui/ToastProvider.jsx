@@ -33,9 +33,19 @@ const ToastContext = createContext(null);
  *   resultado del primero en pantalla.
  * · Pulsar la acción cierra el aviso; si el inverso falla, el error lo enseña
  *   la pantalla que lo lanzó (la acción devuelve su resultado).
+ *
+ * ── Varias acciones, y una que pide una línea (26 sep 2026) ─────────────────
+ * `actions: [...]` en vez de `action`, cuando el gesto tiene dos caminos
+ * («Deshacer · Añadir motivo» tras arrastrar una fase). Una acción con
+ * `pide: { etiqueta, placeholder, onGuardar(texto) }` no cierra el aviso: lo
+ * convierte en un campo de una línea, con el reloj parado mientras se escribe.
+ * `onGuardar` devuelve `{ ok, error }`; si falla, el error sale en el aviso y
+ * lo escrito se queda. Sin ventana extra: el aviso es el formulario.
  */
 export const ToastProvider = ({ children }) => {
   const [toast, setToast] = useState(null);
+  /* La acción que pide una línea, mientras se escribe: `{ accion, valor, error, guardando }`. */
+  const [campo, setCampo] = useState(null);
   const timerRef = useRef(null);
   const restanteRef = useRef(0);
   const desdeRef = useRef(0);
@@ -48,6 +58,7 @@ export const ToastProvider = ({ children }) => {
   const dismiss = useCallback(() => {
     clear();
     setToast(null);
+    setCampo(null);
   }, [clear]);
 
   const arm = useCallback(
@@ -61,8 +72,9 @@ export const ToastProvider = ({ children }) => {
   );
 
   const show = useCallback(
-    ({ text, action = null, duration = 6000 }) => {
-      setToast({ text, action, duration });
+    ({ text, action = null, actions = null, duration = 6000 }) => {
+      setToast({ text, actions: actions || (action ? [action] : []), duration });
+      setCampo(null);
       arm(duration);
     },
     [arm]
@@ -78,7 +90,7 @@ export const ToastProvider = ({ children }) => {
     restanteRef.current -= Date.now() - desdeRef.current;
   };
   const resume = () => {
-    if (!toast || timerRef.current) return;
+    if (!toast || timerRef.current || campo) return;
     arm(Math.max(1200, restanteRef.current));
   };
 
@@ -107,18 +119,61 @@ export const ToastProvider = ({ children }) => {
           onFocus={pause}
           onBlur={resume}
         >
-          <span className="toast-text">{visto.text}</span>
-          {visto.action && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={async () => {
-                dismiss();
-                await visto.action.onClick();
+          {campo ? (
+            <form
+              className="toast-campo"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!campo.valor.trim() || campo.guardando) return;
+                setCampo((c) => ({ ...c, guardando: true, error: '' }));
+                const r = (await campo.accion.pide.onGuardar(campo.valor.trim())) || { ok: true };
+                if (r.ok) dismiss();
+                else setCampo((c) => (c ? { ...c, guardando: false, error: r.error || 'No se ha podido guardar.' } : c));
               }}
             >
-              {visto.action.label}
-            </button>
+              <span className="toast-text">{campo.accion.pide.etiqueta}</span>
+              <input
+                className="input input-sm"
+                autoFocus
+                maxLength={280}
+                aria-label={campo.accion.pide.etiqueta}
+                placeholder={campo.accion.pide.placeholder}
+                value={campo.valor}
+                onChange={(e) => setCampo((c) => ({ ...c, valor: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    dismiss();
+                  }
+                }}
+              />
+              <button type="submit" className="btn btn-primary btn-sm" disabled={!campo.valor.trim() || campo.guardando}>
+                Guardar
+              </button>
+              {campo.error && <span className="toast-error">{campo.error}</span>}
+            </form>
+          ) : (
+            <>
+              <span className="toast-text">{visto.text}</span>
+              {(visto.actions || []).map((a) => (
+                <button
+                  key={a.label}
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={async () => {
+                    if (a.pide) {
+                      clear();
+                      setCampo({ accion: a, valor: '', error: '', guardando: false });
+                      return;
+                    }
+                    dismiss();
+                    await a.onClick();
+                  }}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </>
           )}
           <button type="button" className="toast-x" aria-label="Cerrar el aviso" onClick={dismiss}>
             <X size={15} />

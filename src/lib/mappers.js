@@ -245,7 +245,30 @@ export const mapEventFromDb = (row) => ({
         grasa: d?.g === null || d?.g === undefined ? null : Number(d.g),
       }))
     : null,
+  /* Las variaciones de la dieta (0144). `menus`: un elemento por día, la lista
+     de comidas de ese día o `null` (sin menú ese día: el cliente ve las cifras
+     y la indicación). `parteDe`: el tipo de día del que se copiaron las cifras,
+     congelado al crearla (`domain/variaciones.js`). Sin la migración, `null`. */
+  menus: Array.isArray(row.menu) ? row.menu.map((m) => (Array.isArray(m) && m.length ? m : null)) : null,
+  parteDe:
+    row.parte_de && typeof row.parte_de === 'object'
+      ? {
+          diaId: row.parte_de.dia_id ?? null,
+          nombre: row.parte_de.nombre ?? null,
+          kcal: row.parte_de.kcal ?? null,
+          proteina: row.parte_de.p ?? null,
+          carbohidratos: row.parte_de.c ?? null,
+          grasa: row.parte_de.g ?? null,
+        }
+      : null,
+  createdAt: row.created_at ?? null,
 });
+
+/** `parteDe` a su forma en la base (0144). */
+export const parteDeToDb = (p) =>
+  p?.diaId
+    ? { dia_id: p.diaId, nombre: p.nombre ?? null, kcal: p.kcal ?? null, p: p.proteina ?? null, c: p.carbohidratos ?? null, g: p.grasa ?? null }
+    : null;
 
 // ── La capa del entrenador sobre una intervención (migración 0143) ─────────
 // Solo del equipo: el motivo, la valoración y las ventanas movidas a mano. De
@@ -624,6 +647,36 @@ export const mapNutritionToDb = (clientId, data) => {
     ...(dias ? { days: dias, week: data.week || {} } : {}),
     updated_at: new Date().toISOString(),
   };
+};
+
+// ── Dietas programadas (0146) ──────────────────────────────────────────────
+// La dieta de la fila es la de `nutrition_plans` con sus columnas, así que se
+// lee y se escribe con los MISMOS traductores que la dieta de ahora: no hay
+// una segunda forma de dieta que mantener.
+
+export const mapProgramadaFromDb = (row) => ({
+  id: row.id,
+  clientId: row.client_id,
+  empieza: row.empieza,
+  motivo: row.motivo ?? null,
+  estado: row.estado,
+  aplicadaEl: row.aplicada_el ?? null,
+  porQueNo: row.por_que_no ?? null,
+  retoqueDel: row.retoque_del ?? null,
+  createdAt: row.created_at ?? null,
+  plan: mapNutritionFromDb({ ...(row.dieta || {}), client_id: row.client_id }),
+});
+
+/**
+ * La dieta de una programada, para su columna `dieta`. Sin `client_id` ni
+ * `updated_at`, que son de la fila de verdad; con `days` y `week` siempre,
+ * porque la programada es la dieta ENTERA: lo que no traiga, al aplicarse se
+ * quedaría como estaba.
+ */
+export const mapDietaProgramadaToDb = (clientId, plan) => {
+  // eslint-disable-next-line no-unused-vars
+  const { client_id, updated_at, ...fila } = mapNutritionToDb(clientId, plan);
+  return { ...fila, days: fila.days ?? null, week: fila.week ?? {} };
 };
 
 // ── Bibliotecas del coach ──────────────────────────────────────────────────

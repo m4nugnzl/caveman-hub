@@ -10,6 +10,7 @@ import {
   LayoutTemplate,
   LifeBuoy,
   Plug,
+  Route,
   Salad,
   Home,
   Shapes,
@@ -43,8 +44,9 @@ import { isServiceOn } from '@/domain/protocol';
  * Ahora hay tres planos, y dos de ellos nunca coinciden:
  *
  *   1. **Primario** (siempre visible): Cartera · Clientes · Ajustes. Tres.
- *   2. **Del cliente** (solo dentro de `/c/:id/…`): sus cinco pestañas planas
- *      —Resumen · Entreno · Dieta · Revisiones · Perfil—. Ver `COACH_CLIENT`.
+ *   2. **Del cliente** (solo dentro de `/c/:id/…`): sus pestañas planas
+ *      —Resumen · Temporada · Entreno · Dieta · Revisiones · Protocolo—, y el
+ *      perfil desde su nombre. Ver `COACH_CLIENT`.
  *   3. **De ajustes** (solo dentro de `/ajustes/…`): equipo, integraciones y lo
  *      que venga.
  *
@@ -357,6 +359,18 @@ export const COACH_CLIENT = [
     Un nombre por concepto, el mismo en los dos portales.
   */
   { path: 'resumen', label: 'Resumen', icon: Gauge },
+  /*
+    ── «Temporada»: el roadmap con pestaña propia (26 sep 2026) ────────────────
+    La línea de tiempo vivió dos días en Revisiones, detrás de un conmutador
+    «Tiras / Línea de tiempo». Son dos preguntas: Revisiones cierra semanas
+    («¿qué le digo?»); la temporada lee el proceso entero («¿a dónde va y cómo
+    va?»). Va detrás del Resumen, que la resume en su tarjeta, y delante de lo
+    que se ajusta.
+
+    En la barra del pulgar cede su sitio (`enMasEnElMovil`): allí caben cuatro,
+    y Dieta y Revisiones son las que se tocan a diario. Va la primera de «Más».
+  */
+  { path: 'temporada', label: 'Temporada', icon: Route, enMasEnElMovil: true },
   { path: 'rutina', label: 'Entreno', icon: Layers, service: 'training' },
   { path: 'nutricion', label: 'Dieta', icon: Salad, service: 'nutrition' },
   {
@@ -792,6 +806,22 @@ export const clientPath = (clientId, section = 'resumen') => `/c/${clientId}/${s
 
 /** Una semana de Revisiones, por su lunes; sin lunes, la portada con todas. */
 export const semanaPath = (clientId, lunes = null) => clientPath(clientId, lunes ? `semana/${lunes}` : 'semana');
+
+/**
+ * La temporada del cliente; con un lunes, esa semana en foco (en el
+ * inspector y con la vista acercada a ella). Con `{ desde, hasta }`, ese
+ * tramo a la vista.
+ */
+export const temporadaPath = (clientId, { semana = null, desde = null, hasta = null } = {}) => {
+  const q = new URLSearchParams();
+  if (semana) q.set('semana', semana);
+  if (desde && hasta) {
+    q.set('desde', desde);
+    q.set('hasta', hasta);
+  }
+  const s = q.toString();
+  return `${clientPath(clientId, 'temporada')}${s ? `?${s}` : ''}`;
+};
 
 /**
  * Las secciones que existen para ESTE cliente.

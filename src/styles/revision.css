@@ -3415,6 +3415,9 @@ transition: background-color var(--fast), color var(--fast);
 .dieta-tira > .tira-fila > .btn,
 .dieta-tira > .tira-fila > .menu-acciones,
 .dieta-tira > .tira-fila > .save-indicator { flex-shrink: 0; }
+/* Salvo el error, que es una frase: en el teléfono se salía de la pantalla.
+   Ocupa su propio renglón y parte donde haga falta. */
+.dieta-tira > .tira-fila > .save-indicator.is-error { flex: 1 1 100%; min-width: 0; overflow-wrap: anywhere; }
 
 /* ── LAS CASILLAS DEL CICLO, EN LA MISMA FILA (17 sep · frame 64:114) ──────
    Fueron una SEGUNDA FILA de la cinta: un rótulo «LE TOCA» y, a su derecha,
@@ -3786,6 +3789,28 @@ transition: background-color var(--fast), color var(--fast);
 @media (max-width: 639.98px) {
   .comida .food-row,
   .comida .food-head { grid-template-columns: repeat(4, minmax(0, 1fr)) 26px; }
+}
+/* ══ Y EN EL TELÉFONO EL ALIMENTO VA EN SU RENGLÓN (27 sep) ═════════════════
+   Con cuatro columnas iguales, la cantidad cabía en un cuarto de fila: a 390
+   px la casilla de 74 px no entraba en sus 66 y se leía «1‹ g», en el editor
+   de la Dieta y en la ventana de una variación. La cantidad y su unidad no se
+   cortan nunca, así que no pueden vivir en una columna que decide el ancho de
+   la pantalla: el nombre sube a su propio renglón y debajo van la cantidad (a
+   su medida), los tres macros, las kcal y la acción. La lectura del cliente
+   tiene su rejilla aparte (`piezas.css`) y no entra aquí. */
+@media (max-width: 639.98px) {
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) {
+    /* Pistas fijas y no `max-content`: el nombre cruza las seis columnas y
+       una pista intrínseca se quedaba con su ancho entero, dejando a los
+       macros en cero. 84 px son la casilla de 74 más su holgura. */
+    grid-template-columns: 5.25rem repeat(3, minmax(0, 1fr)) 3rem 26px;
+    column-gap: var(--s1);
+  }
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) > .name { grid-area: 1 / 1 / 2 / -1; }
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) > .grams { grid-area: 2 / 1 / 3 / 2; }
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) > .kcal { grid-area: 2 / 5 / 3 / 6; justify-self: end; }
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) > .del { grid-area: 2 / 6 / 3 / 7; }
+  .comida:not(.is-lectura) .food-row:not(.is-suma):not(.sin-cifras) > .touch-reorder { grid-area: 3 / 1 / 4 / -1; }
 }
 
 /* ══ LA PRESCRIPCIÓN DEL DÍA (nodo 62:482) ═══════════════════════════════

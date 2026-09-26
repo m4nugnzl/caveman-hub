@@ -6,7 +6,7 @@ import { byMuscle } from '@/domain/equipment';
 import { pieceSummary } from '@/domain/pieces';
 import { fieldText } from '@/domain/profile';
 import { strengthByExercise } from '@/domain/reading';
-import { localeNumber } from '@/lib/dates';
+import { variacionDelCambio } from '@/domain/rendimiento';
 import { Thumb } from '@/components/photos/Thumb';
 
 /**
@@ -25,9 +25,11 @@ import { Thumb } from '@/components/photos/Thumb';
  *
  * ══ Y sigue siendo ESTE cliente, que es nuestra ventaja ════════════════════
  * Su catálogo no es un almacén de 1.772 ejercicios de nadie: es la biblioteca
- * del entrenador más el catálogo, y cada fila trae lo que ESTA persona ha
- * levantado —«último 92,5 kg ↑»— porque es lo que decide si el ejercicio entra
- * o no. No propone nada: pone el material delante.
+ * del entrenador más el catálogo, y cada fila trae cómo le va a ESTA persona
+ * en ese ejercicio —«+6 %» desde su primer registro, la misma cuenta que la
+ * ventana de Progresión (`variacionDelCambio`)— porque es lo que decide si el
+ * ejercicio entra o no. Nunca un máximo teórico en kilos (26 sep 2026). No
+ * propone nada: pone el material delante.
  *
  * ══ Tres pestañas, un trabajo cada una ═════════════════════════════════════
  * · Ejercicios — buscar y meter.
@@ -133,8 +135,11 @@ export const BibliotecaDelCliente = ({
                       </span>
                       {/* Lo que ESTA persona levanta: el dato que decide. */}
                       {suyo && (
-                        <span className={`biblioteca-suyo${suyo.dir === 'up' ? ' is-sube' : ''}`}>
-                          {localeNumber(suyo.e1rm, 1)} kg{suyo.dir === 'up' ? ' ↑' : suyo.dir === 'down' ? ' ↓' : ''}
+                        <span
+                          className={`biblioteca-suyo${suyo.dir === 'up' ? ' is-sube' : ''}`}
+                          title={`Desde su primer registro: ${suyo.desde} → ${suyo.hasta}`}
+                        >
+                          {variacionDelCambio(suyo)}
                         </span>
                       )}
                     </span>

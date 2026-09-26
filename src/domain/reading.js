@@ -206,12 +206,12 @@ export const weighInAdherence = (history, date, target = 0) => {
  * el primero, con ±1 % de umbral. Los microciclos que se le pasen marcan desde
  * dónde se mide: el programa entero, o solo los del bloque.
  *
- * ── Los campos de siempre, y los nuevos ─────────────────────────────────────
- * `dir` sigue siendo 'up' | 'flat' | 'down' y `e1rm`/`delta` siguen existiendo
- * porque hay pantallas que los pintan; ahora son el rendimiento del último
- * punto y su diferencia con el primero (con RIR 0 coinciden con el 1RM
- * estimado de Epley). `pct`, `desde` y `hasta` son la lectura buena, para
- * cuando esas pantallas cambien.
+ * ── Los campos ──────────────────────────────────────────────────────────────
+ * `dir` sigue siendo 'up' | 'flat' | 'down'. `pct` e `indice` son el cambio
+ * del último punto contra el primero (el índice, con el primero = 100: para
+ * escribirlo, `variacionDelCambio`), y `desde`/`hasta` sus dos series. Ya
+ * no hay kilos: el 26 sep 2026 se quitaron `e1rm`, `first` y `delta`, que
+ * eran el máximo teórico de Epley en kilos y lo pintaba la biblioteca.
  *
  * ── En orden alfabético, no por cambio ──────────────────────────────────────
  * Ordenar es de quien pinta: la lectura los cita en el orden en que aparecen y
@@ -227,16 +227,12 @@ export const strengthByExercise = (microcycles, minPoints = 3) =>
       if (conDato.length < minPoints) return null;
 
       const cambio = cambioEnElBloque(linea);
-      const first = conDato[0].valor;
-      const last = conDato[conDato.length - 1].valor;
 
       return {
         name,
         weeks: conDato.length,
-        first,
-        e1rm: last,
-        delta: round(last - first, 1),
         pct: cambio.pct,
+        indice: cambio.indice,
         desde: cambio.desde,
         hasta: cambio.hasta,
         dir: DIR_EN_INGLES[cambio.dir],

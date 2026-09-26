@@ -281,6 +281,61 @@ export const overlapping = (phases, candidate, ignoreId = null) => {
 };
 
 /**
+ * Los campos de una fase que se guardan: lo que hace falta para devolverla
+ * tal cual al deshacer un «Borrar» (con sus caminos y su pregunta) o para
+ * comparar el antes y el después de un cambio. Lo comparten el creador del
+ * plan y la Temporada.
+ */
+export const camposDeFase = (f) => ({
+  title: f.title,
+  direction: f.direction,
+  ratePct: f.ratePct,
+  startsOn: f.startsOn,
+  endsOn: f.endsOn,
+  note: f.note || '',
+  nextOptions: f.nextOptions || null,
+  nextQuestion: f.nextQuestion || '',
+  replanteos: f.replanteos || null,
+});
+
+/**
+ * La nota de una versión del plan con un motivo más. Varias ediciones seguidas
+ * son una sola versión (0140), así que sus «¿Por qué?» se juntan con « · »;
+ * el mismo motivo dos veces no se repite.
+ */
+export const juntarMotivos = (nota, motivo) => {
+  const nuevo = String(motivo || '').trim();
+  const previos = String(nota || '')
+    .split(' · ')
+    .map((m) => m.trim())
+    .filter(Boolean);
+  if (!nuevo || previos.includes(nuevo)) return previos.join(' · ');
+  return [...previos, nuevo].join(' · ');
+};
+
+/**
+ * Lo contrario: la nota sin un motivo, al deshacer el paso que lo trajo. Se
+ * quita la última vez que aparece, entero aunque lleve « · » dentro; si no
+ * está, la nota se queda como estaba.
+ */
+export const quitarMotivo = (nota, motivo) => {
+  const trozos = (t) =>
+    String(t || '')
+      .split(' · ')
+      .map((m) => m.trim())
+      .filter(Boolean);
+  const partes = trozos(nota);
+  const quitar = trozos(motivo);
+  if (quitar.length === 0) return partes.join(' · ');
+  for (let i = partes.length - quitar.length; i >= 0; i--) {
+    if (quitar.every((q, k) => partes[i + k] === q)) {
+      return [...partes.slice(0, i), ...partes.slice(i + quitar.length)].join(' · ');
+    }
+  }
+  return partes.join(' · ');
+};
+
+/**
  * Comprueba un tramo antes de mandarlo, con el motivo en castellano.
  *
  * Devuelve `null` cuando está bien. Los tres motivos que se pueden dar son los

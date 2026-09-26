@@ -560,9 +560,17 @@ export const mergePlanWithSession = (day, session) => {
 
   return (day.exercises || []).map((exercise) => {
     const entry = entryFor(session, exercise.id);
+    /* Una sesión hecha guarda la foto de lo que pedía cuando se hizo
+       (`sellarPautasIn` en `domain/blocks`). Con foto, manda la foto —su número
+       de series y sus objetivos—: cambiar la pauta después no reescribe lo que
+       se le pidió a esa persona. El remate sigue saliendo del plan. */
+    const foto = session?.pauta?.[exercise.id];
+    const plan = Array.isArray(foto)
+      ? foto.map((f, i) => ({ ...(exercise.sets?.[i]?.tecnica ? { tecnica: exercise.sets[i].tecnica } : {}), ...f }))
+      : exercise.sets || [];
     return {
       ...exercise,
-      sets: (exercise.sets || []).map((planSet, index) => {
+      sets: plan.map((planSet, index) => {
         const logged = entry?.sets?.[index];
         return {
           targetKg: planSet?.targetKg ?? '',

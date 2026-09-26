@@ -92,6 +92,9 @@ const TABLES = [
      no hay forma de volver a generarlas: son el día en que se cambió cada cifra,
      y ese día no queda en ningún otro sitio. */
   'nutrition_plan_versions',
+  /* Las dietas que empiezan otro día (0146): la preparada que aún no ha
+     entrado, y las que entraron o no pudieron entrar con su porqué. */
+  'nutrition_plan_programadas',
   'progress_photos',
   'check_ins',
   'client_events',
@@ -100,6 +103,10 @@ const TABLES = [
      workout_data, que es de donde cuelga. */
   'client_interventions',
   'client_phases',
+  /* Las versiones del plan (0140): la foto de las fases y el destino cada vez
+     que cambiaron. Como las de la dieta, solo las escriben los disparadores y
+     no se pueden regenerar: el plan ORIGINAL de cada cliente vive solo aquí. */
+  'client_plan_versions',
   /*
     Lo que le has mandado a alguien y lo que ha contestado (0105, antes
     `client_forms`). Entra tarde y por un descuido: la tabla se creó con la
@@ -154,6 +161,23 @@ const TABLES = [
   */
   'coach_automations',
   'automation_runs',
+  /*
+    Cuatro que entraron con sus migraciones y no aquí, y que la prueba de
+    cobertura señaló:
+
+    · `session_plans` y `session_delays` (0138): las fechas de las sesiones
+      que el cliente atrasó, y cada atraso. Sin ellas, el calendario vuelve al
+      patrón del bloque como si nunca hubiera atrasado nada, y el entrenador
+      pierde el aviso.
+    · `exercise_settings` (0139): el asiento, el agarre y la nota del cliente
+      en cada ejercicio. Los apuntó él y no están en ningún otro sitio.
+    · `coach_templates` (0112): el cajón del entrenador, sus bloques, hojas y
+      platos guardados para reutilizar. Horas de trabajo suyo.
+  */
+  'session_plans',
+  'session_delays',
+  'exercise_settings',
+  'coach_templates',
   'exercises',
   'foods',
   'teams',

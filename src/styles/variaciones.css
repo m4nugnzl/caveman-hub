@@ -1,0 +1,133 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   LAS VARIACIONES DE LA DIETA (26 sep 2026)
+   ──────────────────────────────────────────────────────────────────────────
+   Refeeds y diet breaks: la caja del costado de la Dieta y la ventana que los
+   crea y los cambia (`VariacionesDeLaDieta`, `VentanaDeVariacion`). Cada uno
+   lleva la tinta de su tipo de evento (`kindMeta`) en un punto, nunca en un
+   fondo: el color dice QUÉ es, no si está bien.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── La caja del costado ─────────────────────────────────────────────────── */
+.var-lado-mas { display: inline-flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
+.var-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.var-lista.is-pasadas .var-fila { color: var(--text-secondary); }
+.var-fila {
+  width: calc(100% + 2 * var(--s2)); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline;
+  column-gap: var(--s2); padding: var(--s2); margin: 0 calc(-1 * var(--s2));
+  border: 0; border-radius: var(--r-md); background: transparent; color: var(--text);
+  font: inherit; font-size: var(--fs-sm); text-align: left; cursor: pointer;
+  transition: background-color var(--fast);
+}
+.var-fila:hover { background: var(--fill-subtle); }
+.var-fila:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.var-fila-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--tinta); transform: translateY(-1px); }
+.var-fila-que { min-width: 0; }
+.var-fila-sub,
+.var-fila-aviso { display: block; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.var-fila-aviso { color: var(--text-secondary); margin-top: 2px; }
+.var-fila-kcal { font-size: var(--fs-xs); color: var(--text-secondary); white-space: nowrap; }
+.var-nada { margin: 0; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.var-pasadas { align-self: flex-start; font-size: var(--fs-xs); }
+
+/* ── La ventana ──────────────────────────────────────────────────────────── */
+.var-ventana,
+.var-form { display: grid; gap: var(--s5); min-width: 0; }
+.var-seccion { border: 0; margin: 0; padding: 0; display: grid; gap: var(--s3); min-width: 0; }
+.var-seccion > legend { padding: 0; margin-bottom: var(--s3); }
+.var-cifra-k { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 500; }
+
+.var-fechas { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s3); }
+.var-fecha { display: grid; gap: var(--s1); }
+.var-fecha .input { width: 11.5rem; max-width: 100%; }
+/* «¿Por qué?» (Temporada, letra d): una frase, a lo ancho de la ventana. */
+.var-fecha.is-porque .input { width: 100%; }
+.var-fechas-dice { margin: 0 0 var(--s2); font-size: var(--fs-sm); color: var(--text-secondary); }
+.var-choque { margin: 0; font-size: var(--fs-sm); color: var(--negative); }
+.var-chip-k { font-weight: 500; opacity: 0.75; }
+
+.var-mandos { display: flex; flex-wrap: wrap; gap: var(--s3); }
+
+.var-cifras { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-end; }
+.var-cifra { display: grid; gap: var(--s1); margin: 0; }
+.var-cifra-caja { position: relative; display: block; }
+.var-cifra-caja .input { width: 6.5rem; padding-right: 2.6rem; }
+.var-cifra-u {
+  position: absolute; right: var(--s3); top: 50%; transform: translateY(-50%);
+  font-size: var(--fs-xs); color: var(--text-tertiary); pointer-events: none;
+}
+.var-cifra.is-cuenta b { display: block; min-height: var(--h-control); line-height: var(--h-control); font-size: var(--fs-md); }
+
+/* «Por día»: una tabla de casillas, el día en la primera columna. */
+.var-tabla { display: grid; gap: var(--s1); }
+.var-tabla-fila {
+  display: grid; grid-template-columns: 4.5rem repeat(3, minmax(0, 5.5rem)) minmax(0, 5rem);
+  gap: var(--s2); align-items: center;
+}
+.var-tabla.is-kcal .var-tabla-fila { grid-template-columns: 4.5rem minmax(0, 7rem); }
+.var-tabla-fila.is-cab { font-size: var(--fs-xs); color: var(--text-tertiary); font-weight: 500; }
+.var-tabla-dia { font-size: var(--fs-sm); color: var(--text-secondary); }
+.var-tabla-kcal { font-size: var(--fs-sm); text-align: right; padding-right: var(--s2); }
+.var-tabla-fila.is-cab > :last-child { text-align: right; padding-right: var(--s2); }
+.var-tabla.is-kcal .var-tabla-fila.is-cab > :last-child { text-align: left; padding: 0; }
+.var-tabla .input { min-width: 0; width: 100%; }
+.var-escalonar { justify-self: start; font-size: var(--fs-sm); }
+
+/* El menú: el de la dieta, en pequeño. */
+.var-sin-menu { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); }
+.var-menu { display: grid; gap: var(--s3); min-width: 0; }
+.var-menu-comidas { display: grid; gap: var(--s3); min-width: 0; }
+.var-menu-sin { font-weight: 500; opacity: 0.7; }
+.var-menu-pie { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.var-check { display: inline-flex; align-items: center; gap: var(--s2); font-size: var(--fs-sm); cursor: pointer; }
+.var-check input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* La indicación y el motivo, plegados. */
+.var-pliegue { border-top: 1px solid var(--hairline); padding-top: var(--s3); }
+.var-pliegue + .var-pliegue { margin-top: calc(-1 * var(--s3)); }
+.var-pliegue-cab {
+  display: flex; align-items: baseline; gap: var(--s2); width: 100%; padding: 0; border: 0; background: transparent;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--text); text-align: left; cursor: pointer;
+}
+.var-pliegue-flecha { flex-shrink: 0; color: var(--text-tertiary); transition: transform var(--fast); transform: translateY(2px); }
+.var-pliegue.is-abierto .var-pliegue-flecha { transform: translateY(2px) rotate(90deg); }
+.var-pliegue-pista {
+  min-width: 0; flex: 1; font-weight: 400; color: var(--text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.var-pliegue-cuerpo { margin-top: var(--s2); }
+
+.var-pie { display: flex; align-items: center; gap: var(--s2); width: 100%; }
+
+@media (max-width: 639.98px) {
+  .var-fecha { flex: 1 1 9rem; }
+  .var-fecha .input { width: 100%; }
+  .var-tabla-fila { grid-template-columns: 3.6rem repeat(3, minmax(0, 1fr)) 3.4rem; gap: var(--s1); }
+  .var-cifra-caja .input { width: 5.6rem; }
+  .var-pie .grow { display: none; }
+  .var-pie .btn { flex: 1 1 auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .var-pliegue-flecha,
+  .var-fila { transition: none; }
+}
+
+/* ── En el portal: «Mañana: refeed · día 1 de 3» ────────────────────────── */
+.dia-manana { display: flex; align-items: center; gap: var(--s2); margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.dia-manana-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--tinta); flex-shrink: 0; }
+.dia-manana b { color: var(--text); font-weight: 600; }
+
+/* ── En la Temporada: «+ refeed · + diet break» y «Editar pauta» ─────────── */
+.tl-ins-variacion { display: inline-flex; align-items: center; gap: var(--s3); flex-shrink: 0; }
+/* En el pie de la hoja del teléfono no caben en la fila de las flechas y
+   «Abrir revisión»: van en su propio renglón, encima. */
+.tl-ins-pie-hoja:has(.tl-ins-variacion) { flex-wrap: wrap; row-gap: var(--s2); }
+.tl-ins-pie-hoja .tl-ins-variacion { order: -1; flex-basis: 100%; }
+.tl-imp-editar { justify-self: start; align-self: flex-start; font-size: var(--fs-sm); }
+.var-menu-pie .tl-ins-enlace { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+/* Una cifra suelta en la ventana (el ritmo de una fase, el peso objetivo):
+   la caja a su medida, con la unidad dentro y no en el canto del formulario. */
+.var-form > .var-cifra { justify-self: start; }
+.var-form > .var-cifra .var-cifra-caja { display: inline-block; }
+.var-cifra-caja.is-ancha .input { width: 8rem; padding-right: 3.8rem; }

@@ -27,7 +27,7 @@ import { Tarjeta } from './Tarjeta';
  *
  * Se va sola en cuanto hay algo que resumir. Ver `sinHistoria` en `Dashboard`.
  */
-export const TarjetaArranque = ({ client, phases, plan, ciclo, program, conEntreno, conDieta, onPlan }) => {
+export const TarjetaArranque = ({ client, phases, plan, ciclo, program, conEntreno, conDieta }) => {
   const { equipment, checkIns } = useApp();
   const { busy: invitando, send: invitar, result: invite } = useInvite();
 
@@ -53,8 +53,8 @@ export const TarjetaArranque = ({ client, phases, plan, ciclo, program, conEntre
     <Tarjeta rotulo="Para empezar" span={12} className="resumen-arranque">
       <ul className="palancas">
         <li>
-          {/* Las fases se marcan en la ventana del plan. */}
-          <button type="button" className="palanca is-puerta" aria-haspopup="dialog" onClick={onPlan}>
+          {/* Las fases se marcan en la Temporada. */}
+          <Link className="palanca is-puerta" to={clientPath(client.id, 'temporada')}>
             <span className="palanca-k">Fases</span>
             <span className="palanca-v is-texto">{primera ? primera.title : invita('Define sus fases')}</span>
             {primera && (
@@ -63,7 +63,7 @@ export const TarjetaArranque = ({ client, phases, plan, ciclo, program, conEntre
                 {ultima?.endsOn ? ` · hasta el ${shortDate(ultima.endsOn)}` : ''}
               </span>
             )}
-          </button>
+          </Link>
         </li>
 
         {conEntreno && (

@@ -526,7 +526,31 @@ describe('AppProvider', () => {
     // Y 330 con LAS INTERVENCIONES (0143): el dato `notasDeIntervencion` (el
     // motivo, la valoración y las ventanas de cada una) y `guardarIntervencion`.
     // Ver `domain/intervenciones`.
-    expect(Object.keys(visto.app).length).toBe(330);
+    //
+    // Y 332 con LAS VARIACIONES DE LA DIETA (0144): `editarHecho` (cambiar un
+    // refeed o un diet break entero) y `devolverHecho` (el «Deshacer» de
+    // quitarlo, con su id y su motivo). Ver `domain/variaciones`.
+    //
+    // Y 333 con EL MOTIVO DE UN CAMBIO DEL PLAN: `anotarCambioDelPlan`, el
+    // «¿Por qué?» de la Temporada escrito como nota de la versión (0140).
+    //
+    // Y 334 con `quitarMotivoDelPlan`: deshacer el paso quita su motivo.
+    //
+    // Y sigue en 334 con `dietaDe` (los verbos de la dieta de un cliente ya
+    // atados, la puerta del editor de dieta) porque `editFood` se fue con él a
+    // `useEditorDeDieta`.
+    //
+    // Y 340 con LA DIETA PROGRAMADA (0146): la lista `programadas` del cliente
+    // abierto y sus cinco verbos (`programarDieta`, `cambiarProgramada`,
+    // `quitarProgramada`, `dietaProgramadaDe` y `cargarProgramadas`).
+    //
+    // Y 344 con LA PAUTA DE CADA MICROCICLO: `ponerPautaDelMicrociclo`,
+    // `volverPautaAlAnterior`, `pautaSoloEn` y `restaurarPauta`. Ver
+    // `domain/pautas`.
+    //
+    // Y 346 con LAS VERSIONES DEL PLAN (0147): `leerVersionesDelPlan` (la lista
+    // de «Versiones» de la Temporada) y `restaurarVersionDelPlan`.
+    expect(Object.keys(visto.app).length).toBe(346);
   });
 
   /*

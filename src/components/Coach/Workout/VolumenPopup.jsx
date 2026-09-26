@@ -22,6 +22,39 @@ import { Modal } from '@/components/ui/Modal';
  */
 const cuenta = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
 
+/**
+ * LA BARRA DE UN GRUPO: sus series contra su tramo útil. Naranja bajo el MEV,
+ * el color de las series en rango y violeta sobre el MRV.
+ *
+ * @param escala las series que llenan la barra. En la tabla, el MRV (o el
+ *   total, si se pasa); en el detalle de un pase, lo mismo para todas las filas
+ *   que tengan MRV, con `conMrv` para que su raya caiga siempre en la misma
+ *   vertical.
+ * @param conMrv la raya del MRV siempre, no solo al pasarse.
+ * @param pintada el color de la zona en línea. Sin él, la zona va solo en la
+ *   clase (`is-bajo`, `is-en-rango`, `is-sobre`) y la pinta quien la aloja:
+ *   dentro de un pase, en blanco sobre su tinta.
+ */
+export const BarraDeVolumen = ({ total, mev = null, mrv = null, escala, conMrv = false, clase = '', pintada = true }) => {
+  const pasado = Boolean(mrv) && total > mrv;
+  const corto = Boolean(mev) && total > 0 && total < mev;
+  const zona = pasado ? 'is-sobre' : corto ? 'is-bajo' : 'is-en-rango';
+  const en = (v) => `${Math.min(100, (v / escala) * 100)}%`;
+  return (
+    <span className={`volumen-barra ${zona}${clase ? ` ${clase}` : ''}`} aria-hidden="true">
+      <span
+        className="volumen-relleno"
+        style={{
+          width: en(total),
+          ...(pintada ? { background: pasado ? 'var(--data-violet)' : corto ? 'var(--warning)' : metricColor('sets') } : {}),
+        }}
+      />
+      {mev && mrv && <span className="volumen-mev" style={{ left: en(mev) }} title={`MEV ${mev}`} />}
+      {mrv && (pasado || conMrv) && <span className="volumen-mev is-mrv" style={{ left: en(mrv) }} title={`MRV ${mrv}`} />}
+    </span>
+  );
+};
+
 export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
   const grupos = [...new Set(hojas.flatMap((h) => Object.keys(h.volumen)))]
     .map((name) => {
@@ -121,14 +154,7 @@ export const VolumenPopup = ({ open, onClose, bloque, hojas, unidad }) => {
                   {g.total}
                   {g.mrv && <small>/{g.mrv}</small>}
                 </span>
-                <span className="volumen-barra" aria-hidden="true">
-                  <span
-                    className="volumen-relleno"
-                    style={{ width: `${Math.min(100, (g.total / escala(g)) * 100)}%`, background: g.pasado ? 'var(--data-violet)' : g.corto ? 'var(--warning)' : metricColor('sets') }}
-                  />
-                  {g.mev && g.mrv && <span className="volumen-mev" style={{ left: `${(g.mev / escala(g)) * 100}%` }} title={`MEV ${g.mev}`} />}
-                  {g.pasado && <span className="volumen-mev" style={{ left: `${(g.mrv / escala(g)) * 100}%` }} title={`MRV ${g.mrv}`} />}
-                </span>
+                <BarraDeVolumen total={g.total} mev={g.mev} mrv={g.mrv} escala={escala(g)} />
               </div>
             ))}
             <div className="volumen-fila is-suma" role="row" style={{ gridTemplateColumns: columnas }}>

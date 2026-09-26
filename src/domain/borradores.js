@@ -11,8 +11,12 @@
  * borradores es el de siempre.
  *
  * ══ La forma ════════════════════════════════════════════════════════════════
- *   { id, name, plannedWeeks, intent?, note?, sessions?, mobilityDrills?,
+ *   { id, name, plannedWeeks, intent?, note?, split?, sessions?, mobilityDrills?,
  *     microciclo?, referencias?, folder? }
+ *
+ * · `split` es el previsto, en texto («Torso / Pierna»): el mismo campo que el
+ *   nombre de split de un bloque (`blockTraits`). Se planifica desde la
+ *   Temporada antes de que haya hojas, y al empezarlo sigue siendo su nombre.
  *
  * · `folder` es su temporada, como en un bloque (ver `domain/temporadas`).
  *
@@ -34,8 +38,10 @@
  * abierto; empezar otro reordenaría el tiempo sin decirlo.
  */
 
+import { addDays } from '@/lib/dates';
 import { newId } from '@/lib/ids';
 import { blockTraits, blocksOf, carpetaDelBloque } from './blocks';
+import { nombreCortoDelSplit, nombreDelSplit } from './split';
 import { duracionDe, normalizaMicrociclo } from './training';
 
 /** Tope de un nombre de ejercicio de referencia: el de la Librería. */
@@ -61,7 +67,7 @@ export const referenciasSaneadas = (lista) => {
  */
 export const borradorSaneado = (b) => {
   if (!b || typeof b !== 'object' || typeof b.id !== 'string' || !b.id) return null;
-  const { intent, plannedWeeks, note } = blockTraits(b);
+  const { intent, plannedWeeks, note, split } = blockTraits(b);
   if (!plannedWeeks) return null;
   const microciclo = normalizaMicrociclo(b.microciclo);
   const referencias = referenciasSaneadas(b.referencias);
@@ -72,6 +78,7 @@ export const borradorSaneado = (b) => {
     plannedWeeks,
     ...(intent ? { intent } : {}),
     ...(note ? { note } : {}),
+    ...(split ? { split } : {}),
     ...(Array.isArray(b.sessions) && b.sessions.length > 0 ? { sessions: b.sessions } : {}),
     ...(Array.isArray(b.mobilityDrills) && b.mobilityDrills.length > 0 ? { mobilityDrills: b.mobilityDrills } : {}),
     ...(microciclo ? { microciclo } : {}),
@@ -184,6 +191,7 @@ export const datosParaEmpezar = (borrador) => ({
   plannedWeeks: borrador.plannedWeeks,
   intent: borrador.intent || null,
   note: borrador.note || null,
+  split: borrador.split || null,
   microciclo: borrador.microciclo || null,
   folder: carpetaDelBloque(borrador),
 });
@@ -195,3 +203,41 @@ export const datosParaEmpezar = (borrador) => ({
  */
 export const diasDelBorrador = (borrador) =>
   (blockTraits(borrador).plannedWeeks || 0) * (duracionDe(normalizaMicrociclo(borrador?.microciclo)) || 7);
+
+/**
+ * Los borradores en el calendario: el primero empieza en `desde` (el día
+ * siguiente al final previsto de lo que hay delante) y cada uno a
+ * continuación del anterior, lo que dure. No tienen fecha propia: su sitio
+ * lo dicta lo de delante (ver la cabecera).
+ *
+ * @returns `[{ borrador, desde, hasta }]`, en su orden.
+ */
+export const borradoresEnElTiempo = (program, desde) => {
+  let cursor = desde;
+  return borradoresDe(program).map((borrador) => {
+    const tramo = { borrador, desde: cursor, hasta: addDays(cursor, Math.max(1, diasDelBorrador(borrador)) - 1) };
+    cursor = addDays(tramo.hasta, 1);
+    return tramo;
+  });
+};
+
+/**
+ * El split de un borrador, con la forma de `splitDelBloque`: el previsto que
+ * escribió el entrenador o, si ya tiene hojas y microciclo, el que dicen.
+ * `null` si no hay ninguno de los dos.
+ */
+export const splitDelBorrador = (borrador) => {
+  const nombre = blockTraits(borrador).split;
+  const microciclo = normalizaMicrociclo(borrador?.microciclo);
+  const hojas = borrador?.sessions || [];
+  const texto = nombreDelSplit(borrador, hojas, microciclo);
+  if (!texto) return null;
+  return {
+    nombre,
+    datos: null,
+    dias: null,
+    texto,
+    deducido: nombre ? nombreDelSplit({ ...borrador, split: null }, hojas, microciclo) : texto,
+    corto: nombreCortoDelSplit(borrador, hojas, microciclo),
+  };
+};

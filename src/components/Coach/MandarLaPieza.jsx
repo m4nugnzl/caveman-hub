@@ -110,8 +110,10 @@ export const MandarLaPieza = ({ pieza, onClose }) => {
     y se reparte, y Luis es un destinatario tan legítimo como cualquiera. Lo que
     hay que dejar fuera es a Marta.
   */
+  /* Salvo la dieta que lleva su pauta: es «Copiar mis cambios» del choque con
+     una programada, y su sitio natural es volver a su dueño. */
   const cartera = useMemo(
-    () => (clients || []).filter((c) => c.name !== pieza.origen?.cliente),
+    () => (pieza.carga?.pauta ? clients || [] : (clients || []).filter((c) => c.name !== pieza.origen?.cliente)),
     [clients, pieza]
   );
 
@@ -299,7 +301,7 @@ export const MandarLaPieza = ({ pieza, onClose }) => {
         addDietDayWithMeals(cliente.id, { name: plan.name, meals: plan.meals });
         break;
       case 'dieta':
-        replaceDiet(cliente.id, plan.days);
+        replaceDiet(cliente.id, plan.days, plan.pauta || null);
         break;
       default:
         break;
@@ -555,8 +557,10 @@ export const MandarLaPieza = ({ pieza, onClose }) => {
               {borra ? (
                 <Notice tone="warn">
                   Esto SUSTITUYE la dieta de cada uno: sus días y sus comidas se pierden, y una dieta
-                  borrada no queda en ninguna parte. Su objetivo, sus pautas, sus pasos y su cardio se
-                  quedan.
+                  borrada no queda en ninguna parte.{' '}
+                  {pieza.carga?.pauta
+                    ? 'Entra también su pauta: objetivo, reparto, pasos y cardio.'
+                    : 'Su objetivo, sus pautas, sus pasos y su cardio se quedan.'}
                 </Notice>
               ) : pieza.tipo === TIPO.BLOQUE ? (
                 <Notice tone="info">

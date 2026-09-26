@@ -10,6 +10,7 @@ import { almacenNoGuardadas, contarFallos, crearRecolocador, esDelCliente, esRec
 import { conSeriesSinConfirmar } from '@/domain/seriesSinConfirmar';
 import { BUILD, firmaDeEscritura, hayVersionNueva, vigilarVersion } from '@/lib/version';
 import { useMirroredState } from '@/lib/useMirroredState';
+import { CLAVE_COPIADO_EN_EL_CHOQUE, copiar as copiarAlPortapapeles, piezaDeDieta } from '@/lib/portapapeles';
 import { recordIssue } from '@/lib/diagnostics';
 import { flushEvents, forgetActor, identify } from '@/lib/analytics';
 import { useConditions } from '@/context/useConditions';
@@ -32,6 +33,7 @@ import { usePlanDeSesiones } from '@/context/usePlanDeSesiones';
 import { useClients } from '@/context/useClients';
 import { useAnthropometry } from '@/context/useAnthropometry';
 import { useNutrition } from '@/context/useNutrition';
+import { programadaQueEntro, useDietasProgramadas } from '@/context/useDietasProgramadas';
 import { useLibraries } from '@/context/useLibraries';
 import { useWorkout } from '@/context/useWorkout';
 import { BUCKET, SIGNED_URL_TTL_SECONDS } from '@/context/media';
@@ -183,6 +185,10 @@ export const AppProvider = ({ children }) => {
     que el cambio es de antes de recargar.
   */
   const reaplicadosRef = useRef(new Set());
+  /* Quien guarda la dieta de una programada; se define más abajo. Ver el
+     reenvío de lo pendiente. */
+  const persistirProgramadaRef = useRef(null);
+  const cargarProgramadasRef = useRef(null);
   const contarPendientesRef = useRef(null);
 
   /*
@@ -429,6 +435,10 @@ export const AppProvider = ({ children }) => {
     [saveState, seriesNoGuardadas]
   );
 
+  /* El estado de ahora para quien espera a un guardado (`devolverBorradorDelBloque`). */
+  const saveStatusRef = useRef(saveStatus);
+  saveStatusRef.current = saveStatus;
+
   /* Volver a mandar las no guardadas. Un ref por el orden de los ganchos: quien
      sabe mandar una serie (`persistSet`) se define más abajo. */
   const reintentarNoGuardadasRef = useRef(null);
@@ -461,22 +471,27 @@ export const AppProvider = ({ children }) => {
    * Con red y un guardado rechazado la nube del título dice «Conectado. Todo lo
    * tuyo está guardado», que es mentira; esto es lo que la tapa.
    */
+  /* El guardado que chocó con una dieta programada ya lo cuenta su aviso, con
+     sus dos salidas; «Reintentar» aquí solo volvería a chocar. */
+  const claveDelChoque =
+    conflict?.motivo === 'programada' ? `${QUEUE_OF_TABLE[conflict.table]}:${conflict.clientId}` : null;
+
   const fallosAlGuardar = useMemo(
     () =>
       contarFallos([
-        ...Object.keys(saveState).filter((key) => saveState[key].status === 'error'),
+        ...Object.keys(saveState).filter((key) => saveState[key].status === 'error' && key !== claveDelChoque),
         /* Y las series rechazadas que ya no están en la cola (tras recargar). */
         ...seriesNoGuardadas.map((e) => e.key),
       ]),
-    [saveState, seriesNoGuardadas]
+    [saveState, seriesNoGuardadas, claveDelChoque]
   );
 
   const reintentarLoFallido = useCallback(() => {
     for (const [key, s] of Object.entries(saveState)) {
-      if (s.status === 'error') queue.retry(key);
+      if (s.status === 'error' && key !== claveDelChoque) queue.retry(key);
     }
     reintentarNoGuardadasRef.current?.(null);
-  }, [queue, saveState]);
+  }, [queue, saveState, claveDelChoque]);
 
   /*
     ══ Y aquí estuvo `hasUnsavedChanges` ══════════════════════════════════════
@@ -658,17 +673,29 @@ export const AppProvider = ({ children }) => {
           explicarlo y ofrecer salida. Lo que NO se hace es escribir igualmente:
           eso es exactamente el borrado silencioso que esto viene a impedir.
         */
+        /* La dieta pudo cambiar sin nadie delante: entró en vigor un cambio
+           programado (0146). Entonces el aviso lo dice con su fecha, y no
+           ofrece imponer lo tuyo. */
+        const programada = table === 'nutrition_plans' ? await programadaQueEntro(clientId, seen) : null;
+        /* Y la lista, que aún la tenía por pendiente. */
+        if (programada) cargarProgramadasRef.current?.(clientId);
         setConflict({
           table,
           clientId,
           at: current.data.updated_at,
           /* Un cambio de antes de actualizar la aplicación, no de ahora. */
-          motivo: table === 'workout_data' && reaplicadosRef.current.has(clientId) ? 'version' : null,
+          motivo: programada
+            ? 'programada'
+            : table === 'workout_data' && reaplicadosRef.current.has(clientId)
+              ? 'version'
+              : null,
+          programada,
         });
         return {
           error: {
-            message:
-              'Alguien ha cambiado estos datos mientras editabas. Tus cambios no se han guardado para no pisar los suyos.',
+            message: programada
+              ? 'Entró en vigor el cambio programado de esta dieta. Tus cambios no se han guardado para no pisarlo.'
+              : 'Alguien ha cambiado estos datos mientras editabas. Tus cambios no se han guardado para no pisar los suyos.',
           },
         };
       }
@@ -701,6 +728,22 @@ export const AppProvider = ({ children }) => {
     (mode) => {
       if (!conflict) return;
       const { table, clientId } = conflict;
+      /* «Copiar mis cambios»: lo escrito se lleva al portapapeles como dieta
+         entera, pauta incluida, y después se queda con la de ahora. Nunca pisa. */
+      if (mode === 'copiar' && table === 'nutrition_plans') {
+        const mia = nutritionRef.current[clientId];
+        const quien = clientsRef.current.find((c) => c.id === clientId);
+        const pieza = mia ? piezaDeDieta({ plan: mia, titulo: 'Tus cambios sin guardar', cliente: quien?.name || null, conPauta: true }) : null;
+        if (pieza) {
+          copiarAlPortapapeles(pieza);
+          try {
+            sessionStorage.setItem(CLAVE_COPIADO_EN_EL_CHOQUE, '1');
+          } catch {
+            /* Sin almacenamiento de la pestaña no hay aviso al volver; la pieza sí está guardada. */
+          }
+        }
+        mode = 'reload';
+      }
       if (mode === 'reload') {
         /*
           «Quedarme con lo suyo» es tirar lo mío, y lo mío sigue en la nota del
@@ -717,7 +760,7 @@ export const AppProvider = ({ children }) => {
       setConflict(null);
       queue.retry(`${QUEUE_OF_TABLE[table]}:${clientId}`);
     },
-    [conflict, queue]
+    [conflict, queue, clientsRef, nutritionRef]
   );
 
   /*
@@ -1069,6 +1112,8 @@ export const AppProvider = ({ children }) => {
         persistExerciseNote(key, partes[1], payload);
       } else if (partes[0] === 'continue' && partes[1]) {
         persistContinue(key, partes[1], payload);
+      } else if (partes[0] === 'programada' && partes[1]) {
+        persistirProgramadaRef.current?.(partes[1], payload, { immediate: true });
       } else if (DOMINIOS.includes(partes[0]) && partes[1]) {
         persist(partes[0], partes[1], payload, { immediate: true });
       }
@@ -2235,7 +2280,10 @@ export const AppProvider = ({ children }) => {
     hechos,
     dietVersions,
     notasDeIntervencion,
+    releerLaPautaFechada,
     guardarIntervencion,
+    soltarCapaDelBloque,
+    devolverCapaDelBloque,
     igualar,
     quitarReplanteo,
     addPhase,
@@ -2247,8 +2295,14 @@ export const AppProvider = ({ children }) => {
     removeAnchor,
     shiftFuturePhases,
     estirarFase,
+    anotarCambioDelPlan,
+    quitarMotivoDelPlan,
+    leerVersionesDelPlan,
+    restaurarVersionDelPlan,
     anadirHecho,
+    editarHecho,
     quitarHecho,
+    devolverHecho,
   } = useRoadmap({
     session,
     activeClientId,
@@ -2564,6 +2618,44 @@ export const AppProvider = ({ children }) => {
   );
 
   /*
+    ══ LAS DIETAS PROGRAMADAS (0146) ══════════════════════════════════════════
+
+    Al abrir un cliente se aplican las que ya tocan. Si entró alguna, la dieta
+    en memoria es de antes: se relee entera —con su versión, para que el
+    siguiente guardado vaya con guardia— y con ella la pauta fechada. Ver
+    `useDietasProgramadas`.
+  */
+  const releerLaDieta = useCallback(
+    async (clientId) => {
+      const { data, error } = await supabase.from('nutrition_plans').select('*').eq('client_id', clientId).maybeSingle();
+      if (error || !data) return;
+      rememberVersion('nutrition_plans', clientId, data.updated_at);
+      setNutrition({ ...nutritionRef.current, [clientId]: mapNutritionFromDb(data) });
+    },
+    [nutritionRef, rememberVersion, setNutrition]
+  );
+  const {
+    programadas,
+    cargarProgramadas,
+    programarDieta,
+    cambiarProgramada,
+    quitarProgramada,
+    dietaProgramadaDe,
+    persistirProgramada,
+  } = useDietasProgramadas({
+    session,
+    activeClientId,
+    ensureNutrition,
+    queue,
+    alAplicarse: (clientId) => {
+      releerLaDieta(clientId);
+      releerLaPautaFechada(clientId);
+    },
+  });
+  persistirProgramadaRef.current = persistirProgramada;
+  cargarProgramadasRef.current = cargarProgramadas;
+
+  /*
     El programa del cliente que se está mirando.
 
     Es la otra mitad de la carga perezosa: el arranque trae el resumen de todos y
@@ -2635,8 +2727,8 @@ export const AppProvider = ({ children }) => {
     cambiarFechaDeSesion,
     anadirBorradorDelBloque,
     cambiarBorradorDelBloque,
-    quitarBorradorDelBloque,
-    devolverBorradorDelBloque,
+    quitarBorradorDelBloque: quitarBorradorDelPrograma,
+    devolverBorradorDelBloque: devolverBorradorAlPrograma,
     empezarBorradorDelBloque,
     startProgram,
     appendMicrocycle,
@@ -2666,6 +2758,10 @@ export const AppProvider = ({ children }) => {
     setBlockExerciseSets,
     setBlockExerciseTarget,
     setBlockExerciseScheme,
+    ponerPautaDelMicrociclo,
+    volverPautaAlAnterior,
+    pautaSoloEn,
+    restaurarPauta,
     setBlockExerciseGrammar,
     updatePlanExercise,
     updatePlanExercises,
@@ -2703,11 +2799,26 @@ export const AppProvider = ({ children }) => {
     profileRole,
   });
 
+  /* Un bloque previsto se quita con su motivo y vuelve con él: el «Deshacer»
+     lleva la capa (0143), que la base borra en cascada con el borrador. */
+  const quitarBorradorDelBloque = (clientId, id) => {
+    const fuera = quitarBorradorDelPrograma(clientId, id);
+    return fuera?.quitado ? { ...fuera, capa: soltarCapaDelBloque(clientId, id) } : fuera;
+  };
+  const devolverBorradorDelBloque = async (clientId, borrador, posicion, capa = null) => {
+    devolverBorradorAlPrograma(clientId, borrador, posicion);
+    if (!capa) return { ok: true };
+    /* La base valida que el bloque exista: primero que llegue el programa. */
+    const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+    await espera(300);
+    for (let i = 0; i < 40 && ['saving', 'pending'].includes(saveStatusRef.current('workout', clientId).status); i += 1) await espera(200);
+    return devolverCapaDelBloque(capa);
+  };
+
   // ── Nutrición ────────────────────────────────────────────────────────────
 
   /* En su gancho (useNutrition.js), con la frontera de useClients.js: recibe
-     persist y el estado espejado del bloque. patchFood se destructura porque
-     editFood —el puente con la biblioteca— lo necesita aquí abajo. */
+     persist y el estado espejado del bloque. */
   const {
     updateNutrition,
     updateNutritionTargets,
@@ -2745,12 +2856,12 @@ export const AppProvider = ({ children }) => {
     addFoodsToOption,
     removeFoodFromOption,
     restoreFoodInOption,
-    patchFood,
     updateFoodGrams,
     swapFood,
     setFoodEquivalences,
     setFoodDisplay,
     setFoodFixed,
+    dietaDe,
   } = useNutrition({ nutritionRef, setNutrition, persist });
 
   // ── Antropometría ────────────────────────────────────────────────────────
@@ -2770,53 +2881,9 @@ export const AppProvider = ({ children }) => {
 
   // ── Bibliotecas del coach ────────────────────────────────────────────────
   //
-  // Viven en useLibraries.js. Aquí queda solo editFood, el puente que escribe a
-  // la vez en la dieta abierta (patchFood) y en la biblioteca.
-
-  /**
-   * Corrige un alimento —sus macros por 100 g y su unidad— desde la dieta.
-   *
-   * ── Escribe en DOS sitios, y es deliberado ──────────────────────────────────
-   *   1. **La entrada abierta**, para que el cambio se vea al instante. Y no es
-   *      solo por la espera: una entrada de dieta es una FOTO del alimento (ver
-   *      `buildFoodEntry`) y NO se recalcula sola cuando cambia la biblioteca,
-   *      así que sin esto corregir un macro no movería ni una kcal de la comida
-   *      que se está mirando.
-   *   2. **La biblioteca**, para que la próxima vez que se añada ese alimento a
-   *      cualquier dieta venga ya corregido.
-   *
-   * Sin (2) habría que repetir la corrección en cada dieta, que es justo el
-   * trabajo manual que esto viene a quitar. Sin (1) el entrenador corregiría y
-   * no pasaría nada visible, que parece que no ha funcionado.
-   *
-   * Antes era `defineFoodUnit` y solo sabía de unidades. Los macros no tenían
-   * NINGÚN camino de vuelta: se tecleaban una vez, al dar de alta el alimento, y
-   * quedaban congelados en la biblioteca del equipo — un «135» donde iban
-   * «13,5» multiplicaba por diez las kcal de esa comida para siempre.
-   *
-   * ── `showAs` solo se toca cuando cambia lo que representa ───────────────────
-   * Al DEFINIR una unidad que no había, se pasa a contar en unidades, que es lo
-   * que se acaba de pedir; al quitarla, a gramos por narices. Corregir un macro
-   * de un alimento que ya tenía unidad no le cambia la lente al entrenador: esa
-   * es su elección por alimento y por dieta (ver `setFoodDisplay`).
-   *
-   * Va DESPUÉS de `upsertLibraryFood` en el archivo a propósito: las dependencias
-   * de un `useCallback` se evalúan al renderizar, así que declararlo antes daría
-   * «Cannot access before initialization» al montar la aplicación.
-   */
-  const editFood = useCallback(
-    async (clientId, variant, mealIdx, optIdx, food, cambios) => {
-      patchFood(clientId, variant, mealIdx, optIdx, food.id, (actual) => ({
-        ...cambios,
-        showAs: !cambios.unitGrams ? 'grams' : actual.unitGrams ? actual.showAs : 'units',
-      }));
-
-      // La biblioteca se actualiza por nombre (`upsertByName`), así que el nombre
-      // lo pone la entrada y lo demás son los campos ya corregidos.
-      return upsertLibraryFood({ name: food.name, ...cambios });
-    },
-    [patchFood, upsertLibraryFood]
-  );
+  // Viven en useLibraries.js. El lápiz de un alimento (`editFood`), que escribe
+  // a la vez en la dieta abierta y en la biblioteca, vive en la puerta del
+  // editor de dieta (`useEditorDeDieta`).
 
   // ── Clientes ─────────────────────────────────────────────────────────────
 
@@ -3086,6 +3153,8 @@ export const AppProvider = ({ children }) => {
       /* Las series que el servidor rechazó, con su payload. Ver `lib/seriesNoGuardadas`. */
       seriesNoGuardadas,
       copiaLocal,
+      /* Las dietas que empiezan otro día, del cliente abierto (0146). */
+      programadas,
     }),
     [
       visibleClients, clients, archivedClients, activeClient, selectedClientId,
@@ -3094,7 +3163,7 @@ export const AppProvider = ({ children }) => {
       phases, anchors, hechos, dietVersions, notasDeIntervencion, conditions, equipment, equipmentCounts, envioRows, enviosReady,
       sessionPlans, sessionDelays,
       automatizaciones, automatizacionesReady, corridas,
-      saveStatus, enEspera, fallosAlGuardar, copiaLocal, seriesNoGuardadas,
+      saveStatus, enEspera, fallosAlGuardar, copiaLocal, seriesNoGuardadas, programadas,
     ]
   );
 
@@ -3212,6 +3281,10 @@ export const AppProvider = ({ children }) => {
     setBlockExerciseSets,
     setBlockExerciseTarget,
     setBlockExerciseScheme,
+    ponerPautaDelMicrociclo,
+    volverPautaAlAnterior,
+    pautaSoloEn,
+    restaurarPauta,
     setBlockExerciseGrammar,
     updatePlanExercise,
     updatePlanExercises,
@@ -3280,7 +3353,16 @@ export const AppProvider = ({ children }) => {
     setFoodEquivalences,
     setFoodDisplay,
     setFoodFixed,
-    editFood,
+    /* Los verbos de la dieta de un cliente, ya atados: por aquí entra el editor
+       (`useEditorDeDieta`). */
+    dietaDe,
+    /* Las dietas programadas (0146): prepararlas, cambiarles el día o el
+       motivo, quitarlas, y sus verbos (la puerta del editor sobre la copia). */
+    programarDieta,
+    cambiarProgramada,
+    quitarProgramada,
+    dietaProgramadaDe,
+    cargarProgramadas,
 
     // Antropometría
     addAnthropometryLog,
@@ -3425,8 +3507,14 @@ export const AppProvider = ({ children }) => {
     removeAnchor,
     shiftFuturePhases,
     estirarFase,
+    anotarCambioDelPlan,
+    quitarMotivoDelPlan,
+    leerVersionesDelPlan,
+    restaurarVersionDelPlan,
     anadirHecho,
+    editarHecho,
     quitarHecho,
+    devolverHecho,
     guardarIntervencion,
     igualar,
     quitarReplanteo,

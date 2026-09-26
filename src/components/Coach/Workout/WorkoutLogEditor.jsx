@@ -117,7 +117,12 @@ import {
   weekLabel,
   weeksOfBlock,
   sesionEnCursoDeLaHoja,
+  efectoDePauta,
+  hasBlockPlan,
+  pautaEfectiva,
+  pautasDelBloque,
 } from '@/domain/blocks';
+import { pautaDicha } from '@/domain/pautas';
 import { migrateBlockPlans } from '@/domain/blocksMigration';
 import { freeSheetName } from '@/domain/pieces';
 import { clientPath } from '@/routes';
@@ -221,6 +226,10 @@ export const WorkoutLogEditor = () => {
     setBlockExerciseSets,
     setBlockExerciseTarget,
     setBlockExerciseScheme,
+    ponerPautaDelMicrociclo,
+    volverPautaAlAnterior,
+    pautaSoloEn,
+    restaurarPauta,
     updatePlanExercise,
     updatePlanExercises,
     removePlanExercise,
@@ -1197,6 +1206,51 @@ export const WorkoutLogEditor = () => {
     setBlockExerciseScheme(activeClient.id, bloque.id, dayName, name, tramos);
     const a = esquemaDicho(tramos.filter((t) => t.n > 0));
     if (a && a !== antes) apuntarEnBloque(dayName, { kind: BLOCK_CHANGE.ESQUEMA, que: name, de: antes, a });
+  };
+
+  /*
+    ── LA PAUTA DE UN MICROCICLO ─────────────────────────────────────────────
+    Lo que se escribe en la fila con un microciclo delante va a ESE microciclo
+    y sigue hacia delante (`ponerPautaDelMicrociclo`). Devuelve lo que hizo
+    —dónde se aplicó y dónde se paró— con sus dos salidas: «Solo en M3», que
+    deja el siguiente como estaba, y «Deshacer», que devuelve la pauta de ese
+    ejercicio a la de antes. Las dos llevan el programa de antes del cambio.
+
+    Se apunta en la bitácora con la pauta dicha en los dos lados y el alcance
+    de ese microciclo (el del bloque, si es el primero: ahí se escribe su
+    definición).
+  */
+  const pautaDelBloque = (dayName, exerciseId, sets) => {
+    const semana = nav.week;
+    const { antes, despues } = ponerPautaDelMicrociclo(activeClient.id, semana, dayName, exerciseId, sets);
+    if (!antes || !despues) return null;
+    const efecto = efectoDePauta(antes, despues, semana, dayName, exerciseId);
+    if (efecto.aplicadas.length === 0) return efecto;
+    const de = pautaDicha(pautaEfectiva(antes, semana, dayName, exerciseId) || []);
+    const a = pautaDicha(pautaEfectiva(despues, semana, dayName, exerciseId) || []);
+    const nombre = (planOfDay(despues, semana, dayName)?.exercises || []).find((ex) => ex.id === exerciseId)?.name || '';
+    if (de !== a) {
+      const primera = weeksOfBlock(despues, bloque)[0] === semana;
+      apuntar({
+        alcance: primera ? 'bloque' : 'semana',
+        semanas: primera ? [] : efecto.aplicadas,
+        hoja: dayName,
+        kind: BLOCK_CHANGE.ESQUEMA,
+        que: nombre,
+        de,
+        a,
+      });
+    }
+    return {
+      ...efecto,
+      soloAqui: () => pautaSoloEn(activeClient.id, antes, semana, dayName, exerciseId),
+      deshacer: () => restaurarPauta(activeClient.id, antes, semana, dayName, exerciseId),
+    };
+  };
+
+  const volverPautaDelBloque = (dayName, exerciseId) => {
+    volverPautaAlAnterior(activeClient.id, nav.week, exerciseId);
+    toast({ text: `Vuelve a heredar la pauta en ${etiqueta(nav.week)}.` });
   };
 
   /*
@@ -2716,11 +2770,11 @@ export const WorkoutLogEditor = () => {
             }
           }}
           onQuitarBorrador={(b) => {
-            const { quitado, posicion } = quitarBorradorDelBloque(activeClient.id, b.id);
+            const { quitado, posicion, capa } = quitarBorradorDelBloque(activeClient.id, b.id);
             if (!quitado) return;
             toast({
               text: `«${b.name}» se ha quitado de lo previsto.`,
-              action: { label: 'Deshacer', onClick: () => devolverBorradorDelBloque(activeClient.id, quitado, posicion) },
+              action: { label: 'Deshacer', onClick: () => devolverBorradorDelBloque(activeClient.id, quitado, posicion, capa) },
             });
           }}
           onMoverBorrador={(id, destino) => moverBorradorDelBloque(activeClient.id, id, destino)}
@@ -2838,6 +2892,38 @@ export const WorkoutLogEditor = () => {
         */}
         {vista !== 'bloque' && nav.day && (
           <>
+        {/*
+          ══ LA HOJA ESCRIBE LA BASE DEL BLOQUE (25 sep) ══════════════════
+          Desde que cada microciclo puede tener su pauta (`domain/pautas`), la
+          hoja y la vista de bloque escriben en sitios distintos: la hoja, la
+          DEFINICIÓN del bloque, que vale desde su primer microciclo; la vista
+          de bloque, el microciclo que tiene delante. Se dice aquí, en una
+          línea, para que un cambio no caiga donde no se esperaba.
+        */}
+        {hasBlockPlan(bloque) && semanasDelBloque.length > 0 && (() => {
+          const primera = semanasDelBloque[0];
+          const hasta = new Set(
+            (microcycles || []).filter((m) => m.weekNumber <= nav.week && m.weekNumber >= primera).map((m) => m.id)
+          );
+          const pautas = pautasDelBloque(bloque);
+          const conPropia = (nav.day.exercises || []).filter((ex) =>
+            Object.keys(pautas[ex.id] || {}).some((id) => hasta.has(id))
+          ).length;
+          return (
+            <p className="hoja-base">
+              <span>
+                Aquí cambias la base del bloque: vale desde {etiqueta(primera)}.
+                {conPropia > 0 &&
+                  ` En ${etiqueta(nav.week)}, ${conPropia === 1 ? 'un ejercicio lleva' : `${conPropia} ejercicios llevan`} pauta propia, que manda sobre la base.`}
+              </span>
+              {nav.week !== primera && (
+                <button type="button" className="hoja-base-ir" onClick={() => verVista('bloque')}>
+                  Cambiar solo desde {etiqueta(nav.week)}
+                </button>
+              )}
+            </p>
+          );
+        })()}
         {/*
           ══ ANTES DE EMPEZAR: UNA BANDA, NO DOS TIRAS ══════════════════
           El calentamiento y la indicación son lo mismo —lo que hay que
@@ -2966,6 +3052,11 @@ export const WorkoutLogEditor = () => {
               onSeries={seriesDelBloque}
               onReps={repsDelBloque}
               onEsquema={esquemaDelBloque}
+              /* El microciclo de la tira: la pauta de cada fila es la suya y
+                 se escribe en él. Ver `domain/pautas`. */
+              semana={nav.week}
+              onPauta={pautaDelBloque}
+              onVolverAlAnterior={volverPautaDelBloque}
               onAnadirHoja={anadirHojaAlBloque}
               onRenombrarHoja={renombrarHojaDelBloque}
               renombrarPrimero={copiaPorNombrar}

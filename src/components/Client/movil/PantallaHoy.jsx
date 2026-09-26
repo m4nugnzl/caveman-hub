@@ -1,4 +1,7 @@
+import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+
+import { kindMeta } from '@/domain/calendar';
 
 import { CalendarioDeSesiones } from './CalendarioDeSesiones';
 import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Piezas';
@@ -12,6 +15,9 @@ import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Pie
  *      derecha la puerta a tu perfil: «Tú» ya no está en la barra.
  *   2. **La semana en siete discos**, que se despliega en el mes con tus
  *      sesiones (`CalendarioDeSesiones`). Sin programa, la fila de siempre.
+ *   2b. **Un refeed o un diet break**, si hoy cae uno (25 sep): una línea
+ *      con su color que lleva a «Comer». Hoy come distinto, y es lo primero
+ *      que abre.
  *   3. **Tu entreno de hoy.** El nombre en grande, los grupos que toca, lo que
  *      llevas en un anillo y UN verbo. Sigue siendo la tesis de «la sesión
  *      manda»: lo que hay que hacer, arriba y a un toque. En descanso, lo que
@@ -29,13 +35,23 @@ import { Anillo, Aire, Aviso, Boton, Cabecera, Chapa, Linea, Tramo } from './Pie
  * estar en la barra con su punto cuando espera.
  */
 export const PantallaHoy = ({ datos }) => {
-  const { cabecera, calendario, dias, entreno, preguntaDelCiclo, recados, peso, sensaciones, ultimo } = datos;
+  const { cabecera, calendario, dias, especial, entreno, preguntaDelCiclo, recados, peso, sensaciones, ultimo } = datos;
 
   return (
     <>
       <Cabecera {...cabecera} perfil="/mi/tu" />
 
       {calendario ? <CalendarioDeSesiones calendario={calendario} /> : dias ? <SieteDias dias={dias} /> : null}
+
+      {especial ? (
+        <Tramo>
+          <Link to={especial.to} className="tel-especial" style={{ '--tinta': kindMeta(especial.kind).color }}>
+            <span className="dia-especial-punto" aria-hidden="true" />
+            <span className="tel-especial-tx">{especial.texto}</span>
+            <ChevronRight className="tel-galon" size={15} aria-hidden="true" />
+          </Link>
+        </Tramo>
+      ) : null}
 
       {entreno ? <Entreno entreno={entreno} /> : null}
 

@@ -42,7 +42,8 @@ import {
   tecnicaOf,
   vecesDeCadaHoja,
 } from './training';
-import { executedSessions, sesionAbierta, sesionAMedias, sessionsOf, sessionTonnage } from './sessions';
+import { executedSessions, sesionAbierta, sesionAMedias, sessionSetCount, sessionsOf, sessionTonnage } from './sessions';
+import { MAX_SERIES, clavesDe, clavesQueCambian, diferenciaNueva, encadenar, soloLaPauta } from './pautas';
 import { weekStartOfProgramWeek } from './photos';
 import { nombreCortoDelSplit, nombreDelSplit } from './split';
 import { clientProtocol, isServiceOn } from './protocol';
@@ -574,7 +575,7 @@ const firmaDelDia = (day) =>
  *   `difieren` las semanas del bloque cuya versión de esa sesión no coincide
  *   con la plantilla. Sin semanas montadas, `sessions` viene vacío.
  */
-export const blockPlan = (program, block) => {
+export const blockPlan = (program, block, { semana = null } = {}) => {
   const weeks = weeksOfBlock(program, block);
   const microcycles = program?.microcycles || [];
 
@@ -594,8 +595,13 @@ export const blockPlan = (program, block) => {
     return {
       reference: null,
       weeks,
+      /* Con `semana`, cada ejercicio con la pauta de ESE microciclo (`pautaEfectiva`):
+         las series, el volumen y el total de la hoja dicen lo que pide esa semana. */
       sessions: blockSessionsOf(block).map((hoja) =>
-        planSessionView(hoja, { difieren: conExcepcion(hoja.dayName), avisan: sinVer(hoja.dayName) })
+        planSessionView(Number.isFinite(semana) ? conPautasDeLaSemana(program, block, semana, hoja) : hoja, {
+          difieren: conExcepcion(hoja.dayName),
+          avisan: sinVer(hoja.dayName),
+        })
       ),
     };
   }
@@ -1858,7 +1864,7 @@ export const planOfDay = (program, weekNumber, dayName) => {
   }
   const hoja = blockSessionOf(bloque, dayName);
   if (!hoja) return null;
-  return applyOverrides(hoja, overridesAt(bloque, weekNumber, dayName));
+  return conPautasDeLaSemana(program, bloque, weekNumber, applyOverrides(hoja, overridesAt(bloque, weekNumber, dayName)));
 };
 
 /** Todas las hojas de un microciclo, en el orden del bloque. */
@@ -1867,7 +1873,345 @@ export const planOfWeek = (program, weekNumber) => {
   if (!hasBlockPlan(bloque)) {
     return (program?.microcycles || []).find((m) => m.weekNumber === weekNumber)?.days || [];
   }
-  return blockSessionsOf(bloque).map((hoja) => applyOverrides(hoja, overridesAt(bloque, weekNumber, hoja.dayName)));
+  return blockSessionsOf(bloque).map((hoja) =>
+    conPautasDeLaSemana(program, bloque, weekNumber, applyOverrides(hoja, overridesAt(bloque, weekNumber, hoja.dayName)))
+  );
+};
+
+/*
+ * ══ LA PAUTA DE CADA MICROCICLO ════════════════════════════════════════════
+ *
+ * La definición del bloque es la base y cada microciclo guarda encima SOLO lo
+ * que cambia, campo a campo (`block.pautas[exerciseId][microcycleId]`). La
+ * pauta de un microciclo es la cadena: la definición y las diferencias de los
+ * microciclos del bloque hasta él, en orden. El modelo y sus reglas están en
+ * `domain/pautas`; aquí se resuelve dónde está cada cosa.
+ *
+ * Se aplica DENTRO de `planOfDay`, `planOfWeek` y `resolvedMicrocycles`, así que
+ * la hoja, la app del cliente y la proyección en `days` —que es lo que lee
+ * `log_session_set`— reciben la pauta de su microciclo sin saber que existe.
+ */
+
+/** Las diferencias de pauta de un bloque, por ejercicio y microciclo. */
+export const pautasDelBloque = (block) =>
+  block?.pautas && typeof block.pautas === 'object' && !Array.isArray(block.pautas) ? block.pautas : {};
+
+const microDeLaSemana = (program, weekNumber) =>
+  (program?.microcycles || []).find((m) => m.weekNumber === weekNumber) || null;
+
+/** Las diferencias de un ejercicio en las semanas del bloque que pasan `cuales`, en orden. */
+const diferenciasDe = (program, bloque, exerciseId, cuales) => {
+  const suyas = pautasDelBloque(bloque)[exerciseId];
+  if (!suyas) return [];
+  return weeksOfBlock(program, bloque)
+    .filter(cuales)
+    .map((w) => suyas[microDeLaSemana(program, w)?.id])
+    .filter(Boolean);
+};
+
+/** Una hoja resuelta, con la pauta de esa semana puesta en cada ejercicio. */
+const conPautasDeLaSemana = (program, bloque, weekNumber, day) => {
+  if (!day || Object.keys(pautasDelBloque(bloque)).length === 0) return day;
+  let tocado = false;
+  const exercises = (day.exercises || []).map((ex) => {
+    const difs = diferenciasDe(program, bloque, ex.id, (w) => w <= weekNumber);
+    if (difs.length === 0) return ex;
+    tocado = true;
+    return { ...ex, sets: encadenar(ex.sets || [], difs) };
+  });
+  return tocado ? { ...day, exercises } : day;
+};
+
+/** El ejercicio como lo define el bloque en esa hoja: el de la línea base, o
+    el que entra por una excepción (que es otro ejercicio, con su propia cadena). */
+const definicionDe = (bloque, dayName, exerciseId) =>
+  (blockSessionOf(bloque, dayName)?.exercises || []).find((ex) => ex.id === exerciseId) ||
+  blockOverridesOf(bloque, dayName).find((o) => o.exercise?.id === exerciseId)?.exercise ||
+  null;
+
+/**
+ * LA PAUTA EFECTIVA de un ejercicio en un microciclo: sus series, con lo
+ * heredado y lo propio ya puesto. La única función que hay que llamar para
+ * saber qué pide ese ejercicio esa semana.
+ *
+ * Sin plan en el bloque, las series del día de ese microciclo, como siempre.
+ * `null` si el ejercicio no es de esa hoja.
+ */
+export const pautaEfectiva = (program, weekNumber, dayName, exerciseId) => {
+  const bloque = blockOfWeek(program, weekNumber);
+  if (!hasBlockPlan(bloque)) {
+    return (planOfDay(program, weekNumber, dayName)?.exercises || []).find((ex) => ex.id === exerciseId)?.sets || null;
+  }
+  const def = definicionDe(bloque, dayName, exerciseId);
+  if (!def) return null;
+  return encadenar(def.sets || [], diferenciasDe(program, bloque, exerciseId, (w) => w <= weekNumber));
+};
+
+/** La semana del bloque que va antes de esta, o `null` en la primera. */
+export const semanaAnteriorDelBloque = (program, weekNumber) => {
+  const antes = weeksOfBlock(program, blockOfWeek(program, weekNumber)).filter((w) => w < weekNumber);
+  return antes.length > 0 ? antes[antes.length - 1] : null;
+};
+
+/** ¿Tiene ese microciclo pauta propia para ese ejercicio? */
+export const tienePautaPropia = (program, weekNumber, exerciseId) => {
+  const id = microDeLaSemana(program, weekNumber)?.id;
+  return Boolean(id && pautasDelBloque(blockOfWeek(program, weekNumber))[exerciseId]?.[id]);
+};
+
+/** La primera semana del bloque en la que el ejercicio está en el plan: la de su definición. */
+const primeraSemanaDe = (program, bloque, dayName, exerciseId) => {
+  const hoja = blockSessionOf(bloque, dayName);
+  if (!hoja) return null;
+  return (
+    weeksOfBlock(program, bloque).find((w) =>
+      applyOverrides(hoja, overridesAt(bloque, w, dayName)).exercises.some((ex) => ex.id === exerciseId)
+    ) ?? null
+  );
+};
+
+/** Pone, o quita con `null`, las diferencias de un ejercicio (todas, o las de un microciclo). */
+const conPautasDelEjercicio = (program, blockId, exerciseId, fn) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) => {
+    if (b.id !== blockId) return b;
+    const todas = { ...pautasDelBloque(b) };
+    const suyas = fn(todas[exerciseId] || null);
+    if (suyas && Object.keys(suyas).length > 0) todas[exerciseId] = suyas;
+    else delete todas[exerciseId];
+    const { pautas: _antes, ...resto } = b;
+    return Object.keys(todas).length > 0 ? { ...resto, pautas: todas } : resto;
+  }),
+});
+
+const conDiferencia = (program, blockId, exerciseId, microId, dif) =>
+  conPautasDelEjercicio(program, blockId, exerciseId, (suyas) => {
+    const nuevas = { ...(suyas || {}) };
+    if (dif) nuevas[microId] = dif;
+    else delete nuevas[microId];
+    return nuevas;
+  });
+
+/** Cambia el ejercicio donde el bloque lo define: en su hoja o en su excepción. */
+const conDefinicion = (program, blockId, dayName, exerciseId, fn) => ({
+  ...program,
+  blocks: blocksOf(program).map((b) =>
+    b.id !== blockId
+      ? b
+      : {
+          ...b,
+          sessions: blockSessionsOf(b).map((s) =>
+            s.dayName !== dayName
+              ? s
+              : { ...s, exercises: (s.exercises || []).map((ex) => (ex.id === exerciseId ? fn(ex) : ex)) }
+          ),
+          ...(Array.isArray(b.overrides)
+            ? {
+                overrides: b.overrides.map((o) =>
+                  o.dayName === dayName && o.exercise?.id === exerciseId ? { ...o, exercise: fn(o.exercise) } : o
+                ),
+              }
+            : {}),
+        }
+  ),
+});
+
+/** El microciclo de esa semana, con id: los muy antiguos pueden no tenerlo. */
+const conIdDeMicro = (program, weekNumber) => {
+  const micro = microDeLaSemana(program, weekNumber);
+  if (!micro || micro.id) return { program, id: micro?.id ?? null };
+  const id = newId('mc');
+  return { id, program: { ...program, microcycles: program.microcycles.map((m) => (m === micro ? { ...m, id } : m)) } };
+};
+
+/** Las series de la definición con los objetivos pedidos; lo demás de cada
+    serie (su remate) se queda donde estaba. */
+const conObjetivos = (previas = [], pedidas = []) =>
+  pedidas.slice(0, MAX_SERIES).map((p, i) => ({
+    ...(previas[i] || { kg: '', reps: '', rir: '' }),
+    targetReps: String(p?.targetReps ?? '').trim(),
+    targetKg: String(p?.targetKg ?? '').trim(),
+    targetRir: String(p?.targetRir ?? '').trim(),
+  }));
+
+/**
+ * ESCRIBIR LA PAUTA DE UN EJERCICIO EN UN MICROCICLO.
+ *
+ * En el primer microciclo donde está el ejercicio se escribe su DEFINICIÓN: el
+ * M1 hereda de ella, así que son la misma pauta, y guardarlo como diferencia
+ * dejaría dos sitios diciendo lo mismo. En los demás se guarda solo lo tocado
+ * que difiere de lo heredado (`diferenciaNueva`). En los dos casos el cambio
+ * sigue hacia delante salvo donde un microciclo posterior tenga ese campo
+ * propio.
+ *
+ * @param sets las series como tienen que quedar en ese microciclo.
+ */
+export const ponerPautaIn = (program, weekNumber, dayName, exerciseId, sets) => {
+  if (!Array.isArray(sets) || sets.length === 0) return program;
+  const bloque = blockOfWeek(program, weekNumber);
+  if (!hasBlockPlan(bloque) || !weeksOfBlock(program, bloque).includes(weekNumber)) return program;
+  const def = definicionDe(bloque, dayName, exerciseId);
+  if (!def) return program;
+
+  if (primeraSemanaDe(program, bloque, dayName, exerciseId) === weekNumber) {
+    const escrito = conDefinicion(program, bloque.id, dayName, exerciseId, (ex) => ({
+      ...ex,
+      sets: conObjetivos(ex.sets || [], sets),
+    }));
+    return tienePautaPropia(program, weekNumber, exerciseId)
+      ? conDiferencia(escrito, bloque.id, exerciseId, microDeLaSemana(program, weekNumber).id, null)
+      : escrito;
+  }
+
+  const { program: conId, id } = conIdDeMicro(program, weekNumber);
+  const vieja = pautasDelBloque(bloque)[exerciseId]?.[id] || null;
+  const heredadas = encadenar(def.sets || [], diferenciasDe(conId, bloque, exerciseId, (w) => w < weekNumber));
+  const dif = diferenciaNueva(vieja, heredadas, sets);
+  if (JSON.stringify(dif) === JSON.stringify(vieja)) return program;
+  return conDiferencia(conId, bloque.id, exerciseId, id, dif);
+};
+
+/** «Volver a como estaba en el anterior»: el microciclo suelta su pauta propia
+    de ese ejercicio y vuelve a heredarla entera. */
+export const volverAlAnteriorIn = (program, weekNumber, exerciseId) => {
+  if (!tienePautaPropia(program, weekNumber, exerciseId)) return program;
+  const bloque = blockOfWeek(program, weekNumber);
+  return conDiferencia(program, bloque.id, exerciseId, microDeLaSemana(program, weekNumber).id, null);
+};
+
+/**
+ * QUÉ HIZO UN CAMBIO DE PAUTA: en qué microciclos cambió de verdad y, si se
+ * paró antes del final, cuál lo paró por tener ese valor propio. Es lo que
+ * dice la línea de debajo de la fila («Aplicado en M3 y M4 · M5 tiene su
+ * propio valor»).
+ *
+ * @returns `{ aplicadas: number[], propia: number | null }`
+ */
+export const efectoDePauta = (antes, despues, weekNumber, dayName, exerciseId) => {
+  const bloque = blockOfWeek(despues, weekNumber);
+  const semanas = weeksOfBlock(despues, bloque).filter((w) => w >= weekNumber);
+  const pauta = (p, w) => soloLaPauta(pautaEfectiva(p, w, dayName, exerciseId) || []);
+  const aplicadas = semanas.filter((w) => clavesQueCambian(pauta(antes, w), pauta(despues, w)).size > 0);
+  const tocadas = clavesQueCambian(pauta(antes, weekNumber), pauta(despues, weekNumber));
+  const suyas = pautasDelBloque(bloque)[exerciseId] || {};
+  const propia =
+    semanas.find(
+      (w) => w > weekNumber && [...clavesDe(suyas[microDeLaSemana(despues, w)?.id])].some((k) => tocadas.has(k))
+    ) ?? null;
+  return { aplicadas, propia };
+};
+
+/**
+ * «SOLO EN M3»: el cambio se queda en ese microciclo. El primero de después que
+ * cambió con él recibe como propio el valor que tenía antes, y a partir de ahí
+ * todo vuelve a ser lo que era: los siguientes heredan de él.
+ *
+ * @param antes el programa de antes del cambio.
+ */
+export const soloEnIn = (program, antes, weekNumber, dayName, exerciseId) => {
+  const bloque = blockOfWeek(program, weekNumber);
+  const pauta = (p, w) => pautaEfectiva(p, w, dayName, exerciseId) || [];
+  const siguiente = weeksOfBlock(program, bloque).find(
+    (w) => w > weekNumber && clavesQueCambian(soloLaPauta(pauta(antes, w)), soloLaPauta(pauta(program, w))).size > 0
+  );
+  if (siguiente === undefined) return program;
+  return ponerPautaIn(program, siguiente, dayName, exerciseId, pauta(antes, siguiente));
+};
+
+/**
+ * «DESHACER» de la línea: la pauta de ese ejercicio vuelve a ser la de `antes`
+ * —su definición y sus diferencias por microciclo—, sin tocar nada más del
+ * programa. No es el ⌘Z: si después se ha hecho otra cosa, esa se queda.
+ */
+export const restaurarPautaIn = (program, antes, weekNumber, dayName, exerciseId) => {
+  const bloque = blockOfWeek(program, weekNumber);
+  const suyo = blocksOf(antes).find((b) => b.id === bloque.id);
+  if (!hasBlockPlan(suyo)) return program;
+  const defAntes = definicionDe(suyo, dayName, exerciseId);
+  const conDef = defAntes
+    ? conDefinicion(program, bloque.id, dayName, exerciseId, (ex) => ({ ...ex, sets: defAntes.sets || [] }))
+    : program;
+  const pautasAntes = pautasDelBloque(suyo)[exerciseId] || null;
+  return conPautasDelEjercicio(conDef, bloque.id, exerciseId, () => pautasAntes);
+};
+
+/**
+ * ¿SE PUEDE ESCRIBIR LA PAUTA DE ESA HOJA EN ESE MICROCICLO?
+ *
+ * Los terminados son de solo lectura. En el que está en curso, solo las hojas
+ * que aún no se han hecho todas las veces que caen en él. Los que vienen, sí.
+ * Sin microciclo en curso (el programa aún no ha empezado), todos.
+ */
+export const pautaEditableEn = (program, weekNumber, dayName, semanaEnCurso, client = null) => {
+  if (!Number.isFinite(semanaEnCurso)) return true;
+  if (weekNumber < semanaEnCurso) return false;
+  if (weekNumber > semanaEnCurso) return true;
+  const micro = microDeLaSemana(program, weekNumber);
+  const hechas = executedSessions(micro).filter(
+    (s) => s.dayName === dayName && (Boolean(s.endedAt) || sessionSetCount(s) > 0)
+  ).length;
+  return hechas < vecesDeLaHoja(program, weekNumber, client)(dayName);
+};
+
+/*
+ * ══ LA FOTO DE LA PAUTA EN LAS SESIONES HECHAS ═════════════════════════════
+ *
+ * Una sesión guardaba lo que se HIZO (kilos, repeticiones, RIR) y leía lo que
+ * se PEDÍA del plan vivo, así que cambiar la pauta reescribía la historia: la
+ * sesión del M2 pasaba a «pedir» lo que se decidió en el M5.
+ *
+ * Ahora, al guardar cualquier cambio del programa, se compara la pauta
+ * resuelta de antes y de después en cada microciclo con sesiones hechas, y a
+ * las sesiones cuya hoja cambia se les deja la foto de lo que pedía
+ * (`session.pauta = { [exerciseId]: [{ targetReps, targetKg, targetRir }] }`).
+ * Da igual la causa —la definición, una excepción, una pauta del microciclo—:
+ * se compara el resultado. Una sesión con foto ya no se vuelve a tocar.
+ *
+ * Va en el ÚNICO punto de guardado (`applyWorkout`), no en cada escritor: así
+ * no hay camino que se lo salte.
+ */
+
+const porSellar = (s) => !s.isLegacy && !s.pauta && (Boolean(s.endedAt) || sessionSetCount(s) > 0);
+
+/** La foto: lo pautado de cada ejercicio del día, por id. */
+const fotoDeLaPauta = (day) =>
+  Object.fromEntries((day?.exercises || []).map((ex) => [ex.id, soloLaPauta(ex.sets)]));
+
+/** Lo que se compara: nombres y pauta, sin ids (subir el plan al bloque los cambia sin cambiar nada). */
+const firmaDeLaPauta = (day) =>
+  JSON.stringify((day?.exercises || []).map((ex) => [String(ex.name || '').trim().toLowerCase(), soloLaPauta(ex.sets)]));
+
+export const sellarPautasIn = (antes, despues) => {
+  if (!antes || !despues || antes === despues) return despues;
+  const clave = (m) => m.id ?? `w${m.weekNumber}`;
+  const deAntes = new Map((antes.microcycles || []).map((m) => [clave(m), m]));
+  let tocado = false;
+
+  const microcycles = (despues.microcycles || []).map((m) => {
+    const previo = deAntes.get(clave(m));
+    if (!previo || !(m.sessions || []).some(porSellar)) return m;
+    if (antes.blocks === despues.blocks && previo.days === m.days) return m;
+
+    const fotos = new Map();
+    let cambia = false;
+    const sessions = m.sessions.map((s) => {
+      if (!porSellar(s)) return s;
+      if (!fotos.has(s.dayName)) {
+        const viejo = planOfDay(antes, previo.weekNumber, s.dayName);
+        const nuevo = planOfDay(despues, m.weekNumber, s.dayName);
+        fotos.set(s.dayName, viejo && firmaDeLaPauta(viejo) !== firmaDeLaPauta(nuevo) ? fotoDeLaPauta(viejo) : null);
+      }
+      const foto = fotos.get(s.dayName);
+      if (!foto) return s;
+      cambia = true;
+      return { ...s, pauta: foto };
+    });
+    if (!cambia) return m;
+    tocado = true;
+    return { ...m, sessions };
+  });
+
+  return tocado ? { ...despues, microcycles } : despues;
 };
 
 /* ── Escribir ─────────────────────────────────────────────────────────────── */
@@ -2070,7 +2414,12 @@ export const resolvedMicrocycles = (program) => {
     if (!hasBlockPlan(bloque)) return micro;
 
     const days = blockSessionsOf(bloque).map((hoja) => {
-      const resuelto = applyOverrides(hoja, overridesAt(bloque, micro.weekNumber, hoja.dayName));
+      const resuelto = conPautasDeLaSemana(
+        program,
+        bloque,
+        micro.weekNumber,
+        applyOverrides(hoja, overridesAt(bloque, micro.weekNumber, hoja.dayName))
+      );
       return conLoAnotado(resuelto, (micro.days || []).find((d) => d.dayName === hoja.dayName));
     });
 
@@ -2547,10 +2896,22 @@ export const renameBlockExerciseIn = (
               exercises: (s.exercises || []).map((ex) => (ex.id === exerciseId ? cambiado(ex, idNuevo) : ex)),
             }
       );
-      if (!Array.isArray(b.overrides)) return { ...b, sessions };
+      /* La pauta de cada microciclo es de la PAUTA, no de la historia: se va con
+         el ejercicio nuevo, igual que sus series. */
+      const pautas = pautasDelBloque(b);
+      const conPautas =
+        otro && pautas[exerciseId]
+          ? {
+              pautas: Object.fromEntries(
+                Object.entries(pautas).map(([id, suyas]) => [id === exerciseId ? idNuevo : id, suyas])
+              ),
+            }
+          : {};
+      if (!Array.isArray(b.overrides)) return { ...b, sessions, ...conPautas };
       return {
         ...b,
         sessions,
+        ...conPautas,
         overrides: b.overrides.map((o) => {
           if (o.dayName !== dayName || o.targetId !== exerciseId) return o;
           const mismo = Boolean(o.exercise) && o.exercise.name === viejo;

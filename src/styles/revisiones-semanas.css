@@ -87,6 +87,29 @@
 .casilla.is-curso:hover, .casilla.is-curso.is-senalada { border-color: var(--accent); background: var(--accent-soft); }
 .casilla:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* «Ver en la temporada» (`EnLaTemporada`): la celda lleva la casilla y, en
+   su esquina, el enlace. Es una oferta: en reposo no está (opacity, para que
+   el tabulador llegue), y mientras está aparta la marca de la casilla. */
+.casilla-celda { position: relative; display: grid; min-width: 0; }
+.casilla-temporada {
+  position: absolute; top: 4px; right: 6px;
+  display: grid; place-items: center; width: 18px; height: 18px;
+  border-radius: 4px; color: var(--text-secondary);
+  opacity: 0; transition: opacity var(--fast), background-color var(--fast), color var(--fast);
+}
+.casilla-celda:hover .casilla-temporada,
+.casilla-celda:focus-within .casilla-temporada { opacity: 1; }
+.casilla-celda:hover .casilla-marca,
+.casilla-celda:focus-within .casilla-marca { opacity: 0; }
+.casilla-temporada:hover { color: var(--accent); background: var(--accent-wash); }
+.casilla-temporada:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.casilla-celda:has(.casilla.is-pendiente) .casilla-temporada { color: var(--accent-on); }
+.casilla-celda:has(.casilla.is-pendiente) .casilla-temporada:hover { background: rgb(255 255 255 / 0.18); color: var(--accent-on); }
+/* En táctil no hay «acercarse»: el enlace vive dentro de la semana. */
+@media (hover: none) {
+  .casilla-temporada { display: none; }
+}
+
 /* Las dos semanas de un periodo quincenal van pegadas: una entrega, una pieza. */
 .casilla.is-pega-d { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .casilla.is-pega-i { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
@@ -101,7 +124,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .casilla, .tira-pliegue { transition: none; }
+  .casilla, .tira-pliegue, .casilla-temporada { transition: none; }
 }
 
 /* ── LA LENTE DE ENTRENO ─────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import { blocksOf, currentBlock, openNextBlock } from './blocks';
 import {
   anadirBorrador,
   borradoresDe,
+  borradoresEnElTiempo,
   cambiarBorrador,
   datosParaEmpezar,
   devolverBorrador,
@@ -14,6 +15,7 @@ import {
   referenciasSaneadas,
   sePuedeEmpezar,
   sinBorrador,
+  splitDelBorrador,
 } from './borradores';
 import { mismoPlan } from './deshacer';
 
@@ -179,5 +181,30 @@ describe('deshacer', () => {
     const { p, fuerza } = conDos();
     expect(mismoPlan(p, cambiarBorrador(p, fuerza.id, { plannedWeeks: 6 }))).toBe(false);
     expect(mismoPlan(p, { ...p })).toBe(true);
+  });
+});
+
+describe('el bloque previsto desde la Temporada (letra c)', () => {
+  it('guarda su split previsto, y al empezar sigue siendo su nombre de split', () => {
+    const { program, borrador } = anadirBorrador(programa(), { name: 'Volumen', plannedWeeks: 4, split: '  Torso / Pierna ' });
+    expect(borrador.split).toBe('Torso / Pierna');
+    expect(datosParaEmpezar(borrador).split).toBe('Torso / Pierna');
+    /* Vacío, se quita de la fila en vez de guardarse en blanco. */
+    const sin = cambiarBorrador(program, borrador.id, { split: '' });
+    expect('split' in borradoresDe(sin)[0]).toBe(false);
+  });
+
+  it('se ponen en el calendario uno detrás de otro, desde el final de lo de delante', () => {
+    const conDosPrevistos = anadirBorrador(anadirBorrador(programa(), { plannedWeeks: 4 }).program, { plannedWeeks: 2 }).program;
+    const tramos = borradoresEnElTiempo(conDosPrevistos, '2026-10-05');
+    expect(tramos.map((t) => [t.desde, t.hasta])).toEqual([
+      ['2026-10-05', '2026-11-01'],
+      ['2026-11-02', '2026-11-15'],
+    ]);
+  });
+
+  it('su split: el previsto si lo hay; sin nada, ninguno', () => {
+    expect(splitDelBorrador({ id: 'b', plannedWeeks: 4, split: 'PPL' })).toMatchObject({ nombre: 'PPL', texto: 'PPL', corto: 'PPL' });
+    expect(splitDelBorrador({ id: 'b', plannedWeeks: 4 })).toBeNull();
   });
 });

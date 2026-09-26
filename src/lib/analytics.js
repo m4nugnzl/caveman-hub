@@ -297,10 +297,13 @@ const ES_TELEMETRIA = /product_events|app_errors/;
  * parece: sin sesión no se puede insertar —la política exige que el actor sea
  * uno mismo— y sin mensaje no hay nada que contar.
  */
-const filaDeFallo = (fallo) => {
+export const filaDeFallo = (fallo) => {
   const { userId, teamId, role } = currentActor();
   if (!userId || (role !== 'coach' && role !== 'client')) return null;
   if (ES_TELEMETRIA.test(fallo?.message || '')) return null;
+  /* Una petición cortada al recargar o salir, o cancelada a propósito
+     (`supabaseClient`): no es un fallo de red, es la página yéndose. */
+  if (fallo?.cortada) return null;
 
   const message = saneaMensaje(fallo?.message);
   if (!message) return null;
@@ -315,6 +318,9 @@ const filaDeFallo = (fallo) => {
        mucho mejor que el mensaje: no cambia de idioma ni de redacción entre
        versiones. Lo adjunta `supabaseClient` cuando el servidor lo manda. */
     code: /^[A-Za-z0-9_.-]{1,24}$/.test(fallo.code || '') ? fallo.code : null,
+    /* NOT NULL en la 0052: sin él, el servidor rechazaba TODAS las filas (400)
+       y la tabla se quedaba vacía, que se lee como «no falla nada». */
+    message,
     veces: 1,
   };
 };

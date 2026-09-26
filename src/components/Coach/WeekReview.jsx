@@ -47,7 +47,7 @@ import { TrainingCard } from '@/components/review/TrainingCard';
 import { NutritionCard } from '@/components/review/NutritionCard';
 import { ReviewDecision } from '@/components/review/ReviewDecision';
 import { fmt } from '@/lib/num';
-import { clientPath, semanaPath } from '@/routes';
+import { clientPath, semanaPath, temporadaPath } from '@/routes';
 import { Anteriores } from '@/components/review/Anteriores';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { useSemanasDeRevision } from '@/components/review/useSemanasDeRevision';
@@ -889,13 +889,20 @@ export const WeekReview = () => {
         acciones={
           <>
             {rango ? (
-              <Link className="cab-accion" to={`${semanaPath(activeClient.id)}?vista=linea&desde=${rango.desde}&hasta=${rango.hasta}`}>
+              <Link className="cab-accion" to={temporadaPath(activeClient.id, { desde: rango.desde, hasta: rango.hasta })}>
                 Volver a la gráfica
               </Link>
             ) : (
-              <Link className="cab-accion" to={semanaPath(activeClient.id)}>
-                Todas sus semanas
-              </Link>
+              <>
+                {/* Esta semana en la línea de tiempo, con su lectura en el
+                    inspector (26 sep 2026). */}
+                <Link className="cab-accion" to={temporadaPath(activeClient.id, { semana: lunes })}>
+                  Ver en la temporada
+                </Link>
+                <Link className="cab-accion" to={semanaPath(activeClient.id)}>
+                  Todas sus semanas
+                </Link>
+              </>
             )}
             <div className="revision-paso" role="group" aria-label="Cambiar de semana">
               <button

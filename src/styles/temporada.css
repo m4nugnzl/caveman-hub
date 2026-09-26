@@ -215,7 +215,7 @@
 .tl-fase-plan { fill-opacity: 0.1; }
 .tl-fase-canto { fill: none; stroke-width: 1; stroke-dasharray: 3 3; stroke-opacity: 0.55; }
 .tl-fase-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); pointer-events: none; }
-.tl-hueco rect { fill: none; stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.tl-hueco rect:not(.tl-diana) { fill: none; stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
 .tl-hueco text { font-size: var(--tl-letra); fill: var(--text-secondary); }
 .tl-decision circle { fill: var(--surface); stroke: var(--text-secondary); stroke-width: 1.25; }
 .tl-decision-signo { font-size: var(--tl-letra); font-weight: 700; fill: var(--text-secondary); pointer-events: none; }
@@ -252,6 +252,23 @@
 .tl-proyeccion { stroke-width: 1.5; stroke-dasharray: 4 4; stroke-opacity: 0.6; stroke-linecap: round; }
 .tl-objetivo line { stroke: var(--text); stroke-width: 2; stroke-linecap: round; }
 .tl-objetivo text { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); }
+
+/* LA SOMBRA DE UNA VERSIÓN (letra f): la versión elegida en «Versiones», sobre
+   la de ahora. Solo contornos, a trazos y en tinta: se compara, no se juzga, y
+   no se pulsa. */
+.tl-fase-sombra,
+.tl-banda-sombra { fill: none; stroke: var(--text); stroke-width: 1.25; stroke-dasharray: 4 3; stroke-opacity: 0.7; pointer-events: none; }
+.tl-banda-sombra { stroke-width: 1; }
+.tl-bandera-sombra,
+.tl-objetivo-sombra { stroke: var(--text); stroke-width: 1.5; stroke-dasharray: 3 2; stroke-opacity: 0.7; }
+.tl-bandera-sombra { pointer-events: none; }
+
+/* La lista y la ficha de una versión. */
+.tl-hist-l2.is-sin-punto { padding-left: 0; }
+.tl-version-nota { color: var(--text); }
+.tl-version-cambios { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: var(--s1); line-height: 1.45; }
+.tl-version-pie { display: flex; justify-content: flex-start; padding-top: var(--s1); }
+.tl-version-todas { align-self: flex-start; }
 .tl-peso-cifra {
   font-size: var(--tl-letra);
   font-weight: 600;
@@ -292,6 +309,15 @@
 .tl-split-barra { fill: var(--fill-strong); }
 .tl-split-previsto { fill: none; stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 3; }
 .tl-split-rotulo { font-size: var(--tl-letra); font-weight: 600; fill: var(--text); pointer-events: none; }
+/* El bloque previsto (letra c): a trazos entero, su nombre en gris; se pulsa. */
+.tl-split-rotulo.is-previsto { fill: var(--text-secondary); }
+.tl-split.is-previsto.is-pulsable { cursor: pointer; }
+@media (hover: hover) {
+  .tl-split.is-previsto.is-pulsable:hover .tl-split-previsto { stroke: var(--accent); }
+}
+/* Su ventana: «Dura − 4 +». */
+.bp-dura { display: flex; align-items: center; gap: var(--s2); min-height: 36px; }
+.bp-dura-n { min-width: 2ch; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* ── El eje, al pie ─────────────────────────────────────────────────────────
    Píldoras rectangulares de esquinas suaves y las fechas debajo, a 11 px.
@@ -480,6 +506,52 @@
 .tl-ins-leyenda { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; color: var(--text-secondary); }
 .tl-ins-leyenda-marca { width: 2px; height: 11px; border-radius: 1px; background: var(--text); }
 .tl-ins-nada { margin: 0; color: var(--text-secondary); }
+
+/* Al abrir una intervención desde el historial la página sube a la gráfica
+   (`scrollIntoView`) y queda por debajo de la cabecera del cliente, que en
+   escritorio es pegajosa: su alto lo publica `CoachLayout` en `--cliente-cab-h`
+   y se sigue midiendo solo si cambia. Por debajo de 1024 no es pegajosa. */
+.tl-marco { scroll-margin-top: var(--s3); }
+@media (min-width: 1024px) { .tl-marco { scroll-margin-top: calc(var(--cliente-cab-h, 0px) + var(--s3)); } }
+
+/* ── El historial de intervenciones ────────────────────────────────────
+   Una lista en dos líneas: qué y cuándo, con su valoración a la derecha;
+   debajo, la pauta y la tendencia antes → después. Sin color de juicio: la
+   valoración es texto, como la escribió el entrenador. */
+.tl-cabecera-enlace { display: inline-flex; align-items: baseline; gap: 6px; font-weight: 500; }
+.tl-cabecera-enlace span { color: var(--text-secondary); }
+.tl-cabecera-enlace[aria-pressed='true'] { text-decoration: underline; text-underline-offset: 3px; }
+.tl-ins-volver { display: inline-flex; align-items: center; gap: 2px; font-weight: 500; white-space: nowrap; }
+.tl-ins.is-hoja .tl-ins-volver { align-self: flex-start; }
+.tl-hist { gap: var(--s3); }
+.tl-hist .segmented { align-self: flex-start; }
+.tl-hist-recuento { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; color: var(--text-secondary); }
+.tl-hist-recuento b { color: var(--text); font-weight: 600; }
+.tl-hist-lista { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--hairline); }
+.tl-hist-lista li { border-bottom: 1px solid var(--hairline); }
+.tl-hist-item {
+  display: flex; flex-direction: column; gap: 3px; width: 100%;
+  padding: var(--s3) var(--s2); margin: 0;
+  border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--r-sm, 6px);
+}
+.tl-hist-item:hover { background: color-mix(in srgb, var(--text) 4%, transparent); }
+.tl-hist-item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-hist-l1 { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.tl-hist-l1 { align-items: baseline; }
+.tl-hist-que { flex: 1; min-width: 0; }
+.tl-hist-que b { font-weight: 600; }
+.tl-hist-l1 .tl-hist-punto { align-self: flex-start; margin-top: calc(0.5lh - 4px); }
+.tl-hist-punto { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.tl-hist-fechas { color: var(--text-secondary); white-space: nowrap; }
+.tl-hist-estado { flex: none; padding-left: var(--s2); color: var(--text-secondary); white-space: nowrap; }
+.tl-hist-estado.is-valorada { color: var(--text); font-weight: 500; }
+.tl-hist-l2 { display: flex; flex-wrap: wrap; gap: 2px var(--s3); padding-left: calc(8px + var(--s2)); color: var(--text-secondary); }
+/* La cifra clave: en tinta, lo que se lee primero de la segunda línea. */
+.tl-hist-clave { white-space: nowrap; color: var(--text); }
+.tl-hist-clave-etq { color: var(--text-secondary); }
+.tl-hist-clave.is-debil { opacity: 0.55; }
+.tl-hist-clave.is-nada { color: var(--text-tertiary, var(--text-secondary)); }
 .tl-ins-parte { display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
 .tl-ins-parte + .tl-ins-parte { padding-top: var(--s3); border-top: 1px solid var(--hairline); }
 
@@ -642,12 +714,29 @@
 .tl-rango-estado.is-futura { border: 1px dotted var(--hairline-strong); }
 
 
-/* ── El conmutador de la portada de Revisiones (hasta la fase 7) ────────── */
-.portada-vista { display: flex; justify-content: flex-end; gap: var(--s3); }
-.portada-vista-opcion { padding: 2px 0; border: 0; background: none; font: inherit; font-size: var(--fs-control); color: var(--text-secondary); cursor: pointer; }
-.portada-vista-opcion[aria-pressed="true"] { color: var(--text); font-weight: 600; }
-.portada-vista-opcion:hover { color: var(--text); }
-.portada-vista-opcion:focus-visible { outline: var(--foco); outline-offset: 2px; border-radius: 4px; }
+/* ── La temporada en miniatura, en el Resumen (`TarjetaTemporada`) ──────
+   La ruta y el peso del minimapa, quietos: la caja entera es la puerta. */
+.tarjeta-temporada .tarjeta-cuerpo { display: flex; flex-direction: column; gap: var(--s3); }
+.tarjeta-temporada-fase { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); }
+.tarjeta-temporada-fase b { color: var(--text); font-weight: 600; }
+.tarjeta-temporada-mini { min-width: 0; }
+.tarjeta-temporada-destino {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s2) var(--s3);
+  margin: 0; font-size: var(--fs-sm); color: var(--text-secondary);
+}
+.tarjeta-temporada-destino b { color: var(--text); font-weight: 600; }
+.tarjeta-temporada-que { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tarjeta-temporada-faltan { color: var(--text); font-weight: 600; white-space: nowrap; }
+.tarjeta-temporada-sin { color: var(--text-tertiary); }
+.tl-minit { display: block; overflow: visible; }
+.tl-minit-fase { opacity: 0.7; }
+.tl-minit-fase.is-plan { opacity: 0.28; }
+.tl-minit-hoy { stroke: var(--accent); stroke-width: 1; opacity: 0.5; }
+.tl-minit-esperado { fill: none; stroke: var(--text-tertiary); stroke-width: 1.25; stroke-dasharray: 3 3; }
+.tl-minit-peso { fill: none; stroke: var(--text); stroke-width: 1.75; stroke-linejoin: round; stroke-linecap: round; }
+.tl-minit-punto { fill: var(--text); stroke: var(--surface); stroke-width: 1.5; }
+.tl-minit-destino line { stroke: var(--text); stroke-width: 1.25; }
+.tl-minit-destino path { fill: var(--text); }
 
 /* ── El teléfono ─────────────────────────────────────────────────────────── */
 @media (max-width: 639.98px) {
@@ -1055,4 +1144,69 @@
 .tl-hoja-cuerpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 var(--s4) var(--s5); }
 @media (prefers-reduced-motion: reduce) {
   .tl-hoja { transition: none; }
+}
+
+/* ══ EDITAR EL PLAN DESDE LA RUTA (26 sep, fase 6 · letra a) ═══════════════
+   «+ fase» en los huecos y al final de lo planificado, «+ destino» al final
+   de la ruta, y las asas de los bordes de cada fase. En reposo no están
+   (la ley del reposo): salen al pasar por encima. Sin ratón no hay «pasar
+   por encima», así que en táctil están siempre. */
+.tl-mas,
+.tl-hueco .tl-mas { font-size: var(--tl-letra); font-weight: 600; fill: var(--accent); pointer-events: none; }
+/* Sin fases, «+ Primera fase» es la acción del vacío: botón lleno, siempre visible. */
+.tl-primera-fase rect { fill: var(--accent); transition: fill var(--fast); }
+.tl-primera-fase text { font-size: var(--tl-letra); font-weight: 600; fill: var(--accent-on); pointer-events: none; }
+.tl-primera-fase:hover rect { fill: var(--accent-hover); }
+.tl-primera-fase:focus { outline: none; }
+.tl-primera-fase:focus-visible rect { stroke: var(--accent); stroke-width: 2; stroke-opacity: 0.35; paint-order: stroke; }
+.tl-hueco.is-editable .tl-mas,
+.tl-ruta-destino .tl-mas { opacity: 0; transition: opacity var(--fast); }
+.tl-asa { cursor: ew-resize; touch-action: none; }
+.tl-asa-raya { fill: var(--text); opacity: 0; transition: opacity var(--fast); }
+.tl-bandera.is-arrastrable { cursor: ew-resize; touch-action: none; }
+@media (hover: hover) {
+  .tl-hueco.is-editable:hover .tl-hueco-rotulo { opacity: 0; }
+  .tl-hueco.is-editable:hover .tl-mas,
+  .tl-fila:hover .tl-ruta-destino .tl-mas { opacity: 1; }
+  .tl-hueco.is-editable:hover rect:not(.tl-diana) { stroke: var(--accent); }
+  .tl-fase:hover .tl-asa-raya { opacity: 0.35; }
+  .tl-asa:hover .tl-asa-raya { opacity: 0.8; }
+}
+@media (hover: none) {
+  .tl-hueco.is-editable .tl-hueco-rotulo { opacity: 0; }
+  .tl-hueco.is-editable .tl-mas,
+  .tl-ruta-destino .tl-mas { opacity: 1; }
+  .tl-asa-raya { opacity: 0.35; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tl-hueco.is-editable .tl-mas,
+  .tl-ruta-destino .tl-mas,
+  .tl-primera-fase rect,
+  .tl-asa-raya { transition: none; }
+}
+
+/* Deshacer y rehacer los cambios del plan, junto a Gráfica/Calendario. */
+.tl-deshacer { display: inline-flex; align-items: center; gap: 2px; margin-right: auto; }
+
+/* La ventana del punto de decisión: la pregunta y un camino por fila, con la
+   tinta de su dirección en el canto. */
+.tl-dec-pregunta { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.tl-dec-caminos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.tl-dec-camino {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--s3); row-gap: 2px; align-items: center;
+  padding: var(--s3) var(--s4); border: 1px solid var(--hairline); border-left: 3px solid var(--fase, var(--hairline-strong));
+  border-radius: var(--r-md); background: var(--surface);
+}
+.tl-dec-cuando { grid-column: 1; font-size: var(--fs-xs); color: var(--text-tertiary); }
+.tl-dec-titulo { grid-column: 1; font-size: var(--fs-sm); color: var(--text); }
+.tl-dec-dice { grid-column: 1; font-size: var(--fs-xs); color: var(--text-secondary); }
+.tl-dec-camino > .btn { grid-column: 2; grid-row: 1 / 4; }
+.tl-decision.is-arrastrable { cursor: ew-resize; touch-action: none; }
+
+/* En el teléfono los mandos van en columna: Deshacer y Rehacer, en la fila de
+   Gráfica y Calendario, sin abrir un renglón para ellos. */
+@media (max-width: 639.98px) {
+  .tl-mandos:has(.tl-deshacer) { grid-template-columns: minmax(0, 1fr) auto; }
+  .tl-mandos:has(.tl-deshacer) > .tl-mandos-derecha { grid-column: 1 / -1; }
+  .tl-deshacer { margin-right: 0; }
 }

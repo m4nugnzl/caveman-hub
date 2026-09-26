@@ -12,6 +12,7 @@ import {
   mergeDietReadings,
   parseCantidad,
   parseDietSheet,
+  toFoodEntry,
   toMealDrafts,
   varianteDeTexto,
 } from './dietSheet';
@@ -566,6 +567,45 @@ describe('toMealDrafts', () => {
        para poder comer otra cosa el martes. */
     const comidas = toMealDrafts(lectura.meals, () => null);
     expect(comidas[1].note).toContain('Pasta integral: o bien 130g Arroz integral');
+  });
+});
+
+describe('toFoodEntry — la medida la dice la hoja', () => {
+  /* El cliente ve cada alimento en la medida en que lo escribió quien montó la
+     dieta. Si la hoja decía «40 g de aguacate», no puede acabar en «0,3 ud»
+     porque el alimento de la biblioteca tenga unidad. */
+  const aguacate = {
+    name: 'Aguacate',
+    proteinPer100: 2,
+    carbsPer100: 9,
+    fatsPer100: 15,
+    unitLabel: 'ud',
+    unitGrams: 150,
+  };
+  const huevo = { name: 'Huevo', proteinPer100: 13, carbsPer100: 1, fatsPer100: 11, unitLabel: 'huevo', unitGrams: 55 };
+  const arroz = { name: 'Arroz', proteinPer100: 7, carbsPer100: 78, fatsPer100: 1, unitLabel: null, unitGrams: null };
+
+  it('en gramos (o kg, o ml) entra en gramos aunque el alimento tenga unidad', () => {
+    for (const celda of ['40g', '0,04 kg', '40 ml']) {
+      const entrada = toFoodEntry({ name: 'Aguacate', ...parseCantidad(celda) }, aguacate);
+      expect(entrada.showAs).toBe('grams');
+      expect(entrada.grams).toBe(40);
+    }
+  });
+
+  it('en unidades entra en unidades', () => {
+    /* «3 huevos» en una línea lo parte `alimentosDeLinea`: tres unidades de «huevos». */
+    const [leido] = alimentosDeLinea('- 3 huevos');
+    const entrada = toFoodEntry(leido, huevo);
+    expect(entrada.showAs).toBe('units');
+    expect(entrada.grams).toBe(165);
+    expect(toFoodEntry({ name: 'Huevo', ...parseCantidad('2 ud') }, huevo).showAs).toBe('units');
+  });
+
+  it('en unidades y sin unidad definida, en gramos como hasta ahora', () => {
+    const entrada = toFoodEntry({ name: 'Arroz', ...parseCantidad('2 ud') }, arroz);
+    expect(entrada.showAs).toBe('grams');
+    expect(entrada.grams).toBe(200);
   });
 });
 

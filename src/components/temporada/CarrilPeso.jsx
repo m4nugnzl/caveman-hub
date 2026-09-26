@@ -5,6 +5,7 @@ import { addDays, localeNumber } from '@/lib/dates';
 import { conY, marcasDe, porVentana } from '@/components/roadmap/escalaDePeso';
 import { TrazoDelPeso } from '@/components/roadmap/TrazoDelPeso';
 import { anchoTexto } from './escalaDeTiempo';
+import { trozosQueDifieren } from './sombraDeLaBanda';
 
 const f1 = (n) => Math.round(n * 10) / 10;
 const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -74,6 +75,12 @@ const tramosVisibles = ({ fases, expectativas, desde, hasta }) => {
  *      (`mediaMovil`), cortada donde no hay pesajes bastantes.
  *   4. El peso objetivo, una raya corta en la fecha del destino.
  *
+ * LA SOMBRA DE UNA VERSIÓN (letra f): con `sombra` (`{ fases, expectativas,
+ * destino, objetivoKg }`), la banda de esa versión del plan va encima, solo
+ * su contorno y a trazos, con la misma cuenta y la misma geometría que la de
+ * ahora, y solo donde difiere de ella (`trozosQueDifieren`); y su peso
+ * objetivo, a trazos, si era otro. Se compara sin leer nada.
+ *
  * Cifras, las justas: en Temporada, la media más alta, la más baja y la
  * última (`extremos`); en Rango, ninguna: los pesajes van como puntos
  * tenues (`pesajes`) y sus cifras las da el cursor. El punto del cursor va
@@ -93,6 +100,7 @@ export const CarrilPeso = ({
   extremos = false,
   tendencia = null,
   cursorX = null,
+  sombra = null,
 }) => {
   const W = escala.ancho;
   const desde = addDays(escala.primerDia, -1);
@@ -105,6 +113,11 @@ export const CarrilPeso = ({
   const visibles = semanas.filter((s) => s.domingo >= addDays(desde, -7) && s.lunes <= addDays(hasta, 7));
   const tramos = tramosVisibles({ fases, expectativas, desde, hasta });
   const destinoVisible = Boolean(destino?.date && objetivoKg && escala.toca(destino.date, destino.date));
+  const tramosDeLaSombra = sombra
+    ? trozosQueDifieren(tramosVisibles({ fases: sombra.fases, expectativas: sombra.expectativas, desde, hasta }), tramos)
+    : [];
+  const objetivoDeLaSombra =
+    sombra?.destino?.date && sombra.objetivoKg && escala.toca(sombra.destino.date, sombra.destino.date) ? sombra : null;
 
   const valores = [];
   for (const s of visibles) {
@@ -118,7 +131,14 @@ export const CarrilPeso = ({
       if (v !== null) valores.push(v * (1 + MEDIA_BANDA), v * (1 - MEDIA_BANDA));
     }
   }
+  for (const t of tramosDeLaSombra) {
+    for (const d of [t.a, t.b]) {
+      const v = valorDelTramo(t.tramo, d);
+      if (v !== null) valores.push(v * (1 + MEDIA_BANDA), v * (1 - MEDIA_BANDA));
+    }
+  }
   if (destinoVisible) valores.push(objetivoKg);
+  if (objetivoDeLaSombra) valores.push(objetivoDeLaSombra.objetivoKg);
 
   const rango = porVentana(valores);
   if (!rango) {
@@ -164,6 +184,36 @@ export const CarrilPeso = ({
       );
     });
   });
+
+  /* La de la versión elegida: el mismo trapecio, solo el contorno, y solo en
+     los trozos que difieren. Los cantos, solo donde su tramo los tiene: donde
+     se corta por coincidir con la de ahora, la sombra se funde en ella. */
+  const bandasDeLaSombra = tramosDeLaSombra.map(({ key, tramo, a, b, abre, cierra, canto }) => {
+    const va = valorDelTramo(tramo, a);
+    const vb = valorDelTramo(tramo, b);
+    if (va === null || vb === null) return null;
+    const xa = f1(escala.x(a) + (abre ? SEPARACION : 0));
+    const xb = f1(escala.x(b) - (cierra ? SEPARACION : 0));
+    if (xb - xa < 1) return null;
+    const [arA, abA, arB, abB] = [Y(va * (1 + MEDIA_BANDA)), Y(va * (1 - MEDIA_BANDA)), Y(vb * (1 + MEDIA_BANDA)), Y(vb * (1 - MEDIA_BANDA))];
+    const d = [
+      `M${xa},${arA}L${xb},${arB}`,
+      `M${xa},${abA}L${xb},${abB}`,
+      canto.a ? `M${xa},${arA}L${xa},${abA}` : '',
+      canto.b ? `M${xb},${arB}L${xb},${abB}` : '',
+    ].join('');
+    return <path key={`s-${key}`} className="tl-banda-sombra" d={d} />;
+  });
+  let objetivoSombra = null;
+  if (objetivoDeLaSombra && (objetivoDeLaSombra.objetivoKg !== objetivoKg || objetivoDeLaSombra.destino.date !== destino?.date)) {
+    const x = X(objetivoDeLaSombra.destino.date);
+    const y = Y(objetivoDeLaSombra.objetivoKg);
+    objetivoSombra = (
+      <line className="tl-objetivo-sombra" x1={f1(x - 8)} x2={f1(x + 8)} y1={y} y2={y}>
+        <title>{`Peso objetivo de esa versión: ${kg(objetivoDeLaSombra.objetivoKg)} kg`}</title>
+      </line>
+    );
+  }
 
   /* La banda se nombra en su sitio, una vez y sin leyenda: bajo el trozo
      vivido más ancho que se ve («esperado»); si aún no hay, bajo el que viene. */
@@ -312,6 +362,7 @@ export const CarrilPeso = ({
         </g>
       ))}
       {bandas}
+      {bandasDeLaSombra}
       {rotuloBanda}
       {proyeccion.map((p) => (
         <line key={`r-${p.k}`} className="tl-proyeccion" x1={p.xa} y1={p.ya} x2={p.xb} y2={p.yb} stroke={TINTA_PESO} />
@@ -349,6 +400,7 @@ export const CarrilPeso = ({
         />
       )}
       {objetivo}
+      {objetivoSombra}
       {cifrasExtremas}
       {punto}
     </>

@@ -221,7 +221,12 @@ de `billing-checkout` es más estricta que la de la pasarela —exige sesión v�
 Las automatizaciones de disparador **«Cuando lleve tiempo sin…»** (motor 3,
 migración `0118_el_latido.sql`) las reparte el cron de las 07:00 que ya existía
 para el bot de la radiografía. Sin estos dos secretos **no se reparten**, y el
-único sitio donde se ve es el registro del worker (`npx wrangler tail`):
+único sitio donde se ve es el registro del worker (`npx wrangler tail`).
+
+Desde la 0146 el reloj suena **cada hora**: a las 07:00 UTC hace lo de
+siempre (informe y latido completo) y las demás horas llama a `latido?dietas`,
+que solo aplica las dietas programadas de quien acaba de empezar su día en su
+zona horaria. Si el cliente abre la aplicación antes, se le aplica al abrir. Los secretos:
 
 ```bash
 npx supabase secrets set LATIDO_CRON_SECRET="$(openssl rand -hex 24)"

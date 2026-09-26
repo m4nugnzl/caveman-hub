@@ -85,10 +85,10 @@
 @import './styles/microciclo.css';
 /* La lista de bloques como línea de tiempo, con lo previsto arriba (24 sep). */
 @import './styles/lista-de-bloques.css';
-/* El creador del plan: la pestaña Plan de «El plan», en barras (23 sep). */
-@import './styles/creador.css';
 /* La temporada como línea de tiempo: carriles sobre un eje (24 sep). */
 @import './styles/temporada.css';
+/* Las variaciones de la dieta: refeeds y diet breaks (26 sep). */
+@import './styles/variaciones.css';
 /*
   ── El portal del cliente, que es OTRO aparato en cada aparato ──────────────
 

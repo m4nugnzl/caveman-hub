@@ -11,17 +11,16 @@ import { tramoDeFechas } from '@/domain/semanasDelPlan';
 import { localeNumber, shortDate, weekStart } from '@/lib/dates';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { useEsTelefono } from '@/lib/useMediaQuery';
-import { semanaPath } from '@/routes';
+import { semanaPath, temporadaPath } from '@/routes';
 import { EmptyState, SegmentedControl } from '@/components/ui/primitives';
 import { Tarjeta } from '@/components/dashboard/Tarjeta';
-import { PlanDelRoadmap } from '@/components/roadmap/PlanDelRoadmap';
 import { TrazoDelPeso } from '@/components/roadmap/TrazoDelPeso';
 import { escalaPorColumnas } from '@/components/roadmap/geometria';
 import { conY, marcasDe, porFase, pxPorKilo } from '@/components/roadmap/escalaDePeso';
-import { LineaDeTiempo } from '@/components/temporada/LineaDeTiempo';
 import { useReviewRows } from './useReviewRows';
 import { useSemanasDeRevision } from './useSemanasDeRevision';
 import { CANAL, medirColumnas, partir } from './geometriaDeTiras';
+import { EnLaTemporada } from './EnLaTemporada';
 import { PortadaDeEntreno } from './PortadaDeEntreno';
 
 /**
@@ -63,16 +62,11 @@ const LENTES = [
 ];
 
 /*
-  El conmutador de la portada (24 sep 2026): las tiras de siempre o la línea
-  de tiempo nueva (`components/temporada/`). Conviven mientras se construye la
-  línea, para poder compararlas con datos reales; en la fase 7 la línea pasa
-  a ser la portada y el conmutador desaparece. Va en la dirección
-  (`?vista=linea`) para que se pueda enlazar y sobreviva a recargar.
+  Aquí vivió el conmutador «Tiras / Línea de tiempo» (24–26 sep 2026). La
+  línea tiene ahora su pestaña, «Temporada» (`temporada/PaginaDeTemporada`),
+  y cada casilla lleva a ella (`EnLaTemporada`). El `?vista=linea` de los
+  enlaces viejos redirige allí.
 */
-const VISTAS_PORTADA = [
-  { id: 'tiras', label: 'Tiras' },
-  { id: 'linea', label: 'Línea de tiempo' },
-];
 
 const kg = (v) => localeNumber(v, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const signo = (v) => `${v > 0 ? '+' : v < 0 ? '−' : '±'}${kg(Math.abs(v))}`;
@@ -99,35 +93,38 @@ const Casilla = ({ s, clientId, compacta, senalada, onSenalar }) => {
     s.revision5 === 'pendiente' ? (s.entregada ? 'entregó y espera tu respuesta' : 'sin subir, te toca revisarla') : DICHO[s.revision5];
 
   return (
-    <Link
-      to={semanaPath(clientId, s.lunes)}
-      className={`casilla is-${s.revision5}${compacta ? ' is-compacta' : ''}${senalada ? ' is-senalada' : ''}${pegada}`}
-      aria-label={[
-        `Semana ${s.numero ?? ''} del ${shortDate(s.lunes)}`,
-        estado,
-        valor !== null ? `${futura ? 'esperado' : 'media'} ${kg(valor)} kg` : null,
-        kcal ? `${localeNumber(kcal)} kcal` : null,
-      ]
-        .filter(Boolean)
-        .join(', ')}
-      title={compacta ? `Del ${shortDate(s.lunes)} · ${estado}` : undefined}
-      onMouseEnter={() => onSenalar(s.lunes)}
-      onMouseLeave={() => onSenalar(null)}
-      onFocus={() => onSenalar(s.lunes)}
-      onBlur={() => onSenalar(null)}
-    >
-      <span className="casilla-cab">
-        <b className="casilla-n">{nombre(s)}</b>
-        {s.revision5 === 'revisada' && <span className="casilla-marca" aria-hidden="true">✓</span>}
-        {s.estado === 'hoy' && <span className="casilla-marca is-hoy" aria-hidden="true">hoy</span>}
-      </span>
-      {!compacta && <span className="casilla-fecha">{shortDate(s.lunes)}</span>}
-      <span className={`casilla-kg${futura ? ' is-esperado' : ''}`}>
-        {valor === null ? '—' : kg(valor)}
-        {valor !== null && !compacta && <small>{futura ? ' esp.' : ' kg'}</small>}
-      </span>
-      {kcal && <span className="casilla-kcal">{compacta ? String(Math.round(kcal)) : `${localeNumber(kcal)} kcal`}</span>}
-    </Link>
+    <div className="casilla-celda">
+      <Link
+        to={semanaPath(clientId, s.lunes)}
+        className={`casilla is-${s.revision5}${compacta ? ' is-compacta' : ''}${senalada ? ' is-senalada' : ''}${pegada}`}
+        aria-label={[
+          `Semana ${s.numero ?? ''} del ${shortDate(s.lunes)}`,
+          estado,
+          valor !== null ? `${futura ? 'esperado' : 'media'} ${kg(valor)} kg` : null,
+          kcal ? `${localeNumber(kcal)} kcal` : null,
+        ]
+          .filter(Boolean)
+          .join(', ')}
+        title={compacta ? `Del ${shortDate(s.lunes)} · ${estado}` : undefined}
+        onMouseEnter={() => onSenalar(s.lunes)}
+        onMouseLeave={() => onSenalar(null)}
+        onFocus={() => onSenalar(s.lunes)}
+        onBlur={() => onSenalar(null)}
+      >
+        <span className="casilla-cab">
+          <b className="casilla-n">{nombre(s)}</b>
+          {s.revision5 === 'revisada' && <span className="casilla-marca" aria-hidden="true">✓</span>}
+          {s.estado === 'hoy' && <span className="casilla-marca is-hoy" aria-hidden="true">hoy</span>}
+        </span>
+        {!compacta && <span className="casilla-fecha">{shortDate(s.lunes)}</span>}
+        <span className={`casilla-kg${futura ? ' is-esperado' : ''}`}>
+          {valor === null ? '—' : kg(valor)}
+          {valor !== null && !compacta && <small>{futura ? ' esp.' : ' kg'}</small>}
+        </span>
+        {kcal && <span className="casilla-kcal">{compacta ? String(Math.round(kcal)) : `${localeNumber(kcal)} kcal`}</span>}
+      </Link>
+      <EnLaTemporada clientId={clientId} lunes={s.lunes} nombre={s.numero ? `la S${s.numero}` : `la semana del ${shortDate(s.lunes)}`} />
+    </div>
   );
 };
 
@@ -350,22 +347,12 @@ const Fase = ({ grupo, tipo, abierta, onAlternar, medida, ppk, color, clientId, 
 export const PortadaDeSemanas = () => {
   const { activeClient, workoutData, ponerReferenciasDelBloque } = useApp();
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
-  const vista = params.get('vista') === 'linea' ? 'linea' : 'tiras';
-  const cambiarVista = (v) => {
-    const siguiente = new URLSearchParams(params);
-    if (v === 'linea') siguiente.set('vista', 'linea');
-    else siguiente.delete('vista');
-    setParams(siguiente, { replace: true });
-  };
+  const [params] = useSearchParams();
   const telefono = useEsTelefono();
   const [refAncho, ancho] = useElementWidth(960);
   const [senalada, setSenalada] = useState(null);
   const [lente, setLente] = useState('nutricion');
   const [plegado, setPlegado] = useState(null);
-  /* La ventana del plan: fases, cruce, destino y peso objetivo. Se abría
-     desde la banda de fase de la espina; ahora, desde aquí. */
-  const [verPlan, setVerPlan] = useState(false);
 
   const { rows: revisiones, checkIns: entregas, cargando } = useReviewRows(activeClient?.id, { conEnlaces: false });
   const { plan, estados, hoy } = useSemanasDeRevision({ revisiones, entregas });
@@ -424,16 +411,14 @@ export const PortadaDeSemanas = () => {
   /* `?en=hoy` venía del Resumen: ahora la semana de hoy tiene su dirección. */
   if (params.get('en') === 'hoy') return <Navigate to={semanaPath(activeClient.id, weekStart(hoy))} replace />;
 
-  /* Discreto, en texto: se va en la fase 7, cuando la línea de tiempo sea la portada. */
-  const conmutador = (
-    <div className="portada-vista" role="group" aria-label="Cómo ver sus semanas">
-      {VISTAS_PORTADA.map((v) => (
-        <button key={v.id} type="button" className="portada-vista-opcion" aria-pressed={vista === v.id} onClick={() => cambiarVista(v.id)}>
-          {v.label}
-        </button>
-      ))}
-    </div>
-  );
+  /* La línea de tiempo de antes (`?vista=linea`, con su vista y su modo) es
+     ahora la pestaña Temporada. */
+  if (params.get('vista') === 'linea') {
+    const resto = new URLSearchParams(params);
+    resto.delete('vista');
+    const q = resto.toString();
+    return <Navigate to={`${temporadaPath(activeClient.id)}${q ? `?${q}` : ''}`} replace />;
+  }
 
   const aRevisar = estados?.aRevisar ? estados.porLunes.get(estados.aRevisar) : null;
   const masPendientes = Math.max(0, (estados?.pendientes.length || 0) - 1);
@@ -450,18 +435,6 @@ export const PortadaDeSemanas = () => {
         )}
       </p>
     ) : null;
-
-  /* La línea de tiempo espera a las entregas, como las tiras: sin ellas no se
-     sabe el estado de ninguna semana. */
-  if (vista === 'linea') {
-    return (
-      <div className="revision-pagina cascada portada-semanas">
-        {teToca}
-        {conmutador}
-        {!cargando && <LineaDeTiempo plan={plan} estados={estados} />}
-      </div>
-    );
-  }
 
   /*
     Cada lente tiene su propio vacío, porque cada una mira otra cosa. Alguien
@@ -509,7 +482,6 @@ export const PortadaDeSemanas = () => {
   return (
     <div className="revision-pagina cascada portada-semanas">
       {teToca}
-      {conmutador}
 
       <Tarjeta
         rotulo="Sus semanas"
@@ -517,9 +489,11 @@ export const PortadaDeSemanas = () => {
         className="tarjeta-semanas"
         accion={
           <span className="row gap-3 wrap">
-            <button type="button" className="cab-accion is-puerta" aria-haspopup="dialog" onClick={() => setVerPlan(true)}>
-              El plan
-            </button>
+            {/* Fases, cruce, destino y peso objetivo: en la Temporada (la
+                ventana «El plan» se retiró el 26 sep 2026). */}
+            <Link className="cab-accion is-puerta" to={temporadaPath(activeClient.id)}>
+              Ver la temporada
+            </Link>
             <SegmentedControl value={lente} onChange={setLente} options={LENTES} label="Qué cifras llevan las casillas" />
           </span>
         }
@@ -603,7 +577,6 @@ export const PortadaDeSemanas = () => {
         </div>
       </Tarjeta>
 
-      {verPlan && <PlanDelRoadmap onClose={() => setVerPlan(false)} />}
     </div>
   );
 };

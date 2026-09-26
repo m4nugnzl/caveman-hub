@@ -145,6 +145,11 @@ export interface Session {
   feedback?: Record<string, string>;
   /** Sesión reconstruida de datos antiguos que tenían los kilos en el plan. */
   isLegacy?: boolean;
+  /**
+   * La foto de lo que pedía esa hoja cuando se hizo: se pone al cambiar la
+   * pauta de su microciclo (`sellarPautasIn`). Con ella, manda sobre el plan.
+   */
+  pauta?: Record<string, { targetReps: string; targetKg: string; targetRir: string }[]>;
   /** Lo añade `allSessions` al aplanar; no está en la base de datos. */
   weekNumber?: number;
   /**

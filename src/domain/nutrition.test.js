@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFoodEntry,
   buildMeal,
+  cantidadDe,
   claseDe,
+  entradaQueSustituye,
   cloneMeal,
   cloneMeals,
   carbsFromRest,
@@ -11,6 +13,7 @@ import {
   optionGaps,
   optionName,
   replaceDietDays,
+  pautaDeLaDieta,
   cuadra,
   cycleFoto,
   dayMacros,
@@ -133,6 +136,62 @@ describe('buildFoodEntry', () => {
     const entry = buildFoodEntry(arroz);
     expect(entry.unitLabel).toBeNull();
     expect(entry.unitGrams).toBeNull();
+  });
+
+  /* La medida que ya eligió alguien manda sobre el defecto: el defecto es solo
+     para el alta desde el buscador, donde aún no ha elegido nadie. */
+  it('una medida explícita manda sobre el defecto', () => {
+    expect(buildFoodEntry(huevo, 110, { showAs: 'grams' }).showAs).toBe('grams');
+    expect(buildFoodEntry(huevo, 110, { showAs: 'units' }).showAs).toBe('units');
+    expect(buildFoodEntry(huevo, 110).showAs).toBe('units');
+  });
+
+  it('pedir unidades de algo que no las tiene se queda en gramos', () => {
+    expect(buildFoodEntry(arroz, 250, { showAs: 'units' }).showAs).toBe('grams');
+  });
+
+  it('la medida no toca los gramos ni las macros', () => {
+    const enGramos = buildFoodEntry(huevo, 110, { showAs: 'grams' });
+    const enUnidades = buildFoodEntry(huevo, 110);
+    expect(enGramos.grams).toBe(110);
+    expect(foodMacros(enGramos)).toEqual(foodMacros(enUnidades));
+  });
+});
+
+describe('entradaQueSustituye — cambiar por un equivalente conserva la medida', () => {
+  const aguacate = { name: 'Aguacate', proteinPer100: 2, carbsPer100: 9, fatsPer100: 15, unitLabel: 'ud', unitGrams: 150 };
+  const enGramos = { ...buildFoodEntry(arroz, 80), id: 'f1' };
+  const enUnidades = { ...buildFoodEntry(huevo, 110), id: 'f2' };
+
+  it('si iba en gramos, el nuevo va en gramos aunque tenga unidad', () => {
+    const nueva = entradaQueSustituye(enGramos, aguacate, 40);
+    expect(nueva.showAs).toBe('grams');
+    expect(nueva.grams).toBe(40);
+  });
+
+  it('si iba en unidades y el nuevo las tiene, en unidades', () => {
+    expect(entradaQueSustituye(enUnidades, aguacate, 150).showAs).toBe('units');
+  });
+
+  it('si iba en unidades y el nuevo no las tiene, en gramos', () => {
+    expect(entradaQueSustituye(enUnidades, arroz, 60).showAs).toBe('grams');
+  });
+
+  it('una entrada antigua sin showAs cuenta como lo que se ve: unidades', () => {
+    const { showAs: _sin, ...antigua } = enUnidades;
+    expect(entradaQueSustituye(antigua, aguacate, 150).showAs).toBe('units');
+  });
+
+  it('no trae id: la entrada conserva el de la que sustituye', () => {
+    expect(entradaQueSustituye(enGramos, aguacate, 40).id).toBeUndefined();
+  });
+});
+
+describe('cantidadDe — la ración en la medida en que se ve', () => {
+  it('en gramos, gramos; en unidades, unidades', () => {
+    expect(cantidadDe({ ...buildFoodEntry(huevo, 110), showAs: 'grams' })).toBe('110 g');
+    expect(cantidadDe(buildFoodEntry(huevo, 110))).toBe('2 huevos');
+    expect(cantidadDe(buildFoodEntry(arroz, 80))).toBe('80 g');
   });
 });
 
@@ -840,6 +899,50 @@ describe('rescaleMeals · la cesta', () => {
     /* Sin arroz que mover, el recorte cae en la reserva: la manzana. */
     expect(gramosDe(res, 'Arroz blanco')).toBe(100);
     expect(gramosDe(res, 'Manzana')).toBeLessThan(150);
+  });
+
+  /* Lo que se VE en unidades no se mueve, y lo que se ve lo dice `displayAsUnits`:
+     una entrada antigua sin `showAs` y con unidad se pinta en unidades, así que
+     el ajuste la trata igual. Antes se pintaba «1 taza» y se ajustaba a 0,8. */
+  it('una entrada antigua que se ve en unidades no se mueve', () => {
+    const antigua = almuerzo();
+    antigua[0].options[0].foods[0] = { ...antigua[0].options[0].foods[0], unitLabel: 'taza', unitGrams: 100 };
+    const carbs = 78 + 13 * 1.5;
+    const res = rescaleMeals(antigua, { fromCarbs: carbs, toCarbs: carbs - 10, catalog: CATALOGO });
+    expect(gramosDe(res, 'Arroz blanco')).toBe(100);
+    expect(gramosDe(res, 'Manzana')).toBeLessThan(150);
+  });
+
+  it('y la misma entrada puesta en gramos sí se mueve', () => {
+    const enGramos = almuerzo();
+    enGramos[0].options[0].foods[0] = {
+      ...enGramos[0].options[0].foods[0],
+      unitLabel: 'taza',
+      unitGrams: 100,
+      showAs: 'grams',
+    };
+    const carbs = 78 + 13 * 1.5;
+    const res = rescaleMeals(enGramos, { fromCarbs: carbs, toCarbs: carbs - 10, catalog: CATALOGO });
+    expect(gramosDe(res, 'Arroz blanco')).toBeLessThan(100);
+  });
+
+  /* Y el reparto del objetivo entre comidas pregunta con la misma regla: una
+     comida cuyo único hidrato se ve en unidades no puede coger su parte. */
+  it('el reparto no le da parte a una comida que solo se puede mover en unidades', () => {
+    const [comida] = almuerzo();
+    const pan = {
+      id: 'p1',
+      name: 'Arroz blanco',
+      grams: 100,
+      proteinPer100: 7,
+      carbsPer100: 78,
+      fatsPer100: 1,
+      unitLabel: 'taza',
+      unitGrams: 100,
+    };
+    const desayuno = { id: 'm0', name: 'Desayuno', options: [{ id: 'o0', foods: [pan] }] };
+    const metas = objetivosPorComida([desayuno, comida], { carbs: 150 }, { catalog: CATALOGO });
+    expect(metas[0].carbs).toBeCloseTo(78, 5);
   });
 
   /*
@@ -2785,6 +2888,15 @@ describe('rescaleMeals · quitar una fila', () => {
     expect(quitadas(ajustar([...sinAguacate, f('Tomate', 100, 1, 4, 0)]))).toEqual([]);
   });
 
+  /* El aguacate de antes del interruptor: con unidad y sin `showAs` se VE en
+     unidades, así que tampoco se quita. Puesto en gramos, sí. */
+  it('nunca lo que se ve en unidades, aunque sea una entrada antigua sin showAs', () => {
+    expect(quitadas(ajustar(laDeAntonio({ unitLabel: 'ud', unitGrams: 150 })))).toEqual([]);
+    expect(quitadas(ajustar(laDeAntonio({ unitLabel: 'ud', unitGrams: 150, showAs: 'grams' })))).toEqual([
+      'Aguacate',
+    ]);
+  });
+
   it('nunca una fila marcada «no la muevas»', () => {
     expect(quitadas(ajustar(laDeAntonio({ fijo: true })))).toEqual([]);
   });
@@ -2889,5 +3001,43 @@ describe('rescaleMeals · quitar una fila', () => {
     );
     /* Y que no sea una lista vacía comparada con otra vacía. */
     expect(sueltas.length).toBe(10);
+  });
+});
+
+describe('pautaDeLaDieta: la dieta entera vuelve tal cual', () => {
+  const plan = () => ({
+    type: 'closed',
+    habitsNotes: [{ id: 'n1', title: 'Agua', body: 'Tres litros' }],
+    stepsGoal: 11000,
+    cardioGoal: 'Bici 30 min',
+    week: { Lunes: 'd1', Martes: 'd2', Miercoles: 'd1' },
+    days: [
+      { id: 'd1', name: 'Alto', targets: { targetKcals: 2450, proteinGrams: 180, carbsGrams: 300, fatsGrams: 60 }, meals: [buildMeal()] },
+      { id: 'd2', name: 'Bajo', targets: { targetKcals: 2000, proteinGrams: 180, carbsGrams: 190, fatsGrams: 60, steps: 8000 }, meals: [] },
+    ],
+  });
+
+  it('con la pauta entran las cifras de cada día, el reparto, pasos, cardio y notas', () => {
+    const origen = plan();
+    const pauta = pautaDeLaDieta(origen);
+    const destino = { ...plan(), stepsGoal: 5000, cardioGoal: '', week: {}, days: [{ id: 'x', name: 'Otro', targets: { targetKcals: 1500 }, meals: [] }] };
+    const out = replaceDietDays(destino, origen.days, pauta);
+    expect(out.days.map((d) => d.targets.targetKcals)).toEqual([2450, 2000]);
+    expect(out.days[1].targets.steps).toBe(8000);
+    expect(out.stepsGoal).toBe(11000);
+    expect(out.cardioGoal).toBe('Bici 30 min');
+    expect(out.habitsNotes).toHaveLength(1);
+    /* El reparto viaja por posición: los días nacen con ids nuevos. */
+    expect(out.week.Lunes).toBe(out.days[0].id);
+    expect(out.week.Martes).toBe(out.days[1].id);
+    expect(out.week.Miercoles).toBe(out.days[0].id);
+  });
+
+  it('sin pauta, lo de siempre: las cifras son de quien la recibe', () => {
+    const destino = { ...plan(), stepsGoal: 5000, days: [{ id: 'x', name: 'Otro', targets: { targetKcals: 1500 }, meals: [] }] };
+    const out = replaceDietDays(destino, plan().days);
+    expect(out.days[0].targets.targetKcals).toBe(1500);
+    expect(out.stepsGoal).toBe(5000);
+    expect(out.week).toEqual({});
   });
 });

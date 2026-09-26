@@ -539,3 +539,25 @@ describe('la dieta entera: la única que borra', () => {
     expect(lineas).toEqual(['Alto · 1 comida', 'Bajo · 1 comida']);
   });
 });
+
+describe('la dieta entera con su pauta («Copiar mis cambios»)', () => {
+  it('entra tal cual, con sus cifras, y lo dice', () => {
+    const pieza = {
+      tipo: TIPO.DIETA,
+      titulo: 'Tus cambios sin guardar',
+      origen: { objetivoKcals: 2450 },
+      carga: {
+        days: [{ name: 'Alto', proporcion: 1, meals: menu(500) }],
+        pauta: { dias: [{ targetKcals: 2450 }], week: {}, stepsGoal: 11000, cardioGoal: '', habitsNotes: [] },
+      },
+    };
+    const datos = dieta([{ id: 'd1', name: 'Uno', targets: { targetKcals: 3000 }, meals: [comida('A')] }]);
+    const { estado, filas, plan } = consecuenciaDe({ pieza, datos });
+    expect(estado).toBe('va');
+    /* No se ajusta a las 3.000 de quien la recibe: trae las suyas. */
+    expect(plan.days[0].meals[0].options[0].foods[0].grams).toBe(500);
+    expect(plan.pauta.stepsGoal).toBe(11000);
+    expect(filas.map((f) => f.texto)).toContain('Con su pauta: 2.450 kcal, reparto, pasos y cardio');
+    expect(filas[1].marca).toBe('sale');
+  });
+});

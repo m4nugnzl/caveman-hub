@@ -1,9 +1,8 @@
 import { useMemo, useRef } from 'react';
 
-import { blockSummary, intentLabel, splitDelBloque, weeksOfBlock } from '@/domain/blocks';
-import { cambioMedio, indiceMedio, rendimientoDelBloque, variacionTexto } from '@/domain/rendimiento';
-import { nombreDelSplit } from '@/domain/split';
-import { dayPlannedVolume, normalizaMicrociclo } from '@/domain/training';
+import { intentLabel, weeksOfBlock } from '@/domain/blocks';
+import { variacionTexto } from '@/domain/rendimiento';
+import { cifrasDelPase } from '@/domain/temporadas';
 import { daysBetween, shortDate } from '@/lib/dates';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
 
@@ -25,10 +24,12 @@ import { MenuAcciones } from '@/components/ui/MenuAcciones';
  * ══ Dos variantes ══════════════════════════════════════════════════════════
  *   · `portada` — el bloque de hoy en la portada de Bloques, con el pie de lo
  *     que viene detrás.
- *   · `temporada` — un pase de la cascada de una funda abierta. Plegado solo
- *     asoma su cabecera; entero dice semanas, series por semana y % pautado.
+ *   · `temporada` — un pase de la cascada compacta de una funda abierta:
+ *     solo su cabecera. El elegido lleva el anillo y su detalle va al lado
+ *     (`DetalleDelPase`). Un toque lo elige; dos, lo abren.
  *
- * El color sale de `--pase-tinta` y la pintura está en `lista-de-bloques.css`.
+ * El color sale de `--pase-tinta` y la pintura es `.fondo-de-pase`
+ * (`lista-de-bloques.css`), la misma del pase desplegado.
  */
 
 const cuenta = (n, singular, plural) => `${n} ${n === 1 ? singular : plural}`;
@@ -56,36 +57,9 @@ export const semanasDelPase = (pase) => {
   return dias > 0 ? Math.max(1, Math.round(dias / 7)) : 0;
 };
 
-/**
- * Lo que se cuenta de un pase. Un previsto no ha pasado: sus series son las de
- * sus hojas (una vez cada una por microciclo) y no tiene ni pautado ni
- * rendimiento.
- */
+/** Las cifras de un pase (`cifrasDelPase`), memorizadas: todo sale de SU bloque. */
 export const useCifrasDelPase = (pase, program, cliente) =>
-  useMemo(() => {
-    const b = pase.bloque;
-    if (pase.tipo === 'borrador') {
-      const hojas = b.sessions || [];
-      const series = hojas.reduce(
-        (n, h) => n + Object.values(dayPlannedVolume(h)).reduce((m, v) => m + v, 0),
-        0
-      );
-      const texto = nombreDelSplit(b, hojas, normalizaMicrociclo(b.microciclo));
-      return { split: texto, series: hojas.length ? Math.round(series) : null, adherencia: null, curva: [], pct: null };
-    }
-    const r = blockSummary(program, b, cliente);
-    const sp = splitDelBloque(program, b, cliente);
-    const split = sp?.texto ? (sp.dias && !sp.texto.includes(sp.dias) ? `${sp.texto} · ${sp.dias}` : sp.texto) : null;
-    const { ejercicios } = rendimientoDelBloque(program, b);
-    const medidos = ejercicios.filter((e) => e.cambio);
-    return {
-      split,
-      series: r.series === null ? null : Math.round(r.series),
-      adherencia: r.adherencia,
-      curva: medidos.length ? indiceMedio(medidos.map((e) => e.linea)).map((p) => p.indice) : [],
-      pct: cambioMedio(medidos),
-    };
-  }, [pase, program, cliente]);
+  useMemo(() => cifrasDelPase(pase, program, cliente), [pase, program, cliente]);
 
 /* ══ LA CURVA DE FONDO ═════════════════════════════════════════════════════
    El índice medio por microciclo, suavizado (Catmull-Rom a Bézier), sin ejes ni
@@ -95,7 +69,8 @@ export const useCifrasDelPase = (pase, program, cliente) =>
 const ANCHO = 300;
 const ALTO = 100;
 
-const trazo = (puntos) => {
+/** Un trazo suave por los puntos: Catmull-Rom pasado a Bézier. */
+export const trazoSuave = (puntos) => {
   let d = `M${puntos[0][0]},${puntos[0][1]}`;
   for (let i = 0; i < puntos.length - 1; i++) {
     const p0 = puntos[i - 1] || puntos[i];
@@ -125,7 +100,7 @@ export const CurvaDeFondo = ({ valores = [] }) => {
        números, no de sus rótulos. */
     ALTO * 0.35 - ((v - medio) / rango) * ALTO * 0.5,
   ]);
-  const linea = trazo(puntos);
+  const linea = trazoSuave(puntos);
   return (
     <svg className="pase-curva" viewBox={`0 0 ${ANCHO} ${ALTO}`} preserveAspectRatio="none" aria-hidden="true">
       <path className="pase-curva-area" d={`${linea} L${puntos.at(-1)[0]},${ALTO} L${puntos[0][0]},${ALTO} Z`} />
@@ -169,10 +144,28 @@ const Anillo = ({ va, de }) => {
 };
 
 /** El microciclo por el que va: el que dice Entreno si cae en este bloque; si no, el último escrito. */
-const microcicloEnCurso = (program, bloque, semanaEnCurso) => {
+export const microcicloEnCurso = (program, bloque, semanaEnCurso) => {
   const semanas = weeksOfBlock(program, bloque);
   const i = semanas.indexOf(semanaEnCurso);
   return i >= 0 ? i + 1 : semanas.length;
+};
+
+/* ══ LO QUE DICE A LA DERECHA ══════════════════════════════════════════════
+   La chapa —«Ahora» o «Previsto»— y «10 sem · 69 series». Igual en el pase
+   de la cascada y en el desplegado; lo que venga detrás va debajo. */
+
+export const ResumenDelPase = ({ pase, series, children = null }) => {
+  const previsto = pase.tipo === 'borrador';
+  const semanas = semanasDelPase(pase);
+  return (
+    <div className="pase-resumen">
+      {(pase.abierto || previsto) && <span className="pase-chapa">{previsto ? 'Previsto' : 'Ahora'}</span>}
+      <span className="pase-dato">
+        {[semanas > 0 && `${semanas} sem`, series !== null && `${series} series`].filter(Boolean).join(' · ')}
+      </span>
+      {children}
+    </div>
+  );
 };
 
 /* ══ EL MENÚ DEL PASE ══════════════════════════════════════════════════════
@@ -193,14 +186,14 @@ export const PaseDeBloque = ({
   program,
   cliente,
   variante = 'portada',
-  /* En la cascada: `false` solo asoma la cabecera. */
-  entero = true,
+  /* En la cascada: el que enseña el detalle. */
+  elegido = false,
   semanaEnCurso = null,
   /* Lo que viene detrás, para el pie de la portada. */
   siguiente = null,
   onAbrir,
-  /* En la cascada, tocar la cabecera de un plegado lo saca entero. */
-  onDesplegar,
+  /* En la cascada, un toque lo elige. */
+  onElegir,
   acciones = [],
   /* Un mando que va encima del pase: «Empezar ahora». */
   mando = null,
@@ -217,18 +210,18 @@ export const PaseDeBloque = ({
   const semanas = semanasDelPase(pase);
   const clase = [
     'pase',
+    'fondo-de-pase',
     `is-${variante}`,
     previsto && 'is-previsto',
     pase.abierto && 'is-ahora',
-    entero ? 'is-entero' : 'is-plegado',
+    elegido && 'is-elegido',
     arrastre && 'is-arrastrable',
   ]
     .filter(Boolean)
     .join(' ');
 
-  /* Plegado, la puerta es la cabecera y lo despliega; entero, lo abre. */
-  const puerta = entero ? onAbrir : onDesplegar;
-  const rotuloPuerta = entero ? (previsto ? `Rellenar ${b.name}` : `Abrir ${b.name}`) : `Ver ${b.name} entero`;
+  const enCascada = variante === 'temporada';
+  const rotuloAbrir = previsto ? `Rellenar ${b.name}` : `Abrir ${b.name}`;
 
   const menu =
     acciones.length > 0 ? (
@@ -249,11 +242,23 @@ export const PaseDeBloque = ({
       onDragStart={arrastre?.onDragStart}
       onDragEnd={arrastre?.onDragEnd}
     >
-      {puerta && <button type="button" className="task-hit" onClick={() => puerta(b)} aria-label={rotuloPuerta} />}
+      {enCascada ? (
+        /* Un toque lo elige y dos lo abren. `aria-pressed` dice cuál se ve. */
+        <button
+          type="button"
+          className="task-hit"
+          onClick={() => onElegir?.(pase)}
+          onDoubleClick={() => onAbrir?.(b)}
+          aria-pressed={elegido}
+          aria-label={`Ver ${b.name}`}
+        />
+      ) : (
+        onAbrir && <button type="button" className="task-hit" onClick={() => onAbrir(b)} aria-label={rotuloAbrir} />
+      )}
 
       {variante === 'portada' ? (
         <>
-          {!previsto && <CurvaDeFondo valores={cifras.curva} />}
+          {!previsto && <CurvaDeFondo valores={cifras.curva.map((p) => p.indice)} />}
           <div className="pase-cabeza">
             <div className="pase-quien">
               <span className="pase-antetitulo">
@@ -305,53 +310,13 @@ export const PaseDeBloque = ({
           )}
         </>
       ) : (
-        <>
-          <header className="pase-cabecera">
+        <header className="pase-cabecera">
             <div className="pase-quien">
               <h3 className="pase-nombre">{b.name}</h3>
               {fechas && <span className="pase-fechas">{fechas}</span>}
             </div>
-            <div className="pase-resumen">
-              {(pase.abierto || previsto) && <span className="pase-chapa">{previsto ? 'Previsto' : 'Ahora'}</span>}
-              <span className="pase-dato">
-                {[semanas > 0 && `${semanas} sem`, cifras.series !== null && `${cifras.series} series`]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            </div>
-          </header>
-          {/* El cuerpo se pliega con una rejilla de 0fr a 1fr: la transición
-              de alto sin medir nada. */}
-          <div className="pase-cuerpo" aria-hidden={!entero}>
-            <div className="pase-cuerpo-dentro">
-              {cifras.split && <span className="pase-split">{cifras.split}</span>}
-              <div className="pase-cifras">
-                {semanas > 0 && (
-                  <span className="pase-cifra">
-                    <b>{semanas}</b>
-                    <small>{semanas === 1 ? 'semana' : 'semanas'}</small>
-                  </span>
-                )}
-                {cifras.series !== null && (
-                  <span className="pase-cifra">
-                    <b>{cifras.series}</b>
-                    <small>series / sem</small>
-                  </span>
-                )}
-                {cifras.adherencia !== null && (
-                  <span className="pase-cifra">
-                    <b>{cifras.adherencia} %</b>
-                    <small>pautado</small>
-                  </span>
-                )}
-                <span className="pase-mandos">
-                  {entero && mando}
-                  {entero && menu}
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
+            <ResumenDelPase pase={pase} series={cifras.series} />
+        </header>
       )}
     </article>
   );

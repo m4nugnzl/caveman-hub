@@ -35,11 +35,26 @@
  * MISMA configuración del build, sin depender de ningún paquete nuevo.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+
+/*
+  React y su renderizador, cargados desde la ruta REAL del proyecto y no con un
+  `import` normal. En Windows, un terminal abierto en `c:\…` (minúscula, como
+  los de VS Code) hacía que este script cargara React desde
+  `c:\…\node_modules\react`, mientras Vite, que normaliza la unidad a `C:`,
+  cargaba el de los componentes desde `C:\…`. Para Node son dos archivos, luego
+  dos Reacts, y el render caía con «Cannot read properties of null (reading
+  'useContext')»: el fallo «intermitente» del build, que dependía de desde
+  dónde se lanzara. `realpathSync.native` da la misma forma que usa Vite.
+*/
+const RAIZ = realpathSync.native(fileURLToPath(new URL('..', import.meta.url)));
+const requiere = createRequire(join(RAIZ, 'package.json'));
+const React = requiere('react');
+const { renderToStaticMarkup } = requiere('react-dom/server');
 
 const DIST = new URL('../dist/', import.meta.url);
 const leer = (archivo) => readFileSync(new URL(archivo, DIST), 'utf8');
@@ -68,6 +83,7 @@ if (!shell.includes(HUECO)) {
 escribir('app.html', shell);
 
 const vite = await createServer({
+  root: RAIZ,
   server: { middlewareMode: true },
   appType: 'custom',
   logLevel: 'error',

@@ -37,10 +37,32 @@ describe('nombreDelSplit', () => {
     expect(nombreDelSplit({ microciclo: rotativo('3-1', cuatro) }, cuatro.map((n) => hoja(n)))).toBe('Torso / Pierna 3-1');
   });
 
-  it('un rotativo asimétrico deletrea su cadena', () => {
+  it('un rotativo de tandas distintas cuenta sus días, no deletrea la cadena', () => {
     const nombres = ['Push', 'Pull', 'Pierna'];
     const bloque = { microciclo: rotativo('2-1 2-1 3-1', nombres) };
-    expect(nombreDelSplit(bloque, nombres.map((n) => hoja(n)))).toBe('Push Pull Legs 2-1 2-1 3-1');
+    expect(nombreDelSplit(bloque, nombres.map((n) => hoja(n)))).toBe('Push Pull Legs · 7 de cada 10 días');
+    expect(nombreCortoDelSplit(bloque, nombres.map((n) => hoja(n)))).toBe('PPL · 7/10d');
+  });
+
+  it('los bloques de Lucía: Torso / Pierna con un Full de más, limpio y sin cadena', () => {
+    /* Tal cual están guardados (b1…b7 semanales, b8 rotativo «2-1 2-1 3-1»). */
+    const hojas = [hoja('Torso'), hoja('Pierna'), hoja('Full')];
+    const b1 = { microciclo: semanal('Torso', 'Pierna', null, 'Torso', 'Pierna', 'Full', null) };
+    const b8 = {
+      microciclo: {
+        tipo: 'rotativo',
+        dias: ['Torso', 'Pierna', null, 'Torso', 'Pierna', null, 'Full', 'Torso', 'Pierna', null].map((h) => (h ? { hoja: h } : { descanso: true })),
+      },
+    };
+    expect(nombreDelSplit(b1, hojas)).toBe('Torso / Pierna + Full body · 5 días');
+    expect(nombreDelSplit(b8, hojas)).toBe('Torso / Pierna + Full body · 7 de cada 10 días');
+    expect(nombreCortoDelSplit(b1, hojas)).toBe('T/P · 5d');
+    expect(nombreCortoDelSplit(b8, hojas)).toBe('T/P · 7/10d');
+    /* Ninguna palabra sale dos veces. */
+    for (const n of [nombreDelSplit(b1, hojas), nombreDelSplit(b8, hojas)]) {
+      const palabras = n.split(/[\s/+·]+/).filter((p) => /\p{L}/u.test(p));
+      expect(new Set(palabras).size).toBe(palabras.length);
+    }
   });
 
   it('Torso / Brazo / Pierna, en orden de aparición', () => {

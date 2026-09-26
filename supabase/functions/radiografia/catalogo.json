@@ -4,6 +4,7 @@
     "clientes",
     "cartera",
     "cliente_resumen",
+    "cliente_temporada",
     "cliente_rutina",
     "cliente_nutricion",
     "cliente_semana",

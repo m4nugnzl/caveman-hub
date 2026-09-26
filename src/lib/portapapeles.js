@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
+import { pautaDeLaDieta, planDays, targetsFor } from '@/domain/nutrition';
+import { toNum0 } from '@/lib/num';
+
 /**
  * EL PORTAPAPELES DEL PRODUCTO: lo copiado, hasta que se pegue.
  *
@@ -137,6 +140,44 @@ export const piezaDeHoja = ({ dayName, exercises = [], cliente = null, donde = n
   carga: { dayName, exercises },
 });
 
+/**
+ * La forma de una DIETA copiada, en un solo sitio: la lee `reparto` al pegarla.
+ *
+ * La producen el ⧉ de la dieta (`NutritionModule`) y «Copiar mis cambios» del
+ * aviso de conflicto, cuando entra en vigor un cambio programado con el editor
+ * abierto (0146): lo escrito no se pierde, se lleva en la mano.
+ *
+ * De cada día viaja su menú y cuánto pide respecto al PRIMERO, no sus
+ * calorías: ver `replaceDietDays`. Sin objetivo de origen, la proporción es 1.
+ *
+ * Con `conPauta` viaja además su pauta —cifras de cada día, reparto, pasos,
+ * cardio y notas— y al pegarla entra tal cual (`pautaDeLaDieta`). Es la de
+ * «Copiar mis cambios»: lo que se había escrito tiene que poder volver entero.
+ *
+ * @returns la pieza, o `null` si la dieta no tiene ninguna comida.
+ */
+export const piezaDeDieta = ({ plan, titulo, cliente = null, donde = null, conPauta = false }) => {
+  const dias = planDays(plan);
+  if (!dias.some((d) => (d.meals || []).length > 0)) return null;
+  const base = toNum0(targetsFor(plan, dias[0]?.id).targetKcals) || 0;
+  const comidas = dias.reduce((n, d) => n + (d.meals?.length || 0), 0);
+  return {
+    tipo: TIPO.DIETA,
+    titulo,
+    detalle: `${dias.length} ${dias.length === 1 ? 'día' : 'días'} · ${comidas} ${comidas === 1 ? 'comida' : 'comidas'}${conPauta ? ' · con su pauta' : ''}`,
+    origen: { cliente, donde, objetivoKcals: base || null },
+    carga: {
+      days: dias.map((d) => ({
+        name: d.name,
+        meals: d.meals || [],
+        /* Contra el PRIMERO, que es el que manda el objetivo del plan. */
+        proporcion: base ? (toNum0(targetsFor(plan, d.id).targetKcals) || base) / base : 1,
+      })),
+      ...(conPauta ? { pauta: pautaDeLaDieta(plan) } : {}),
+    },
+  };
+};
+
 /** Cómo se llama cada forma cuando hay que decirlo en una frase. */
 export const NOMBRE_DE_TIPO = {
   [TIPO.EJERCICIO]: 'ejercicio',
@@ -233,6 +274,13 @@ if (typeof window !== 'undefined') {
 }
 
 const nuevoId = () => `pp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+/**
+ * «Copiar mis cambios» en el choque de una dieta programada copia y recarga:
+ * esta marca de la pestaña hace que, ya recargada, se diga dónde quedó. Ver
+ * `resolveConflict` y `AvisoTrasCopiar` (`App.jsx`).
+ */
+export const CLAVE_COPIADO_EN_EL_CHOQUE = 'caveman:copiado-en-el-choque';
 
 /**
  * Guarda una pieza. La más reciente va siempre la primera.

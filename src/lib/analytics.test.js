@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./supabaseClient', () => ({ supabase: { from: () => ({ insert: async () => ({}) }) } }));
 
-const { bucket, identify, rutaDe, saneaMensaje, track } = await import('./analytics');
+const { bucket, filaDeFallo, identify, rutaDe, saneaMensaje, track } = await import('./analytics');
 const { pantallaDe } = await import('../App.jsx');
 const { CLIENT_SECTIONS, COACH_CLIENT } = await import('../routes.jsx');
 
@@ -251,5 +251,25 @@ describe('track', () => {
     for (const malo of ['Ana Pérez', 'ana@correo.com', 'AB', '', 'con espacios', 'Mayúsculas']) {
       expect(() => track(malo)).not.toThrow();
     }
+  });
+});
+
+describe('filaDeFallo', () => {
+  it('la fila lleva el mensaje: sin él la 0052 la rechaza entera', () => {
+    /* Faltaba, y cada envío daba 400: la tabla vacía se leía como «no falla nada». */
+    identify({ userId: 'u1', team: 't1', role: 'coach' });
+    const fila = filaDeFallo({ source: 'guardado', path: '/hoy', message: 'Algo no se guardó', code: '23505' });
+    expect(fila).toMatchObject({ actor: 'u1', rol: 'coach', source: 'guardado', ruta: '/hoy', code: '23505' });
+    expect(fila.message).toBe('Algo no se guardó');
+    identify({});
+  });
+
+
+  it('no guarda las peticiones cortadas al irse; los fallos de red de verdad, sí', () => {
+    identify({ userId: 'u1', team: 't1', role: 'coach' });
+    const red = { source: 'red', path: '/hoy', message: 'GET /rest/v1/clients — sin respuesta: Failed to fetch' };
+    expect(filaDeFallo({ ...red, cortada: true })).toBeNull();
+    expect(filaDeFallo({ ...red, cortada: false })).toMatchObject({ source: 'red' });
+    identify({});
   });
 });

@@ -5,6 +5,7 @@ import { anadirBorrador, borradoresDe, datosParaEmpezar } from './borradores';
 import {
   cantosDeLaFunda,
   cascadaDeLaTemporada,
+  cifrasDelPase,
   ponerCarpetaIn,
   sucesionDeBloques,
   temporadaConNombre,
@@ -112,20 +113,25 @@ describe('temporadasDe — la agrupación', () => {
 describe('cascadaDeLaTemporada — el orden de la cascada', () => {
   const [actual] = fundas(program);
 
-  it('del más antiguo arriba al más reciente abajo, y entero el último', () => {
+  it('del más antiguo arriba al más reciente abajo, y elegido el de ahora', () => {
     const c = cascadaDeLaTemporada(actual);
     expect(ids(c)).toEqual(['b2', 'b3', 'b4', 'd1', 'd2']);
-    expect(c.filter((p) => p.entero).map((p) => p.id)).toEqual(['d2']);
+    expect(c.filter((p) => p.elegido).map((p) => p.id)).toEqual(['b4']);
   });
 
-  it('entero el que se elige, y solo uno', () => {
+  it('en una temporada cerrada, elegido el último', () => {
+    const cerrada = fundas(program).find((f) => f.nombre === '2025');
+    expect(cascadaDeLaTemporada(cerrada).find((p) => p.elegido).id).toBe('b1');
+  });
+
+  it('elegido el que se pide, y solo uno', () => {
     const c = cascadaDeLaTemporada(actual, 'b3');
     expect(ids(c)).toEqual(['b2', 'b3', 'b4', 'd1', 'd2']);
-    expect(c.filter((p) => p.entero).map((p) => p.id)).toEqual(['b3']);
+    expect(c.filter((p) => p.elegido).map((p) => p.id)).toEqual(['b3']);
   });
 
-  it('si el elegido no es de esta funda, entero el último', () => {
-    expect(cascadaDeLaTemporada(actual, 'b1').find((p) => p.entero).id).toBe('d2');
+  it('si el pedido no es de esta funda, el de ahora', () => {
+    expect(cascadaDeLaTemporada(actual, 'b1').find((p) => p.elegido).id).toBe('b4');
   });
 
   it('los cantos de la funda: los tres últimos, el más nuevo delante', () => {
@@ -194,5 +200,126 @@ describe('las escrituras de la temporada', () => {
   it('un previsto conserva su temporada al empezarlo', () => {
     const p = ponerCarpetaIn(program, ['d1'], 'Verano');
     expect(datosParaEmpezar(borradoresDe(p)[0]).folder).toBe('Verano');
+  });
+});
+
+/* Cada pase se cuenta con SU bloque: sus hojas y su microciclo, no la
+   plantilla de hoy. Dos bloques con volumen y split distintos, y el programa
+   con el reparto del de ahora. */
+describe('cifrasDelPase — cada bloque con lo suyo', () => {
+  const series = (n) => Array.from({ length: n }, () => ({ reps: '10' }));
+  const ej = (name, muscle, n) => ({ id: `${name}-${n}`, name, muscle, sets: series(n) });
+  const hoja = (dayName, ...exercises) => ({ dayName, exercises });
+  const semanal = (...dias) => ({ tipo: 'semanal', dias: dias.map((h) => (h ? { hoja: h } : { descanso: true })) });
+
+  const dos = {
+    cycleType: 'weekly',
+    weeklySplit: { Lunes: 'Torso', Martes: 'Pierna', Jueves: 'Torso', Viernes: 'Pierna' },
+    blocks: [
+      {
+        id: 'adapt',
+        name: 'Adaptación',
+        fromWeek: 1,
+        toWeek: 2,
+        sessions: [
+          hoja('Full A', ej('Press banca', 'Pecho', 3), ej('Sentadilla', 'Cuádriceps', 3), ej('Remo', 'Dorsal', 2)),
+          hoja('Full B', ej('Press inclinado', 'Pecho', 3), ej('Prensa', 'Cuádriceps', 3), ej('Jalón', 'Dorsal', 2)),
+        ],
+        microciclo: semanal('Full A', null, 'Full B', null, 'Full A', null, null),
+      },
+      {
+        id: 'acum',
+        name: 'Acumulación',
+        fromWeek: 3,
+        toWeek: null,
+        sessions: [
+          hoja('Torso', ej('Press banca', 'Pecho', 6), ej('Remo', 'Dorsal', 6)),
+          hoja('Pierna', ej('Sentadilla', 'Cuádriceps', 8)),
+        ],
+        microciclo: semanal('Torso', 'Pierna', null, 'Torso', 'Pierna', null, null),
+      },
+    ],
+    microcycles: [micro(1, '2026-01-05'), micro(2, '2026-01-12'), micro(3, '2026-01-19')],
+  };
+  const [adapt, acum] = sucesionDeBloques(dos, { hoy: '2026-01-21', borradores: false });
+
+  it('la media de series por semana sale de las hojas de cada bloque', () => {
+    expect(cifrasDelPase(adapt, dos).series).toBe(16);
+    expect(cifrasDelPase(acum, dos).series).toBe(20);
+  });
+
+  it('el split, sus días y su semana son los de cada bloque', () => {
+    const a = cifrasDelPase(adapt, dos);
+    const b = cifrasDelPase(acum, dos);
+    expect(a.split).toBe('Full body · 3 días');
+    expect(b.split).toBe('Torso / Pierna · 4 días');
+    expect(a.dias).toBe(3);
+    expect(b.dias).toBe(4);
+    expect(a.semana.map((d) => d.rotulo)).toEqual(['L', 'M', 'X', 'J', 'V', 'S', 'D']);
+    expect(a.semana.map((d) => d.hoja)).toEqual(['Full A', null, 'Full B', null, 'Full A', null, null]);
+    expect(b.semana.map((d) => d.hoja)).toEqual(['Torso', 'Pierna', null, 'Torso', 'Pierna', null, null]);
+  });
+
+  it('las series por grupo, de más a menos, con su MEV y su MRV', () => {
+    expect(cifrasDelPase(adapt, dos).grupos.map((g) => [g.nombre, g.series])).toEqual([
+      ['Pecho', 6],
+      ['Cuádriceps', 6],
+      ['Dorsal', 4],
+    ]);
+    const pecho = cifrasDelPase(acum, dos).grupos.find((g) => g.nombre === 'Pecho');
+    expect(pecho).toMatchObject({ series: 6, mev: 8, mrv: 20 });
+  });
+
+  it('un bloque viejo sin hojas dentro lee las de SUS microciclos y su reparto congelado', () => {
+    /* Sin `sessions` el plan sale de los días escritos en cada semana, y el
+       reparto del cerrado de su copia: nunca de la plantilla de ahora. */
+    const viejo = {
+      cycleType: 'weekly',
+      weeklySplit: { Lunes: 'Torso', Martes: 'Pierna', Jueves: 'Torso', Viernes: 'Pierna' },
+      blocks: [
+        { id: 'v1', name: 'Base', fromWeek: 1, toWeek: 2, weeklySplit: { Lunes: 'Full', Jueves: 'Full' } },
+        { id: 'v2', name: 'Volumen', fromWeek: 3, toWeek: null },
+      ],
+      microcycles: [
+        { ...micro(1, '2026-01-05'), days: [hoja('Full', ej('Press banca', 'Pecho', 4), ej('Sentadilla', 'Cuádriceps', 4))] },
+        { ...micro(2, '2026-01-12'), days: [hoja('Full', ej('Press banca', 'Pecho', 5), ej('Sentadilla', 'Cuádriceps', 5))] },
+        {
+          ...micro(3, '2026-01-19'),
+          days: [hoja('Torso', ej('Press banca', 'Pecho', 8), ej('Remo', 'Dorsal', 8)), hoja('Pierna', ej('Sentadilla', 'Cuádriceps', 10))],
+        },
+      ],
+    };
+    const [base, volumen] = sucesionDeBloques(viejo, { hoy: '2026-01-21', borradores: false });
+    const a = cifrasDelPase(base, viejo);
+    const b = cifrasDelPase(volumen, viejo);
+    /* 8 series en la semana 1 y 10 en la 2: 9 de media. */
+    expect(a.series).toBe(9);
+    expect(b.series).toBe(26);
+    expect(a.dias).toBe(2);
+    expect(b.dias).toBe(4);
+    expect(a.semana.map((d) => d.hoja)).toEqual(['Full', null, null, 'Full', null, null, null]);
+    expect(a.grupos.map((g) => [g.nombre, g.series])).toEqual([
+      ['Pecho', 4.5],
+      ['Cuádriceps', 4.5],
+    ]);
+  });
+
+  it('un previsto cuenta sus hojas y no tiene rendimiento', () => {
+    const conPrevisto = {
+      ...dos,
+      draftBlocks: [
+        {
+          id: 'pico',
+          name: 'Pico',
+          plannedWeeks: 2,
+          sessions: [hoja('Pierna', ej('Sentadilla', 'Cuádriceps', 5))],
+          microciclo: semanal('Pierna', null, null, null, null, null, null),
+        },
+      ],
+    };
+    const previsto = sucesionDeBloques(conPrevisto, { hoy: '2026-01-21' }).at(-1);
+    const c = cifrasDelPase(previsto, conPrevisto);
+    expect(c).toMatchObject({ series: 5, dias: 1, curva: [], pct: null, adherencia: null });
+    expect(c.grupos.map((g) => g.nombre)).toEqual(['Cuádriceps']);
   });
 });

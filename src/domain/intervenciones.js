@@ -24,12 +24,13 @@
  *              queda (dieta, bloque), su primera semana;
  *   DESPUÉS    los 7 días de después.
  *
- * Antes y después se recortan por el límite de su fase y por las otras
- * intervenciones: la semana de antes de un refeed no incluye el diet break
- * que acabó dos días antes. El entrenador puede mover a mano el principio de
- * «antes» y el final de «después» (`antes_desde`, `despues_hasta`); lo movido
- * a mano no se recorta. Una ventana movida que ya no cuadra con las fechas
- * (se movió el refeed) se ignora.
+ * Antes y después se recortan SOLO por el límite de su fase. Otra
+ * intervención que cae dentro no las recorta (26 sep 2026: recortarlas dejaba
+ * tarjetas vacías, «— → —»): se dice, «Coincide con: …» (`coinciden`). El
+ * entrenador puede mover a mano el principio de «antes» y el final de
+ * «después» (`antes_desde`, `despues_hasta`); lo movido a mano no se recorta.
+ * Una ventana movida que ya no cuadra con las fechas (se movió el refeed) se
+ * ignora.
  *
  * Mientras la ventana de después no ha terminado, la intervención está EN
  * CURSO; antes de empezar, PREVISTA.
@@ -95,13 +96,23 @@ const claveDeCapa = (c) =>
  * @param bloques   `[{ id, nombre, desde, split }]`, en orden (el split en
  *                  texto: «Torso-pierna · 4 días»).
  * @param capa      las filas de `client_interventions`, ya traducidas.
+ * @param programadas las dietas programadas (0146) con su foto
+ *                  (`{ …programada, snapshot }`). Una PENDIENTE es un cambio
+ *                  de dieta previsto: su antes es la pendiente anterior o, si
+ *                  no la hay, la dieta de ahora (`actual`). Una APLICADA ya
+ *                  dejó su versión, que es la intervención: se le cuelga
+ *                  (`programada`) para que su tarjeta diga cómo entró. Si esa
+ *                  versión no es una intervención (la primera del cliente, o
+ *                  solo cambió el menú), sale sola, sin cifras de antes. Una
+ *                  que no se aplicó no fue nada.
+ * @param actual    la foto de la dieta de ahora, o `null`.
  * @param hoy       lo que empieza después está prevista.
- * @returns `[{ id, tipo, desde, hasta, evento, cambios, bloque, fuente, capa, prevista }]`:
+ * @returns `[{ id, tipo, desde, hasta, evento, cambios, bloque, fuente, capa, prevista, programada }]`:
  *   `tipo` es 'refeed' | 'diet_break' | 'dieta' | 'bloque'; `fuente`, la
  *   columna con la que se guarda su capa (`{ eventId }`, `{ dietaDia }` o
  *   `{ bloqueId }`); `hasta`, el último día de DURANTE.
  */
-export const intervencionesDelCliente = ({ hechos = [], versiones = [], bloques = [], capa = [], hoy }) => {
+export const intervencionesDelCliente = ({ hechos = [], versiones = [], bloques = [], capa = [], programadas = [], actual = null, hoy }) => {
   const porClave = new Map(capa.map((c) => [claveDeCapa(c), c]));
   const salida = [];
 
@@ -124,6 +135,46 @@ export const intervencionesDelCliente = ({ hechos = [], versiones = [], bloques 
       antes: orden[i - 1].snapshot,
       despues: orden[i].snapshot,
       fuente: { dietaDia: dia },
+    });
+  }
+
+  const enOrden = [...programadas].filter((p) => p?.empieza && p.snapshot).sort((a, b) => a.empieza.localeCompare(b.empieza));
+  let previa = actual;
+  for (const p of enOrden) {
+    if (p.estado === 'aplicada') {
+      const suya = salida.find((x) => x.id === `d:${p.empieza}`);
+      if (suya) suya.programada = p;
+      else {
+        const conVersion = orden.some((v) => v.dia === p.empieza);
+        salida.push({
+          id: `p:${p.id}`,
+          tipo: 'dieta',
+          desde: p.empieza,
+          hasta: addDays(p.empieza, DIAS_DE_VENTANA - 1),
+          cambios: [],
+          antes: null,
+          despues: p.snapshot,
+          programada: p,
+          fuente: conVersion ? { dietaDia: p.empieza } : null,
+        });
+      }
+      continue;
+    }
+    if (p.estado !== 'pendiente') continue;
+    const antes = previa;
+    previa = p.snapshot;
+    salida.push({
+      id: `p:${p.id}`,
+      tipo: 'dieta',
+      desde: p.empieza,
+      hasta: addDays(p.empieza, DIAS_DE_VENTANA - 1),
+      cambios: antes ? cambiosDeDieta(antes, p.snapshot) : [],
+      antes,
+      despues: p.snapshot,
+      programada: p,
+      /* Aún no hay versión de la que colgar lo que se piensa: su motivo va
+         en la propia programada, y pasa a la capa al aplicarse. */
+      fuente: null,
     });
   }
 
@@ -154,11 +205,13 @@ const faseDe = (fases, dia) => fases.find((f) => f.startsOn && f.startsOn <= dia
 /**
  * LAS TRES VENTANAS de una intervención.
  *
- * @param todas las intervenciones del cliente: recortan antes y después.
+ * @param todas las intervenciones del cliente: no recortan nada; las que caen
+ *              dentro de las tres ventanas salen en `coinciden`.
  * @param fases las del cliente: antes y después no cruzan el límite de la
  *              fase en la que empieza.
- * @returns `{ antes, durante, despues, movidas: { antes, despues } }`; cada
- *   ventana `{ desde, hasta }`, o `null` si el recorte la deja sin días.
+ * @returns `{ antes, durante, despues, movidas: { antes, despues }, coinciden }`;
+ *   cada ventana `{ desde, hasta }`, o `null` si el recorte la deja sin días;
+ *   `coinciden`, las otras intervenciones que tocan alguna, en orden.
  */
 export const ventanasDe = (intervencion, { todas = [], fases = [] } = {}) => {
   const { desde, hasta, capa } = intervencion;
@@ -182,12 +235,6 @@ export const ventanasDe = (intervencion, { todas = [], fases = [] } = {}) => {
   else {
     let inicio = addDays(desde, -DIAS_DE_VENTANA);
     if (fase?.startsOn) inicio = mayor(inicio, fase.startsOn);
-    /* Lo que termina justo antes le quita días; lo que se pisa con ella la deja sin antes. */
-    for (const o of otras) {
-      if (o.desde >= desde) continue;
-      if (o.hasta >= antesHasta) inicio = addDays(antesHasta, 1);
-      else inicio = mayor(inicio, addDays(o.hasta, 1));
-    }
     antes = inicio <= antesHasta ? { desde: inicio, hasta: antesHasta } : null;
   }
 
@@ -197,14 +244,12 @@ export const ventanasDe = (intervencion, { todas = [], fases = [] } = {}) => {
   else {
     let fin = addDays(hasta, DIAS_DE_VENTANA);
     if (fase?.endsOn) fin = menor(fin, fase.endsOn);
-    for (const o of otras) {
-      if (o.desde <= desde) continue;
-      fin = menor(fin, addDays(o.desde, -1));
-    }
     despues = despuesDesde <= fin ? { desde: despuesDesde, hasta: fin } : null;
   }
 
-  return { antes, durante, despues, movidas: { antes: Boolean(antesMovida), despues: Boolean(despuesMovida) } };
+  const [a, b] = [antes?.desde || desde, despues?.hasta || hasta];
+  const coinciden = otras.filter((o) => o.desde <= b && o.hasta >= a);
+  return { antes, durante, despues, movidas: { antes: Boolean(antesMovida), despues: Boolean(despuesMovida) }, coinciden };
 };
 
 /**
@@ -355,3 +400,104 @@ export const impactoDe = ({ ventanas, hoy, pesajes = [], pautaDelDia = () => nul
 
   return { filas };
 };
+
+/* ── La cifra clave ───────────────────────────────────────────────────── */
+
+/* La fatiga del parte de la sesión; si el check-in la pregunta y se unieron, esa. */
+const FILAS_DE_FATIGA = ['s:se:fatigue', 's:ci:fatigue'];
+
+/**
+ * LA CIFRA CLAVE de una intervención, la que se lee primero en el historial y
+ * en su tarjeta (26 sep 2026). Sale de su tabla (`impactoDe`), con la misma
+ * cuenta:
+ *
+ *   · refeed, diet break, cambio de dieta → la tendencia del peso, antes →
+ *     después;
+ *   · bloque nuevo → el rendimiento de sus referencias en DESPUÉS, la media en
+ *     % contra ANTES, y la fatiga de la sesión antes → después si la hay.
+ *
+ * Solo cifras: si es bueno o malo lo dice el entrenador.
+ *
+ * @returns `{ tipo: 'peso', antes, despues }` (cada una `{ ritmo, pesajes }`
+ *   o `null`) o `{ tipo: 'bloque', rendimiento, referencias, fatiga }`:
+ *   `rendimiento`, la media (0,021 = +2,1 %) o `null`; `referencias`,
+ *   cuántas la forman; `fatiga`, `{ antes, despues, max }` o `null`.
+ */
+export const cifraClaveDe = (x, impacto) => {
+  const filas = impacto?.filas || [];
+  if (x.tipo !== 'bloque') {
+    const r = filas.find((f) => f.id === 'ritmo');
+    return { tipo: 'peso', antes: r?.celdas[0] ?? null, despues: r?.celdas[2] ?? null };
+  }
+  const pcts = filas
+    .filter((f) => f.grupo === 'rendimiento')
+    .map((f) => f.celdas[2])
+    .filter(esNumero);
+  const fatiga = FILAS_DE_FATIGA.map((id) => filas.find((f) => f.id === id)).find(Boolean);
+  return {
+    tipo: 'bloque',
+    rendimiento: media(pcts),
+    referencias: pcts.length,
+    fatiga: fatiga ? { antes: fatiga.celdas[0] ?? null, despues: fatiga.celdas[2] ?? null, max: fatiga.max } : null,
+  };
+};
+
+/* ── El historial ─────────────────────────────────────────────────────── */
+
+/** Los tipos, en el orden en que se filtran y se cuentan. */
+export const TIPOS_DE_INTERVENCION = [
+  { id: 'refeed', label: 'Refeed', plural: 'Refeeds' },
+  { id: 'diet_break', label: 'Diet break', plural: 'Diet breaks' },
+  { id: 'dieta', label: 'Dieta', plural: 'Cambios de dieta' },
+  { id: 'bloque', label: 'Bloque', plural: 'Bloques nuevos' },
+];
+
+/**
+ * EL HISTORIAL DE INTERVENCIONES (25 sep 2026): todas, de la más reciente a
+ * la más antigua, cada una con su estado y su cifra clave (`cifraClaveDe`),
+ * con la misma cuenta que su tarjeta.
+ *
+ * @param pautaDelDia la de la tabla; con ella, las kcal de un cambio de dieta
+ *   (`kcalDelCambio`). Sin ella, `kcal` es `null`.
+ * @param medir `(x, ventanas) => impactoDe(...)`: la tabla de la tarjeta. Sin
+ *   ella, solo el peso.
+ * @returns `[{ x, ventanas, estado, clave, kcal }]`.
+ */
+export const historialDeIntervenciones = ({ todas = [], fases = [], pesajes = [], hoy, pautaDelDia = null, medir = null }) =>
+  todas
+    .map((x) => {
+      const ventanas = ventanasDe(x, { todas, fases });
+      const impacto = medir ? medir(x, ventanas) : impactoDe({ ventanas, hoy, pesajes });
+      return {
+        x,
+        ventanas,
+        estado: estadoDe(x, ventanas, hoy),
+        clave: cifraClaveDe(x, impacto),
+        kcal: x.tipo === 'dieta' && pautaDelDia ? kcalDelCambio(x, pautaDelDia) : null,
+      };
+    })
+    .sort((a, b) => b.x.desde.localeCompare(a.x.desde) || b.x.id.localeCompare(a.x.id));
+
+/**
+ * CUÁNTAS HAY DE CADA TIPO y cómo las valoró el entrenador. Solo cuenta: no
+ * saca conclusiones. `sinValorar` no incluye las previstas, que aún no se
+ * pueden valorar.
+ *
+ * @returns `[{ tipo, plural, n, funciono, no_funciono, dudoso, sinValorar, previstas }]`,
+ *   solo los tipos que tiene.
+ */
+export const recuentoDeIntervenciones = (entradas) =>
+  TIPOS_DE_INTERVENCION.map((t) => {
+    const suyas = entradas.filter((e) => e.x.tipo === t.id);
+    const con = (v) => suyas.filter((e) => e.x.capa?.valoracion === v).length;
+    return {
+      tipo: t.id,
+      plural: t.plural,
+      n: suyas.length,
+      funciono: con('funciono'),
+      no_funciono: con('no_funciono'),
+      dudoso: con('dudoso'),
+      sinValorar: suyas.filter((e) => !e.x.capa?.valoracion && e.estado !== 'prevista').length,
+      previstas: suyas.filter((e) => e.estado === 'prevista').length,
+    };
+  }).filter((r) => r.n > 0);

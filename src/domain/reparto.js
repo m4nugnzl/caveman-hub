@@ -49,6 +49,7 @@
  */
 
 import { TIPO } from '@/lib/portapapeles';
+import { miles } from '@/lib/dates';
 import { norm } from '@/lib/texto';
 
 import { blockSessionsOf, currentBlock, weeksOfBlock } from './blocks';
@@ -508,6 +509,37 @@ const CONSECUENCIA = {
     if (entran.length === 0) return no('La dieta que llevas no tiene ningún día');
 
     const suyasComidas = suyos.reduce((n, d) => n + (d.meals?.length || 0), 0);
+    const pierde =
+      suyasComidas === 0
+        ? { texto: `No tenía menú: ${cuenta(suyos.length, 'día', 'días')} en blanco` }
+        : {
+            texto: `Pierde ${cuenta(suyos.length, 'día', 'días')} y ${cuenta(suyasComidas, 'comida', 'comidas')}: ${suyos
+              .map((d) => d.name)
+              .join(', ')}`,
+            marca: 'sale',
+          };
+
+    /* Con su pauta (ver `pautaDeLaDieta`) entra ENTERA: cada menú con las
+       cifras de su día, que son las suyas, así que no hay nada que ajustar. */
+    const pauta = pieza.carga?.pauta;
+    if (pauta) {
+      const total = entran.reduce((n, d) => n + (d.meals?.length || 0), 0);
+      const kcal = Number(pauta.dias?.[0]?.targetKcals) || 0;
+      return va(
+        [
+          { texto: `${cuenta(entran.length, 'día', 'días')} · ${cuenta(total, 'comida', 'comidas')}`, marca: 'entra' },
+          pierde,
+          {
+            texto: kcal
+              ? `Con su pauta: ${miles(kcal)} kcal, reparto, pasos y cardio`
+              : 'Con su pauta: reparto, pasos y cardio',
+            marca: 'entra',
+          },
+        ],
+        { que: 'dieta', days: entran.map((d) => ({ ...d, meals: d.meals || [] })), pauta }
+      );
+    }
+
     const desde = Number(pieza.origen?.objetivoKcals) || 0;
 
     /* Los objetivos que va a tener cada día NUEVO, pedidos a quien los escribe
@@ -569,15 +601,7 @@ const CONSECUENCIA = {
           texto: `${cuenta(dias.length, 'día', 'días')} · ${cuenta(total, 'comida', 'comidas')}`,
           marca: 'entra',
         },
-        {
-          texto:
-            suyasComidas === 0
-              ? `No tenía menú: ${cuenta(suyos.length, 'día', 'días')} en blanco`
-              : `Pierde ${cuenta(suyos.length, 'día', 'días')} y ${cuenta(suyasComidas, 'comida', 'comidas')}: ${suyos
-                  .map((d) => d.name)
-                  .join(', ')}`,
-          marca: suyasComidas === 0 ? undefined : 'sale',
-        },
+        pierde,
         !suPrimero
           ? { texto: 'No tiene objetivo puesto: entra tal cual' }
           : !desde

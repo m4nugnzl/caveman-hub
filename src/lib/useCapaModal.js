@@ -31,9 +31,9 @@ const FOCUSABLE =
  *     el foco va a la propia capa, que es lo que anuncia el lector de pantalla,
  *     y el primer toque ya es del usuario.
  *
- *  3. El `keydown` va en fase de CAPTURA y Escape corta la propagación: con dos
- *     capas abiertas —un diálogo desde una hoja— se cierra la de arriba y solo
- *     la de arriba.
+ *  3. El `keydown` va en fase de CAPTURA y solo lo atiende la capa de ARRIBA
+ *     (`PILA`): con dos capas abiertas —un diálogo desde una hoja— se cierra la
+ *     de arriba y solo la de arriba.
  *
  * ══ Cómo se usa ════════════════════════════════════════════════════════════
  *
@@ -43,6 +43,8 @@ const FOCUSABLE =
  * `cajaRef` apunta al elemento con `role="dialog"` —no al velo—: es el que
  * recibe el foco y dentro del cual se atrapa el tabulador.
  */
+const PILA = [];
+
 export const useCapaModal = ({ montada, onClose, cajaRef }) => {
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -59,7 +61,15 @@ export const useCapaModal = ({ montada, onClose, cajaRef }) => {
       : null;
     (first || cajaRef.current)?.focus();
 
+    /* Las capas abiertas, de abajo arriba. Todas escuchan en `document`, y ahí
+       `stopPropagation` no frena a otro oyente del MISMO nodo: con dos capas,
+       Escape cerraba las dos (la ventana de una variación abierta desde «El
+       plan» se llevaba el plan con ella). Solo atiende la de arriba. */
+    const capa = {};
+    PILA.push(capa);
+
     const onKeyDown = (event) => {
+      if (PILA[PILA.length - 1] !== capa) return;
       if (event.key === 'Escape') {
         event.stopPropagation();
         onCloseRef.current?.();
@@ -84,6 +94,7 @@ export const useCapaModal = ({ montada, onClose, cajaRef }) => {
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
+      PILA.splice(PILA.indexOf(capa), 1);
       document.body.style.overflow = overflow;
       if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
     };

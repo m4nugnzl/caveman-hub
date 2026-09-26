@@ -264,65 +264,44 @@ const ENTRENADOR = [
     serie: 'entrenador',
     titulo: 'Marca sus fases',
     resumen: 'Hacia dónde va: definición, mantenimiento o volumen, con fechas y ritmo.',
-    /* Las fases se editan en la ventana del plan, que se abre desde la
-       tarjeta del roadmap del Resumen o desde la banda de la espina (R2). */
-    empieza: '/c/:cliente/resumen',
+    /* Las fases se crean en la Temporada (26 sep 2026: la ventana «El plan»
+       se retiró): sin fases, desde su vacío; con fases, pulsando un hueco de
+       la ruta. Las dos abren la misma ventana (`VentanaDeFase`). */
+    empieza: '/c/:cliente/temporada',
     conCliente: true,
     pasos: [
       {
-        /* «Marca sus fases» sin plan; el lápiz de la tarjeta cuando ya tiene. */
-        senal: [
-          { css: '.tarjeta-roadmap .palanca', texto: 'Marca sus fases' },
-          { css: '.tarjeta-roadmap .cab-icono' },
-        ],
+        senal: [{ css: '.tl-primera-fase' }, { css: '.tira-mas', texto: 'fase' }, { css: '.tl-hueco.is-pulsable' }],
         avanza: 'clic',
-        hecho: { css: '.plan-roadmap' },
-        titulo: 'Abre su plan',
-        texto: 'Desde la tarjeta del roadmap de su Resumen. Sus pesajes se leen contra la fase en la que está.',
-      },
-      {
-        /* «Nueva fase» con el carril vacío; «Añadir fase» cuando ya tiene. */
-        senal: [
-          { css: '.plan-roadmap button', texto: 'Nueva fase' },
-          { css: '.plan-roadmap button', texto: 'Añadir fase' },
-        ],
-        avanza: 'clic',
-        hecho: { css: '.plan-roadmap button', texto: 'Guardar fase' },
+        hecho: { css: '#ventana-del-plan' },
         titulo: 'Añade una fase',
-        texto: 'Pulsa «Nueva fase».',
+        texto: 'En su Temporada: «+ Primera fase» si aún no tiene ninguna, o un hueco de la ruta si ya tiene.',
       },
       {
-        senal: { campo: 'Nombre' },
-        listo: { relleno: { campo: 'Nombre' } },
-        pista: 'Ponle nombre para seguir',
-        titulo: 'Ponle nombre',
-        texto: 'Por ejemplo, «Definición de verano».',
-      },
-      {
-        senal: { css: '[role="group"][aria-label="Dirección"]' },
+        senal: { css: '#ventana-del-plan [role="group"][aria-label="Dirección"]' },
         titulo: 'Elige la dirección',
         texto: 'Definición, mantenimiento o volumen.',
       },
       {
-        senal: { campo: 'Duración' },
-        titulo: 'Cuánto dura',
-        texto: 'En semanas. Si aún no lo sabes, márcalo y lo decides después.',
-      },
-      {
         /* En mantenimiento no hay ritmo: el campo no sale y el paso sobra. */
-        senal: { campo: 'Ritmo semanal' },
+        senal: { css: '#ventana-del-plan .var-cifra' },
         opcional: true,
         titulo: 'Y a qué ritmo',
-        texto: 'Cuánto esperas que cambie su peso cada semana. Con eso se juzgan sus pesajes.',
+        texto: 'Cuánto esperas que cambie su peso cada semana, en % de su peso. Con eso se leen sus pesajes.',
       },
       {
-        senal: { css: 'button', texto: 'Guardar fase' },
+        senal: { css: '#ventana-del-plan .var-fechas' },
+        titulo: 'Cuándo empieza y cuándo acaba',
+        texto: 'Si aún no sabes cuándo acaba, marca «Todavía no sé cuándo acaba» y lo decides después.',
+      },
+      {
+        senal: { css: 'button', texto: 'Añadir fase' },
         avanza: 'clic',
-        /* Guardada, el formulario se cierra y vuelve «Añadir fase». Si falla,
-           el formulario se queda con su error y la guía espera. */
-        hecho: { css: '.plan-roadmap button', texto: 'Añadir fase' },
-        titulo: 'Guarda la fase',
-        texto: 'Aparece en su línea de tiempo. Puedes encadenar las siguientes.',
+        /* Guardada, la ventana se cierra y sale el aviso «Añadida…». Si falla,
+           la ventana se queda con su error y la guía espera. */
+        hecho: { css: '.toast', texto: 'Añadida' },
+        titulo: 'Guárdala',
+        texto: 'Aparece en su ruta. Puedes encadenar las siguientes pulsando el hueco de detrás.',
       },
     ],
   },

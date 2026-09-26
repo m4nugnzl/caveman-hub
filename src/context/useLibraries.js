@@ -12,7 +12,8 @@ import { toNum } from '@/lib/num';
   arranque siembra las dos listas con los setters que este gancho devuelve.
 
   `editFood` NO está aquí: escribe a la vez en la dieta abierta y en la
-  biblioteca, así que es el puente entre dos dominios y vive en el proveedor.
+  biblioteca, así que es el puente entre dos dominios y vive en la puerta del
+  editor de dieta (`useEditorDeDieta`).
 */
 
 /*

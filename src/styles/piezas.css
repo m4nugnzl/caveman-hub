@@ -1602,6 +1602,62 @@ button.plan-col-dia.is-vacio[aria-expanded='true'] { opacity: 1; }
 /* Donde solo se lee (el portal del cliente) no hay «＋» y no se reserva su hueco. */
 .plan-esq.is-lectura { padding-right: 0; }
 
+/* ══ LA PAUTA DE CADA MICROCICLO (25 sep) ═════════════════════════════════
+   La tarjeta con carga o RIR es una tabla: ver «LA TARJETA EN TABLA» al final
+   de este fichero y `PautaDelMicrociclo`. */
+
+/* Lo que cambia respecto al microciclo anterior: un punto junto a la cifra, en
+   tono neutro. No es un mando —no se pulsa, no lleva azul— ni un juicio —no
+   lleva semáforo—: dice «aquí es distinto que antes» y nada más. */
+.pauta-cambio {
+  display: inline-block; width: 4px; height: 4px; margin-left: 2px;
+  border-radius: 50%; background: var(--text-tertiary);
+  vertical-align: 0.55em; flex-shrink: 0;
+}
+.plan-esq-tramo > .pauta-cambio { align-self: flex-start; margin-top: var(--s1); }
+
+/* Lo que acaba de hacer un cambio, debajo de la fila: una línea en voz baja
+   con sus dos salidas. Las salidas sí se pulsan, y por eso van en azul. */
+.plan-ej-aviso {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline;
+  gap: 0 var(--s2); margin: 0 20px 2px 0;
+  font-size: var(--fs-2xs); color: var(--text-tertiary);
+}
+.plan-ej-aviso-accion {
+  font: inherit; font-weight: 600; color: var(--accent);
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+}
+.plan-ej-aviso-accion:hover { text-decoration: underline; }
+.plan-ej-aviso-accion:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* El «···» de la fila, en el carril de la papelera y con su misma ley: en
+   reposo no está, sale al acercarse. */
+.plan-ej-mas { grid-area: quitar; align-self: center; justify-self: end; opacity: 0; transition: opacity var(--fast); }
+.plan-ej-mas .btn { width: var(--h-control-sm); height: var(--h-control-sm); min-width: 0; background: transparent; }
+.plan-ej:hover .plan-ej-mas,
+.plan-ej:focus-within .plan-ej-mas,
+.plan-ej-mas:has([aria-expanded='true']) { opacity: 1; }
+@media (hover: none) { .plan-ej-mas { opacity: 1; } }
+
+/* En la columna estrecha la pauta va debajo del nombre y a la izquierda, y
+   su aviso también. */
+@container (max-width: 210px) {
+  .plan-ej-aviso { justify-content: flex-start; margin-right: 0; }
+}
+
+/* La línea de la hoja que dice dónde escribe: la base del bloque. */
+.hoja-base {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--s3);
+  margin: 0; padding: 0 var(--s1);
+  font-size: var(--fs-xs); color: var(--text-tertiary);
+}
+.hoja-base-ir {
+  font: inherit; font-weight: 600; color: var(--accent);
+  background: transparent; border: 0; padding: 0; cursor: pointer;
+}
+.hoja-base-ir:hover { text-decoration: underline; }
+.hoja-base-ir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+
 /* ══ LA PAUTA PLEGADA: UN RENGLÓN, Y EL MANDO QUE LA ABRE ══════════════════
    «6-8, 8-10, 8-12» son 95 px; las tres casillas que dicen lo mismo, 258. Por
    eso la fila enseña la pauta ESCRITA y las casillas salen al tocarla.
@@ -4538,3 +4594,134 @@ a.title:hover { text-decoration: underline; }
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* ══ LA TARJETA EN TABLA (26 sep) ══════════════════════════════════════════
+   Con carga o RIR pautados en alguna fila, la tarjeta de la hoja es una tabla:
+   Nombre · Series · Carga · RIR. La lista es la rejilla y cada fila la hereda
+   (`subgrid`), así que una cifra cae en la misma vertical en toda la tarjeta,
+   cabecera incluida, y una fila de varios grupos apila sus líneas en las
+   MISMAS columnas. Ver `PautaDelMicrociclo`.
+
+   Series son tres columnas —número a la derecha, «×» centrado, rango
+   centrado— para que todos los «×» caigan en la misma vertical y un «6-8»
+   quede en medio del hueco de un «10-12», no pegado a un lado. La última
+   cifra termina en el borde de contenido de la tarjeta: el «···» no tiene
+   carril, solo existe en la fila que se edita.
+
+   Las calles no son `column-gap` sino relleno de cada celda, porque no son
+   iguales: 12 px del nombre a las series, ninguna entre número, «×» y rango
+   (el «×» lleva su aire), y 20 px entre columnas de cifras, claramente más que
+   el aire de dentro de una celda.
+
+   El nombre se queda con lo que dejan las cifras, nunca menos del 45 %. Si no
+   le llega —lo mide `useTablasApiladas`—, la tarjeta entera pasa a apilada: el
+   nombre en su renglón con el ancho entero y las líneas debajo, en las mismas
+   columnas y pegadas a la derecha.
+
+   Va al final del fichero a propósito: `.plan-ej` tiene repartos propios en
+   tres sitios (el ancho, el estrecho y la regla 24), con el mismo peso que
+   estas, y aquí manda la tabla. */
+.plan-ejs.is-tabla {
+  /* Cuántas columnas de cifras lleva la tarjeta además de Series: Carga, RIR
+     o las dos. Lo pone la tarjeta (`ConjuntoDelBloque`). */
+  --secundarias: 1;
+  --calle: 20px;
+  display: grid; align-content: start; column-gap: 0;
+  grid-template-columns: minmax(45%, 1fr) auto auto auto repeat(var(--secundarias), auto);
+}
+/* Apilada, el nombre va en su renglón y la primera columna queda de hueco. */
+.plan-ejs.is-tabla.is-apilada {
+  grid-template-columns: minmax(0, 1fr) auto auto auto repeat(var(--secundarias), auto);
+}
+.plan-ejs.is-tabla > * { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; column-gap: 0; }
+
+/* Con las columnas repetidas aquí: la regla 24 le da a `.plan-ej` las suyas
+   con cuatro clases, más peso que `.plan-ejs.is-tabla > *`. Entre líneas del
+   mismo ejercicio, 4 px. */
+.plan-ejs.is-tabla > .plan-ej.is-tabla {
+  grid-template-columns: subgrid; grid-template-areas: none; column-gap: 0;
+  align-items: baseline; row-gap: var(--s1);
+}
+
+/* El nombre: dos renglones como mucho y nunca partido por letras. */
+.plan-ejs.is-tabla .plan-ej-nombre {
+  display: flex; align-items: baseline; gap: var(--s1); min-width: 0;
+  overflow-wrap: normal; word-break: normal; hyphens: manual;
+}
+.plan-ejs.is-tabla .plan-ej-nombre .ej-cambiar { min-width: 0; }
+.plan-ejs.is-tabla .plan-ej-nombre .ej-cambiar-nombre,
+.plan-ej-nombre-texto {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  overflow: hidden; text-align: left;
+}
+.plan-ejs.is-tabla .plan-ej-remate { margin-left: 0; flex-shrink: 0; align-self: center; }
+
+/* Las cifras: tabulares y sin partirse. Series y rango en tinta plena (el «×»
+   en secundaria); carga y RIR, un tono por debajo. */
+.plan-t-series, .plan-t-por, .plan-t-sec {
+  white-space: nowrap;
+  font-size: var(--fs-xs); line-height: 18px; font-variant-numeric: tabular-nums;
+}
+.plan-t-series { color: var(--text); font-weight: 600; }
+.plan-t-n { justify-self: end; padding-left: var(--s3); }
+/* Apilada, delante de las series no hay nombre: esa calle solo empujaba la
+   tabla fuera de la tarjeta estrecha. */
+.plan-ejs.is-apilada .plan-t-n { padding-left: 0; }
+.plan-t-por { justify-self: center; padding: 0 5px; color: var(--text-secondary); font-weight: 400; }
+.plan-t-reps { justify-self: center; }
+.plan-t-sec { justify-self: end; padding-left: var(--calle); color: var(--text-tertiary); font-weight: 500; }
+/* El RIR serie a serie, «2 1 1»: un poco más de aire que un espacio, y cada
+   cifra con su propio subrayado al editar. */
+.plan-t-sec.is-rir { display: flex; column-gap: 0.35em; }
+
+/* La cabecera: una vez, pequeña y en terciaria. «Series» centrada sobre sus
+   tres columnas; «Carga» y «RIR», a la derecha como sus cifras. */
+.plan-tabla-cab { padding: var(--s2) 0 var(--s1); }
+.plan-tabla-cab > span {
+  grid-row: 1; white-space: nowrap;
+  font-size: var(--fs-2xs); font-weight: 500; line-height: 1.3; color: var(--text-tertiary);
+}
+.plan-tabla-cab > .plan-t-n { justify-self: stretch; text-align: center; }
+
+/* El punto de lo cambiado, al final de una celda, no ocupa: se asoma a la
+   calle de al lado y la cifra sigue a plomo con las de encima. En la última
+   columna se asoma al relleno de la tarjeta. Entre dos RIR sí ocupa: ahí no
+   hay a quién alinear. */
+.plan-t-series > .pauta-cambio:last-child,
+.plan-t-sec > .pauta-cambio:last-child,
+.plan-t-rir:last-child > .pauta-cambio { margin-left: 1px; margin-right: -5px; }
+
+/* ── Editar sin cambiar nada de sitio ──────────────────────────────────────
+   La cifra es el mismo texto en reposo y en edición: lo único que cambia es un
+   subrayado —a trazos en la fila que se edita, entero en la cifra que tiene el
+   foco—, pintado como fondo para que no mueva ni un píxel. */
+.plan-t-cifra { display: inline-block; }
+.plan-t-cifra.is-escribible { min-width: 1ch; outline: none; cursor: pointer; }
+.plan-ej.is-editando .plan-t-cifra.is-escribible {
+  cursor: text;
+  background: linear-gradient(to right, currentColor 60%, transparent 0) 0 100% / 4px 1px repeat-x;
+}
+.plan-ej.is-editando .plan-t-cifra.is-escribible:focus {
+  color: var(--text);
+  background: linear-gradient(currentColor, currentColor) 0 100% / 100% 1.5px no-repeat;
+}
+/* La fila en edición, un fondo más claro y ningún canto. */
+.plan-ej.is-tabla.is-editando::before { opacity: 1; background: var(--fill-subtle); }
+
+/* El «···», sin carril: en reposo no está ni ocupa, y en la fila que se edita
+   se pone al final del nombre —en línea, justo antes de las series; apilada,
+   al final de su renglón—. El nombre le deja sitio solo entonces, así que lo
+   único que se puede mover es esa fila, y solo si su nombre es largo. No crece
+   la línea: el botón se come su sobrante con margen negativo. */
+.plan-ejs.is-tabla .plan-ej-mas {
+  align-self: start; justify-self: end; display: flex; align-items: center; height: 18px;
+  opacity: 1; visibility: hidden;
+}
+.plan-ejs.is-tabla .plan-ej.is-editando .plan-ej-mas { visibility: visible; }
+.plan-ejs.is-tabla .plan-ej.is-editando .plan-ej-nombre { padding-right: calc(24px + var(--s1)); }
+.plan-ejs.is-tabla .plan-ej-mas .btn { width: 24px; height: 24px; margin: -3px 0; }
+/* El asa, a la altura del nombre y no a media fila: una fila de tres líneas
+   la bajaba a la segunda. */
+.plan-ejs.is-tabla .plan-asa.is-ej { top: calc(var(--s1) + 9px); }
+/* El aviso, a lo ancho de la fila y pegado a la derecha como las cifras. */
+.plan-ejs.is-tabla .plan-ej-aviso { margin-right: 0; }

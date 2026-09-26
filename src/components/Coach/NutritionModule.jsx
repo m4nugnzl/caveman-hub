@@ -2,15 +2,16 @@ import { useMemo, useState } from 'react';
 import { ClipboardCopy, ClipboardPaste, Copy, CopyPlus, FileUp, Footprints, HeartPulse, Plus, Trash2, Users } from 'lucide-react';
 
 import { useApp } from '@/context/AppContext';
-import { TIPO, copiar as copiarAlPortapapeles, usePortapapeles, useZonasDeSoltar } from '@/lib/portapapeles';
+import { TIPO, copiar as copiarAlPortapapeles, piezaDeDieta, usePortapapeles, useZonasDeSoltar } from '@/lib/portapapeles';
 import { useAtajosDeCopia } from '@/lib/useAtajosDeCopia';
 import { useArrastreDeFicheros } from '@/lib/useArrastreDeFicheros';
 import { ZonaDeSoltar } from '@/components/ui/ZonaDeSoltar';
 import {
-  buildFoodEntry,
   buildOption,
+  cantidadDe,
   cloneOption,
-  emptyNutrition,
+  displayAsUnits,
+  entradaQueSustituye,
   hasCycleMap,
   isEmptyDiet,
   mealTarget,
@@ -53,12 +54,15 @@ import { PlanDia } from '@/components/nutrition/PlanDia';
 import { RepartoComparado } from '@/components/nutrition/RepartoComparado';
 import { TiraDeLaDieta } from '@/components/nutrition/TiraDeLaDieta';
 import { TarjetasDeDia } from '@/components/nutrition/TarjetasDeDia';
+import { VariacionesDeLaDieta } from '@/components/nutrition/VariacionesDeLaDieta';
 import { PieDeProtocolo } from './ClientSettings';
 import { PastePlanDialog } from './Import/PastePlanDialog';
 import { CopyToClientPanel } from './Workout/CopyToClientPanel';
 import { VueltaALaRevision } from '@/components/review/VueltaALaRevision';
 import { useReviewRows } from '@/components/review/useReviewRows';
 import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
+import { useEditorDeDieta } from '@/components/nutrition/useEditorDeDieta';
+import { AvisoDeProgramada } from '@/components/nutrition/AvisoDeProgramada';
 
 /**
  * Dieta: una mesa y un costado, como Entreno.
@@ -111,7 +115,6 @@ export const NutritionModule = () => {
        que usa Entreno —una sola forma de copiar de un cliente a otro—. */
     clients,
     replicateClient,
-    nutrition,
     /* Los pesajes de esta persona: la evolución de la dieta se dibuja contra
        ellos, y el g/kg se lee contra su peso. Ver `LecturasDeLaDieta`. */
     anthropometry,
@@ -127,23 +130,55 @@ export const NutritionModule = () => {
        Ver §8 de `docs/replanteamiento-lo-guardado.md`. */
     coachPrefs,
     updateCoachPreferences,
-    saveStatus,
-    retrySave,
+    /* El programa, solo para «Repartir por el entreno»: de ahí sale qué días
+       entrena esta persona, que la aplicación ya sabía y aun así preguntaba. */
+    workoutData,
+    upsertLibraryFood,
+    importRoutine,
+    saveClientException,
+    updateClientPreferences,
+    /* Su tipo de ciclo y su patrón, cuando entrena por su cuenta. */
+    updateClient,
+  } = useApp();
+
+  const confirm = useConfirm();
+  const toast = useToast();
+  /* Guardar un plato en el cajón, que es el mismo gesto —y el mismo tope, y el
+     mismo desempate de nombre— que guardar un día o un bloque. */
+  const guardarEnPlantillas = useGuardarEnPlantillas();
+  /* Lo copiado que esta pantalla sabe pegar. La dieta entra en el portapapeles
+     por lo mismo que Entreno: montar a alguien igual que a otro es la mitad del
+     alta, y hasta ahora eso era un panel de réplica escondido en un menú que
+     solo sabía traerlo TODO. Ver `lib/portapapeles`. */
+  const comidasCopiadas = usePortapapeles(TIPO.COMIDA);
+  /* Y la ración suelta, que es la pieza pequeña de la dieta: lo que antes solo
+     sabía moverse con un «copiar a otro día» dentro de esta misma persona. Ver
+     `TIPO.PLATO` en `lib/portapapeles`. */
+  const platosCopiados = usePortapapeles(TIPO.PLATO);
+  const menusCopiados = usePortapapeles(TIPO.DIA_DIETA);
+  /* La dieta y sus verbos, por UNA puerta (`useEditorDeDieta`): el editor no
+     sabe si lo que tiene delante es la dieta de ahora del cliente o una copia. */
+  const {
+    plan,
+    guardado: save,
+    reintentar,
+    cargar,
+    /* La copia de un cambio programado (0146): lo que escribe en la dieta de
+       ahora por otro camino —traer de un fichero o de otro cliente, las
+       variaciones— no se ofrece en ella. */
+    enCopia,
+    programada,
+    proxima,
+    noAplicada,
     updateNutrition,
     updateNutritionTargets,
     applyRescaledMeals,
-    /* Los días del plan: añadir, duplicar, renombrar y quitar. Estaban en un
-       solo interruptor de Ajustes («dos dietas») y ahora cuelgan de la cinta,
-       que es donde se ven los días. Ver `useNutrition`. */
     addDietDay,
     duplicateDietDay,
     renameDietDay,
     removeDietDay,
     setDietCycleSlot,
     repartirPorElEntreno,
-    /* El programa, solo para «Repartir por el entreno»: de ahí sale qué días
-       entrena esta persona, que la aplicación ya sabía y aun así preguntaba. */
-    workoutData,
     addMeal,
     appendMeal,
     removeMeal,
@@ -169,34 +204,9 @@ export const NutritionModule = () => {
     setFoodDisplay,
     setFoodFixed,
     editFood,
-    upsertLibraryFood,
     importDiet,
-    importRoutine,
-    ensureNutrition,
-    saveClientException,
-    updateClientPreferences,
-    /* Su tipo de ciclo y su patrón, cuando entrena por su cuenta. */
-    updateClient,
     setFoodEquivalences,
-  } = useApp();
-
-  const confirm = useConfirm();
-  const toast = useToast();
-  /* Guardar un plato en el cajón, que es el mismo gesto —y el mismo tope, y el
-     mismo desempate de nombre— que guardar un día o un bloque. */
-  const guardarEnPlantillas = useGuardarEnPlantillas();
-  /* Lo copiado que esta pantalla sabe pegar. La dieta entra en el portapapeles
-     por lo mismo que Entreno: montar a alguien igual que a otro es la mitad del
-     alta, y hasta ahora eso era un panel de réplica escondido en un menú que
-     solo sabía traerlo TODO. Ver `lib/portapapeles`. */
-  const comidasCopiadas = usePortapapeles(TIPO.COMIDA);
-  /* Y la ración suelta, que es la pieza pequeña de la dieta: lo que antes solo
-     sabía moverse con un «copiar a otro día» dentro de esta misma persona. Ver
-     `TIPO.PLATO` en `lib/portapapeles`. */
-  const platosCopiados = usePortapapeles(TIPO.PLATO);
-  const menusCopiados = usePortapapeles(TIPO.DIA_DIETA);
-  const plan = nutrition[activeClient.id] || emptyNutrition();
-  const save = saveStatus('nutrition', activeClient.id);
+  } = useEditorDeDieta();
 
   /* El día abierto. Arranca a nulo, y entonces manda el primero: con los días
      en una lista, partir de un id fijo —«training»— era una suposición sobre lo
@@ -213,7 +223,7 @@ export const NutritionModule = () => {
   };
   /* En blanco = sin objetivo y sin comidas: lo que hay es una invitación. */
   const dietaEnBlanco = isEmptyDiet(plan);
-  const soltarFichero = useArrastreDeFicheros(traerFichero, dietaEnBlanco);
+  const soltarFichero = useArrastreDeFicheros(traerFichero, dietaEnBlanco && !enCopia);
   /* «Traer la dieta de otro cliente»: el panel de réplica, el mismo de Entreno
      pero ofreciendo solo la dieta. */
   const [copiaAbierta, setCopiaAbierta] = useState(false);
@@ -353,7 +363,7 @@ export const NutritionModule = () => {
         tone: 'danger',
       });
       if (!ok) return;
-      applyRescaledMeals(activeClient.id, variant, []);
+      applyRescaledMeals(variant, []);
     }
     setRepartoAbierto(quiere);
   };
@@ -441,7 +451,7 @@ export const NutritionModule = () => {
     como que no ha pasado nada—.
   */
   const pegarComida = (pieza, destinoId = variant) => {
-    const puesta = appendMeal(activeClient.id, destinoId, pieza.carga);
+    const puesta = appendMeal(destinoId, pieza.carga);
     const dia = destinoId === variant ? null : dias.find((d) => d.id === destinoId);
     toast({
       text: dia
@@ -449,7 +459,7 @@ export const NutritionModule = () => {
         : `«${pieza.titulo}» pegada al final del menú.`,
       action: {
         label: 'Deshacer',
-        onClick: () => removeMealsById(activeClient.id, destinoId, [puesta.id]),
+        onClick: () => removeMealsById(destinoId, [puesta.id]),
       },
     });
   };
@@ -488,7 +498,7 @@ export const NutritionModule = () => {
       if (clon.name) return clon;
       return { ...clon, name: suyas.length === 1 ? pieza.titulo : `${pieza.titulo} ${i + 1}` };
     });
-    setMealOptions(activeClient.id, variant, mealIdx, [...antes, ...nuevas]);
+    setMealOptions(variant, mealIdx, [...antes, ...nuevas]);
     /* Y se ABRE la primera que ha entrado. Sin esto, pegar deja la comida
        enseñando la alternativa de antes y el gesto se lee como que no ha hecho
        nada — que es lo que lleva a pulsarlo tres veces. Es lo mismo que hace
@@ -500,7 +510,7 @@ export const NutritionModule = () => {
       }.`,
       action: {
         label: 'Deshacer',
-        onClick: () => setMealOptions(activeClient.id, variant, mealIdx, antes),
+        onClick: () => setMealOptions(variant, mealIdx, antes),
       },
     });
   };
@@ -540,27 +550,17 @@ export const NutritionModule = () => {
     equivalencias: son de la persona.
   */
   const copiarLaDieta = () => {
-    const conMenu = dias.filter((d) => (d.meals || []).length > 0);
-    if (conMenu.length === 0) {
+    const pieza = piezaDeDieta({
+      plan,
+      titulo: `Dieta de ${activeClient.name?.split(' ')[0] || 'este cliente'}`,
+      cliente: deDondeSale.cliente,
+      donde: dondeEstoy,
+    });
+    if (!pieza) {
       toast({ text: 'Esta dieta no tiene ninguna comida: no hay nada que copiar.' });
       return;
     }
-    const base = toNum0(targetsFor(plan, dias[0]?.id).targetKcals) || 0;
-    const comidas = dias.reduce((n, d) => n + (d.meals?.length || 0), 0);
-    copiarAlPortapapeles({
-      tipo: TIPO.DIETA,
-      titulo: `Dieta de ${activeClient.name?.split(' ')[0] || 'este cliente'}`,
-      detalle: `${dias.length} ${dias.length === 1 ? 'día' : 'días'} · ${comidas} ${comidas === 1 ? 'comida' : 'comidas'}`,
-      origen: { ...deDondeSale, donde: dondeEstoy, objetivoKcals: base || null },
-      carga: {
-        days: dias.map((d) => ({
-          name: d.name,
-          meals: d.meals || [],
-          /* Contra el PRIMERO, que es el que manda el objetivo del plan. */
-          proporcion: base ? (toNum0(targetsFor(plan, d.id).targetKcals) || base) / base : 1,
-        })),
-      },
-    });
+    copiarAlPortapapeles(pieza);
   };
 
   /*
@@ -571,14 +571,14 @@ export const NutritionModule = () => {
   */
   const pegarMenu = (pieza, destinoId = variant) => {
     const comidas = pieza.carga?.meals || [];
-    const puestas = comidas.map((comida) => appendMeal(activeClient.id, destinoId, comida));
+    const puestas = comidas.map((comida) => appendMeal(destinoId, comida));
     const dia = destinoId === variant ? null : dias.find((d) => d.id === destinoId);
     const cuantas = `${comidas.length} ${comidas.length === 1 ? 'comida añadida' : 'comidas añadidas'}`;
     toast({
       text: dia ? `${cuantas} en ${dia.name.toLowerCase()}.` : `${cuantas} al final del menú.`,
       action: {
         label: 'Deshacer',
-        onClick: () => removeMealsById(activeClient.id, destinoId, puestas.map((m) => m.id)),
+        onClick: () => removeMealsById(destinoId, puestas.map((m) => m.id)),
       },
     });
   };
@@ -811,7 +811,7 @@ export const NutritionModule = () => {
    */
   const guardarObjetivo = (v) => (fields, extra = null) => {
     const antes = targetsFor(plan, v);
-    updateNutritionTargets(activeClient.id, v, fields);
+    updateNutritionTargets(v, fields);
 
     /*
       Y lo elegido se queda para la próxima. Por `updateClientPreferences` y NO
@@ -827,7 +827,7 @@ export const NutritionModule = () => {
 
     if (extra?.meals) {
       const viejas = mealsForVariant(plan, v);
-      applyRescaledMeals(activeClient.id, v, extra.meals);
+      applyRescaledMeals(v, extra.meals);
       /* Un gesto, un paso: deshacer devuelve las dos cosas, porque las dos las
          ha escrito el mismo «Guardar». Ver [[deshacer-el-plan]]. */
       toast({
@@ -840,8 +840,8 @@ export const NutritionModule = () => {
         action: {
           label: 'Deshacer',
           onClick: () => {
-            updateNutritionTargets(activeClient.id, v, antes);
-            applyRescaledMeals(activeClient.id, v, viejas);
+            updateNutritionTargets(v, antes);
+            applyRescaledMeals(v, viejas);
           },
         },
       });
@@ -928,7 +928,7 @@ export const NutritionModule = () => {
   const ponerPlato = (mealIndex, optIndex, plato) => {
     const meal = meals[mealIndex];
     const entradas = platoFoods(plato);
-    addFoodsToOption(activeClient.id, variant, mealIndex, optIndex, entradas);
+    addFoodsToOption(variant, mealIndex, optIndex, entradas);
 
     const objetivo = mealTarget(meal);
     const hueco = objetivo?.kcals
@@ -958,7 +958,7 @@ export const NutritionModule = () => {
             return;
           }
           for (const f of res.foods) {
-            updateFoodGrams(activeClient.id, variant, mealIndex, optIndex, f.id, f.grams);
+            updateFoodGrams(variant, mealIndex, optIndex, f.id, f.grams);
           }
           toast({ text: `«${plato.name}» cuadrado a ${hueco} kcal.` });
         },
@@ -989,7 +989,7 @@ export const NutritionModule = () => {
 
     const nombre = pieza.carga?.name || pieza.titulo || 'Plato';
     const antes = comida.options || [];
-    setMealOptions(activeClient.id, variant, mealIdx, [...antes, { ...buildOption(), name: nombre }]);
+    setMealOptions(variant, mealIdx, [...antes, { ...buildOption(), name: nombre }]);
     /* Y se abre, por lo mismo que en `pegarComoOpcion`: lo que entra tiene que
        verse, o el gesto se lee como que no ha pasado nada. */
     setElegidas((e) => ({ ...e, [comida.id]: antes.length }));
@@ -1005,7 +1005,7 @@ export const NutritionModule = () => {
     // Sin cantidad: la elige `buildFoodEntry` según el alimento —una unidad entera
     // si la tiene, 100 g si se pesa—. Fijar 100 aquí metía «casi dos huevos» cada
     // vez que se añadía uno.
-    addFoodToOption(activeClient.id, variant, mealIndex, optIndex, food);
+    addFoodToOption(variant, mealIndex, optIndex, food);
   };
 
   /*
@@ -1055,7 +1055,7 @@ export const NutritionModule = () => {
         {
           icon: Plus,
           label: 'Nueva comida en todos los días',
-          run: () => dias.forEach((d) => addMeal(activeClient.id, d.id)),
+          run: () => dias.forEach((d) => addMeal(d.id)),
         },
       ]}
     />
@@ -1065,7 +1065,7 @@ export const NutritionModule = () => {
       sinFlecha
       ariaLabel="Añadir comida"
       items={[
-        { icon: Plus, label: 'Nueva comida', run: () => addMeal(activeClient.id, variant) },
+        { icon: Plus, label: 'Nueva comida', run: () => addMeal(variant) },
         /*
           ── AQUÍ HABÍA UN «COPIAR EL MENÚ DE …» POR CADA DÍA ────────────────
           Y era el ⇄ de la comida mirado desde el otro lado: la misma operación
@@ -1095,11 +1095,11 @@ export const NutritionModule = () => {
           run: () => pegarMenu(pieza),
         })),
         null,
-        { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
+        !enCopia && { icon: FileUp, label: 'Traer de un fichero', run: () => setPegarAbierto(true) },
         /* La otra mudanza: la dieta que ya le has montado a otro. Cuelga del
            mismo botón porque es lo mismo —otra forma de meter comidas en la
            lista—, y no de un menú de ajustes donde nadie la buscaría. */
-        hayDeQuienTraer && {
+        !enCopia && hayDeQuienTraer && {
           icon: Users,
           label: 'Traer la dieta de otro cliente',
           run: abrirCopia,
@@ -1134,6 +1134,10 @@ export const NutritionModule = () => {
           entonces: no es un modo, viaja en la navegación (`VueltaALaRevision`). */}
       <VueltaALaRevision />
 
+      {/* El cambio programado: el que se está editando, o el que sustituirá a
+          ésta. Ver `AvisoDeProgramada`. */}
+      <AvisoDeProgramada enCopia={enCopia} programada={programada} proxima={proxima} noAplicada={noAplicada} />
+
       {/* Sus alergias, intolerancias y patologías con impacto metabólico, si
           tiene alguna. Lo mismo que en la rutina y por el mismo motivo: un
           condicionante que hay que ir a buscar llega después de la decisión. */}
@@ -1162,7 +1166,7 @@ export const NutritionModule = () => {
               un `await` a secas: cualquier fallo se lo tragaba la promesa y lo
               único que se veía era que la dieta no se guardaba, sin motivo.
             */
-            if (!(await ensureNutrition(activeClient.id).catch(() => null))) {
+            if (!(await cargar().catch(() => null))) {
               toast({
                 text: 'No he podido leer la dieta que tiene ahora, así que no he importado nada. Inténtalo otra vez.',
               });
@@ -1172,7 +1176,7 @@ export const NutritionModule = () => {
                foto de sus macros y funcionaría sin esto, pero la próxima que
                se importe volvería a preguntar por los mismos alimentos. */
             nuevos.forEach((food) => upsertLibraryFood(food));
-            importDiet(activeClient.id, importado);
+            importDiet(importado);
           }}
           /* La rutina que venga en el mismo fichero. Aquí no se está mirando
              ninguna semana, así que la decide `importRoutine`: la última si ya
@@ -1223,7 +1227,7 @@ export const NutritionModule = () => {
                 setComparar(false);
                 setDietView(id);
               }}
-              onRenombrar={(id, nombre) => renameDietDay(activeClient.id, id, nombre)}
+              onRenombrar={(id, nombre) => renameDietDay(id, nombre)}
               veces={vecesEnElCiclo}
               soltar={alDia.pieza ? { sobre: alDia.sobre, zona: alDia.zona, pegar: pegarEnElMenu } : null}
             />
@@ -1252,7 +1256,7 @@ export const NutritionModule = () => {
                  abierto, que es donde se lee—. */
               onMas={() => {
                 const antes = planDays(plan).length;
-                addDietDay(activeClient.id, { desde: variant });
+                addDietDay({ desde: variant });
                 toast({
                   text:
                     antes === 1
@@ -1260,7 +1264,7 @@ export const NutritionModule = () => {
                       : 'Día añadido. Púlsalo para ponerle nombre.',
                 });
               }}
-              onRenombrar={(id, nombre) => renameDietDay(activeClient.id, id, nombre)}
+              onRenombrar={(id, nombre) => renameDietDay(id, nombre)}
               /*
                 ══ LA BARRA DE MANDOS DE LA CINTA, TODA EN EL MISMO CANTO ══════
 
@@ -1298,7 +1302,7 @@ export const NutritionModule = () => {
                   <SaveIndicator
                     status={save.status}
                     error={save.error}
-                    onRetry={() => retrySave('nutrition', activeClient.id)}
+                    onRetry={reintentar}
                   />
                   {/* Con «Todos» no hay día abierto, y duplicar o quitar «el
                       abierto» actuaría sobre uno que no se ve. */}
@@ -1315,7 +1319,7 @@ export const NutritionModule = () => {
                     title={`Duplicar «${diaActual.name}» con su menú`}
                     aria-label={`Duplicar «${diaActual.name}»`}
                     onClick={() => {
-                      duplicateDietDay(activeClient.id, variant);
+                      duplicateDietDay(variant);
                       toast({ text: `«${diaActual.name}» duplicado con su menú.` });
                     }}
                   >
@@ -1366,7 +1370,7 @@ export const NutritionModule = () => {
                   */}
                   <AjustesPlan
                     cerrado={cerrado}
-                    onTipo={(type) => updateNutrition(activeClient.id, { type })}
+                    onTipo={(type) => updateNutrition({ type })}
                     equivalencias={clienteVeEquivalencias}
                     onEquivalencias={() =>
                       saveClientException(activeClient.id, {
@@ -1457,13 +1461,13 @@ export const NutritionModule = () => {
                         ...dias.map((d) => ({
                           label: d.name,
                           on: mapaCiclo[casilla.key] === d.id,
-                          run: () => setDietCycleSlot(activeClient.id, casilla.key, d.id),
+                          run: () => setDietCycleSlot(casilla.key, d.id),
                         })),
                         null,
                         {
                           label: 'Sin asignar',
                           on: !mapaCiclo[casilla.key],
-                          run: () => setDietCycleSlot(activeClient.id, casilla.key, null),
+                          run: () => setDietCycleSlot(casilla.key, null),
                         },
                       ],
                     }))
@@ -1489,7 +1493,7 @@ export const NutritionModule = () => {
                       type="button"
                       className="cab-accion"
                       onClick={() => {
-                        repartirPorElEntreno(activeClient.id, casillas, parejaParaElSplit);
+                        repartirPorElEntreno(casillas, parejaParaElSplit);
                         toast({
                           text: `Ciclo repartido: ${dias[0].name.toLowerCase()} los días que entrena, ${dias[1].name.toLowerCase()} los que no.`,
                         });
@@ -1574,7 +1578,7 @@ export const NutritionModule = () => {
                 rutina si va en el mismo fichero. Solo mientras no hay nada
                 pautado; después, «Traer de un fichero» sigue en el «+».
               */}
-              {dietaEnBlanco && (
+              {dietaEnBlanco && !enCopia && (
                 <div className="dieta-traer" {...soltarFichero.props}>
                   <ZonaDeSoltar
                     icon={FileUp}
@@ -1611,9 +1615,9 @@ export const NutritionModule = () => {
                       dias={dias}
                       elegidas={elegidas}
                       onTarget={(dayId, mealIndex, field, value) =>
-                        updateMealTarget(activeClient.id, dayId, mealIndex, field, value)
+                        updateMealTarget(dayId, mealIndex, field, value)
                       }
-                      onFijar={(dayId, mealIndex) => toggleMealFijo(activeClient.id, dayId, mealIndex)}
+                      onFijar={(dayId, mealIndex) => toggleMealFijo(dayId, mealIndex)}
                       onEditarObjetivo={(dayId) => setObjetivoAbierto(dayId)}
                     />
                   )}
@@ -1624,24 +1628,24 @@ export const NutritionModule = () => {
                       targets={targetsFor(plan, variant)}
                       elegidas={elegidas}
                       onTarget={(mealIndex, field, value) =>
-                        updateMealTarget(activeClient.id, variant, mealIndex, field, value)
+                        updateMealTarget(variant, mealIndex, field, value)
                       }
                       /* Aquí no hay comida a la que ir —no hay tarjetas debajo—, así
                          que el nombre hace lo que hace en la hoja: se renombra donde
                          se lee. Y la papelera es la pareja del «+ comida» del pie:
                          sin ella, una fila añadida por error no se puede quitar. */
-                      onRename={(mealIndex, name) => updateMealName(activeClient.id, variant, mealIndex, name)}
+                      onRename={(mealIndex, name) => updateMealName(variant, mealIndex, name)}
                       /* El candado del reparto: esta comida no se mueve cuando
                          cambie el objetivo del día. Ver `repartoAlObjetivo`. */
-                      onFijar={(mealIndex) => toggleMealFijo(activeClient.id, variant, mealIndex)}
+                      onFijar={(mealIndex) => toggleMealFijo(variant, mealIndex)}
                       onRemove={(mealIndex) => {
                         const comida = meals[mealIndex];
-                        removeMeal(activeClient.id, variant, mealIndex);
+                        removeMeal(variant, mealIndex);
                         toast({
                           text: `«${comida?.name || 'Comida'}» quitada del reparto.`,
                           action: {
                             label: 'Deshacer',
-                            onClick: () => restoreMeal(activeClient.id, variant, mealIndex, comida),
+                            onClick: () => restoreMeal(variant, mealIndex, comida),
                           },
                         });
                       }}
@@ -1692,7 +1696,7 @@ export const NutritionModule = () => {
                         ((e) => {
                           e.preventDefault();
                           if (arrastre.desde !== null && arrastre.desde !== mealIndex) {
-                            moveMeal(activeClient.id, variant, arrastre.desde, mealIndex);
+                            moveMeal(variant, arrastre.desde, mealIndex);
                           }
                           setArrastre({ desde: null, sobre: null });
                         }),
@@ -1708,7 +1712,7 @@ export const NutritionModule = () => {
                     /* La excepción por alimento: nueces con margen, cornflakes sin
                        él. Se decide dentro de la propia lista de equivalencias. */
                     onSetEquivalences={(optIndex, foodId, visible) =>
-                      setFoodEquivalences(activeClient.id, variant, mealIndex, optIndex, foodId, visible)
+                      setFoodEquivalences(variant, mealIndex, optIndex, foodId, visible)
                     }
                     /*
                       Cambiar un alimento por su equivalente, en su sitio.
@@ -1717,24 +1721,28 @@ export const NutritionModule = () => {
                       catálogo pasa a tu biblioteca, igual que al añadirlo desde el
                       buscador. Y como sustituye —no añade—, lleva su «Deshacer»:
                       la entrada anterior se captura entera y volver es reponerla.
+                      La nueva hereda la medida de la que sustituye
+                      (`entradaQueSustituye`), y el aviso la dice en esa medida.
                     */
                     onSwapFood={(optIndex, foodId, food, grams) => {
                       const previo = meal.options?.[optIndex]?.foods?.find((f) => f.id === foodId);
                       if (!previo) return;
                       upsertLibraryFood(food);
-                      const { id: _descartado, ...campos } = buildFoodEntry(food, grams);
-                      swapFood(activeClient.id, variant, mealIndex, optIndex, foodId, campos);
+                      const campos = entradaQueSustituye(previo, food, grams);
+                      swapFood(variant, mealIndex, optIndex, foodId, campos);
                       toast({
-                        text: `«${previo.name}» cambiado por ${grams} g de ${food.name}.`,
+                        text: displayAsUnits(campos)
+                          ? `«${previo.name}» cambiado por ${food.name}: ${cantidadDe(campos)}.`
+                          : `«${previo.name}» cambiado por ${cantidadDe(campos)} de ${food.name}.`,
                         action: {
                           label: 'Deshacer',
                           onClick: () =>
-                            swapFood(activeClient.id, variant, mealIndex, optIndex, foodId, previo),
+                            swapFood(variant, mealIndex, optIndex, foodId, previo),
                         },
                       });
                     }}
                     onMoveMeal={(delta) =>
-                      moveMeal(activeClient.id, variant, mealIndex, mealIndex + delta)
+                      moveMeal(variant, mealIndex, mealIndex + delta)
                     }
                     onCopiarComida={() => copiarComida(mealIndex)}
                     /* Lo que se lleva y cabe dentro de una comida: una comida
@@ -1748,34 +1756,34 @@ export const NutritionModule = () => {
                     }
                     onFoco={() => setFocoComida(meal.id)}
                     onDuplicateOption={(optIndex) =>
-                      duplicateOption(activeClient.id, variant, mealIndex, optIndex)
+                      duplicateOption(variant, mealIndex, optIndex)
                     }
                     /* Y la alternativa sale de aquí como un PLATO, que es lo que
                        es. Antes esto era «copiarla al otro día» y solo llegaba a
                        los días de esta persona; ahora cae donde tú digas. */
                     onCopiarPlato={(optIndex) => copiarPlato(mealIndex, optIndex)}
                     onMoveFood={(optIndex, from, to) =>
-                      moveFood(activeClient.id, variant, mealIndex, optIndex, from, to)
+                      moveFood(variant, mealIndex, optIndex, from, to)
                     }
-                    onRenameMeal={(name) => updateMealName(activeClient.id, variant, mealIndex, name)}
-                    onNote={(note) => updateMealNote(activeClient.id, variant, mealIndex, note)}
+                    onRenameMeal={(name) => updateMealName(variant, mealIndex, name)}
+                    onNote={(note) => updateMealNote(variant, mealIndex, note)}
                     onRemoveMeal={() => {
                       /* El aviso con su «Deshacer»: la comida se captura entera
                          antes de borrarla y el inverso la devuelve donde estaba. */
-                      removeMeal(activeClient.id, variant, mealIndex);
+                      removeMeal(variant, mealIndex);
                       toast({
                         text: `«${meal.name}» eliminada.`,
                         action: {
                           label: 'Deshacer',
-                          onClick: () => restoreMeal(activeClient.id, variant, mealIndex, meal),
+                          onClick: () => restoreMeal(variant, mealIndex, meal),
                         },
                       });
                     }}
-                    onAddOption={() => addMealOption(activeClient.id, variant, mealIndex)}
+                    onAddOption={() => addMealOption(variant, mealIndex)}
                     onRenameOption={(optIndex, name) =>
-                      renameMealOption(activeClient.id, variant, mealIndex, optIndex, name)
+                      renameMealOption(variant, mealIndex, optIndex, name)
                     }
-                    onRemoveOption={(optIndex) => removeMealOption(activeClient.id, variant, mealIndex, optIndex)}
+                    onRemoveOption={(optIndex) => removeMealOption(variant, mealIndex, optIndex)}
                     onAddFood={(optIndex, food) => handleAddFood(mealIndex, optIndex, food)}
                     platos={platos}
                     onAddPlato={(optIndex, plato) => ponerPlato(mealIndex, optIndex, plato)}
@@ -1787,30 +1795,30 @@ export const NutritionModule = () => {
                       const foods = meal.options?.[optIndex]?.foods || [];
                       const foodIdx = foods.findIndex((f) => f.id === foodId);
                       const food = foods[foodIdx];
-                      removeFoodFromOption(activeClient.id, variant, mealIndex, optIndex, foodId);
+                      removeFoodFromOption(variant, mealIndex, optIndex, foodId);
                       if (!food) return;
                       toast({
                         text: `«${food.name}» quitado de ${meal.name}.`,
                         action: {
                           label: 'Deshacer',
                           onClick: () =>
-                            restoreFoodInOption(activeClient.id, variant, mealIndex, optIndex, food, foodIdx),
+                            restoreFoodInOption(variant, mealIndex, optIndex, food, foodIdx),
                         },
                       });
                     }}
                     onGrams={(optIndex, foodId, grams) =>
-                      updateFoodGrams(activeClient.id, variant, mealIndex, optIndex, foodId, grams)
+                      updateFoodGrams(variant, mealIndex, optIndex, foodId, grams)
                     }
                     onSetDisplay={(optIndex, foodId, mode) =>
-                      setFoodDisplay(activeClient.id, variant, mealIndex, optIndex, foodId, mode)
+                      setFoodDisplay(variant, mealIndex, optIndex, foodId, mode)
                     }
                     /* Lo que la cesta no acierte: el plátano de después de
                        entrenar, el aceite de la ensalada. Ver `setFoodFixed`. */
                     onSetFixed={(optIndex, foodId, fijo) =>
-                      setFoodFixed(activeClient.id, variant, mealIndex, optIndex, foodId, fijo)
+                      setFoodFixed(variant, mealIndex, optIndex, foodId, fijo)
                     }
                     onEditFood={(optIndex, food, cambios) =>
-                      editFood(activeClient.id, variant, mealIndex, optIndex, food, cambios)
+                      editFood(variant, mealIndex, optIndex, food, cambios)
                     }
                   />
                   );
@@ -1832,7 +1840,7 @@ export const NutritionModule = () => {
                   explican lo que las cifras de arriba no pueden explicar. */}
               <DietNotes
                 notes={plan.habitsNotes}
-                onChange={(habitsNotes) => updateNutrition(activeClient.id, { habitsNotes })}
+                onChange={(habitsNotes) => updateNutrition({ habitsNotes })}
               />
             </div>
           </div>
@@ -1906,6 +1914,10 @@ export const NutritionModule = () => {
             conElDia={!objetivoEnLaMesa}
           />
 
+          {/* Los refeeds y diet breaks: la dieta de unos días concretos, al
+              lado de la de siempre y sin tocarla. Ver `VariacionesDeLaDieta`. */}
+          {!enCopia && <VariacionesDeLaDieta diaId={variant} />}
+
           {/* El editor del objetivo, colgado del lápiz de arriba. Es la misma
               ventana que abre la sección de la mesa y las de la revisión: una
               pieza (`EditarObjetivo`), tres sitios donde se lee. */}
@@ -1943,10 +1955,10 @@ export const NutritionModule = () => {
               meals={mealsForVariant(plan, diaAbierto)}
               targets={targetsFor(plan, diaAbierto)}
               elegidas={elegidas}
-              onTarget={(mealIndex, field, value) => updateMealTarget(activeClient.id, diaAbierto, mealIndex, field, value)}
+              onTarget={(mealIndex, field, value) => updateMealTarget(diaAbierto, mealIndex, field, value)}
               dias={dias}
               onTargetDia={(dayId, mealIndex, field, value) =>
-                updateMealTarget(activeClient.id, dayId, mealIndex, field, value)
+                updateMealTarget(dayId, mealIndex, field, value)
               }
               onIrA={(i) => {
                 setDietView(diaAbierto);
@@ -1967,7 +1979,7 @@ export const NutritionModule = () => {
             placeholder="10000"
             numeric
             editable
-            onSave={(stepsGoal) => updateNutrition(activeClient.id, { stepsGoal })}
+            onSave={(stepsGoal) => updateNutrition({ stepsGoal })}
           />
 
           {/* Los pasos de cada día, opcionales: vacío es «los del plan». Solo
@@ -1988,7 +2000,7 @@ export const NutritionModule = () => {
                 }
                 numeric
                 editable
-                onSave={(steps) => updateNutritionTargets(activeClient.id, d.id, { [DAY_STEPS_FIELD]: steps })}
+                onSave={(steps) => updateNutritionTargets(d.id, { [DAY_STEPS_FIELD]: steps })}
               />
             ))}
 
@@ -1999,7 +2011,7 @@ export const NutritionModule = () => {
             placeholder="2 sesiones de 10 rondas 30/30 en bici"
             hint="Sesiones, duración y protocolo. Lo escribes como se lo dirías."
             editable
-            onSave={(cardioGoal) => updateNutrition(activeClient.id, { cardioGoal })}
+            onSave={(cardioGoal) => updateNutrition({ cardioGoal })}
           />
           </div>
         </aside>
@@ -2037,7 +2049,7 @@ export const NutritionModule = () => {
             if (otro) setDietView(otro.id);
 
             try {
-              removeDietDay(activeClient.id, quitando.id);
+              removeDietDay(quitando.id);
             } catch (error) {
               toast({
                 text: `No se pudo quitar «${nombre}»: ${error?.message || 'fallo desconocido'}. Su dieta se queda como estaba.`,
@@ -2049,7 +2061,7 @@ export const NutritionModule = () => {
               text: `«${nombre}» quitado de su dieta.`,
               action: {
                 label: 'Deshacer',
-                onClick: () => updateNutrition(activeClient.id, antes),
+                onClick: () => updateNutrition(antes),
               },
             });
           }}

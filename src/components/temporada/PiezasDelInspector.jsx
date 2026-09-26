@@ -1,7 +1,9 @@
 import { kindMeta } from '@/domain/calendar';
 import { esIntervencion } from '@/domain/pautaDelDia';
+import { variacionTexto } from '@/domain/rendimiento';
+import { PESAJES_FIRMES } from '@/domain/tendenciaDelPeso';
 import { localeNumber, shortDate } from '@/lib/dates';
-import { entero, kcalsTexto, kg, nombreDeHecho } from './lectura';
+import { entero, kcalsTexto, kg, nombreDeHecho, nombreDeIntervencion, pctSemana } from './lectura';
 import { tintaDeIntervencion } from './series';
 
 /**
@@ -80,6 +82,80 @@ export const notasDeHechos = (hechos, elegir) =>
       ...(h.nota ? [{ id: `${clave}-indicacion`, etiqueta: 'Indicación para el cliente', texto: h.nota }] : []),
     ];
   });
+
+/** Su nombre en una lista, donde el tipo tiene que leerse: «Bloque · Fuerza». */
+export const nombreConTipo = (x) => (x.tipo === 'bloque' && x.bloque?.nombre ? `Bloque · ${x.bloque.nombre}` : nombreDeIntervencion(x));
+
+/** «24 – 26 sep» o, si es un solo día o un cambio que se queda, «1 sep»; con
+    el año si no es el de hoy. */
+export const fechasDeIntervencion = (x, hoy) => {
+  const texto = x.evento && x.hasta !== x.desde ? tramoCorto(x.desde, x.hasta) : shortDate(x.desde);
+  const anio = x.desde.slice(0, 4);
+  return anio !== hoy.slice(0, 4) && !texto.includes(anio) ? `${texto} ${anio}` : texto;
+};
+
+/* «−0,62», sin unidad; «6,5». */
+const ritmoSolo = (v) => pctSemana(v).replace(' %/sem', '');
+const unDecimal = (v) => localeNumber(Math.round(v * 10) / 10, { maximumFractionDigits: 1 });
+const antesDespues = (a, d, texto) => `${esNumero(a) ? texto(a) : '—'} → ${esNumero(d) ? texto(d) : '—'}`;
+
+/**
+ * LA CIFRA CLAVE (`cifraClaveDe`) en palabras, para el historial y la
+ * tarjeta: `[{ id, etiqueta, valor, unidad, debil, vacia }]`.
+ *
+ *   · peso   → «Tendencia» «−0,05 → −0,62» %/sem; atenuada si algún lado se
+ *              sostiene en menos de 3 pesajes;
+ *   · bloque → «Referencias» «+2 %» (la media contra antes) y, si la hay,
+ *              «Fatiga» «6,5 → 5,5» /10.
+ */
+export const textosDeLaClave = (clave) => {
+  if (!clave) return [];
+  if (clave.tipo === 'peso') {
+    const [a, d] = [clave.antes, clave.despues];
+    return [
+      {
+        id: 'ritmo',
+        etiqueta: 'Tendencia',
+        valor: antesDespues(a?.ritmo, d?.ritmo, ritmoSolo),
+        unidad: '%/sem',
+        debil: [a, d].some((p) => esNumero(p?.ritmo) && p.pesajes < PESAJES_FIRMES),
+        vacia: !esNumero(a?.ritmo) && !esNumero(d?.ritmo),
+      },
+    ];
+  }
+  const salida = [
+    {
+      id: 'referencias',
+      etiqueta: 'Referencias',
+      valor: esNumero(clave.rendimiento) ? variacionTexto(clave.rendimiento) : '—',
+      unidad: null,
+      vacia: !esNumero(clave.rendimiento),
+    },
+  ];
+  const f = clave.fatiga;
+  if (f && (esNumero(f.antes) || esNumero(f.despues)))
+    salida.push({ id: 'fatiga', etiqueta: 'Fatiga', valor: antesDespues(f.antes, f.despues, unDecimal), unidad: f.max ? `/${f.max}` : null });
+  return salida;
+};
+
+/**
+ * LA CIFRA CLAVE como tarjetas de la franja 1 de la tarjeta de impacto: lo
+ * primero que se lee.
+ */
+export const cifrasDeLaClave = (clave) =>
+  textosDeLaClave(clave).map((t) => ({
+    id: `clave-${t.id}`,
+    etiqueta: t.id === 'ritmo' ? 'Tendencia del peso' : t.id === 'fatiga' ? 'Fatiga de sesión' : 'Rendimiento',
+    valor: t.vacia ? null : t.valor,
+    unidad: t.unidad,
+    debil: t.debil,
+    compara:
+      t.id === 'referencias'
+        ? t.vacia
+          ? 'sin marcas antes y después'
+          : `media de ${clave.referencias} ${clave.referencias === 1 ? 'referencia' : 'referencias'}, contra antes`
+        : 'antes → después',
+  }));
 
 /** «P180 C300 G70». */
 export const macrosCortas = (x) =>

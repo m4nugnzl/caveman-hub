@@ -1,28 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Flag, Route } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Flag, Redo2, Route, Undo2 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { useApp } from '@/context/AppContext';
 import { entrenaPorSuCuenta, resolvedMicrocycles, splitDelBloque, tramosDeLosBloques } from '@/domain/blocks';
 import { clientGoal, directionById } from '@/domain/goals';
-import { estadoDe, impactoDe, intervencionesDelCliente, kcalDelCambio, MAX_DIAS_DE_VENTANA, ventanasDe } from '@/domain/intervenciones';
+import { cifraClaveDe, estadoDe, historialDeIntervenciones, impactoDe, intervencionesDelCliente, kcalDelCambio, MAX_DIAS_DE_VENTANA, ventanasDe } from '@/domain/intervenciones';
+import { borradorDe, borradoresEnElTiempo, splitDelBorrador } from '@/domain/borradores';
 import { entrenoDeLasSemanas } from '@/domain/lenteDeEntreno';
 import { metricColor } from '@/domain/metrics';
 import { activeQuestions, checkinQuestions, clientProtocol } from '@/domain/protocol';
 import { casillasDeLaSemana, esIntervencion, kcalsDeIntervencion, pautaDeLosDias, tiposDeLaSemana } from '@/domain/pautaDelDia';
 import { mejorMarcaEntre, rendimientoDeLaTemporada } from '@/domain/rendimiento';
 import { rangoAParam, rangoDeParam, resumenDelRango } from '@/domain/resumenDelRango';
-import { sortPhases } from '@/domain/roadmap';
+import { bordesDeFase, estirarFases, moverInicioDeFase } from '@/domain/fasesDeLaTemporada';
+import { expectativasDelPlan, sortPhases } from '@/domain/roadmap';
+import { cambiosDeLaVersion, cuandoDeLaVersion, notaDeRestaurar, quienDeLaVersion } from '@/domain/versionesDelPlan';
 import { HECHO_KINDS, tramoDeFechas } from '@/domain/semanasDelPlan';
 import { allSessions } from '@/domain/sessions';
-import { addDays, daysBetween, localeNumber, weekStart } from '@/lib/dates';
+import { addDays, daysBetween, localeNumber, shortDate, todayISO, weekStart } from '@/lib/dates';
 import { traeALaVista } from '@/lib/motion';
 import { useElementWidth } from '@/lib/useElementWidth';
 import { useEsTelefono } from '@/lib/useMediaQuery';
 import { semanaPath } from '@/routes';
 import { usePautaFechada } from '@/components/nutrition/usePautaFechada';
+import { VentanaDeVariacion } from '@/components/nutrition/VentanaDeVariacion';
+import { VentanaDeCambioDeDieta } from '@/components/nutrition/VentanaDeCambioDeDieta';
+import { fotoDeVersion } from '@/domain/reviews';
 import { MenuAcciones } from '@/components/ui/MenuAcciones';
-import { EmptyState, SegmentedControl } from '@/components/ui/primitives';
+import { EmptyState, Notice, SegmentedControl } from '@/components/ui/primitives';
+import { BotonMas } from '@/components/ui/BotonMas';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useGestosDelPlan } from '@/components/roadmap/useGestosDelPlan';
 import { Calendario } from './Calendario';
 import { semanasDelCalendario } from './semanasDelCalendario';
 import { altoDeEscalones, CarrilDeEscalones } from './CarrilDeEscalones';
@@ -45,7 +54,7 @@ import { EjeDeTiempo } from './EjeDeTiempo';
 import { FilaDeCapa } from './FilaDeCapa';
 import { ALTO_SPLIT, FranjaDelSplit } from './FranjaDelSplit';
 import { Inspector } from './Inspector';
-import { altoDeLaRuta, hechosDeLaRuta, marcasDeLaRuta, Ruta } from './Ruta';
+import { altoDeLaRuta, cabeDestinoEnLaRuta, hechosDeLaRuta, marcasDeLaRuta, Ruta } from './Ruta';
 import { alCambiar, escalaVertical, sinRepetir, numerosDeDias, numerosDeSemanas, tramosDeDias, tramosDeSemanas } from './escalones';
 import {
   aDia,
@@ -70,6 +79,8 @@ import { SelectorDeVista } from './SelectorDeVista';
 import { ALTO_TIRA, TiraDeCalor } from './TiraDeCalor';
 import { mediaMovil, tintaDe } from './series';
 import { useVista } from './useVista';
+import { VentanaDeDecision, VentanaDeDestino, VentanaDeFase } from './VentanasDelPlan';
+import { rutaDeMontar, VentanaDeBloquePrevisto } from './VentanaDeBloquePrevisto';
 
 /**
  * LA TEMPORADA: el roadmap como una sola historia (24 sep 2026).
@@ -132,8 +143,9 @@ import { useVista } from './useVista';
  * de ellas) y, al volver a la gráfica, la vista se acerca a esas semanas. La
  * gráfica sigue montada y escondida, para volver a ella con su zoom.
  *
- * Vive en Revisiones, detrás del conmutador de su portada, hasta que
- * sustituya a las tiras (fase 7 del encargo).
+ * Vive en su pestaña, «Temporada» (`PaginaDeTemporada`, 26 sep 2026).
+ * `?semana=<lunes>` abre con esa semana en el inspector y la vista acercada
+ * a ella: es a donde llevan las casillas de Revisiones y cada revisión.
  */
 
 const VISTAS = [
@@ -146,9 +158,18 @@ const ATAJOS = [
   { id: '4s', label: '4 semanas' },
 ];
 
+/* La semana en foco de la dirección (`?semana=<lunes>`), o `null`. */
+const semanaDeLaUrl = (params) => {
+  const s = params.get('semana');
+  return /^\d{4}-\d{2}-\d{2}$/.test(s || '') ? weekStart(s) : null;
+};
+
 /* La vista con la que abre: la de la dirección (`?desde=…&hasta=…`, o el
-   `?rango=` de antes, que aún traen los enlaces viejos) o la temporada. */
+   `?rango=` de antes, que aún traen los enlaces viejos), siete semanas
+   alrededor de la semana en foco, o la temporada. */
 const vistaDeLaUrl = (params) => {
+  const semana = semanaDeLaUrl(params);
+  if (semana) return vistaDeSemanas(addDays(semana, -21), addDays(semana, 21));
   const v = vistaDeParams(params.get('desde'), params.get('hasta'));
   if (v) return v;
   const r = rangoDeParam(params.get('rango'));
@@ -188,17 +209,26 @@ const Temporada = ({
   /* El día bajo el cursor (`null` sin cursor) y lo elegido para el inspector:
      una semana, un día o una pieza de la ruta (`null`: el resumen). */
   const [cursor, setCursor] = useState(null);
-  const [pieza, setPieza] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const [pieza, setPieza] = useState(() => {
+    const lunes = semanaDeLaUrl(params);
+    return lunes ? { tipo: 'semana', lunes } : null;
+  });
   /* Las filas que se ven, si el entrenador las ha tocado (`null`: las de la
      vista elegida), y la fila con el menú abierto por una pulsación larga. */
   const [capasTocadas, setCapasTocadas] = useState(null);
   const [filaAbierta, setFilaAbierta] = useState(null);
 
-  const [params, setParams] = useSearchParams();
-
   /* Las semanas elegidas en el CALENDARIO, arrastrando: `{ desde, hasta, fin }`.
      En la gráfica no hay selección: lo que se ve es el rango. */
   const [seleccion, setSeleccion] = useState(null);
+  /* La ventana de una variación de la dieta (refeed o diet break), abierta
+     desde el inspector con sus fechas o desde la tarjeta de una intervención. */
+  const [variacion, setVariacion] = useState(null);
+  /* La ventana de un cambio de dieta programado: `{ desde } | { programada }`. */
+  const [cambioDeDieta, setCambioDeDieta] = useState(null);
+  /* Un bloque previsto (letra c): `{}` nuevo, `{ id }` el de un borrador. */
+  const [bloquePrevisto, setBloquePrevisto] = useState(null);
   const elegirDias = useCallback(({ a, b, fin }) => {
     const [x, y] = a <= b ? [a, b] : [b, a];
     setSeleccion({ desde: weekStart(x), hasta: addDays(weekStart(y), 6), fin });
@@ -268,6 +298,22 @@ const Temporada = ({
     return () => clearTimeout(t);
   }, [claveDeVista, setParams]);
 
+  /* La semana en foco (`?semana=`) se queda en la dirección mientras el
+     inspector la enseña, y se va en cuanto enseña otra cosa. */
+  const piezaEsLaDeLaUrl = pieza?.tipo === 'semana' && pieza.lunes === semanaDeLaUrl(params);
+  useEffect(() => {
+    if (piezaEsLaDeLaUrl) return;
+    setParams(
+      (p) => {
+        if (!p.has('semana')) return p;
+        const siguiente = new URLSearchParams(p);
+        siguiente.delete('semana');
+        return siguiente;
+      },
+      { replace: true }
+    );
+  }, [piezaEsLaDeLaUrl, setParams]);
+
   /* Los atajos de arriba: toda la temporada, o tres meses o cuatro semanas
      centrados en hoy. */
   const elegirAtajo = (id) => {
@@ -306,6 +352,175 @@ const Temporada = ({
   /* Por días en cuanto un día tiene sitio; si no, y en Temporada, por semanas. */
   const porDias = nivel !== 'temporada' && escala.pxPorDia >= PX_DIA;
   const { hoy, destino } = plan;
+
+  /* ── Editar el plan desde la ruta (fase 6, letra a) ─────────────────────
+     Fases, destino y punto de decisión, en sus ventanas (`VentanasDelPlan`)
+     o arrastrando sus bordes; todo con Deshacer (`useGestosDelPlan`, el
+     mismo que el creador del plan). Con la suscripción caducada la base
+     rechaza la escritura (0027): no se ofrece. */
+  const {
+    estirarFase,
+    updatePhase,
+    saveAnchor,
+    plan: suscripcion,
+    programadas,
+    nutrition,
+    leerVersionesDelPlan,
+    restaurarVersionDelPlan,
+    updateClientPreferences,
+    anthropometry,
+    session,
+    teamMembers,
+  } = useApp();
+  const puedeEditar = suscripcion?.activo !== false;
+  const { gesto, pasos: pasosDelPlan, ocupado, deshacerConAviso, rehacerConAviso, error: errorDelPlan, setError: setErrorDelPlan } = useGestosDelPlan();
+  const confirmar = useConfirm();
+
+  /* ── Las versiones del plan (letra f) ───────────────────────────────────
+     «Versiones», en la cabecera, abre su lista en el inspector; elegir una la
+     dibuja como sombra sobre la ruta y la banda esperada. Se leen al abrir la
+     lista, y otra vez con cada cambio del plan mientras sigue abierta: cada
+     cambio deja o toca una versión (0140). */
+  const [versionesDelPlan, setVersionesDelPlan] = useState(null);
+  const [errorDeVersiones, setErrorDeVersiones] = useState('');
+  const conVersiones = pieza?.tipo === 'versiones' || pieza?.tipo === 'version';
+  const huellaDelPlan = JSON.stringify([fases.map((f) => [f.id, f.startsOn, f.endsOn, f.direction, f.ratePct, f.title]), destino?.date, destino?.title, objetivoKg]);
+  useEffect(() => {
+    if (!conVersiones) return undefined;
+    let vivo = true;
+    leerVersionesDelPlan(clientId).then((r) => {
+      if (!vivo) return;
+      setErrorDeVersiones(r.ok ? '' : r.error);
+      if (r.ok) setVersionesDelPlan(r.versiones);
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [conVersiones, clientId, huellaDelPlan, leerVersionesDelPlan]);
+  const versionElegida = pieza?.tipo === 'version' ? versionesDelPlan?.find((v) => v.id === pieza.id) || null : null;
+  /* La más nueva es el plan de ahora: no hay sombra que dibujar. */
+  const esLaDeAhora = Boolean(versionElegida && versionesDelPlan?.[0]?.id === versionElegida.id);
+  const historia = anthropometry?.[clientId]?.history;
+  const cambiosDeLaElegida = useMemo(
+    () => (versionElegida ? cambiosDeLaVersion(versionElegida, { fases, destino, objetivoKg }) : []),
+    [versionElegida, fases, destino, objetivoKg]
+  );
+  const sombra = useMemo(() => {
+    /* La de ahora, o una igual que ella, no tienen sombra que dibujar. */
+    if (!versionElegida || esLaDeAhora || cambiosDeLaElegida.length === 0) return null;
+    return {
+      fases: versionElegida.fases,
+      destino: versionElegida.destino,
+      objetivoKg: versionElegida.destino?.pesoObjetivoKg ?? null,
+      /* La misma cuenta que la banda de ahora, con las fases de entonces. */
+      expectativas: expectativasDelPlan(versionElegida.fases, historia || [], hoy),
+    };
+  }, [versionElegida, esLaDeAhora, cambiosDeLaElegida, historia, hoy]);
+  const quienDe = (v) => quienDeLaVersion(v, { yo: session?.user?.id || null, miembros: teamMembers || [] });
+
+  /* Restaurar: fases, destino y peso objetivo en una escritura (0147). El
+     peso se escribe también en las preferencias de aquí, para que su próximo
+     guardado (entero, por la cola) no lo pise. Es un gesto del plan: su
+     Deshacer restaura la que era la de ahora. */
+  const aplicarVersion = async (v) => {
+    const r = await restaurarVersionDelPlan(clientId, v.id, notaDeRestaurar(v));
+    if (r.ok && v.destino) updateClientPreferences(clientId, 'goal', { targetWeightKg: v.destino.pesoObjetivoKg ?? null });
+    return r;
+  };
+  const restaurarVersion = async (v) => {
+    const ahora = versionesDelPlan?.[0];
+    if (!ahora || ahora.id === v.id) return false;
+    const ok = await confirmar({
+      title: `¿Restaurar la versión del ${cuandoDeLaVersion(v)}?`,
+      message: `El plan vuelve a sus fases${v.destino ? ', su destino y su peso objetivo' : ''}.${
+        !v.destino && destino ? ' Esa versión no tenía destino: el de ahora se queda.' : ''
+      } El de ahora queda guardado en Versiones y «Deshacer» lo trae de vuelta.`,
+      confirmLabel: 'Restaurar',
+    });
+    if (!ok) return false;
+    const r = await gesto({
+      texto: `Restaurada la versión del ${cuandoDeLaVersion(v)}.`,
+      hacer: () => aplicarVersion(v),
+      deshacer: () => aplicarVersion(ahora),
+    });
+    if (r.ok) setPieza({ tipo: 'versiones' });
+    return r;
+  };
+  /* La ventana abierta: `{ tipo: 'fase', fase } | { tipo: 'fase', desde, hasta }
+     | { tipo: 'destino' } | { tipo: 'decision', faseId }`. */
+  const [ventanaDelPlan, setVentanaDelPlan] = useState(null);
+  /* El borde (o la bandera) que se está arrastrando: `{ tipo, id, dias }`. */
+  const [arrastreDelPlan, setArrastreDelPlan] = useState(null);
+  const fasesDeLaRuta = useMemo(() => {
+    if (!arrastreDelPlan?.dias) return fases;
+    if (arrastreDelPlan.tipo === 'fin') return estirarFases(fases, arrastreDelPlan.id, arrastreDelPlan.dias);
+    if (arrastreDelPlan.tipo === 'inicio') return moverInicioDeFase(fases, arrastreDelPlan.id, arrastreDelPlan.dias, hoy).fases || fases;
+    return fases;
+  }, [fases, arrastreDelPlan, hoy]);
+  /* El punto de decisión va pegado al final de su fase y se mueve con ella
+     mientras se arrastra. No se quita: es la pieza que tiene el puntero
+     capturado, y si se desmontara el «soltar» no llegaría nunca. */
+  const cruceDeLaRuta = useMemo(() => {
+    const c = plan.cruce;
+    if (!c?.decide || !arrastreDelPlan?.dias) return c;
+    const f = fasesDeLaRuta.find((x) => x.id === c.fase?.id);
+    return f?.endsOn ? { ...c, decide: f.endsOn } : c;
+  }, [plan.cruce, arrastreDelPlan, fasesDeLaRuta]);
+  const destinoDeLaRuta =
+    arrastreDelPlan?.tipo === 'destino' && arrastreDelPlan.dias && destino ? { ...destino, date: addDays(destino.date, arrastreDelPlan.dias) } : destino;
+
+  /* Al soltar, UNA escritura y UN paso de Deshacer; mientras, solo se dibuja. */
+  const alArrastre = async (a) => {
+    if (!a.fin) return setArrastreDelPlan(a);
+    if (!a.dias) return setArrastreDelPlan(null);
+    const f = fases.find((x) => x.id === a.id);
+    if (a.tipo === 'fin' && f) {
+      await gesto({
+        texto: `Final de ${f.title} movido al ${shortDate(addDays(f.endsOn, a.dias))}.`,
+        hacer: () => estirarFase(clientId, a.id, a.dias),
+        deshacer: () => estirarFase(clientId, a.id, -a.dias),
+        conMotivo: true,
+      });
+    } else if (a.tipo === 'inicio' && f) {
+      const r = moverInicioDeFase(fases, a.id, a.dias, hoy);
+      if (r.error) setErrorDelPlan(r.error);
+      else {
+        const escribir = async (lista, cual) => {
+          for (const p of lista) {
+            const x = await updatePhase(p.id, p[cual]);
+            if (!x.ok) return x;
+          }
+          return { ok: true };
+        };
+        await gesto({
+          texto: `Inicio de ${f.title} movido al ${shortDate(addDays(f.startsOn, a.dias))}.`,
+          hacer: () => escribir(r.pasos, 'campos'),
+          deshacer: () => escribir([...r.pasos].reverse(), 'antes'),
+          conMotivo: true,
+        });
+      }
+    } else if (a.tipo === 'destino' && destino) {
+      const antes = destino;
+      const fecha = addDays(destino.date, a.dias);
+      await gesto({
+        texto: `${destino.title || 'Destino'} movido al ${shortDate(fecha)}.`,
+        hacer: () => saveAnchor(clientId, { ...antes, id: antes.id, date: fecha }),
+        deshacer: () => saveAnchor(clientId, { ...antes, id: antes.id }),
+        conMotivo: true,
+      });
+    }
+    setArrastreDelPlan(null);
+    return undefined;
+  };
+  const edicion = puedeEditar
+    ? {
+        paso: porDias ? 1 : 7,
+        bordes: (id) => bordesDeFase(fases, id, hoy),
+        onArrastre: alArrastre,
+        onNuevaFase: ({ desde, hasta }) => setVentanaDelPlan({ tipo: 'fase', desde, hasta }),
+        onNuevoDestino: () => setVentanaDelPlan({ tipo: 'destino' }),
+      }
+    : null;
 
   /* ── Los datos, calculados una vez ──────────────────────────────────────
      Todo sale de la misma cuenta (`pautaDelDia`): las semanas, sus tipos de
@@ -372,39 +587,73 @@ const Temporada = ({
     () => (conEntreno ? entrenoDeLasSemanas({ program, client, semanas: plan.semanas }) : new Map()),
     [conEntreno, program, client, plan.semanas]
   );
-  const bloques = useMemo(
-    () =>
-      conEntreno
-        ? tramosDeLosBloques(program, {
-            cycleType: client?.cycleType,
-            cyclePattern: client?.cyclePattern,
-            startDate: client?.startDate,
-          }).map((t) => ({
-            id: t.bloque.id,
-            nombre: t.bloque.name,
-            desde: t.desde,
-            hasta: t.hasta,
-            previstoHasta: t.previstoHasta,
-            split: splitDelBloque(program, t.bloque, client),
-          }))
-        : [],
-    [conEntreno, program, client]
-  );
+  const bloques = useMemo(() => {
+    if (!conEntreno) return [];
+    const montados = tramosDeLosBloques(program, {
+      cycleType: client?.cycleType,
+      cyclePattern: client?.cyclePattern,
+      startDate: client?.startDate,
+    }).map((t) => ({
+      id: t.bloque.id,
+      nombre: t.bloque.name,
+      desde: t.desde,
+      hasta: t.hasta,
+      previstoHasta: t.previstoHasta,
+      split: splitDelBloque(program, t.bloque, client),
+    }));
+    /* Los previstos (letra c): los borradores, detrás de lo de delante, sin
+       montar. Se dibujan enteros a trazos (`borrador`). */
+    const ultimo = montados[montados.length - 1];
+    const tras = ultimo ? addDays(ultimo.previstoHasta || ultimo.hasta, 1) : weekStart(todayISO());
+    const previstos = borradoresEnElTiempo(program, tras).map((t) => ({
+      id: t.borrador.id,
+      nombre: t.borrador.name,
+      desde: t.desde,
+      hasta: t.hasta,
+      previstoHasta: null,
+      borrador: true,
+      semanas: t.borrador.plannedWeeks,
+      split: splitDelBorrador(t.borrador),
+    }));
+    return [...montados, ...previstos];
+  }, [conEntreno, program, client]);
+  /* Dónde empezaría un bloque previsto nuevo: detrás del último. */
+  const inicioDelSiguiente = bloques.length
+    ? addDays(bloques[bloques.length - 1].previstoHasta || bloques[bloques.length - 1].hasta, 1)
+    : weekStart(todayISO());
   const cabecera = useMemo(() => cabeceraDelPlan({ plan, objetivoKg }), [plan, objetivoKg]);
 
   /* ── Las intervenciones: refeeds y diet breaks, cambios de dieta y bloques
      nuevos, con lo que el entrenador escribió de cada una (0143). */
   const versiones = usePautaFechada();
+  /* Las dietas programadas (0146), con su foto como la de una versión: la
+     pendiente es un cambio de dieta previsto, con su marca en contorno. */
+  const conFoto = useCallback((plan) => fotoDeVersion({ nutrition: plan, program, client }), [program, client]);
+  const programadasConFoto = useMemo(
+    () => (programadas || []).map((p) => ({ ...p, snapshot: conFoto(p.plan) })),
+    [programadas, conFoto]
+  );
+  const dietaDeAhora = nutrition?.[clientId] || null;
+  const fotoDeAhora = useMemo(() => (dietaDeAhora ? conFoto(dietaDeAhora) : null), [dietaDeAhora, conFoto]);
   const todas = useMemo(
     () =>
       intervencionesDelCliente({
         hechos: hechos || [],
         versiones,
-        bloques: bloques.map((b) => ({ id: b.id, nombre: b.nombre, desde: b.desde, split: b.split?.texto || b.split?.datos || null })),
+        programadas: programadasConFoto,
+        actual: fotoDeAhora,
+        bloques: bloques.map((b) => ({
+          id: b.id,
+          nombre: b.nombre,
+          desde: b.desde,
+          hasta: b.hasta,
+          split: b.split?.texto || b.split?.datos || null,
+          borrador: Boolean(b.borrador),
+        })),
         capa: notasDeIntervencion || [],
         hoy,
       }),
-    [hechos, versiones, bloques, notasDeIntervencion, hoy]
+    [hechos, versiones, programadasConFoto, fotoDeAhora, bloques, notasDeIntervencion, hoy]
   );
 
   /* Lo que cuenta el cliente: las preguntas de su protocolo de hoy y el parte
@@ -471,29 +720,25 @@ const Temporada = ({
         })),
     [disponibles, semanas, hoy, sesionesPorDia]
   );
-  const datosAbierta = useMemo(() => {
-    if (!abierta) return null;
-    const x = arrastre?.id === abierta.id ? { ...abierta, capa: { ...abierta.capa, [arrastre.campo]: arrastre.dia } } : abierta;
-    const ventanas = ventanasDe(x, { todas, fases });
-    const fase = fases.find((f) => f.startsOn && f.startsOn <= x.desde && (!f.endsOn || f.endsOn >= x.desde)) || null;
-    /* Las referencias del bloque en el que empieza: su marca en cada ventana. */
-    const delBloque = (rendimiento?.bloques || []).find((b) => b.desde <= x.desde && b.hasta >= x.desde) || null;
-    /* Lo pautado cada día: UNA cuenta para «Qué fue» y para la tabla. */
-    const pautaDelDia = (fecha) => {
+  /* Lo pautado cada día: UNA cuenta para «Qué fue», la tabla y el historial. */
+  const pautaDelDia = useCallback(
+    (fecha) => {
       const l = weekStart(fecha);
       return porLunes.get(l)?.pauta ? diasDe(l).find((d) => d.fecha === fecha) || null : null;
-    };
-    return {
-      x,
-      ventanas,
-      estado: estadoDe(x, ventanas, hoy),
-      objetivo: fase ? ritmoDeFase(fase, x.desde) : null,
-      hoy,
-      kcal: x.tipo === 'dieta' ? kcalDelCambio(x, pautaDelDia) : null,
-      impacto: impactoDe({
+    },
+    [porLunes, diasDe]
+  );
+  /* La tabla de impacto de una intervención con unas ventanas: UNA cuenta
+     para su tarjeta y para la cifra clave del historial. */
+  const pesajes = useMemo(() => semanas.flatMap((s) => s.pesajes || []), [semanas]);
+  const medir = useCallback(
+    (x, ventanas) => {
+      /* Las referencias del bloque en el que empieza: su marca en cada ventana. */
+      const delBloque = (rendimiento?.bloques || []).find((b) => b.desde <= x.desde && b.hasta >= x.desde) || null;
+      return impactoDe({
         ventanas,
         hoy,
-        pesajes: semanas.flatMap((s) => s.pesajes || []),
+        pesajes,
         pautaDelDia,
         sensaciones: todasLasCeldas,
         entrenoDelDia: conEntreno ? (fecha) => entreno.get(weekStart(fecha))?.dias?.find((d) => d.fecha === fecha) || null : null,
@@ -501,9 +746,41 @@ const Temporada = ({
           nombre: r.nombre,
           marca: (desde, hasta) => mejorMarcaEntre({ program, nombres: r.nombres || [r.nombre], desde, hasta }),
         })),
-      }),
+      });
+    },
+    [rendimiento, hoy, pesajes, pautaDelDia, todasLasCeldas, conEntreno, entreno, program]
+  );
+  const datosAbierta = useMemo(() => {
+    if (!abierta) return null;
+    const x = arrastre?.id === abierta.id ? { ...abierta, capa: { ...abierta.capa, [arrastre.campo]: arrastre.dia } } : abierta;
+    const ventanas = ventanasDe(x, { todas, fases });
+    const fase = fases.find((f) => f.startsOn && f.startsOn <= x.desde && (!f.endsOn || f.endsOn >= x.desde)) || null;
+    const impacto = medir(x, ventanas);
+    return {
+      x,
+      ventanas,
+      estado: estadoDe(x, ventanas, hoy),
+      objetivo: fase ? ritmoDeFase(fase, x.desde) : null,
+      hoy,
+      /* Una programada aún no es la dieta de ningún día: sus kcal, las suyas. */
+      kcal:
+        x.tipo !== 'dieta'
+          ? null
+          : x.programada?.estado === 'pendiente'
+            ? { antes: kcalDelCambio(x, pautaDelDia).antes, despues: x.despues?.kcals ?? null }
+            : kcalDelCambio(x, pautaDelDia),
+      impacto,
+      clave: cifraClaveDe(x, impacto),
     };
-  }, [abierta, arrastre, todas, fases, rendimiento, hoy, semanas, porLunes, diasDe, todasLasCeldas, conEntreno, entreno, program]);
+  }, [abierta, arrastre, todas, fases, hoy, pautaDelDia, medir]);
+
+  /* ── El historial: todas, de la más reciente a la más antigua ─────────── */
+  const historialDe = useMemo(
+    () => historialDeIntervenciones({ todas, fases, pesajes, hoy, pautaDelDia, medir }),
+    [todas, fases, pesajes, hoy, pautaDelDia, medir]
+  );
+  /* El filtro sobrevive a abrir una y volver a la lista. */
+  const [filtroDelHistorial, setFiltroDelHistorial] = useState('todas');
   const vistas = useMemo(() => (Array.isArray(prefs?.vistas) ? prefs.vistas : []), [prefs?.vistas]);
   const vistaElegida = vistas.find((v) => v.id === prefs?.ultima) || null;
   const deLaVista = capasDeLaVista(vistaElegida ? vistaElegida.capas : vistaPorDefecto(disponibles), disponibles);
@@ -603,19 +880,26 @@ const Temporada = ({
     irA(vistaDeFranja(aMs(desde) - 3 * DIA_MS, aMs(hasta) + 4 * DIA_MS));
   };
   const marcoRef = useRef(null);
-  const elegirPieza = (p) => {
+  const elegirPieza = (p, { encuadrar = false } = {}) => {
     setPieza(p);
     if (p?.tipo !== 'intervencion') return;
     /* En el teléfono la tarjeta sube a media altura: la gráfica, arriba del
        todo, para que sus ventanas queden a la vista por encima. */
-    if (telefono) traeALaVista(marcoRef.current, { block: 'start', behavior: 'smooth' });
+    if (telefono || encuadrar) traeALaVista(marcoRef.current, { block: 'start', behavior: 'smooth' });
     const x = todas.find((i) => i.id === p.id);
     if (!x) return;
     const v = ventanasDe(x, { todas, fases });
     const desde = v.antes?.desde || x.desde;
     const hasta = v.despues?.hasta || x.hasta;
-    if (escala.x(desde) < 0 || escala.x(addDays(hasta, 1)) > ancho) acercarA(desde, hasta);
+    if (encuadrar || escala.x(desde) < 0 || escala.x(addDays(hasta, 1)) > ancho) acercarA(desde, hasta);
   };
+  /* Desde el historial: siempre a su tramo, y en la gráfica, que es donde se
+     ven sus ventanas; la página sube a ella. */
+  const abrirDelHistorial = (id) => {
+    if (modo === 'calendario') cambiarModo('grafica');
+    elegirPieza({ tipo: 'intervencion', id }, { encuadrar: true });
+  };
+  const abrirHistorial = () => setPieza({ tipo: 'intervenciones' });
 
   /* Doble clic en la gráfica: el zoom de antes. Los dos clics que lo forman
      no eligen nada: lo elegido vuelve a ser lo de antes. */
@@ -916,8 +1200,9 @@ const Temporada = ({
     ventanasEnPx = (
       <>
         {bandas}
-        {asa('antesDesde', ventanas.antes?.desde || x.desde, ventanas.antes?.desde || x.desde)}
-        {asa('despuesHasta', ventanas.despues?.hasta || x.hasta, addDays(ventanas.despues?.hasta || x.hasta, 1))}
+        {/* Una programada aún no tiene de qué colgar sus ventanas (`fuente`): sin asas. */}
+        {x.fuente && asa('antesDesde', ventanas.antes?.desde || x.desde, ventanas.antes?.desde || x.desde)}
+        {x.fuente && asa('despuesHasta', ventanas.despues?.hasta || x.hasta, addDays(ventanas.despues?.hasta || x.hasta, 1))}
       </>
     );
   }
@@ -988,6 +1273,43 @@ const Temporada = ({
     intervencion: datosAbierta,
     intervencionesEntre: (desde, hasta) => todas.filter((x) => x.desde <= hasta && x.hasta >= desde),
     guardarIntervencion: (x, campos) => guardarIntervencion(clientId, x.fuente, campos),
+    /* El historial de todas: su lista, su filtro, abrirlo y abrir una. */
+    historial: historialDe,
+    filtroDelHistorial,
+    filtrarHistorial: setFiltroDelHistorial,
+    abrirHistorial,
+    abrirDelHistorial,
+    /* Una variación de la dieta: nueva con sus fechas o la de una intervención. */
+    nuevaVariacion: (kind, desde, hasta) => setVariacion({ kind, desde, hasta }),
+    /* Un cambio de dieta programado (0146): nuevo desde un día, o el de una
+       marca; y abrir su copia en el editor de la Dieta. */
+    nuevoCambioDeDieta: (desde) => setCambioDeDieta({ desde }),
+    editarCambioDeDieta: (programada) => setCambioDeDieta({ programada }),
+    abrirCambioDeDieta: (programada) => navigate(`/c/${clientId}/nutricion?programada=${programada.id}`),
+    editarVariacion: (evento) => setVariacion({ evento }),
+    /* Un bloque previsto: nuevo detrás del último, cambiar uno, o montarlo en Entreno. */
+    conEntreno,
+    nuevoBloquePrevisto: () => setBloquePrevisto({}),
+    editarBloquePrevisto: (id) => setBloquePrevisto({ id }),
+    montarBloque: (id) => navigate(rutaDeMontar(clientId, id)),
+    /* El plan: si se puede cambiar, y abrir la ventana de una fase (la de hoy,
+       no la que se guardó al pulsarla), del destino o del punto de decisión. */
+    puedeEditar,
+    faseDe: (id) => fases.find((f) => f.id === id) || null,
+    editarFase: (f) => setVentanaDelPlan({ tipo: 'fase', fase: f }),
+    editarDestino: () => setVentanaDelPlan({ tipo: 'destino' }),
+    abrirDecision: () => setVentanaDelPlan({ tipo: 'decision', faseId: plan.cruce?.fase?.id || null }),
+    /* Las versiones del plan: su lista, la elegida con lo que cambia respecto
+       a ahora, y restaurarla. */
+    versiones: versionesDelPlan,
+    errorDeVersiones,
+    quienDe,
+    abrirVersiones: () => setPieza({ tipo: 'versiones' }),
+    abrirVersion: (id) => setPieza({ tipo: 'version', id }),
+    versionElegida,
+    esLaDeAhora,
+    cambiosDeLaElegida,
+    restaurarVersion: puedeEditar ? restaurarVersion : null,
   };
 
   /* ── Las filas, en el orden de la vista ─────────────────────────────────── */
@@ -1014,11 +1336,22 @@ const Temporada = ({
           extremos={!porDias}
           tendencia={porDias ? tendencia : null}
           cursorX={cursorX}
+          sombra={sombra}
         />,
       ];
     if (id === 'kcal') return [altoPauta, kcal];
     if (id === 'pasos') return [altoPauta, pasos];
-    if (id === 'split') return [ALTO_SPLIT, <FranjaDelSplit key="split" escala={escala} bloques={bloques} />];
+    if (id === 'split')
+      return [
+        ALTO_SPLIT,
+        <FranjaDelSplit
+          key="split"
+          escala={escala}
+          bloques={bloques}
+          nuevo={puedeEditar ? { desde: inicioDelSiguiente, onClick: () => setBloquePrevisto({}) } : null}
+          onBorrador={puedeEditar ? (bid) => setBloquePrevisto({ id: bid }) : null}
+        />,
+      ];
     if (tiras.has(id)) return [ALTO_TIRA, <TiraDeCalor key={id} escala={escala} celdas={tiras.get(id)} cursor={cursor} />];
     return [0, null];
   };
@@ -1103,6 +1436,33 @@ const Temporada = ({
         {cabecera.detalle.map((d) => (
           <span key={d}>{d}</span>
         ))}
+        {todas.length > 0 && (
+          <button
+            type="button"
+            className="tl-ins-enlace tl-cabecera-enlace"
+            aria-pressed={pieza?.tipo === 'intervenciones'}
+            onClick={() => (pieza?.tipo === 'intervenciones' ? setPieza(null) : abrirHistorial())}
+          >
+            Intervenciones <span className="tnum">{todas.length}</span>
+          </button>
+        )}
+        {/* Las fotos del plan: para comparar con el original y volver a una. */}
+        {(fases.length > 0 || destino) && (
+          <button
+            type="button"
+            className="tl-ins-enlace tl-cabecera-enlace"
+            aria-pressed={conVersiones}
+            onClick={() => (conVersiones ? setPieza(null) : setPieza({ tipo: 'versiones' }))}
+          >
+            Versiones
+          </button>
+        )}
+        {/* Sin destino y sin sitio al final de la ruta (una fase llega al canto): aquí. */}
+        {edicion && !destino && (modo === 'calendario' || !cabeDestinoEnLaRuta(fasesDeLaRuta, escala)) && (
+          <button type="button" className="tl-ins-enlace tl-cabecera-enlace" onClick={edicion.onNuevoDestino}>
+            + destino
+          </button>
+        )}
       </p>
       {cabecera.cifras.length > 0 && (
         <dl className="tl-cabecera-cifras">
@@ -1121,6 +1481,18 @@ const Temporada = ({
     <div className={`tl${modo === 'calendario' ? ' is-calendario' : ''}`}>
       <div className="tl-mandos">
         <SegmentedControl value={modo} onChange={cambiarModo} options={VISTAS} label="Cómo se ve" />
+        {/* Deshacer y rehacer los cambios del plan: salen cuando hay algo que
+            deshacer (la ley del reposo). ⌘Z y ⌘⇧Z también valen. */}
+        {(pasosDelPlan.atras > 0 || pasosDelPlan.adelante > 0) && (
+          <span className="tl-deshacer">
+            <button type="button" className="btn btn-icon btn-icon-compact" title="Deshacer (⌘Z)" aria-label="Deshacer el último cambio del plan" disabled={ocupado || pasosDelPlan.atras === 0} onClick={deshacerConAviso}>
+              <Undo2 size={16} />
+            </button>
+            <button type="button" className="btn btn-icon btn-icon-compact" title="Rehacer (⌘⇧Z)" aria-label="Rehacer el cambio deshecho" disabled={ocupado || pasosDelPlan.adelante === 0} onClick={rehacerConAviso}>
+              <Redo2 size={16} />
+            </button>
+          </span>
+        )}
         {/* Las vistas son filas de la gráfica: en el calendario no pintan nada. */}
         {modo === 'grafica' && (
           <div className="tl-mandos-derecha">
@@ -1137,6 +1509,12 @@ const Temporada = ({
           </div>
         )}
       </div>
+
+      {errorDelPlan && (
+        <Notice tone="error" onClose={() => setErrorDelPlan('')}>
+          {errorDelPlan}
+        </Notice>
+      )}
 
       {modo === 'calendario' && (
         <div className="tl-marco is-calendario">
@@ -1194,15 +1572,17 @@ const Temporada = ({
             <svg className="tl-ruta" width={ancho} height={altoRuta} viewBox={`0 0 ${ancho} ${altoRuta}`}>
               <Ruta
                 escala={escala}
-                fases={fases}
+                fases={fasesDeLaRuta}
                 hoy={hoy}
-                destino={destino}
-                cruce={plan.cruce}
+                destino={destinoDeLaRuta}
+                cruce={cruceDeLaRuta}
                 hechos={hechosVistos}
                 marcas={marcasVistas}
                 elegida={abierta?.id ?? null}
                 onPieza={elegirPieza}
                 onGrupo={(g) => acercarA(g.desde, g.hasta)}
+                edicion={edicion}
+                sombra={sombra}
               />
             </svg>
           </div>
@@ -1215,7 +1595,7 @@ const Temporada = ({
             </div>
             {filas}
             <div className="tl-capa" aria-hidden="true">
-              {destino?.date && vertical(destino.date, 'is-destino')}
+              {destinoDeLaRuta?.date && vertical(destinoDeLaRuta.date, 'is-destino')}
               {vertical(hoy, 'is-hoy')}
               {columnaElegida}
               {franjaEnPx}
@@ -1267,7 +1647,65 @@ const Temporada = ({
         onAbrirRevisiones={abrirRevisiones}
         onQuitarRango={quitarSeleccion}
       />
+      {variacion && <VentanaDeVariacion inicial={variacion} onCerrar={() => setVariacion(null)} />}
+      {bloquePrevisto && (
+        <VentanaDeBloquePrevisto
+          key={bloquePrevisto.id || 'nuevo'}
+          borrador={bloquePrevisto.id ? borradorDe(program, bloquePrevisto.id) : null}
+          tramo={bloquePrevisto.id ? bloques.find((b) => b.id === bloquePrevisto.id) || null : null}
+          inicio={inicioDelSiguiente}
+          detras={(bloquePrevisto.id ? bloques[bloques.findIndex((b) => b.id === bloquePrevisto.id) - 1] : bloques[bloques.length - 1])?.nombre || null}
+          cuenta={bloques.length + 1}
+          onCerrar={() => setBloquePrevisto(null)}
+        />
+      )}
+      {cambioDeDieta && (
+        <VentanaDeCambioDeDieta
+          desde={cambioDeDieta.desde || null}
+          programada={cambioDeDieta.programada || null}
+          onCerrar={() => setCambioDeDieta(null)}
+        />
+      )}
+      {ventanaDelPlan?.tipo === 'fase' && (
+        <VentanaDeFase
+          key={ventanaDelPlan.fase?.id || ventanaDelPlan.desde}
+          inicial={ventanaDelPlan.fase ? { fase: fases.find((f) => f.id === ventanaDelPlan.fase.id) || ventanaDelPlan.fase } : ventanaDelPlan}
+          gesto={gesto}
+          onCerrar={() => setVentanaDelPlan(null)}
+          onDecision={ventanaDelPlan.fase ? () => setVentanaDelPlan({ tipo: 'decision', faseId: ventanaDelPlan.fase.id }) : null}
+        />
+      )}
+      {ventanaDelPlan?.tipo === 'destino' && (
+        <VentanaDeDestino destino={destino} hoy={hoy} gesto={gesto} onCerrar={() => setVentanaDelPlan(null)} />
+      )}
+      {ventanaDelPlan?.tipo === 'decision' && ventanaDelPlan.faseId && (
+        <VentanaDeDecision
+          fase={fases.find((f) => f.id === ventanaDelPlan.faseId) || null}
+          cruce={plan.cruce?.fase?.id === ventanaDelPlan.faseId ? plan.cruce : null}
+          gesto={gesto}
+          onCerrar={() => setVentanaDelPlan(null)}
+        />
+      )}
     </div>
+  );
+};
+
+/* Sin fases ni pesajes no hay nada que dibujar: la primera fase se añade aquí
+   mismo, con la misma ventana que desde la ruta. */
+const SinTemporada = () => {
+  const { plan: suscripcion } = useApp();
+  const { gesto } = useGestosDelPlan();
+  const [nueva, setNueva] = useState(false);
+  return (
+    <>
+      <EmptyState
+        icon={Route}
+        title="Todavía no hay temporada que dibujar"
+        message="Empieza por una fase —doce semanas de definición, dieciséis de volumen— y aquí verás su temporada entera: a dónde va, por qué fases pasa y lo que pesa."
+        action={suscripcion?.activo !== false ? <BotonMas palabra="fase" onClick={() => setNueva(true)} /> : null}
+      />
+      {nueva && <VentanaDeFase inicial={{ desde: todayISO(), hasta: null }} gesto={gesto} onCerrar={() => setNueva(false)} />}
+    </>
   );
 };
 
@@ -1300,13 +1738,7 @@ export const LineaDeTiempo = ({ plan, estados }) => {
 
   if (!activeClient) return null;
   if (!plan || (fases.length === 0 && !plan.semanas.some((s) => s.media !== null))) {
-    return (
-      <EmptyState
-        icon={Route}
-        title="Todavía no hay temporada que dibujar"
-        message="Cuando tenga una fase con fechas o algún pesaje, aquí verás su temporada entera: a dónde va, por qué fases pasa y lo que pesa."
-      />
-    );
+    return <SinTemporada />;
   }
 
   return (

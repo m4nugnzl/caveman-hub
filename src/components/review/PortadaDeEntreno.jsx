@@ -17,6 +17,7 @@ import { metricColor } from '@/domain/metrics';
 import { tramoDeFechas } from '@/domain/semanasDelPlan';
 import { localeNumber, shortDate } from '@/lib/dates';
 import { semanaPath } from '@/routes';
+import { EnLaTemporada } from './EnLaTemporada';
 import { CANAL, partir } from './geometriaDeTiras';
 
 /**
@@ -86,28 +87,31 @@ const Casilla = ({ s, dato, clientId, compacta, senalada, onSenalar }) => {
   const kg = dato?.tonelaje || 0;
 
   return (
-    <Link
-      to={semanaPath(clientId, s.lunes)}
-      className={`casilla is-${s.revision5}${compacta ? ' is-compacta' : ''}${senalada ? ' is-senalada' : ''}`}
-      aria-label={[
-        `Semana ${s.numero ?? ''} del ${shortDate(s.lunes)}`,
-        kg > 0 ? `${tonelaje(kg)} levantados` : futura ? 'todavía no' : 'sin entrenos anotados',
-        dato?.pedidos ? `${dato.hechas} de ${dato.pedidos} entrenos` : null,
-      ]
-        .filter(Boolean)
-        .join(', ')}
-      onMouseEnter={() => onSenalar(s.lunes)}
-      onMouseLeave={() => onSenalar(null)}
-      onFocus={() => onSenalar(s.lunes)}
-      onBlur={() => onSenalar(null)}
-    >
-      <span className="casilla-cab">
-        <b className="casilla-n">{s.numero ? `S${s.numero}` : shortDate(s.lunes)}</b>
-        {s.estado === 'hoy' && <span className="casilla-marca is-hoy" aria-hidden="true">hoy</span>}
-      </span>
-      {!compacta && <span className="casilla-fecha">{shortDate(s.lunes)}</span>}
-      <span className={`casilla-kg${kg > 0 ? '' : ' is-esperado'}`}>{kg > 0 ? tonelaje(kg) : '—'}</span>
-    </Link>
+    <div className="casilla-celda">
+      <Link
+        to={semanaPath(clientId, s.lunes)}
+        className={`casilla is-${s.revision5}${compacta ? ' is-compacta' : ''}${senalada ? ' is-senalada' : ''}`}
+        aria-label={[
+          `Semana ${s.numero ?? ''} del ${shortDate(s.lunes)}`,
+          kg > 0 ? `${tonelaje(kg)} levantados` : futura ? 'todavía no' : 'sin entrenos anotados',
+          dato?.pedidos ? `${dato.hechas} de ${dato.pedidos} entrenos` : null,
+        ]
+          .filter(Boolean)
+          .join(', ')}
+        onMouseEnter={() => onSenalar(s.lunes)}
+        onMouseLeave={() => onSenalar(null)}
+        onFocus={() => onSenalar(s.lunes)}
+        onBlur={() => onSenalar(null)}
+      >
+        <span className="casilla-cab">
+          <b className="casilla-n">{s.numero ? `S${s.numero}` : shortDate(s.lunes)}</b>
+          {s.estado === 'hoy' && <span className="casilla-marca is-hoy" aria-hidden="true">hoy</span>}
+        </span>
+        {!compacta && <span className="casilla-fecha">{shortDate(s.lunes)}</span>}
+        <span className={`casilla-kg${kg > 0 ? '' : ' is-esperado'}`}>{kg > 0 ? tonelaje(kg) : '—'}</span>
+      </Link>
+      <EnLaTemporada clientId={clientId} lunes={s.lunes} nombre={s.numero ? `la S${s.numero}` : `la semana del ${shortDate(s.lunes)}`} />
+    </div>
   );
 };
 

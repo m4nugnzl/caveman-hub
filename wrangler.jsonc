@@ -72,9 +72,14 @@
 
     Cambiar la cadencia es un commit, que es justo lo que se buscaba al no usar
     `pg_cron` (ver la cabecera de `worker.mjs`).
+
+    El reloj suena CADA HORA solo por las dietas programadas (0146): cada
+    cliente empieza el día en su zona horaria, y su cambio tiene que entrar al
+    empezar SU día, no a las 7:00 UTC. El informe y el latido completo siguen
+    siendo a las 7:00: lo decide `worker.mjs` mirando la hora del disparo.
   */
   "triggers": {
-    "crons": ["0 7 * * *"]
+    "crons": ["0 * * * *"]
   },
 
   "assets": {

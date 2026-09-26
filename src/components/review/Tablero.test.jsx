@@ -19,8 +19,7 @@ import { exerciseTrend } from '@/domain/week';
 vi.mock('@/context/AppContext', () => ({
   useApp: () => ({
     nutrition: { c1: { stepsGoal: 12000, cardioGoal: null, hasDayVariants: false } },
-    updateNutrition: () => {},
-    updateNutritionTargets: () => {},
+    dietaDe: () => ({ updateNutrition: () => {}, updateNutritionTargets: () => {} }),
   }),
 }));
 

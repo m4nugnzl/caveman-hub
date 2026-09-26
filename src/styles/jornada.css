@@ -236,6 +236,20 @@
   color: var(--text-tertiary); cursor: pointer; border-radius: var(--r-xs);
 }
 .toast-x:hover { color: var(--text); }
+/* La acción que pide una línea («Añadir motivo»): el aviso es el formulario. */
+.toast-campo {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2);
+  min-width: min(360px, calc(100vw - 2 * var(--s4) - 72px));
+}
+.toast-campo .input { flex: 1 1 6rem; min-width: 0; }
+.toast-error { flex-basis: 100%; font-size: var(--fs-xs); color: var(--negative); }
+/* Dos acciones en el teléfono: el texto y la × arriba, las acciones debajo a
+   la derecha. En un renglón, el texto quedaba en una columna de una palabra. */
+@media (max-width: 639.98px) {
+  .toast:has(.toast-text ~ .btn + .btn) { flex-wrap: wrap; justify-content: flex-end; row-gap: var(--s2); }
+  .toast:has(.toast-text ~ .btn + .btn) .toast-text { order: -2; flex: 1 1 calc(100% - 48px); }
+  .toast:has(.toast-text ~ .btn + .btn) .toast-x { order: -1; }
+}
 
 @media (prefers-reduced-motion: no-preference) {
   .toast { animation: toast-entra var(--entrada); }

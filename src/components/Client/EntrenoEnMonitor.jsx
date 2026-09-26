@@ -169,6 +169,10 @@ export const EntrenoEnMonitor = ({ datos }) => {
                        de cada ejercicio. Mirando un bloque cerrado se apagan
                        solos, que es lo correcto. */
                     semanaEnCurso={semanaEnCurso}
+                    /* La pauta de cada fila es la del microciclo que mira
+                       —el suyo de ahora, salvo que haya ido a otro—, igual
+                       que la que le sale al entrenar. Sin `onPauta`, se lee. */
+                    semana={semana}
                     onAbrirHoja={onEntrenarHoja}
                     onIrSemana={onIrSemana}
                   />

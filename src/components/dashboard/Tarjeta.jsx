@@ -45,6 +45,10 @@
  *   lo que despliega —tablas semana a semana— no cabe en su sitio.
  * @param vacia    Sin dato que enseñar. Centra el contenido y lo apaga, para que
  *   un panel a medio llenar no parezca un panel roto.
+ * @param puerta   La capa de clic (`.task-hit`, un enlace o un botón) que hace
+ *   de la caja entera la puerta (`.tarjeta-puerta`, ver la ley de los gestos
+ *   en `revision.css`). Va por debajo del contenido; los botones de dentro
+ *   siguen siendo suyos.
  */
 export const Tarjeta = ({
   rotulo,
@@ -53,14 +57,16 @@ export const Tarjeta = ({
   span = 4,
   abierta = false,
   vacia = false,
+  puerta = null,
   className = '',
   children,
 }) => (
   <section
-    className={['tarjeta', `is-${span}`, abierta && 'is-abierta', vacia && 'is-vacia', className]
+    className={['tarjeta', `is-${span}`, abierta && 'is-abierta', vacia && 'is-vacia', puerta && 'tarjeta-puerta', className]
       .filter(Boolean)
       .join(' ')}
   >
+    {puerta}
     <header className={`tarjeta-cab${sub ? ' con-sub' : ''}`}>
       {sub ? (
         <span className="tarjeta-titulo">

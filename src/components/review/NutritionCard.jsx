@@ -57,7 +57,10 @@ const Palanca = ({ label, valor, antes, unidad = 'g' }) => {
 };
 
 export const NutritionCard = ({ track = [], selected, client }) => {
-  const { nutrition, updateNutrition, updateNutritionTargets } = useApp();
+  const { nutrition, dietaDe } = useApp();
+  /* Los verbos de la dieta de este cliente, los MISMOS del editor
+     (`operacionesDeLaDieta`): todo cambio de dieta entra por la misma puerta. */
+  const { updateNutrition, updateNutritionTargets } = useMemo(() => dietaDe(client?.id), [dietaDe, client?.id]);
   const [ajustando, setAjustando] = useState(false);
 
   const fila = track.find((f) => f.week === selected) || null;
@@ -185,7 +188,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
                     variant={dia.id}
                     title={`Ajustar objetivo · ${dia.name.toLowerCase()}`}
                     editable
-                    onSave={(fields) => updateNutritionTargets(client.id, dia.id, fields)}
+                    onSave={(fields) => updateNutritionTargets(dia.id, fields)}
                   />
                 ))}
               </div>
@@ -195,7 +198,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
                 variant={dias[0]?.id ?? 'default'}
                 title="Objetivo diario"
                 editable
-                onSave={(fields) => updateNutritionTargets(client.id, dias[0]?.id ?? 'default', fields)}
+                onSave={(fields) => updateNutritionTargets(dias[0]?.id ?? 'default', fields)}
               />
             )}
 
@@ -207,7 +210,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
               placeholder="10000"
               numeric
               editable
-              onSave={(stepsGoal) => updateNutrition(client.id, { stepsGoal })}
+              onSave={(stepsGoal) => updateNutrition({ stepsGoal })}
             />
 
             <GoalCard
@@ -217,7 +220,7 @@ export const NutritionCard = ({ track = [], selected, client }) => {
               placeholder="2 sesiones de 10 rondas 30/30 en bici"
               hint="Sesiones, duración y protocolo. Lo escribes como se lo dirías."
               editable
-              onSave={(cardioGoal) => updateNutrition(client.id, { cardioGoal })}
+              onSave={(cardioGoal) => updateNutrition({ cardioGoal })}
             />
 
             <p className="t-xs t-tertiary">

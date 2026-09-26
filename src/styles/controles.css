@@ -1207,6 +1207,13 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
    y se queda a media voz: está para cuando la busques, no para competir con la
    frase. Y `margin: -4px 0` para que no engorde el renglón de una línea. */
 .notice-cerrar { color: inherit; opacity: 0.55; margin: -4px 0; }
+/* En el teléfono, los botones del aviso bajan a su renglón, alineados con el
+   texto: al lado le dejaban a la frase una columna de una palabra. */
+@media (max-width: 639px) {
+  .notice { flex-wrap: wrap; }
+  .notice > .grow { flex-basis: calc(100% - 15px - var(--s2)); }
+  .notice > .grow ~ :not(.notice-cerrar) { margin-left: calc(15px + var(--s2)); }
+}
 .notice-cerrar:hover:not(:disabled) { color: inherit; opacity: 1; background: var(--fill); }
 
 .notice-error { background: var(--negative-soft); color: var(--negative); }

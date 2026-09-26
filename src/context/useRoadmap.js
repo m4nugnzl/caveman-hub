@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { competicionDe } from '@/domain/calendar';
 import { optionToPhaseDraft } from '@/domain/fork';
-import { conReplanteo, sinReplanteo } from '@/domain/roadmap';
+import { conReplanteo, juntarMotivos, quitarMotivo, sinReplanteo } from '@/domain/roadmap';
 import { HECHO_KINDS } from '@/domain/semanasDelPlan';
+import { versionDeFila } from '@/domain/versionesDelPlan';
 import {
   mapEventFromDb,
   mapInterventionFromDb,
@@ -12,6 +13,7 @@ import {
   mapNutritionFromDb,
   mapPhaseFromDb,
   mapPhaseToDb,
+  parteDeToDb,
 } from '@/lib/mappers';
 
 /*
@@ -61,6 +63,65 @@ const explicarErrorDeFase = (error) => {
     return 'No se ha podido guardar el roadmap. Si tu suscripción no está activa, la planificación queda en solo lectura.';
   }
   return error?.message || 'No se ha podido guardar la fase.';
+};
+
+/** Los errores de un hecho, en palabras (el solape lo dice la 0144). */
+const explicarErrorDeHecho = (error) => {
+  if (error?.code === PG.EXCLUSION) {
+    return 'Esos días ya tienen otra variación. Dos variaciones no pueden cubrir el mismo día.';
+  }
+  if (error?.code === PG.RLS) return 'No se ha podido guardar. Solo quien lleva a este cliente puede cambiar su dieta.';
+  return error?.message || 'No se ha podido guardar.';
+};
+
+const ordenarHechos = (lista) => [...lista].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+
+/**
+ * Los datos de un hecho, en columnas de `client_events`. Las macros van las
+ * tres o ninguna (0142); con ellas, las kcal las calcula la base. O cifras
+ * iguales o `pauta_dias`, nunca las dos (0143). El menú y el día del que
+ * parte (0144) solo se escriben si llegan: el creador del plan no los manda y
+ * una edición que no los toca no los borra.
+ */
+const filaDeHecho = ({
+  kind,
+  title,
+  date,
+  hasta = null,
+  kcal = null,
+  proteina = null,
+  carbohidratos = null,
+  grasa = null,
+  pautaDias = null,
+  nota = null,
+  menus,
+  parteDe,
+}) => {
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  const macros = [num(proteina), num(carbohidratos), num(grasa)];
+  const conMacros = macros.every((v) => v !== null);
+  const texto = String(nota ?? '').trim().slice(0, 280);
+  const dias = Array.isArray(pautaDias) && pautaDias.length > 1 ? pautaDias : null;
+  return {
+    kind,
+    title: String(title || '').trim(),
+    date,
+    hasta: hasta && hasta > date ? hasta : null,
+    kcal: conMacros || dias ? null : num(kcal),
+    proteina_g: dias ? null : conMacros ? macros[0] : null,
+    carbohidratos_g: dias ? null : conMacros ? macros[1] : null,
+    grasa_g: dias ? null : conMacros ? macros[2] : null,
+    nota: texto || null,
+    pauta_dias: dias
+      ? dias.map((d) =>
+          [d.proteina, d.carbohidratos, d.grasa].every((v) => num(v) !== null)
+            ? { p: num(d.proteina), c: num(d.carbohidratos), g: num(d.grasa) }
+            : { kcal: num(d.kcal) }
+        )
+      : null,
+    ...(menus !== undefined ? { menu: menus } : {}),
+    ...(parteDe !== undefined ? { parte_de: parteDeToDb(parteDe) } : {}),
+  };
 };
 
 export const useRoadmap = ({ session, activeClientId }) => {
@@ -188,6 +249,23 @@ export const useRoadmap = ({ session, activeClientId }) => {
     return () => {
       cancelado = true;
     };
+  }, [activeClientId]);
+
+  /*
+    La pauta fechada y lo escrito de cada intervención, otra vez. Lo pide una
+    dieta programada que acaba de entrar en vigor (0146): trae una versión
+    nueva, con fecha, y quizá su motivo.
+  */
+  const releerLaPautaFechada = useCallback(async (clientId) => {
+    if (!clientId || clientId !== activeClientId) return;
+    const [versiones, capa] = await Promise.all([
+      supabase.from('nutrition_plan_versions').select('dia, pauta').eq('client_id', clientId).order('dia'),
+      supabase.from('client_interventions').select('*').eq('client_id', clientId),
+    ]);
+    if (!versiones.error) {
+      setDietVersions((versiones.data || []).map((v) => ({ dia: v.dia, nutrition: mapNutritionFromDb(v.pauta || {}) })));
+    }
+    if (!capa.error) setNotasDeIntervencion((capa.data || []).map(mapInterventionFromDb));
   }, [activeClientId]);
 
   const addPhase = useCallback(
@@ -428,58 +506,250 @@ export const useRoadmap = ({ session, activeClientId }) => {
   );
 
   /**
+   * «¿Por qué?»: el motivo de un cambio del plan, escrito como NOTA de la
+   * versión que ese cambio acaba de dejar (0140). La versión la guarda la base
+   * al escribir; aquí solo se busca y se anota (`anotar_version_del_plan`).
+   *
+   *   · Solo se anota una versión de quien escribe y tocada en los últimos 15
+   *     minutos: si el cambio no dejó versión, no se le pone el motivo a una
+   *     vieja ni a la de otra persona.
+   *   · Varias ediciones seguidas son UNA versión (15 minutos, 0140): sus
+   *     motivos se juntan con « · », sin repetir el mismo.
+   */
+  const anotarCambioDelPlan = useCallback(
+    async (clientId, motivo) => {
+      const texto = String(motivo || '').trim();
+      if (!texto) return { ok: true };
+      const userId = session?.user?.id;
+      const { data: v, error } = await supabase
+        .from('client_plan_versions')
+        .select('id, nota, created_by, tocada_en')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) return { ok: false, error: error.message || 'No se ha podido guardar el motivo.' };
+      /* La misma ventana que agrupa las ediciones (0140): lo tocado por quien
+         escribe en los últimos 15 minutos es la versión de este cambio. */
+      const reciente = v && Date.now() - new Date(v.tocada_en).getTime() < 15 * 60 * 1000;
+      if (!v || !userId || v.created_by !== userId || !reciente) {
+        return { ok: false, error: 'El motivo no se ha guardado: este cambio no ha dejado versión del plan.' };
+      }
+      const nota = juntarMotivos(v.nota, texto);
+      if (nota.length > 280) {
+        return { ok: false, error: 'El motivo no cabe: la nota de esta versión ya es larga. Acórtalo.' };
+      }
+      const { error: e2 } = await supabase.rpc('anotar_version_del_plan', { p_id: v.id, p_nota: nota });
+      if (e2) return { ok: false, error: e2.message || 'No se ha podido guardar el motivo.' };
+      /* `anadido`: si ya estaba (el mismo motivo dos veces en una versión), este
+         paso no lo trajo y deshacerlo no debe quitarlo. */
+      return { ok: true, versionId: v.id, anadido: nota !== juntarMotivos(v.nota, '') };
+    },
+    [session]
+  );
+
+  /**
+   * Las versiones del plan de un cliente (0140), de la más nueva a la más
+   * antigua. Se piden al abrir «Versiones»: no viven en el estado, porque
+   * solo las mira esa lista y cambian con cada cambio del plan.
+   */
+  const leerVersionesDelPlan = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('client_plan_versions')
+      .select('id, created_at, tocada_en, created_by, nota, fases, destino')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false });
+    if (error) return { ok: false, error: error.message || 'No se han podido leer las versiones del plan.' };
+    return { ok: true, versiones: (data || []).map(versionDeFila) };
+  }, []);
+
+  /**
+   * Dejar el plan como estaba en una versión (0147): fases y destino en una
+   * transacción, y una versión nueva, cerrada, con la nota. Después se releen
+   * las fases y el destino. El peso objetivo lo escribe la base en su clave;
+   * quien llama lo pone también en las preferencias de la app, que se guardan
+   * enteras (ver la 0147).
+   */
+  const restaurarVersionDelPlan = useCallback(
+    async (clientId, versionId, nota) => {
+      const { error } = await supabase.rpc('restaurar_version_del_plan', { p_version: versionId, p_nota: nota || null });
+      if (error) {
+        return {
+          ok: false,
+          error: /does not exist|schema cache/i.test(error.message || '')
+            ? 'Falta aplicar la migración 0147 para poder restaurar versiones.'
+            : error.message || 'No se ha podido restaurar la versión.',
+        };
+      }
+      if (clientId === activeClientId) {
+        const [fases, anclas] = await Promise.all([
+          supabase.from('client_phases').select('*').eq('client_id', clientId).order('starts_on'),
+          supabase.from('client_events').select('*').eq('client_id', clientId).eq('ancla', true).order('date'),
+        ]);
+        if (fases.data) setPhases(fases.data.map(mapPhaseFromDb));
+        if (anclas.data) setAnchors(anclas.data.map(mapEventFromDb));
+      }
+      return { ok: true };
+    },
+    [activeClientId]
+  );
+
+  /**
+   * Deshacer el paso que trajo un motivo lo quita de la nota de SU versión
+   * (la que se anotó, aunque luego haya otra más nueva).
+   */
+  const quitarMotivoDelPlan = useCallback(async (versionId, motivo) => {
+    const { data: v, error } = await supabase
+      .from('client_plan_versions')
+      .select('nota')
+      .eq('id', versionId)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message || 'No se ha podido quitar el motivo.' };
+    if (!v) return { ok: true };
+    const nota = quitarMotivo(v.nota, motivo);
+    if (nota === juntarMotivos(v.nota, '')) return { ok: true };
+    const { error: e2 } = await supabase.rpc('anotar_version_del_plan', { p_id: versionId, p_nota: nota });
+    if (e2) return { ok: false, error: e2.message || 'No se ha podido quitar el motivo.' };
+    return { ok: true };
+  }, []);
+
+  /**
    * Un hecho del plan —refeed, diet break, vacaciones, competición— puesto
-   * desde el creador. Es un evento del calendario de siempre (0123): el
-   * calendario lo verá como cualquier otro. Solo el entrenador escribe refeeds
-   * y diet breaks (RLS).
+   * desde el creador o desde las variaciones de la dieta. Es un evento del
+   * calendario de siempre (0123): el calendario lo verá como cualquier otro.
+   * Solo el entrenador escribe refeeds y diet breaks (RLS).
+   *
+   * Una variación puede traer además su pauta por día (`pautaDias`, 0143), su
+   * menú día a día (`menus`) y el día del que parte (`parteDe`, 0144).
    */
   const anadirHecho = useCallback(
-    async (
-      clientId,
-      { kind, title, date, hasta = null, kcal = null, proteina = null, carbohidratos = null, grasa = null, nota = null }
-    ) => {
+    async (clientId, datos) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
-      const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
-      /* Las macros van las tres o ninguna (0142); con ellas, las kcal las
-         calcula la base y lo que llegue aquí se descarta. Solo se mandan si
-         hay: así apuntar un refeed sigue funcionando sin la migración. */
-      const macros = [num(proteina), num(carbohidratos), num(grasa)];
-      const conMacros = macros.every((v) => v !== null);
-      const texto = String(nota ?? '').trim().slice(0, 280);
       const { data, error } = await supabase
         .from('client_events')
-        .insert({
-          client_id: clientId,
-          created_by: userId,
-          kind,
-          title: String(title || '').trim(),
-          date,
-          hasta: hasta && hasta > date ? hasta : null,
-          kcal: conMacros ? null : num(kcal),
-          ...(conMacros ? { proteina_g: macros[0], carbohidratos_g: macros[1], grasa_g: macros[2] } : {}),
-          ...(texto ? { nota: texto } : {}),
-          privada: false,
-        })
+        .insert({ client_id: clientId, created_by: userId, privada: false, ...filaDeHecho(datos) })
         .select()
         .single();
-      if (error) return { ok: false, error: error.message || 'No se ha podido apuntar.' };
+      if (error) return { ok: false, error: explicarErrorDeHecho(error) };
       const hecho = mapEventFromDb(data);
-      if (clientId === activeClientId) {
-        setHechos((prev) => [...prev, hecho].sort((a, b) => String(a.date).localeCompare(String(b.date))));
-      }
+      if (clientId === activeClientId) setHechos((prev) => ordenarHechos([...prev, hecho]));
       return { ok: true, hecho };
     },
     [activeClientId, session]
   );
 
-  /** Quitarlo: es el Deshacer de `anadirHecho` y la papelera del globo. */
+  /**
+   * Cambiar una variación (o cualquier hecho) entera: se reescriben sus
+   * fechas, cifras, indicación, menú y de qué día parte. Devuelve la de antes
+   * para el «Deshacer».
+   */
+  const editarHecho = useCallback(
+    async (eventId, datos) => {
+      const antes = hechos.find((h) => h.id === eventId) || null;
+      const { data, error } = await supabase
+        .from('client_events')
+        .update(filaDeHecho(datos))
+        .eq('id', eventId)
+        .select()
+        .single();
+      if (error) return { ok: false, error: explicarErrorDeHecho(error) };
+      const hecho = mapEventFromDb(data);
+      setHechos((prev) => ordenarHechos(prev.map((h) => (h.id === eventId ? hecho : h))));
+      return { ok: true, hecho, antes };
+    },
+    [hechos]
+  );
+
+  /**
+   * Quitarlo: es el Deshacer de `anadirHecho` y la papelera. Devuelve la fila
+   * entera y la nota del entrenador (el motivo, que se va con ella por la FK),
+   * para que `devolverHecho` la reponga tal cual, con su id.
+   */
   const quitarHecho = useCallback(async (eventId) => {
+    const [fila, capa] = await Promise.all([
+      supabase.from('client_events').select('*').eq('id', eventId).maybeSingle(),
+      supabase.from('client_interventions').select('*').eq('event_id', eventId).maybeSingle(),
+    ]);
     const { error } = await supabase.from('client_events').delete().eq('id', eventId);
     if (error) return { ok: false, error: error.message };
     setHechos((prev) => prev.filter((h) => h.id !== eventId));
-    return { ok: true };
+    setNotasDeIntervencion((prev) => prev.filter((c) => c.eventId !== eventId));
+    return { ok: true, copia: { fila: fila.data || null, capa: capa.data || null } };
   }, []);
+
+  /** El «Deshacer» de `quitarHecho`: la misma fila, con su id, y su motivo. */
+  const devolverHecho = useCallback(
+    async (copia) => {
+      if (!copia?.fila) return { ok: false, error: 'No queda copia de lo quitado.' };
+      const { data, error } = await supabase.from('client_events').insert(copia.fila).select().single();
+      if (error) return { ok: false, error: explicarErrorDeHecho(error) };
+      const hecho = mapEventFromDb(data);
+      if (hecho.clientId === activeClientId) setHechos((prev) => ordenarHechos([...prev, hecho]));
+      if (copia.capa) {
+        const vuelta = await supabase.from('client_interventions').insert(copia.capa).select().single();
+        if (!vuelta.error && hecho.clientId === activeClientId) {
+          setNotasDeIntervencion((prev) => [...prev, mapInterventionFromDb(vuelta.data)]);
+        }
+      }
+      return { ok: true, hecho };
+    },
+    [activeClientId]
+  );
+
+  /**
+   * Al quitar un bloque previsto, la base se lleva su capa en cascada (0143)
+   * cuando llegue el programa. Se saca ya de lo cargado y se devuelve, para
+   * que su «Deshacer» la vuelva a poner (`devolverCapaDelBloque`).
+   */
+  const soltarCapaDelBloque = useCallback(
+    (clientId, bloqueId) => {
+      if (clientId !== activeClientId) return null;
+      const capa = notasDeIntervencion.find((c) => c.clientId === clientId && c.bloqueId === bloqueId) || null;
+      if (capa) setNotasDeIntervencion((prev) => prev.filter((c) => c.id !== capa.id));
+      return capa;
+    },
+    [activeClientId, notasDeIntervencion]
+  );
+
+  /**
+   * El «Deshacer» de `soltarCapaDelBloque`: la misma fila, con su id. El
+   * borrador vuelve por la cola del programa y la base valida que exista
+   * (0143): mientras no ha llegado, se reintenta.
+   */
+  const devolverCapaDelBloque = useCallback(
+    async (capa) => {
+      const userId = session?.user?.id;
+      if (!capa || !userId) return { ok: false, error: 'No queda copia del motivo.' };
+      const fila = {
+        id: capa.id,
+        client_id: capa.clientId,
+        created_by: userId,
+        bloque_id: capa.bloqueId,
+        motivo: capa.motivo,
+        valoracion: capa.valoracion,
+        valoracion_nota: capa.valoracionNota,
+        valorada_el: capa.valoradaEl,
+        antes_desde: capa.antesDesde,
+        despues_hasta: capa.despuesHasta,
+      };
+      let fallo = null;
+      for (let i = 0; i < 12; i += 1) {
+        const { data, error } = await supabase.from('client_interventions').insert(fila).select().single();
+        if (!error) {
+          if (capa.clientId === activeClientId) setNotasDeIntervencion((prev) => [...prev.filter((c) => c.id !== capa.id), mapInterventionFromDb(data)]);
+          return { ok: true };
+        }
+        fallo = error;
+        if (!/no existe/i.test(error.message || '')) break;
+        await new Promise((r) => setTimeout(r, 700));
+      }
+      return { ok: false, error: fallo?.message || 'No se ha podido devolver el motivo.' };
+    },
+    [activeClientId, session]
+  );
 
   /**
    * Escribir el motivo, la valoración o las ventanas de una intervención. SOLO
@@ -493,6 +763,9 @@ export const useRoadmap = ({ session, activeClientId }) => {
     async (clientId, fuente, campos) => {
       const userId = session?.user?.id;
       if (!userId) return { ok: false, error: 'No hay sesión activa.' };
+      /* Un cambio de dieta programado (0146) aún no tiene de qué colgar: sus
+         ventanas y lo que se piense de él se escriben cuando entre en vigor. */
+      if (!fuente) return { ok: false, error: 'Este cambio de dieta aún no ha empezado: lo que pienses de él se escribe cuando entre en vigor.' };
       const fila = mapInterventionToDb(campos);
       const deEsta = (c) =>
         (fuente.eventId && c.eventId === fuente.eventId) ||
@@ -551,7 +824,12 @@ export const useRoadmap = ({ session, activeClientId }) => {
     hechos,
     dietVersions,
     notasDeIntervencion,
+    releerLaPautaFechada,
     guardarIntervencion,
+    soltarCapaDelBloque,
+    devolverCapaDelBloque,
+    leerVersionesDelPlan,
+    restaurarVersionDelPlan,
     igualar,
     quitarReplanteo,
     addPhase,
@@ -563,7 +841,11 @@ export const useRoadmap = ({ session, activeClientId }) => {
     removeAnchor,
     shiftFuturePhases,
     estirarFase,
+    anotarCambioDelPlan,
+    quitarMotivoDelPlan,
     anadirHecho,
+    editarHecho,
     quitarHecho,
+    devolverHecho,
   };
 };

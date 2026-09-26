@@ -4,7 +4,7 @@ import { RefreshCw } from 'lucide-react';
 import { MACROS } from '@/domain/nutrition';
 import { equivalencesFor, racionDe } from '@/domain/foodEquiv';
 import { grupoDe } from '@/domain/gruposEquiv';
-import { DiaEspecial } from '../DiaEspecial';
+import { DiaDeManana, DiaEspecial } from '../DiaEspecial';
 import { Aire, Cabecera, Tramo } from './Piezas';
 
 /**
@@ -41,6 +41,7 @@ export const PantallaComer = ({ datos }) => {
     dias,
     dia,
     especial = null,
+    manana = null,
     comidas,
     notas = [],
     historia,
@@ -85,6 +86,13 @@ export const PantallaComer = ({ datos }) => {
             </button>
           ))}
         </div>
+      ) : null}
+
+      {/* Mañana empieza un refeed o un diet break: una línea para organizarse. */}
+      {manana ? (
+        <Tramo>
+          <DiaDeManana manana={manana} />
+        </Tramo>
       ) : null}
 
       {/* Un refeed o un diet break hoy: qué día es y lo que le dejó su entrenador. */}

@@ -2622,3 +2622,16 @@ span.tel-mi-ajuste-texto { cursor: default; padding-right: 10px; }
 .dia-especial-cuando { color: var(--text-secondary); }
 .dia-especial-cifras { font-weight: 600; }
 .dia-especial-nota { color: var(--text-secondary); }
+
+/* La misma señal en «Hoy», en una línea que lleva a «Comer». */
+.tel-especial {
+  display: flex; align-items: center; gap: var(--s2);
+  min-height: 44px;
+  padding: var(--s2) var(--s3) var(--s2) var(--s4);
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--tinta) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--tinta) 28%, var(--hairline));
+  color: var(--text); text-decoration: none; font-weight: 600;
+}
+.tel-especial-tx { flex: 1; min-width: 0; }
+.tel-especial:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

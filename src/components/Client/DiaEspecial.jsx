@@ -23,3 +23,19 @@ export const DiaEspecial = ({ especial }) => (
     {especial.nota && <p className="dia-especial-nota">{especial.nota}</p>}
   </section>
 );
+
+/**
+ * LA VÍSPERA (26 sep 2026): «Mañana: refeed · día 1 de 3», para que pueda
+ * organizarse (la compra, el táper). Una línea y no una caja: hoy manda la
+ * dieta de hoy. Sin kcal si las tiene ocultas (lo resuelve quien la monta).
+ *
+ * @param manana `{ kind, texto }`.
+ */
+export const DiaDeManana = ({ manana }) => (
+  <p className="dia-manana" style={{ '--tinta': kindMeta(manana.kind).color }}>
+    <span className="dia-manana-punto" aria-hidden="true" />
+    <span>
+      <b>Mañana:</b> {manana.texto}
+    </span>
+  </p>
+);

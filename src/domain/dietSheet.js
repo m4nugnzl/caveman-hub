@@ -1422,6 +1422,12 @@ const SIN_MACROS = { proteinPer100: 0, carbsPer100: 0, fatsPer100: 0, unitLabel:
  * pesa 60 g y dos pesan 120— y solo cuando no se ha reconocido nada se recurre a
  * los cien gramos por unidad, que es una suposición y por eso ese alimento
  * aparece marcado en la revisión.
+ *
+ * ── Y la medida también la dice la hoja ─────────────────────────────────────
+ * «40 g de aguacate» entra en gramos aunque el aguacate de la biblioteca tenga
+ * unidad; «3 huevos», en unidades. El cliente ve lo que escribió quien montó
+ * la dieta, no una conversión que nadie eligió. Sin cantidad, el defecto de
+ * siempre (`buildFoodEntry`).
  */
 export const toFoodEntry = (alimento, definicion) => {
   const base = definicion || { name: alimento.name, ...SIN_MACROS };
@@ -1433,8 +1439,9 @@ export const toFoodEntry = (alimento, definicion) => {
       : alimento.units != null
         ? Math.round(alimento.units * (porUnidad || 100))
         : null;
+  const showAs = alimento.grams != null ? 'grams' : alimento.units != null ? 'units' : null;
 
-  return buildFoodEntry(base, gramos);
+  return buildFoodEntry(base, gramos, { showAs });
 };
 
 /**

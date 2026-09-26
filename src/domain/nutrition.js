@@ -289,15 +289,60 @@ export const targetsAlRecibir = (nutrition, days = []) => {
   });
 };
 
-export const replaceDietDays = (nutrition, days = []) => {
+/**
+ * LA PAUTA DE UNA DIETA, para llevarla con sus menús.
+ *
+ * La dieta que se copia para otros NO la lleva —sus cifras son de quien la
+ * tiene—. Esto es para cuando lo que se lleva es la dieta ENTERA de alguien:
+ * «Copiar mis cambios» del choque con una programada (0146), que tiene que
+ * poder volver a ponerse tal cual. El reparto viaja por POSICIÓN del día,
+ * porque al pegar los días nacen con ids nuevos.
+ */
+export const pautaDeLaDieta = (nutrition) => {
+  const base = withDays(nutrition || emptyNutrition());
+  const posicion = Object.fromEntries(base.days.map((d, i) => [d.id, i]));
+  return {
+    type: base.type,
+    dias: base.days.map((d) => soloTargets(d.targets)),
+    week: Object.fromEntries(
+      Object.entries(base.week || {})
+        .filter(([, id]) => id in posicion)
+        .map(([casilla, id]) => [casilla, posicion[id]])
+    ),
+    stepsGoal: base.stepsGoal ?? '',
+    cardioGoal: base.cardioGoal ?? '',
+    habitsNotes: base.habitsNotes || [],
+  };
+};
+
+/**
+ * Sustituye los días. Con `pauta` (ver `pautaDeLaDieta`) entra la dieta
+ * entera: cada día con sus cifras, su reparto, pasos, cardio y notas. Sin ella,
+ * solo los menús, y las cifras se quedan las de quien la recibe.
+ */
+export const replaceDietDays = (nutrition, days = [], pauta = null) => {
   const base = withDays(nutrition || emptyNutrition());
   if (days.length === 0) return base;
 
-  const objetivos = targetsAlRecibir(base, days);
+  const objetivos = pauta ? days.map((_, i) => pauta.dias?.[i] || null) : targetsAlRecibir(base, days);
   const nuevos = days.map((dia, i) => ({
     ...buildDietDay({ name: dia.name || `Día ${i + 1}`, targets: objetivos[i] }),
     meals: cloneMeals(dia.meals || []),
   }));
+
+  const conPauta = pauta
+    ? {
+        type: pauta.type || base.type,
+        stepsGoal: pauta.stepsGoal ?? '',
+        cardioGoal: pauta.cardioGoal ?? '',
+        habitsNotes: pauta.habitsNotes || [],
+        week: Object.fromEntries(
+          Object.entries(pauta.week || {})
+            .filter(([, i]) => nuevos[i])
+            .map(([casilla, i]) => [casilla, nuevos[i].id])
+        ),
+      }
+    : { week: {} };
 
   return {
     ...base,
@@ -305,7 +350,7 @@ export const replaceDietDays = (nutrition, days = []) => {
     /* Con más de uno hay variantes; con uno solo, deja de haberlas. Es la misma
        bandera que mantiene el reflejo de las columnas viejas. Ver la 0111. */
     hasDayVariants: nuevos.length > 1,
-    week: {},
+    ...conPauta,
   };
 };
 
@@ -984,8 +1029,17 @@ export const optionName = (option, index) => {
  * `grams` arranca en una unidad entera cuando el alimento tiene una. Añadir un
  * huevo y que aparezca «100 g» —casi dos huevos— obliga a corregirlo siempre; que
  * aparezca «1 huevo» acierta la mayoría de las veces.
+ *
+ * ── `showAs`: la medida que ya eligió alguien manda ─────────────────────────
+ * El cliente ve cada alimento en la medida en que lo dejó el entrenador. Por
+ * eso quien CONSERVA una elección —aplicar un plato, importar una hoja que
+ * decía «40 g», cambiar por un equivalente— la pasa aquí, y el defecto (en
+ * unidades si las tiene) queda solo para el alta nueva desde el buscador, que
+ * el entrenador ve en el editor y puede cambiar. Sin esto, 40 g de aguacate
+ * volvían como «0,3 ud». Pedir unidades de algo que no las tiene se queda en
+ * gramos: no hay unidad que enseñar.
  */
-export const buildFoodEntry = (food, grams = null) => {
+export const buildFoodEntry = (food, grams = null, { showAs = null } = {}) => {
   const unitGrams = toNum0(food?.unitGrams) || null;
   const porDefecto = unitGrams || 100;
 
@@ -1004,7 +1058,7 @@ export const buildFoodEntry = (food, grams = null) => {
     // Cómo se cuenta ESTA entrada. Empieza en unidades si las tiene, y el
     // entrenador puede cambiarlo por alimento y por dieta: hay clientes que
     // pesan todo y clientes que no tienen báscula.
-    showAs: unitGrams ? 'units' : 'grams',
+    showAs: showAs === 'grams' || !unitGrams ? 'grams' : 'units',
     /*
       Y las cuatro del envase, congeladas igual que los macros y por el mismo
       motivo: la entrada es una foto. Solo se escriben las que el alimento
@@ -1167,6 +1221,26 @@ export const unitsLabel = (entry) => {
   if (units === null) return null;
   const nombre = units === 1 ? entry.unitLabel : pluralEs(entry.unitLabel);
   return `${String(units).replace('.', ',')} ${nombre}`;
+};
+
+/** «2 huevos» o «40 g»: la ración en la medida en que se VE, sin la otra. */
+export const cantidadDe = (entry) => (displayAsUnits(entry) ? unitsLabel(entry) : `${entry?.grams} g`);
+
+/**
+ * La entrada que sustituye a otra al cambiarla por un equivalente, sin `id`
+ * (la conserva la de su sitio, ver `swapFood`).
+ *
+ * Hereda la MEDIDA de la que sustituye, que es una elección del entrenador:
+ * 40 g de aguacate cambiados por un alimento con unidad siguen en gramos, y
+ * dos huevos cambiados por algo que no se cuenta en piezas pasan a gramos
+ * porque no queda otra. Se pregunta con `displayAsUnits` —lo que se ve— para
+ * que una entrada antigua sin `showAs` herede lo que el cliente estaba viendo.
+ */
+export const entradaQueSustituye = (previa, food, grams) => {
+  const { id: _descartado, ...campos } = buildFoodEntry(food, grams, {
+    showAs: displayAsUnits(previa) ? 'units' : 'grams',
+  });
+  return campos;
 };
 
 /**
@@ -2294,7 +2368,7 @@ export const objetivosPorComida = (meals = [], objetivo = null, { catalog = [], 
         catalog,
         intocable: (f) =>
           f.fijo === true ||
-          f.showAs === 'units' ||
+          displayAsUnits(f) ||
           quietos?.has(claveDelCambio(meal?.name, 1, f.name)) === true,
       }).reduce((n, f) => n + MEDIDAS[clave].valor(foodMacros(f)), 0);
 
@@ -2465,9 +2539,16 @@ const unaPasada = (
         cuadrando. Descontar el cambio sin recalcular habría dejado la opción a
         medio ajustar, que es exactamente lo que nadie quiere firmar.
       */
+      /*
+        «Se cuenta por unidades» es lo que se VE (`displayAsUnits`), no la clave
+        a secas: una entrada antigua sin `showAs` se pinta en unidades, y
+        ajustarla como si fueran gramos dejaba «1 taza» convertida en 0,8. Las
+        tres preguntas del ajuste (esta, el reparto y quitar una fila) usan la
+        misma función que el editor y el cliente para pintar.
+      */
       const intocable = (f) =>
         f.fijo === true ||
-        f.showAs === 'units' ||
+        displayAsUnits(f) ||
         quietos?.has(claveDelCambio(meal.name, optIndex + 1, f.name)) === true;
 
       /* Y de los demás, los que están en la cesta. Ver `elegiblesPara`, que es
@@ -2943,7 +3024,7 @@ export const rescaleMeals = (
            diciendo lo mismo; se quitó al no poder hacerlo fallar. */
         const intocable = (f) =>
           f.fijo === true ||
-          f.showAs === 'units' ||
+          displayAsUnits(f) ||
           inmoviles?.has(claveDelCambio(meal.name, oi + 1, f.name)) === true;
         const estorban = new Set();
         for (const clave of TARGET_KEYS) {

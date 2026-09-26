@@ -1,10 +1,9 @@
 /* ==========================================================================
-   EL ROADMAP: LA LÍNEA (la espina), EL PLAN Y EL DESTINO
-   (`roadmap/AnclaDelPlan`)
+   EL ROADMAP: LA LÍNEA (la espina)
    --------------------------------------------------------------------------
    La espina la dibuja el roadmap del cliente; en Revisiones manda la portada
    de semanas (`review/PortadaDeSemanas`, §5.5 del 22 sep) y el plan se edita
-   en su ventana. Habla el idioma de las ventanas
+   en la Temporada. Habla el idioma de las ventanas
    de Progresión e Historial, que son la referencia: la caja hundida de cifras (`.progresion-cifras`), la
    curva con su rotulación en versalita (`.chart-*`), la cabecera de bloque
    (`.historial-*`) y la mesa con sus pastillas (`.progresion-mesa`). Aquí solo
@@ -141,125 +140,10 @@
 .lp-elegida { fill: var(--accent-wash); }
 .lp-senalada { fill: var(--accent-soft); }
 
-/* ── La temporada (`roadmap/VistaDeTemporada`) ─────────────────────────────
-   La misma línea que la espina, a tamaño de ventana y con su globo encima. El
-   lienzo es el marco del globo: se posiciona en píxeles del dibujo, así que
-   los dos tienen que empezar en el mismo sitio. */
-
-.temporada-mandos {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-  flex-wrap: wrap;
-}
-
-.temporada-ayuda { font-size: var(--fs-xs); color: var(--text-tertiary); }
-.temporada-zoom { display: flex; align-items: center; gap: var(--s2); }
-.temporada-rotulo {
-  font-size: var(--fs-3xs);
-  font-weight: 600;
-  letter-spacing: var(--tracking-versal);
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-
-.temporada-lienzo { position: relative; min-width: 0; }
-.temporada-lienzo .linea-plan { width: auto; max-width: 100%; }
-
 /* «esperado» va un escalón por debajo de «real»: se lee contra él. */
 .historial-cifras dd.is-suave { color: var(--text-secondary); }
 
 .semana-campo { width: 7.5em; }
-
-/* ── El plan (`roadmap/PlanDelRoadmap`): el final arriba, el camino debajo ── */
-
-.plan-roadmap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s5);
-  min-width: 0;
-}
-
-.plan-roadmap-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s4);
-  min-width: 0;
-}
-
-/* El destino y el peso objetivo, lado a lado. */
-.plan-roadmap-lado {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: var(--s4);
-  min-width: 0;
-  padding-bottom: var(--s5);
-  border-bottom: 1px solid var(--hairline);
-}
-
-@media (max-width: 639.98px) {
-  .plan-roadmap-lado { grid-template-columns: minmax(0, 1fr); }
-}
-
-/* La pregunta del cruce, encima de sus respuestas. */
-.rmap-pregunta {
-  margin: 0;
-  font-size: var(--fs-md);
-  font-weight: 700;
-  color: var(--text);
-  text-wrap: balance;
-}
-
-.rmap-pregunta-falta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--s2) var(--s3);
-  padding: var(--s3);
-  border: 1px dashed var(--hairline-strong);
-  border-radius: var(--r-md);
-}
-
-.rmap-pregunta-falta > .field { flex: 1 1 260px; }
-
-/* La flecha de la respuesta al camino: se lee «Sí, con margen → Transición». */
-.rmap-road-flecha { color: var(--text-tertiary); margin-block: -4px; }
-
-/* ── El destino ─────────────────────────────────────────────────────────── */
-
-.destino { display: flex; flex-direction: column; gap: var(--s2); }
-
-.destino-fila {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--s2);
-  padding: var(--s3);
-  border-radius: var(--r-sm);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-}
-
-.destino-icono { color: var(--destino, var(--text-secondary)); margin-top: 3px; flex-shrink: 0; }
-
-.destino-texto { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.destino-nombre { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
-.destino-fecha { font-weight: 500; color: var(--text-secondary); }
-.destino-sub { font-size: var(--fs-xs); color: var(--text-secondary); }
-
-.destino-acciones { display: flex; gap: var(--s1); flex-shrink: 0; }
-
-.destino-campos {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s3);
-}
-
-@media (max-width: 639.98px) {
-  .destino-campos { grid-template-columns: minmax(0, 1fr); }
-}
 
 /* ── «Igualar aquí», en la barra de cierre (`roadmap/IgualarAqui`) ─────── */
 
