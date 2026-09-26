@@ -51,6 +51,24 @@ const explicarErrorDeAlta = (error) => {
   return error?.message || 'No se ha podido dar de alta al cliente.';
 };
 
+/**
+ * El enlace de una invitación, con su fecha de caducidad.
+ *
+ * La fecha se pregunta y no se calcula (hoy + 14): `create_client_invite`
+ * REUTILIZA la invitación viva que haya, así que el enlace puede ser el de hace
+ * diez días y caducar en cuatro. Si la lectura falla, el enlace sigue valiendo y
+ * el mensaje sale sin fecha.
+ */
+const enlaceDeInvitacion = async (token) => {
+  const { data } = await supabase.from('client_invites').select('expires_at').eq('token', token).maybeSingle();
+  return {
+    ok: true,
+    token,
+    url: `${window.location.origin}/invitacion/${token}`,
+    caduca: data?.expires_at || null,
+  };
+};
+
 export const useClients = ({
   session,
   team,
@@ -618,12 +636,34 @@ export const useClients = ({
       que esto viene a dejar de hacer.
     */
     track('invitacion_creada');
-    return { ok: true, token: data, url: `${window.location.origin}/invitacion/${data}` };
+    return enlaceDeInvitacion(data);
   }, []);
 
   const revokeInvite = useCallback(async (clientId) => {
     const { error } = await supabase.rpc('revoke_client_invite', { target: clientId });
     return error ? { ok: false, error: error.message } : { ok: true };
+  }, []);
+
+  /**
+   * La última invitación de la ficha, para decir en qué punto está su acceso
+   * (`domain/acceso`). La lee el entrenador por `invites_coach_read` (0015/0090).
+   * Un fallo no es «sin invitar»: se devuelve como fallo y la ficha no inventa.
+   */
+  const loadInvite = useCallback(async (clientId) => {
+    const { data, error } = await supabase
+      .from('client_invites')
+      .select('expires_at, claimed_at, revoked_at')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) return { ok: false, error: error.message };
+    return {
+      ok: true,
+      invite: data
+        ? { expiresAt: data.expires_at, claimedAt: data.claimed_at, revokedAt: data.revoked_at }
+        : null,
+    };
   }, []);
 
   /*
@@ -1098,7 +1138,7 @@ export const useClients = ({
         trabajo. Sin separarlas, arreglar el SMTP no se notaría en ningún número.
       */
       track('acceso_reemitido');
-      return { ok: true, token: data, url: `${window.location.origin}/invitacion/${data}` };
+      return enlaceDeInvitacion(data);
     },
     [reloadClients]
   );
@@ -1141,6 +1181,7 @@ export const useClients = ({
     publishUpdate,
     createInvite,
     revokeInvite,
+    loadInvite,
     reissueAccess,
     loadCalendarFeed,
     createCalendarFeed,

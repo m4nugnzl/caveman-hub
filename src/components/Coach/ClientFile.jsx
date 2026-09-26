@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Check,
+  Copy,
   Eye,
   ExternalLink,
   FileText,
@@ -21,6 +22,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { clientPath } from '@/routes';
 
 import { useApp } from '@/context/AppContext';
+import { fechaDelEnlace } from '@/domain/acceso';
 import { ATTACHMENT_ACCEPT, attachmentName } from '@/domain/attachments';
 import { BILLING_PERIODS, billingPeriod, nextPaymentAfter, paymentState } from '@/domain/billing';
 import { latestWeight } from '@/domain/anthropometry';
@@ -66,7 +68,8 @@ import { EquipmentPanel } from '@/components/equipment/EquipmentPanel';
 import { CustomAnswers } from './CustomAnswers';
 import { DownloadAnamnesis } from './DownloadAnamnesis';
 import { ProfileBlock } from './ProfileBlock';
-import { inviteMessage, useInvite } from './useInvite';
+import { AvisoDeInvitacion } from './AvisoDeInvitacion';
+import { useAccesoDeLaFicha, useInvite } from './useInvite';
 
 /**
  * La ficha administrativa de UN cliente: `/c/:clientId/ficha`.
@@ -527,7 +530,7 @@ const Cobro = ({ client, onUpdate, onMarkPaid }) => {
  * Va lo primero de la ficha porque, mientras el cliente no pueda entrar, todo lo
  * demás que se haga aquí da igual: no va a ver la rutina ni a registrar nada.
  */
-const PortalAccess = ({ client }) => {
+const PortalAccess = ({ client, acceso, recargar }) => {
   const { result, busy, send } = useInvite();
   const confirm = useConfirm();
 
@@ -553,65 +556,94 @@ const PortalAccess = ({ client }) => {
       confirmLabel: 'Emitir acceso nuevo',
       tone: 'danger',
     });
-    if (ok) send(client, { reemitir: true });
+    if (ok) invitar({ reemitir: true });
   };
 
-  if (client.clientProfileId) {
-    return (
-      <div className="card-inset col gap-2">
-        <div className="row between wrap gap-2 t-sm">
-          <span className="t-secondary">Acceso al portal</span>
-          <div className="row gap-2">
-            <span className="badge badge-ok">
-              <UserCheck size={13} /> Tiene su cuenta enlazada
-            </span>
-            {/*
-              Secundario y a la derecha de la insignia: casi nunca hace falta, y
-              lo que esta línea dice normalmente es «esto está bien». Un botón
-              primario aquí invitaría a pulsarlo por curiosidad, y lo que hay
-              detrás echa a alguien de su cuenta.
-            */}
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={reemitir}
-              disabled={busy}
-            >
-              {busy ? 'Generando…' : 'Perdió el acceso'}
-            </button>
-          </div>
-        </div>
+  /* Después de cada gesto se relee: el estado lo dice la base, no el botón. */
+  const invitar = async (opciones) => {
+    const hecho = await send(client, opciones);
+    if (hecho.ok) recargar();
+  };
 
-        {result &&
-          (result.ok ? (
-            <Notice tone={result.copied ? 'success' : 'info'}>{inviteMessage(result)}</Notice>
-          ) : (
-            <Notice tone="error">{result.error}</Notice>
-          ))}
-      </div>
-    );
-  }
+  /* El enlace vivo se sigue pudiendo copiar tal cual; generar otro es para
+     cuando el de antes se ha ido a donde no debía, y por eso pregunta. */
+  const generarOtro = async () => {
+    const ok = await confirm({
+      title: '¿Generar otro enlace?',
+      message: `El que le mandaste a ${client.name} dejará de valer.`,
+      confirmLabel: 'Generar otro',
+    });
+    if (ok) invitar({ nueva: true });
+  };
+
+  /* Mientras no se sabe, lo que ya se enseñaba: con cuenta, dentro; sin ella,
+     el botón de invitar. Ver `useAccesoDeLaFicha`. */
+  const estado = acceso?.estado || (client.clientProfileId ? 'dentro' : 'sin_invitar');
+  const fecha = fechaDelEnlace(acceso?.caduca);
+
+  const detalle = {
+    dentro: null,
+    enviada: `Invitación enviada · vale hasta el ${fecha}`,
+    caducada: `El enlace caducó el ${fecha} sin usarse`,
+    sin_invitar: 'Sin invitar',
+  }[estado];
 
   return (
     <div className="card-inset col gap-2">
       <div className="row between wrap gap-2 t-sm">
-        <span className="t-secondary">Acceso al portal</span>
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => send(client)} disabled={busy}>
-          <Send size={15} /> {busy ? 'Generando…' : 'Invitar'}
-        </button>
+        <div className="col">
+          <span className="t-secondary">Acceso al portal</span>
+          {detalle && <span className="t-xs t-tertiary">{detalle}</span>}
+        </div>
+
+        <div className="row gap-2 wrap">
+          {estado === 'dentro' && (
+            <>
+              <span className="badge badge-ok">
+                <UserCheck size={13} /> Dentro
+              </span>
+              {/*
+                Secundario y a la derecha de la insignia: casi nunca hace falta, y
+                lo que esta línea dice normalmente es «esto está bien». Un botón
+                primario aquí invitaría a pulsarlo por curiosidad, y lo que hay
+                detrás echa a alguien de su cuenta.
+              */}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={reemitir} disabled={busy}>
+                {busy ? 'Generando…' : 'Perdió el acceso'}
+              </button>
+            </>
+          )}
+
+          {estado === 'enviada' && (
+            <>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={generarOtro} disabled={busy}>
+                Generar otro
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => invitar()} disabled={busy}>
+                <Copy size={15} /> {busy ? 'Copiando…' : 'Copiar otra vez'}
+              </button>
+            </>
+          )}
+
+          {estado === 'caducada' && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => invitar()} disabled={busy}>
+              <Send size={15} /> {busy ? 'Generando…' : 'Generar uno nuevo'}
+            </button>
+          )}
+
+          {estado === 'sin_invitar' && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => invitar()} disabled={busy}>
+              <Send size={15} /> {busy ? 'Generando…' : 'Invitar'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {result &&
-        (result.ok ? (
-          <Notice tone={result.copied ? 'success' : 'info'}>{inviteMessage(result)}</Notice>
-        ) : (
-          <Notice tone="error">{result.error}</Notice>
-        ))}
+      <AvisoDeInvitacion result={result} />
 
-      {!result && (
+      {!result && estado === 'sin_invitar' && (
         <span className="t-xs t-tertiary">
-          Genera un enlace de un solo uso que caduca en 14 días. Se copia solo: mándaselo por
-          WhatsApp y, al abrirlo, se crea su cuenta y queda enlazada a esta ficha.
+          Se copia un mensaje con su enlace para pegarlo en su WhatsApp. Vale 14 días y una sola vez.
         </span>
       )}
     </div>
@@ -1261,6 +1293,25 @@ const Alta = ({ client, estado, intake, steps, progress, carpeta, onProbar, onUp
  * crear». A 30 px, cuatro palabras en fila gritan. Misma superficie y mismo
  * tacto; otra voz.
  */
+/**
+ * La celda «Acceso» del pulso: el estado y la frase que lleva a su hoja.
+ *
+ * Sin tono salvo la caducada: que alguien recién dado de alta no tenga aún su
+ * enlace no es una avería, es el minuto uno (el ámbar ahí era la cuarta alarma
+ * encendida en una ficha donde no pasaba nada). Un enlace que caducó sin usarse
+ * sí pide un gesto.
+ */
+const celdaDelAcceso = (acceso, client) => {
+  const estado = acceso?.estado || (client.clientProfileId ? 'dentro' : 'sin_invitar');
+  const fecha = fechaDelEnlace(acceso?.caduca);
+  return {
+    dentro: { valor: 'Dentro', frase: 'Entra a su portal' },
+    enviada: { valor: 'Invitado', frase: `Enlace hasta el ${fecha}` },
+    caducada: { valor: 'Caducada', frase: 'Mándale uno nuevo', tono: 'warn' },
+    sin_invitar: { valor: 'Sin invitar', frase: 'Mándale su enlace de entrada' },
+  }[estado];
+};
+
 const CeldaPulso = ({ rotulo, valor, frase, tono, children, onClick }) => (
   <button type="button" className="ficha-pulso-celda" onClick={onClick}>
     <span className="k">{rotulo}</span>
@@ -1298,6 +1349,8 @@ export const ClientFile = () => {
   /* Su carpeta y si hay Drive, leído una vez para toda la pantalla: lo usan la
      celda de «Carpeta», su hoja y los pasos del alta que ofrecen subir algo. */
   const drive = useClientDrive(activeClient || { id: null });
+  /* En qué punto está su acceso: lo dicen la celda «Acceso» y su hoja. */
+  const accesoDeLaFicha = useAccesoDeLaFicha(activeClient);
   /* El consentimiento lo lee la pantalla porque lo enseña el PIE, que está a la
      vista; la hoja de datos personales solo lo usa detrás. */
   const consent = useConsent(activeClient?.id);
@@ -1494,15 +1547,7 @@ export const ClientFile = () => {
 
         <CeldaPulso
           rotulo="Acceso"
-          valor={activeClient.clientProfileId ? 'Con cuenta' : 'Sin invitar'}
-          /*
-            Sin tono: que alguien recién dado de alta no tenga aún su enlace no es
-            una avería, es el minuto uno. El ámbar de esta línea era la cuarta
-            alarma encendida en una ficha donde no pasaba nada.
-          */
-          frase={
-            activeClient.clientProfileId ? 'Entra a su portal' : 'Mándale su enlace de entrada'
-          }
+          {...celdaDelAcceso(accesoDeLaFicha.acceso, activeClient)}
           onClick={() => setHoja('acceso')}
         />
 
@@ -1641,7 +1686,11 @@ export const ClientFile = () => {
 
       <Modal open={hoja === 'acceso'} title="Acceso y baja" onClose={cerrar}>
         <div className="hoja-ficha col gap-3">
-          <PortalAccess client={activeClient} />
+          <PortalAccess
+            client={activeClient}
+            acceso={accesoDeLaFicha.acceso}
+            recargar={accesoDeLaFicha.recargar}
+          />
           {/* Entre el acceso y el archivo, de menos a más definitivo: entrar,
               apartarse una temporada, terminar. */}
           <PauseRow client={activeClient} />

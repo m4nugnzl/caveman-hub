@@ -58,10 +58,62 @@ Cada archivo dice en su cabecera si hace falta y por qué. Resumen:
 | `0101_la_sesion_se_pone_al_dia_con_el_plan.sql` | **Sí, cuanto antes** | Una sesión es la foto del plan del día que se sacó al crearla, y el plan cambia por debajo —desde que vive en el bloque (`0086`), para todas las semanas a la vez—. `log_session_set` exigía que la sesión ya tuviera la entrada del ejercicio y que la serie cupiera en las que esa foto trajo, así que **el ejercicio o la serie que el entrenador añade a mitad de bloque no se pueden anotar**: «La sesión no tiene entrada para el ejercicio ex_…», «La serie 3 no existe (hay 3)». El navegador sí crea la entrada y alarga las series, de modo que el número se ve en pantalla, el rechazo es `P0001` —ni se reintenta ni se apunta— y al recargar vuelve el valor viejo. Desde fuera: «lo cambio y se queda como estaba». Ahora la sesión se pone al día con el plan al escribir, y de paso refresca el nombre del ejercicio. Reemplaza `log_session_set` con la MISMA firma: no hay que coordinar con el despliegue. No toca tablas, políticas ni datos, y lo anotado no se altera —solo se añade lo que el plan dice y la sesión no tenía—. Sigue prohibido anotar un ejercicio que no está en el plan o una serie que el plan no programa (`supabase/tests/registro.test.js`). Requiere `0014`. |
 | `0063_deshacer_revision.sql` | Con el «Deshacer» de los avisos | Cerrar revisiones funciona igual, pero el «Deshacer» del aviso falla con su error y la revisión se queda cerrada (se puede reabrir borrando el check-in). Aditiva y sin riesgo: una función, espejo de `review_check_in`. Requiere `0009` y `0042`. |
 
+| `0148_la_invitacion_se_lee_antes_de_entrar.sql` | **Sí, con el despliegue del código** | La pantalla de invitación no falla, pero vuelve a comportarse como antes: no sabe de quién es el enlace ni si sirve, así que el cliente **se crea la cuenta y DESPUÉS lee «ha caducado»**, no ve «Carlos te ha invitado», y el entrenador que abre su propio enlace no ve el aviso de «no es para ti» (la base le sigue parando). Añade `leer_invitacion` (abierta a `anon` a propósito: la pantalla existe antes de la cuenta; solo devuelve estado, nombres de pila y fecha) y `motivo_para_no_canjear` (interna), y reescribe `claim_client_invite(text)`: misma guarda, mensajes con la salida y un código en el HINT, y abrir tu propio enlace ya usado devuelve tu ficha en vez de un error. No toca tablas, políticas ni datos. Pruebas: `supabase/tests/invitacion.test.js`. Requiere `0015`, `0018` y `0091`. **Y tiene pasos en el panel**: ver «Invitaciones de cliente: lo que se configura a mano», abajo. |
+
 Orden si empiezas de cero: `0005` → `0008` → `0002` → `0007` → `0003` → (`0006`).
 
 `0002` va antes de `0007` porque las políticas de Storage se apoyan en poder leer
 `clients`, pero son independientes.
+
+## Invitaciones de cliente: lo que se configura a mano
+
+La invitación (`/invitacion/<token>`) sale de la aplicación y VUELVE a ella dos
+veces: después de «Continuar con Google» y después de pulsar el enlace del correo
+de confirmación. Las dos vueltas las decide el panel de Supabase, no el código, y
+ninguna se despliega sola.
+
+**1. Redirect URLs** — *Authentication → URL Configuration*.
+
+- **Site URL**: el dominio de producción (`https://tu-dominio.com`).
+- **Redirect URLs**: `https://tu-dominio.com/**` (el `/**` cubre
+  `/invitacion/<token>`) y, para probar en local, `http://localhost:3000/**`.
+
+Si la dirección de la invitación no está admitida, Supabase **no da error**:
+devuelve al «Site URL», o sea a la raíz, sin el token. La aplicación lo aguanta
+—la invitación abierta queda apuntada en el navegador y una cuenta sin fichas que
+llega a la raíz vuelve a ella (`lib/invitacionPendiente`)—, pero solo si el
+correo se abre en el MISMO navegador. Con la lista bien puesta, funciona en
+cualquiera.
+
+**2. La plantilla del correo de confirmación** — *Authentication → Emails →
+Templates → Confirm signup*. Pega el contenido de
+`templates/confirmar-registro.html` en «Message body» y pon de asunto
+`Confirma tu correo · Caveman Hub`. Tiene dos textos: el de siempre para el
+entrenador y otro para el cliente que se registra desde una invitación
+(`{{ if .Data.invitacion }}`: lo manda `Login.jsx` en los metadatos del alta).
+Sin pegarla, el cliente recibe el correo genérico de Supabase, en inglés, o la
+versión vieja que le dice «has creado una cuenta de entrenador». **Solo se puede
+editar con SMTP propio** (`docs/correo-transaccional.md` §3).
+
+**3. Ajustes de Auth que la invitación da por hechos** — *Authentication →
+Sign In / Providers*.
+
+- **Confirm email**: la aplicación funciona con y sin. Sin confirmación, el alta
+  entra directa al consentimiento; con ella, el cliente recibe el correo y el
+  enlace le devuelve a la invitación. Si el SMTP sigue siendo el compartido de
+  Supabase (pocos envíos por hora), apagarla evita que un cliente se quede
+  esperando un correo que no sale.
+- **Flujo implícito, no PKCE**: `lib/supabaseClient.js` no fija `flowType`, así
+  que es el implícito por defecto. Eso es lo que permite confirmar el correo en
+  OTRO navegador (registrarse dentro de WhatsApp y pulsar el enlace en Gmail o
+  Safari): el enlace trae la sesión en la dirección y no necesita nada guardado
+  en el navegador del alta. Si algún día se cambia a PKCE, esa confirmación
+  cruzada deja de iniciar sesión y el cliente tendría que entrar con su
+  contraseña: la pantalla ya lo explica si el enlace llega caducado o gastado.
+- **Google**: en los navegadores de dentro de WhatsApp o Instagram Google bloquea
+  el acceso (`disallowed_useragent`); la pantalla lo detecta, esconde el botón y
+  ofrece copiar el enlace para abrirlo en Safari o Chrome. No hay nada que
+  configurar para eso.
 
 ## Edge Functions
 

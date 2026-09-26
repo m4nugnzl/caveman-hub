@@ -135,7 +135,7 @@ export const TarjetaArranque = ({ client, phases, plan, ciclo, program, conEntre
               {/* El enlace se copia solo, y hay que decirlo: si no, la fila
                   parece no haber hecho nada. Lo mismo que en la guía. */}
               {invite?.ok && (
-                <span className="palanca-s">{invite.copied ? 'Enlace copiado' : invite.url}</span>
+                <span className="palanca-s">{invite.copied ? 'Mensaje copiado: pégalo en su WhatsApp' : invite.url}</span>
               )}
               {invite?.ok === false && (
                 <span className="palanca-s" style={{ color: 'var(--negative)' }}>

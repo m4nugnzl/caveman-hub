@@ -195,8 +195,8 @@ export const GettingStarted = () => {
           {actual.id === 'invitar' && invite?.ok && (
             <span className="t-xs t-secondary">
               {invite.copied
-                ? 'Enlace copiado. Mándaselo por WhatsApp.'
-                : `Cópialo a mano: ${invite.url}`}
+                ? 'Mensaje con su enlace copiado: pégalo en su WhatsApp.'
+                : `Cópialo a mano: ${invite.mensaje}`}
             </span>
           )}
           {invite?.ok === false && (

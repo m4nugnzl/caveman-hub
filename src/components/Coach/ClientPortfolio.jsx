@@ -52,7 +52,8 @@ import { NewClientForm } from './NewClientForm';
 const MandarAlgo = lazy(() =>
   import('./MandarAlgo').then((m) => ({ default: m.MandarAlgo }))
 );
-import { inviteMessage, useInvite } from './useInvite';
+import { AvisoDeInvitacion } from './AvisoDeInvitacion';
+import { useInvite } from './useInvite';
 
 /**
  * Los pesajes recientes de una persona, ordenados: los últimos tres meses como
@@ -1526,11 +1527,7 @@ export const ClientPortfolio = () => {
 
               {invite && (
                 <div ref={noticeRef}>
-                  {invite.ok ? (
-                    <Notice tone={invite.copied ? 'success' : 'info'}>{inviteMessage(invite)}</Notice>
-                  ) : (
-                    <Notice tone="error">{invite.error}</Notice>
-                  )}
+                  <AvisoDeInvitacion result={invite} />
                 </div>
               )}
 

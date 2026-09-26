@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { supabase } from '@/lib/supabaseClient';
 import { MIN_PASSWORD, traduceAuthError } from '@/lib/authErrors';
+import { navegadorDeFuera, navegadorIntegrado } from '@/lib/navegadorIntegrado';
 import { RESET_PATH } from '@/routes';
 import { Field, Notice, Panel, SegmentedControl } from '@/components/ui/primitives';
 import { Acceso } from '@/components/Auth/Acceso';
@@ -34,10 +35,55 @@ const VOZ = {
 };
 
 /**
- * @param notice  Aviso de contexto sobre la pantalla. Lo usa la página de
- *   invitación: quien llega desde un enlace de su entrenador tiene que saber a qué
- *   está entrando ANTES de crearse una cuenta, o el formulario parece el de una
- *   aplicación cualquiera que alguien le ha mandado.
+ * Lo mismo, cuando quien llega es el CLIENTE con el enlace de su entrenador.
+ *
+ * Esta pantalla le hablaba como a un entrenador: el botón decía «Crear cuenta
+ * de entrenador», el pie «tres clientes gratis» y la letra pequeña le pedía que
+ * no se creara la cuenta «aquí», justo en el enlace que su entrenador le mandó.
+ * Y arrancaba en «Entrar», cuando casi todos llegan sin cuenta.
+ */
+const vozDeLaInvitacion = (entrenador) => ({
+  login: {
+    pie: 'Con la cuenta que ya tengas en Caveman Hub.',
+    boton: 'Entrar',
+  },
+  signup: {
+    pie: `Gratis para ti: la paga ${entrenador || 'tu entrenador'}.`,
+    boton: 'Crear mi cuenta',
+  },
+  reset: VOZ.reset,
+});
+
+/*
+  ══ El enlace del correo que ya no vale ════════════════════════════════════
+
+  Supabase devuelve a `redirectTo` con el error en la dirección
+  (`#error_code=otp_expired…`) cuando el enlace de confirmación caducó o ya se
+  usó — pasa mucho: hay gestores de correo que lo abren solos para revisarlo, y
+  cuando la persona lo pulsa ya está gastado. Sin leerlo, llegaba a un
+  formulario vacío sin saber si su cuenta existía. Casi siempre existe y está
+  confirmada: lo que toca es entrar con la contraseña.
+*/
+const errorDelEnlace = () => {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(
+    `${window.location.search.slice(1)}&${window.location.hash.replace(/^#/, '')}`
+  );
+  const codigo = params.get('error_code');
+  if (!codigo && !params.get('error')) return null;
+  /* Un acceso con Google cancelado o rechazado vuelve igual, con otro código:
+     ese no es «el enlace del correo», y decírselo sería mandarle a buscarlo. */
+  if (codigo === 'otp_expired' || /link/i.test(params.get('error_description') || '')) {
+    return 'Ese enlace del correo ya no vale: caduca y solo sirve una vez. Si ya lo habías pulsado, tu cuenta está lista: entra con tu correo y tu contraseña.';
+  }
+  return null;
+};
+
+/**
+ * @param invitacion  Quien llega por el enlace de su entrenador:
+ *   `{ entrenador, cliente, accesoNuevo, modo }` (lo que devuelve
+ *   `leer_invitacion`, 0148). Con ella la pantalla le habla al cliente, arranca
+ *   en «Crear cuenta» —o en `modo`— y el correo de confirmación vuelve al enlace.
  * @param destino  A dónde vuelve el navegador después de pasar por Google.
  *
  *   Por defecto, la raíz. Y la página de invitación pasa la SUYA, que es lo
@@ -48,7 +94,7 @@ const VOZ = {
  *   para evitar. Con el formulario de siempre no pasaba porque nunca se sale de
  *   la página: la sesión cambia y la invitación sigue ahí.
  */
-export const Login = ({ notice = null, destino = null }) => {
+export const Login = ({ invitacion = null, destino = null }) => {
   /*
     Tres modos y no dos. «Recuperar» no es una pantalla aparte porque es el mismo
     formulario con un campo menos: quien está aquí ya ha escrito su email y ha
@@ -60,11 +106,32 @@ export const Login = ({ notice = null, destino = null }) => {
     formulario.
   */
   const [params] = useSearchParams();
-  const [mode, setMode] = useState(params.get('alta') ? 'signup' : 'login');
-  const [form, setForm] = useState({ email: '', password: '', name: '' });
-  const [error, setError] = useState(null);
+  /* El enlace del correo caducado manda a «Entrar»: la cuenta ya existe. */
+  const [enlaceCaducado] = useState(errorDelEnlace);
+  const [mode, setMode] = useState(() => {
+    if (enlaceCaducado) return 'login';
+    if (invitacion) return invitacion.modo || 'signup';
+    return params.get('alta') ? 'signup' : 'login';
+  });
+  /* El nombre de pila de la ficha, ya puesto: es el suyo, y lo puede cambiar. */
+  const [form, setForm] = useState({ email: '', password: '', name: invitacion?.cliente || '' });
+  const [error, setError] = useState(enlaceCaducado);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const { integrado, app } = navegadorIntegrado();
+
+  /* Fuera de WhatsApp, lo que se abre es ESTA dirección (con el token dentro
+     cuando se llega por invitación). */
+  const copiarEnlace = async () => {
+    try {
+      await navigator.clipboard.writeText(destino || window.location.href);
+      setCopiado(true);
+    } catch {
+      setCopiado(false);
+      setError(`No se ha podido copiar. Abre el menú de ${app || 'esta app'} y elige «Abrir en ${navegadorDeFuera()}».`);
+    }
+  };
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -174,21 +241,32 @@ export const Login = ({ notice = null, destino = null }) => {
             'Si hay una cuenta con ese email, te llega un enlace para elegir contraseña nueva. Revisa también la carpeta de spam. Y si eres cliente de un entrenador y no te llega, escríbele: puede darte un enlace de acceso nuevo al momento.'
           );
       } else {
-        // Alta de un ENTRENADOR. El rol 'coach' lo asigna el trigger
-        // handle_new_user en la base de datos, no el cliente.
+        // El rol 'coach' lo asigna el trigger handle_new_user a TODO el que se
+        // registra; el de cliente lo pone el canje de la invitación.
         const { data, error: err } = await supabase.auth.signUp({
           email: form.email.trim(),
           password: form.password,
           options: {
-            data: { name: form.name.trim() },
+            /*
+              `invitacion` no decide nada en la base: lo lee la plantilla del
+              correo de confirmación (`supabase/templates/confirmar-registro.html`)
+              para no decirle a un cliente «has creado una cuenta de entrenador».
+            */
+            data: invitacion
+              ? { name: form.name.trim(), invitacion: true, entrenador: invitacion.entrenador || '' }
+              : { name: form.name.trim() },
             /*
               Sin esto, el enlace de confirmación apunta a la «Site URL» del panel
-              de Supabase, que es una configuración que nadie recuerda haber
-              puesto y que en un despliegue nuevo apunta a `localhost`. Con la
-              dirección desde la que se está registrando, el enlace siempre vuelve
-              a donde estaba la persona.
+              de Supabase, que en un despliegue nuevo apunta a `localhost`.
+
+              Y con invitación, a la INVITACIÓN (`destino`), no a la raíz: el
+              token solo vive en esa dirección. Confirmando hacia la raíz, el
+              cliente aterrizaba con una cuenta de entrenador vacía, sin pasar por
+              el consentimiento y con su ficha sin enlazar. Si Supabase no admite
+              la dirección (Redirect URLs), vuelve a la raíz igualmente: para eso
+              está la red de `lib/invitacionPendiente`.
             */
-            emailRedirectTo: window.location.origin,
+            emailRedirectTo: destino || window.location.origin,
           },
         });
 
@@ -211,9 +289,18 @@ export const Login = ({ notice = null, destino = null }) => {
           En el primer caso no hace falta ni enseñar un aviso: el cambio de sesión
           entra solo y la aplicación se monta encima de esta pantalla.
         */
+        /*
+          Con invitación se dice además a dónde lleva el correo: de vuelta aquí,
+          a aceptar. Da igual en qué navegador se abra (el de Gmail, o Safari
+          cuando esto estaba dentro de WhatsApp): el flujo de acceso es el
+          implícito, sin nada guardado en este navegador que haga falta allí, así
+          que la invitación se termina donde se pulse el enlace.
+        */
         else if (!data?.session)
           setInfo(
-            'Cuenta creada. Te hemos enviado un enlace para confirmar el registro; revisa también la carpeta de spam.'
+            invitacion
+              ? `Te hemos enviado un correo a ${form.email.trim()}. Pulsa «Confirmar mi correo» y volverás aquí para aceptar la invitación. Revisa también el spam.`
+              : 'Cuenta creada. Te hemos enviado un enlace para confirmar el registro; revisa también la carpeta de spam.'
           );
       }
     } catch (e) {
@@ -223,7 +310,7 @@ export const Login = ({ notice = null, destino = null }) => {
     }
   };
 
-  const voz = VOZ[mode];
+  const voz = (invitacion ? vozDeLaInvitacion(invitacion.entrenador) : VOZ)[mode];
 
   /*
     ══ La columna de al lado no le habla a la misma persona ═══════════════════
@@ -233,8 +320,8 @@ export const Login = ({ notice = null, destino = null }) => {
     segundo, «tres clientes gratis» no le dice nada —él no lleva a nadie y no
     paga nada— y encima le hace dudar de si esto le va a costar dinero.
 
-    El aviso de contexto es lo que distingue un caso del otro: solo lo manda la
-    página de invitación.
+    La invitación es lo que distingue un caso del otro: solo la manda la página
+    de invitación.
   */
   /*
     Y sin invitación entran otros dos, no uno: el entrenador que viene de la
@@ -245,9 +332,9 @@ export const Login = ({ notice = null, destino = null }) => {
     invitación, no por este formulario). En «Entrar» la columna les habla a los
     dos con lo único que comparten: aquí está tu trabajo, tal y como lo dejaste.
   */
-  const aparte = notice
+  const aparte = invitacion
     ? {
-        rotulo: 'Invitación de tu entrenador',
+        rotulo: invitacion.entrenador ? `Invitación de ${invitacion.entrenador}` : 'Invitación de tu entrenador',
         lema: 'Tu rutina y tu dieta,',
         remate: 'donde entrenas',
         puntos: [
@@ -302,16 +389,47 @@ export const Login = ({ notice = null, destino = null }) => {
           Por eso ese modo —y solo ese— sí lleva titular: sin pestañas, una
           tarjeta que empieza por una frase suelta no dice qué es.
         */}
+        {/*
+          Con invitación, un titular SÍ: trae un dato que las pestañas no dicen
+          —quién te invita, o que esto es un acceso nuevo— y es lo que hace que el
+          formulario no parezca el de una app cualquiera que alguien te ha pasado.
+        */}
+        {invitacion && mode !== 'reset' && (
+          <div className="acceso-card-head">
+            <strong className="acceso-title">
+              {invitacion.accesoNuevo
+                ? 'Tu acceso nuevo'
+                : invitacion.entrenador
+                  ? `${invitacion.entrenador} te ha invitado`
+                  : 'Te han invitado'}
+            </strong>
+            {invitacion.accesoNuevo && (
+              <span className="t-sm t-tertiary">
+                Tu cuenta de antes ya no vale. Crea otra o entra con Google: todo lo tuyo sigue ahí.
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Con invitación, «Crear cuenta» primero —es lo que viene a hacer casi
+            todo el mundo— y el otro camino se nombra por quién es. */}
         {mode !== 'reset' && (
           <SegmentedControl
             ancho
             label="Entrar o crear una cuenta"
             value={mode}
             onChange={go}
-            options={[
-              { id: 'login', label: 'Entrar' },
-              { id: 'signup', label: 'Crear cuenta' },
-            ]}
+            options={
+              invitacion
+                ? [
+                    { id: 'signup', label: 'Crear cuenta' },
+                    { id: 'login', label: 'Ya tengo cuenta' },
+                  ]
+                : [
+                    { id: 'login', label: 'Entrar' },
+                    { id: 'signup', label: 'Crear cuenta' },
+                  ]
+            }
           />
         )}
 
@@ -320,7 +438,6 @@ export const Login = ({ notice = null, destino = null }) => {
           <span className="t-sm t-tertiary">{voz.pie}</span>
         </div>
 
-        {notice && <Notice tone="info">{notice}</Notice>}
         {error && <Notice tone="error">{error}</Notice>}
         {info && <Notice tone="success">{info}</Notice>}
 
@@ -338,8 +455,27 @@ export const Login = ({ notice = null, destino = null }) => {
           En «recuperar» no aparece: ahí no se está entrando, se está pidiendo un
           enlace para una contraseña que se ha olvidado — y quien entra con
           Google no tiene ninguna.
+
+          Y dentro de WhatsApp o Instagram tampoco: Google bloquea su acceso en
+          esas vistas (`disallowed_useragent`) y el botón acababa en una pantalla
+          de error en inglés. Se dice por qué y se da la salida: copiar el enlace
+          y abrirlo en el navegador de verdad. El correo sí funciona aquí.
         */}
-        {mode !== 'reset' && (
+        {mode !== 'reset' && integrado && (
+          <Notice
+            tone="info"
+            action={
+              <button type="button" className="btn btn-secondary btn-sm shrink-0" onClick={copiarEnlace}>
+                {copiado ? 'Copiado' : 'Copiar enlace'}
+              </button>
+            }
+          >
+            Dentro de {app || 'esta app'}, Google no deja entrar. Para usarlo, copia el enlace y ábrelo en{' '}
+            {navegadorDeFuera()}. Con tu correo puedes seguir aquí.
+          </Notice>
+        )}
+
+        {mode !== 'reset' && !integrado && (
           <>
             <button
               type="button"
@@ -439,7 +575,7 @@ export const Login = ({ notice = null, destino = null }) => {
 
           Se dice para quién es el alta, y qué hacer si no eres tú.
         */}
-        {mode === 'signup' && (
+        {mode === 'signup' && !invitacion && (
           <p className="t-xs t-tertiary acceso-fine">
             ¿Eres cliente de un entrenador? No te crees una cuenta aquí: entra con el enlace que él
             te mandó.

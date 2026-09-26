@@ -1215,6 +1215,14 @@ button.link { background: none; border: 0; padding: 0; font: inherit; cursor: po
   .notice > .grow ~ :not(.notice-cerrar) { margin-left: calc(15px + var(--s2)); }
 }
 .notice-cerrar:hover:not(:disabled) { color: inherit; opacity: 1; background: var(--fill); }
+/* El mensaje de la invitación cuando el portapapeles no deja copiarlo: un toque
+   lo selecciona entero, saltos de línea incluidos (`AvisoDeInvitacion`). */
+.aviso-mensaje {
+  display: block; margin-top: var(--s2);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  user-select: all; -webkit-user-select: all;
+  color: var(--text);
+}
 
 .notice-error { background: var(--negative-soft); color: var(--negative); }
 .notice-success { background: var(--positive-soft); color: var(--positive); }

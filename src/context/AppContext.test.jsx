@@ -550,7 +550,11 @@ describe('AppProvider', () => {
     //
     // Y 346 con LAS VERSIONES DEL PLAN (0147): `leerVersionesDelPlan` (la lista
     // de «Versiones» de la Temporada) y `restaurarVersionDelPlan`.
-    expect(Object.keys(visto.app).length).toBe(346);
+    //
+    // Y 347 con EL ESTADO DEL ACCESO (0148): `loadInvite` lee la última
+    // invitación de la ficha para decir si está enviada, caducada o sin
+    // mandar. Ver `domain/acceso`.
+    expect(Object.keys(visto.app).length).toBe(347);
   });
 
   /*

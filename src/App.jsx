@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { track } from '@/lib/analytics';
 
 import { useActions, useApp } from '@/context/AppContext';
+import { invitacionPendiente } from '@/lib/invitacionPendiente';
 import { lazyRoute } from '@/lib/lazyRoute';
 import { CLAVE_COPIADO_EN_EL_CHOQUE } from '@/lib/portapapeles';
 import { useEsTelefono } from '@/lib/useMediaQuery';
@@ -343,7 +344,7 @@ const ConServicio = ({ servicio, to = null, children }) => {
 export default function App() {
   /* `activeClient` solo se usa para volver del portal del cliente: su ruta no
      lleva el id dentro, así que sin él no se puede componer la del entrenador. */
-  const { session, loading, loadError, conflict, resolveConflict, view, isCoach, activeClient } = useApp();
+  const { session, loading, loadError, conflict, resolveConflict, view, isCoach, activeClient, clients } = useApp();
 
   /*
     La revisión compartida se ve SIN sesión, y por eso va antes de todo lo demás:
@@ -424,6 +425,20 @@ export default function App() {
     if (path === '/') return <LandingPage />;
     return <Login />;
   }
+
+  /*
+    ══ La invitación que se quedó a medias ═══════════════════════════════════
+
+    Una cuenta sin ninguna ficha —ni como entrenador ni como cliente— con una
+    invitación abierta y sin canjear en este navegador es un cliente al que algo
+    ha sacado del enlace: el correo de confirmación volviendo a la raíz, una
+    pestaña cerrada entre el alta y el «Acepto», la app abierta a mano. Sin esto
+    se queda en un panel de entrenador vacío, sin consentimiento y con su ficha
+    sin enlazar. La pantalla de invitación decide el resto (y olvida el token si
+    ya no sirve o si quien mira es un entrenador). Ver `lib/invitacionPendiente`.
+  */
+  const invitacionAMedias = clients.length === 0 ? invitacionPendiente() : null;
+  if (invitacionAMedias) return <Navigate to={`/invitacion/${invitacionAMedias}`} replace />;
 
   return (
     /*

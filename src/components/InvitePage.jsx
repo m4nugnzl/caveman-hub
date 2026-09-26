@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 
 import { supabase } from '@/lib/supabaseClient';
+import { olvidarInvitacion, recordarInvitacion } from '@/lib/invitacionPendiente';
+import { navegadorDeFuera, navegadorIntegrado } from '@/lib/navegadorIntegrado';
+import { fechaDelEnlace } from '@/domain/acceso';
 import { Logo } from '@/components/ui/Logo';
 import { Loading } from '@/components/ui/primitives';
 import { Login } from '@/components/Auth/Login';
@@ -15,29 +18,250 @@ import { CONSENT_VERSION, ConsentNotice } from '@/components/Auth/ConsentNotice'
  *
  * `clients.client_profile_id` es lo que enlaza una ficha con una cuenta, y de ahí
  * salen TODOS los permisos del portal del cliente: leer su rutina, registrar sus
- * series, subir sus fotos. Esa columna existía desde el principio y no había ninguna
- * pantalla para rellenarla, así que el portal completo estaba construido y era
- * inalcanzable salvo escribiendo un uuid a mano en el panel de Supabase.
+ * series, subir sus fotos. Esta pantalla es la única que lo rellena.
  *
  * ══ El orden importa ═══════════════════════════════════════════════════════
  *
  * Primero la cuenta, después el canje. El token no crea la sesión: identifica la
  * ficha. Hacen falta las dos cosas —recibir el enlace y tener cuenta— y eso es
- * deliberado: si bastara el email, cualquiera que conozca la dirección de un cliente
- * podría registrarse con ella y heredar su ficha, su historial y sus fotos.
+ * deliberado: si bastara el email, cualquiera que conozca la dirección de un
+ * cliente podría registrarse con ella y heredar su ficha, su historial y sus fotos.
  *
- * Así que sin sesión se muestra el login de siempre, con una nota de a qué se está
- * entrando. Con sesión, se canjea y se recarga en el portal.
+ * ══ Y antes de la cuenta, el enlace (0148) ═════════════════════════════════
+ *
+ * La pantalla no sabía nada del enlace hasta después de crear la cuenta: el
+ * cliente se registraba, aceptaba y DESPUÉS leía «ha caducado», con una cuenta
+ * vacía ya creada. Ahora lo primero es `leer_invitacion`, que se puede llamar
+ * sin sesión, y cada estado tiene su pantalla:
+ *
+ *   · valida    → crear la cuenta (o entrar), el consentimiento y el canje.
+ *   · tuya      → ya es su ficha: directo a su portal, sin error.
+ *   · caducada, anulada, usada, enlazada, no_existe → qué pasó y qué hacer,
+ *                 ANTES de pedir ninguna cuenta.
+ *   · bloqueo   → quien mira es un entrenador: aquí no se acepta nada.
+ *
+ * Si la función no está (la 0148 sin aplicar) o la red falla, `desconocido`:
+ * la pantalla hace lo de antes y la base sigue decidiendo al canjear.
  */
+
+const PORTAL = '/mi/rutina';
+/* Los estados en los que este enlace ya no va a enlazar nada. */
+const NO_SIRVE = ['no_existe', 'caducada', 'anulada', 'usada', 'enlazada'];
+/* Los del entrenador: la guarda de la base (`motivo_para_no_canjear`). */
+const DE_ENTRENADOR = ['propia', 'entrenador', 'equipo'];
+
+const mayuscula = (texto) => texto.charAt(0).toUpperCase() + texto.slice(1);
+
+const cerrarSesion = async () => {
+  await supabase.auth.signOut();
+  window.location.reload();
+};
+
+const Pagina = ({ children }) => (
+  <div className="review-page">
+    <div className="review-card col gap-4">
+      <Logo />
+      {children}
+    </div>
+  </div>
+);
+
+const Cargando = ({ label }) => (
+  <div className="review-page">
+    <div className="review-card">
+      <Loading label={label} />
+    </div>
+  </div>
+);
+
+/** El icono, el titular y lo que pasa, en una fila: la cabecera de cada estado. */
+const Veredicto = ({ icono: Icono, color, titulo, children }) => (
+  <div className="row gap-3">
+    <Icono size={22} color={color} style={{ flexShrink: 0 }} />
+    <div className="col gap-1">
+      <h2>{titulo}</h2>
+      {children && <p className="t-sm t-secondary">{children}</p>}
+    </div>
+  </div>
+);
+
+/**
+ * El enlace ya no sirve. Se dice ANTES de pedir una cuenta, con quién hablar y,
+ * cuando es probable que sea suyo (usado, o la ficha ya tiene cuenta), con la
+ * puerta para entrar con la que ya tiene.
+ */
+const EnlaceQueNoSirve = ({ lectura, email, onEntrar }) => {
+  const quien = lectura.entrenador || 'tu entrenador';
+  const { titulo, texto, entrar } = {
+    no_existe: {
+      titulo: 'Este enlace no funciona',
+      texto: 'Puede que se cortara al copiarlo. Pídele a tu entrenador que te lo mande otra vez.',
+    },
+    caducada: {
+      titulo: `Este enlace caducó el ${fechaDelEnlace(lectura.caduca)}`,
+      texto: `Pídele a ${quien} uno nuevo: lo genera en un momento.`,
+    },
+    anulada: {
+      titulo: 'Este enlace ya no vale',
+      texto: `${mayuscula(quien)} generó uno nuevo. Búscalo en tu WhatsApp o pídeselo.`,
+    },
+    usada: {
+      titulo: 'Este enlace ya se usó',
+      texto: `Si fuiste tú, entra con la cuenta que creaste. Si no, pídele a ${quien} uno nuevo.`,
+      entrar: true,
+    },
+    enlazada: {
+      titulo: 'Tu ficha ya tiene cuenta',
+      texto: `Si es tuya, entra con ella. Si la perdiste, pídele a ${quien} un acceso nuevo.`,
+      entrar: true,
+    },
+  }[lectura.estado];
+
+  return (
+    <Pagina>
+      <Veredicto icono={XCircle} color="var(--negative)" titulo={titulo}>
+        {texto}
+      </Veredicto>
+
+      {/* Con sesión, es OTRA cuenta (si fuera la suya, el estado sería «tuya»). */}
+      {entrar && email && (
+        <p className="t-sm t-secondary">
+          Ahora estás dentro con <strong>{email}</strong>.
+        </p>
+      )}
+      {entrar && (
+        <button type="button" className="btn btn-primary btn-lg" onClick={email ? cerrarSesion : onEntrar}>
+          {email ? 'Cerrar sesión y entrar con otra' : 'Entrar con mi cuenta'}
+        </button>
+      )}
+    </Pagina>
+  );
+};
+
+/*
+  ══ Quien mira es un entrenador ═══════════════════════════════════════════
+
+  Si pulsara «Acepto», su cuenta DEJARÍA DE SER la suya: el canje termina con
+  `profiles.role = 'client'` sobre quien llama. Probar el enlace que acabas de
+  generar es lo que hace todo el mundo al montar la asesoría.
+
+  Un callejón sin salida a propósito: aquí NO hay botón de aceptar. Lo decide
+  la misma guarda que el canje (`motivo_para_no_canjear`, 0148), así que lo que
+  se ve aquí es lo que la base haría.
+*/
+const NoEsParaTi = ({ motivo, email }) => (
+  <Pagina>
+    <Veredicto
+      icono={AlertTriangle}
+      color="var(--negative)"
+      titulo={motivo === 'propia' ? 'Este enlace no es para ti' : 'Estás dentro con una cuenta de entrenador'}
+    >
+      {motivo === 'propia' ? (
+        <>
+          Es la invitación de tu cliente, y estás dentro con tu cuenta de entrenador
+          {email ? ` (${email})` : ''}. Si la aceptaras, tu cuenta pasaría a ser la suya y perderías de
+          vista tu cartera.
+        </>
+      ) : (
+        <>
+          Esta invitación es para un cliente, y {email ? <strong>{email}</strong> : 'esta cuenta'} ya
+          trabaja como entrenador. Cierra sesión y crea la cuenta del cliente con otro correo.
+        </>
+      )}
+    </Veredicto>
+    {motivo === 'propia' && (
+      <p className="t-sm t-secondary">
+        El enlace sigue sirviendo. Mándaselo a tu cliente, o ábrelo en una ventana privada para ver por
+        dónde entra.
+      </p>
+    )}
+    <button type="button" className="btn btn-primary btn-lg" onClick={() => window.location.replace('/')}>
+      Volver a mis clientes
+    </button>
+    <button type="button" className="btn btn-secondary btn-lg" onClick={cerrarSesion}>
+      Cerrar sesión y entrar como cliente
+    </button>
+  </Pagina>
+);
+
+/**
+ * «Todo listo», y lo que va a necesitar mañana.
+ *
+ * El cliente suele terminar dentro del navegador de WhatsApp: la sesión se queda
+ * ahí, y mañana abrirá Safari y no estará dentro, ni sabrá dónde era ni con qué
+ * correo entró. Dos líneas: dónde y con qué, y cómo tenerla a mano.
+ */
+const TodoListo = ({ nombre, session, accesoNuevo }) => {
+  const [copiada, setCopiada] = useState(false);
+  const { integrado, app } = navegadorIntegrado();
+  const host = window.location.host;
+  const email = session?.user?.email;
+  const conGoogle = session?.user?.app_metadata?.provider === 'google';
+  const pila = nombre ? String(nombre).trim().split(/\s+/)[0] : '';
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/entrar`);
+      setCopiada(true);
+    } catch {
+      setCopiada(false);
+    }
+  };
+
+  return (
+    <Pagina>
+      <Veredicto icono={CheckCircle2} color="var(--positive)" titulo={`Todo listo${pila ? `, ${pila}` : ''}`}>
+        {accesoNuevo ? 'Tu ficha vuelve a ser tuya, con todo tu historial.' : 'Tu cuenta ya está enlazada.'}
+      </Veredicto>
+
+      <div className="col gap-2 t-sm t-secondary">
+        {email && (
+          <p>
+            La próxima vez, entra en <strong>{host}</strong> {conGoogle ? 'con Google' : 'con'}{' '}
+            <strong>{email}</strong>.
+          </p>
+        )}
+        <p>
+          {integrado
+            ? `Estás dentro de ${app || 'otra app'}: abre ${host} en ${navegadorDeFuera()} y añádela a la pantalla de inicio para tenerla a mano.`
+            : 'Añádela a la pantalla de inicio desde el menú del navegador para tenerla a mano.'}
+        </p>
+      </div>
+
+      {integrado && (
+        <button type="button" className="btn btn-secondary btn-lg" onClick={copiar}>
+          {copiada ? 'Dirección copiada' : 'Copiar la dirección'}
+        </button>
+      )}
+      {/*
+        Recarga completa y no `navigate`: el rol del perfil ha cambiado a
+        'client' en la base de datos, y es en el arranque cuando la aplicación
+        lo lee para decidir qué cargar.
+      */}
+      <button type="button" className="btn btn-primary btn-lg" onClick={() => window.location.replace(PORTAL)}>
+        Entrar
+      </button>
+    </Pagina>
+  );
+};
+
 export const InvitePage = () => {
   const { token } = useParams();
   const [session, setSession] = useState(null);
   const [checking, setChecking] = useState(true);
+  /* Lo que dice la base del enlace; `null` mientras se pregunta. Es lo que
+     evita enseñar un formulario un instante antes de saber que no sirve. */
+  const [lectura, setLectura] = useState(null);
   const [state, setState] = useState({ status: 'idle' });
   const [accepted, setAccepted] = useState(false);
-  /* `null` mientras no se sabe: es lo que evita enseñar el botón de aceptar un
-     instante antes de descubrir que quien mira es el entrenador. */
-  const [esEntrenador, setEsEntrenador] = useState(null);
+  /* «Entrar con mi cuenta» desde un enlace usado: el login, en «Entrar». */
+  const [conMiCuenta, setConMiCuenta] = useState(false);
+
+  /* La red de seguridad: si el correo de confirmación o una pestaña cerrada le
+     devuelven a la raíz, `App` le trae aquí. Ver `lib/invitacionPendiente`. */
+  useEffect(() => {
+    recordarInvitacion(token);
+  }, [token]);
 
   useEffect(() => {
     let alive = true;
@@ -53,55 +277,32 @@ export const InvitePage = () => {
     };
   }, []);
 
-  /*
-    ══ ¿Está mirando esto un entrenador? ═════════════════════════════════════
-
-    Porque si lo está y pulsa «Acepto», su cuenta DEJA DE SER la suya: el canje
-    termina con `UPDATE profiles SET role = 'client'` sobre quien llama, y a
-    partir de la siguiente recarga entra en el portal del cliente con sus fichas
-    fuera de la vista. Probar el enlace que acabas de generar es lo que hace todo
-    el mundo al montar la asesoría, así que este no es un camino raro.
-
-    ── Por qué no se mira `profiles.role` ────────────────────────────────────
-    Porque no distingue nada: `handle_new_user` da `'coach'` a TODO el que se
-    registra —el rol de cliente lo pone el canje—, así que en esa columna un
-    cliente recién registrado y un entrenador con veinte fichas son iguales.
-
-    Se pregunta por hechos, y las dos consultas son las dos formas de tenerlos:
-
-      · fichas a su nombre — un cliente recién registrado tiene cero;
-      · poder LEER esta invitación — la política `invites_coach_read` solo se la
-        enseña al entrenador del cliente invitado, así que una fila aquí
-        significa «este enlace es de un cliente tuyo». Cubre al entrenador que
-        todavía no tiene ninguna otra ficha, que es justo quien está probando.
-
-    Esto es el aviso, no la cerradura: la de verdad es la guarda de
-    `claim_client_invite` (migración 0084), porque esta se salta abriendo las
-    herramientas de desarrollo y lo que hay al otro lado es una cuenta rota.
-  */
+  /* Se vuelve a leer al cambiar de cuenta: con sesión, la misma invitación
+     puede ser «tuya» o traer un bloqueo de entrenador. */
+  const uid = session?.user?.id || null;
   useEffect(() => {
-    const uid = session?.user?.id;
-    if (!uid) {
-      setEsEntrenador(null);
-      return undefined;
-    }
-
+    if (checking) return undefined;
     let alive = true;
-    Promise.all([
-      supabase.from('clients').select('id').eq('coach_id', uid).limit(1),
-      supabase.from('client_invites').select('id').eq('token', token).limit(1),
-    ]).then(([fichas, propia]) => {
+    setLectura(null);
+    supabase.rpc('leer_invitacion', { p_token: token }).then(({ data, error }) => {
       if (!alive) return;
-      /* Si alguna consulta falla se sigue adelante: quedarse bloqueado dejaría
-         fuera al cliente legítimo por un fallo de red, y la base sigue siendo
-         quien decide. */
-      setEsEntrenador((fichas.data?.length || 0) > 0 || (propia.data?.length || 0) > 0);
+      setLectura(error || !data ? { estado: 'desconocido' } : data);
     });
-
     return () => {
       alive = false;
     };
-  }, [session, token]);
+  }, [checking, uid, token]);
+
+  /* Lo que ya no va a enlazar nada deja de estar pendiente, y lo suyo va a su portal. */
+  useEffect(() => {
+    if (!lectura) return;
+    if (lectura.estado === 'tuya') {
+      olvidarInvitacion(token);
+      window.location.replace(PORTAL);
+    } else if (NO_SIRVE.includes(lectura.estado) || lectura.bloqueo) {
+      olvidarInvitacion(token);
+    }
+  }, [lectura, token]);
 
   const claim = useCallback(async () => {
     setState({ status: 'claiming' });
@@ -116,189 +317,118 @@ export const InvitePage = () => {
       p_consent_version: CONSENT_VERSION,
     });
     if (error) {
-      // Los mensajes vienen de la función y están escritos para leerse: «ha
-      // caducado», «ya se ha usado», «ya está enlazada a otra cuenta». Se muestran
-      // tal cual en vez de un «error» genérico, porque cada uno se resuelve de una
-      // forma distinta y el cliente tiene que saber cuál.
-      setState({ status: 'error', message: error.message });
+      /* La guarda de la base habló aunque la lectura no lo viera venir (o no
+         estuviera): la misma pantalla de «no es para ti». */
+      if (DE_ENTRENADOR.includes(error.hint)) {
+        olvidarInvitacion(token);
+        setLectura((l) => ({ ...l, bloqueo: error.hint }));
+        setState({ status: 'idle' });
+        return;
+      }
+      /* Los mensajes de la base están escritos para leerse y cada uno dice qué
+         hacer (0148). Sin código suele ser la red: se dice así y se reintenta. */
+      const sinRed = !error.hint && /fetch|network|load failed/i.test(error.message || '');
+      setState({
+        status: 'error',
+        codigo: error.hint || null,
+        message: sinRed ? 'No se ha podido conectar. Comprueba la conexión y vuelve a intentarlo.' : error.message,
+      });
       return;
     }
+    olvidarInvitacion(token);
     setState({ status: 'done', name: data });
   }, [token]);
 
-  /*
-    ── Antes esto se canjeaba solo, y ya no ──────────────────────────────────
-    El razonamiento era que quien abre un enlace de invitación y se registra ya ha
-    dicho que sí dos veces. Es verdad para el enlace, y no vale para lo que se
-    guarda detrás: esta aplicación trata peso, pliegues y fotos del cuerpo, y eso
-    necesita un sí explícito e informado, no uno deducido de dos clics anteriores.
+  if (checking || !lectura || lectura.estado === 'tuya') {
+    return <Cargando label={lectura?.estado === 'tuya' ? 'Entrando…' : undefined} />;
+  }
 
-    Así que hay un paso más, y es el único sitio donde lo hay.
-  */
+  const email = session?.user?.email || null;
 
-  if (checking) {
-    return (
-      <div className="review-page">
-        <div className="review-card">
-          <Loading />
-        </div>
-      </div>
-    );
+  if (NO_SIRVE.includes(lectura.estado) && !(conMiCuenta && !session)) {
+    return <EnlaceQueNoSirve lectura={lectura} email={email} onEntrar={() => setConMiCuenta(true)} />;
   }
 
   if (!session) {
     return (
       <Login
-        notice="Estás aceptando la invitación de tu entrenador. Crea tu cuenta o entra con la que ya tengas: al terminar, tu ficha quedará enlazada."
+        invitacion={{
+          entrenador: lectura.entrenador || null,
+          cliente: lectura.cliente || null,
+          accesoNuevo: Boolean(lectura.acceso_nuevo),
+          modo: conMiCuenta ? 'login' : null,
+        }}
         /*
-          Volver AQUÍ, con el token puesto. Entrar con Google se va a otra página
-          y vuelve a donde se le diga; si se le dijera la raíz, esta persona
-          acabaría dentro de la aplicación con una cuenta nueva y sin enlazar a
-          su ficha, y el enlace de invitación ya estaría gastado en la barra de
-          direcciones de nadie. Con el formulario de correo no hace falta porque
-          nunca se sale de la página.
+          Volver AQUÍ, con el token puesto: después de Google y después de
+          confirmar el correo. Volviendo a la raíz, esta persona acabaría dentro
+          con una cuenta nueva y sin enlazar a su ficha.
         */
-        destino={window.location.href}
+        destino={window.location.href.split('#')[0]}
       />
     );
   }
 
-  /*
-    Con sesión iniciada pero sin saber todavía de quién es, se espera. Enseñar el
-    botón y retirarlo medio segundo después sería peor que tardar medio segundo.
-  */
-  if (esEntrenador === null) {
-    return (
-      <div className="review-page">
-        <div className="review-card">
-          <Loading />
-        </div>
-      </div>
-    );
+  if (lectura.bloqueo) return <NoEsParaTi motivo={lectura.bloqueo} email={email} />;
+
+  if (state.status === 'done') {
+    return <TodoListo nombre={state.name} session={session} accesoNuevo={Boolean(lectura.acceso_nuevo)} />;
   }
 
   /*
-    Un callejón sin salida a propósito: aquí NO hay botón de aceptar. El gesto que
-    se ofrece es el que resuelve de verdad —salir— y el enlace queda intacto para
-    que lo abra quien tiene que abrirlo.
+    ── Antes esto se canjeaba solo, y ya no ──────────────────────────────────
+    Esta aplicación trata peso, pliegues y fotos del cuerpo, y eso necesita un sí
+    explícito e informado, no uno deducido de dos clics anteriores. Así que hay un
+    paso más, y es el único sitio donde lo hay.
   */
-  if (esEntrenador) {
-    return (
-      <div className="review-page">
-        <div className="review-card col gap-4">
-          <Logo size={34} />
-          <div className="row gap-3">
-            <AlertTriangle size={22} color="var(--negative)" />
-            <div className="col gap-1">
-              <h2>Este enlace no es para ti</h2>
-              <p className="t-sm t-secondary">
-                Estás dentro con tu cuenta de entrenador
-                {session?.user?.email ? ` (${session.user.email})` : ''}. Si aceptaras esta
-                invitación, esa cuenta pasaría a ser la del cliente y perderías de vista tu
-                cartera.
-              </p>
-            </div>
+  return (
+    <Pagina>
+      {state.status !== 'error' && (
+        <>
+          <div className="col gap-1">
+            <h2>{lectura.cliente ? `${lectura.cliente}, antes de entrar` : 'Antes de entrar'}</h2>
+            <p className="t-sm t-secondary">Esto es lo que se guarda de ti y quién puede verlo.</p>
           </div>
-          <p className="t-sm t-secondary">
-            El enlace sigue sirviendo. Mándaselo a tu cliente, o ábrelo en una ventana privada
-            si lo que quieres es ver por dónde entra él.
-          </p>
+
+          <ConsentNotice checked={accepted} onChange={setAccepted} />
+
+          {/*
+            El botón está apagado hasta que se marca la casilla, en vez de dejarlo
+            activo y avisar al pulsarlo: uno que no deja pulsar dice dónde está el
+            paso que queda.
+          */}
           <button
             type="button"
             className="btn btn-primary btn-lg"
-            onClick={() => window.location.replace('/')}
+            disabled={!accepted || state.status === 'claiming'}
+            onClick={claim}
           >
-            Volver a mis clientes
+            {state.status === 'claiming' ? 'Enlazando tu cuenta…' : 'Acepto y entro'}
           </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-lg"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              window.location.reload();
-            }}
-          >
-            Cerrar sesión y entrar como cliente
-          </button>
-        </div>
-      </div>
-    );
-  }
+        </>
+      )}
 
-  return (
-    <div className="review-page">
-      <div className="review-card col gap-4">
-        <Logo size={34} />
-
-        {state.status === 'idle' && (
-          <>
-            <div className="col gap-1">
-              <h2>Antes de entrar</h2>
+      {state.status === 'error' && (
+        <>
+          <Veredicto icono={XCircle} color="var(--negative)" titulo="No se ha podido aceptar">
+            {state.message}
+          </Veredicto>
+          {['usada', 'ficha_enlazada', 'cuenta_enlazada'].includes(state.codigo) && (
+            <>
               <p className="t-sm t-secondary">
-                Esto es lo que se guarda de ti y quién puede verlo. Léelo con calma: sin tu permiso
-                no se enlaza nada.
+                Ahora estás dentro con <strong>{email}</strong>.
               </p>
-            </div>
-
-            <ConsentNotice checked={accepted} onChange={setAccepted} />
-
-            {/*
-              El botón está apagado hasta que se marca la casilla, en vez de dejarlo
-              activo y avisar al pulsarlo. Un error que se explica después obliga a
-              volver a leer para encontrar qué faltaba; uno que no deja pulsar dice
-              dónde está el paso que queda.
-            */}
-            <button
-              type="button"
-              className="btn btn-primary btn-lg"
-              disabled={!accepted}
-              onClick={claim}
-            >
-              Acepto y entro
+              <button type="button" className="btn btn-primary btn-lg" onClick={cerrarSesion}>
+                Cerrar sesión
+              </button>
+            </>
+          )}
+          {!state.codigo && (
+            <button type="button" className="btn btn-primary btn-lg" onClick={claim}>
+              Volver a intentarlo
             </button>
-          </>
-        )}
-
-        {state.status === 'claiming' && <p className="t-sm t-secondary">Enlazando tu cuenta…</p>}
-
-        {state.status === 'done' && (
-          <>
-            <div className="row gap-3">
-              <CheckCircle2 size={22} color="var(--positive)" />
-              <div className="col gap-1">
-                <h2>Todo listo{state.name ? `, ${String(state.name).split(' ')[0]}` : ''}</h2>
-                <p className="t-sm t-secondary">
-                  Tu cuenta ya está enlazada. Aquí tienes tu rutina, tu dieta y tus check-ins.
-                </p>
-              </div>
-            </div>
-            {/*
-              Recarga completa y no `navigate`: el rol del perfil ha cambiado a
-              'client' en la base de datos, y es en el arranque cuando la aplicación
-              lo lee para decidir qué cargar. Navegar dejaría la sesión con el rol
-              anterior en memoria y el portal vacío.
-            */}
-            <button type="button" className="btn btn-primary btn-lg" onClick={() => window.location.replace('/mi/rutina')}>
-              Entrar
-            </button>
-          </>
-        )}
-
-        {state.status === 'error' && (
-          <>
-            <div className="row gap-3">
-              <XCircle size={22} color="var(--negative)" />
-              <div className="col gap-1">
-                <h2>No se ha podido aceptar</h2>
-                <p className="t-sm t-secondary">{state.message}</p>
-              </div>
-            </div>
-            <p className="t-xs t-tertiary">
-              Escríbele a tu entrenador para que te mande un enlace nuevo.
-            </p>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+        </>
+      )}
+    </Pagina>
   );
 };
